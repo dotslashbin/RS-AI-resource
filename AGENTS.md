@@ -174,8 +174,9 @@ When asked for a plan to be made, write it as a Markdown file under `.plans/`.
   4. Check all planned changes against best practices for the relevant layer — schema design, RLS, TypeScript, React, SQL, security. Flag any violations or concerns before execution. Do not proceed if a critical issue is found.
   5. Resolve questions/problems.
   6. Refine the plan into an explicit execution order referencing detailed sections instead of duplicating detail inline.
-  7. Execute.
-  8. Review results and add newly discovered follow-up work to the plan before continuing.
+  7. Present the plan to the user and get explicit approval before executing.
+  8. Execute.
+  9. Review results and add newly discovered follow-up work to the plan before continuing.
 - Plans should keep the non-obvious context needed for later phases if execution may span enough work to risk losing context.
 - Plan review must explicitly check for places where the current wording could permit a weak or incorrect implementation.
 - Resolve or document ambiguities before execution starts.
