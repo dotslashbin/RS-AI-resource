@@ -16,8 +16,8 @@ Allow learners to browse driving school offerings, book a slot at a school of th
 
 ### Current Features
 
-#### Booking Wizard (fully wired to Supabase)
-A 5-step guided flow:
+#### Booking Wizard (fully wired to Supabase + PayMongo)
+A 6-step guided flow:
 
 | Step | UI | Data source |
 |------|----|------------|
@@ -25,12 +25,14 @@ A 5-step guided flow:
 | 2 — Choose School | Academy list + Leaflet map (user location dot) | `academies` table (filtered by offering code) |
 | 3 — Pick Schedule | Calendar + time slot buttons | `schedules` table (recurrence expanded client-side) |
 | 4 — Upload Documents | Per-requirement file upload with progress bar | `exam.requirements` JSONB field (fetched from DB via `offerings` table) |
-| 5 — Confirm & Book | Summary screen | Writes booking to `bookings` table on confirm |
+| 5 — Confirm | Summary review screen | Review only — no DB writes |
+| 6 — Payment | Booking summary + Pay button | Writes booking to `bookings` → creates PayMongo Checkout Session → redirects to PayMongo hosted payment page |
 
 #### Dashboard
 - Booking history list (`BookingCard` components), fetched from the `bookings` table on login
 - Click-to-open booking detail modal
 - `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
+- **My Results** widget: shows the learner's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, academy name, date, price paid, a Certificate button (placeholder), and a per-offering SVG watermark (steering wheel for TDC, road perspective for PDC, motorcycle wheels for MDC, open book for lessons/other). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
 
 #### Wallet Page
 - Balance display (static ₱0.00 placeholder)
@@ -38,7 +40,8 @@ A 5-step guided flow:
 - Add funds button (non-functional)
 
 #### Settings Page
-- Display name and email (read-only, populated from Supabase Auth session)
+- Display name, email, and phone (read-only) — name/email from the Supabase Auth session, phone from `profiles.phone` (via `useSettingsPage`)
+- Appearance / dark-mode toggle
 - Logout
 
 #### Navigation
@@ -50,9 +53,12 @@ A 5-step guided flow:
 
 | Feature | Status |
 |---------|--------|
-| Booking wizard (Steps 1–5) | ✅ Supabase-wired |
-| Booking written to DB on confirm | ✅ Supabase-wired |
+| Booking wizard (Steps 1–6) | ✅ Supabase-wired |
+| Booking written to DB on confirm | ✅ Supabase-wired (Step 6) |
+| PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
 | Booking history on dashboard | ✅ Supabase-wired (fetched on login) |
+| My Results widget | ✅ Live — completed bookings as individual cards with SVG watermarks |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
 | Wallet balance | ❌ Static placeholder |
 | Wallet transactions | ❌ No data |
@@ -71,7 +77,7 @@ A 5-step guided flow:
 3. Add booking cancellation flow (learner sets status to `cancelled` while still `pending`)
 4. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
 5. Display examiner info (from `schedules.examiner_name`) on booking confirmation and detail screens
-6. Push/in-app notifications when booking status changes
+6. ~~Push/in-app notifications when booking status changes~~ **Done** — full notifications system live
 
 ---
 
@@ -151,6 +157,7 @@ Academy operators self-register via a form on the login screen. The form sends t
 | Instructors CRUD | ✅ Supabase-wired |
 | School profile | ✅ Supabase-wired |
 | Incoming bookings list | ✅ Supabase-wired |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
 | Calendar (schedules + bookings overlay) | ❌ Mock data |
 | Booking status management | ✅ Supabase-wired (approve/cancel; complete pending) |
 | Booking document viewing | ❌ Not implemented |
@@ -171,7 +178,7 @@ Academy operators self-register via a form on the login screen. The form sends t
 3. Booking documents: allow academy admin to view uploaded documents
 4. Academy logo/photo upload (Supabase Storage)
 5. Wire calendar page to real schedules + bookings from DB
-6. Notifications when a new booking arrives
+6. ~~Notifications when a new booking arrives~~ **Done** — full notifications system live
 
 ---
 
@@ -193,9 +200,9 @@ Platform-wide oversight: activate user accounts, approve academies, manage porta
 
 #### Users Page (fully wired)
 - List of all profiles across all portals, fetched from `profiles` + `user_portals` + `user_roles`
-- Create user: `POST /api/users` server route (uses `auth.admin.createUser` via service role key; `handle_new_user` trigger creates the profile row, then portals and role are inserted)
+- Create user: `POST /api/users` server route (uses `auth.admin.createUser` via service role key; `handle_new_user` trigger creates the profile row, then portals and role are inserted). The route is **caller-gated** — verifies the requester is an active command admin/root server-side before any service-role action.
 - Edit user: updates `profiles`, reconciles `user_portals` and `user_roles` client-side (RLS permits command admins)
-- Delete user: `DELETE /api/users?id=<uuid>` server route (uses `auth.admin.deleteUser`; cascades to profile, portals, roles)
+- Delete user: `DELETE /api/users?id=<uuid>` server route (uses `auth.admin.deleteUser`; cascades to profile, portals, roles). Same caller-gate; also blocks self-deletion.
 - Toggle status: flips `profiles.status_id` between active and suspended
 
 #### Schools (Academies) Page (fully wired)
@@ -205,6 +212,20 @@ Platform-wide oversight: activate user accounts, approve academies, manage porta
 - Toggle status: flips `academies.status_id` between active and suspended (governed by the `prevent_academy_status_self_update` trigger — only command admins may change status)
 - Delete school: only available to `root` role; deletes the `academies` row (cascades to offerings, instructors, schedules)
 - Schools state is held in `useAppShell` and passed to both SchoolsPage and OverviewPage so both see live counts
+
+#### Notifications Panel (fully wired)
+- Bell icon in the app header with an unread count badge (hidden when 0)
+- Slide-in panel with main view (unread + read) and archive view
+- Per-notification actions: mark read/unread, archive, delete (with confirm)
+- Bulk actions: mark all as read, archive all read
+- Realtime: new notifications prepend instantly via Supabase Realtime subscription filtered to `portal = 'command'`; fan-out model (each command user gets their own row, preserving per-user read/archive state)
+- Optimistic updates on all mutations; snapshot restore + toast on failure
+
+#### Notification Type Settings Page (fully wired)
+- Accessible via the Sidebar's Settings button
+- Table of all 7 notification types with label, description, target portal, and an on/off toggle
+- Toggle updates `notification_type_settings.is_enabled` — disabling a type suppresses all future notifications of that type platform-wide (does not delete existing rows)
+- Only visible/accessible to users with `admin` or `root` role
 
 #### Transactions Page (mock)
 - Full transaction table with search, filter panel, sorting, and pagination
@@ -221,6 +242,8 @@ Platform-wide oversight: activate user accounts, approve academies, manage porta
 | Academy list | ✅ Supabase-wired |
 | Add / edit / delete academies | ✅ Supabase-wired |
 | Academy approval / suspension | ✅ Supabase-wired |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | KPI widgets | ⚠️ School count live; bookings/revenue seeded |
 | Transactions | ❌ Mock data (`ALL_TXNS` constant — wallet table not built) |
 
@@ -252,5 +275,5 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Booking status update | ❌ (cancel only) | ⚠️ Confirm/cancel done; complete pending | ❌ (view) |
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
 | Wallet | ❌ Placeholder | — | ❌ (transactions) |
-| Notifications | ❌ | ❌ | — |
+| Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |

@@ -131,11 +131,16 @@ export function createAdminClient() {
 
 Used when an operation must bypass RLS or use server-only secrets. Current examples:
 
-- `academy/app/api/auth/register/route.ts` — academy self-registration: creates a confirmed user, activates their profile, grants portal access, creates the academy record (pending activation), and assigns the academy-admin role atomically.
-- `learner/app/api/register/route.ts` — learner self-registration: creates a confirmed user, sets profile to active, grants learner portal access, assigns the member role atomically.
+- `academy/app/api/auth/register/route.ts` — academy self-registration (public): creates a confirmed user, activates their profile, grants portal access, creates the academy record (pending activation), and assigns the academy-admin role atomically.
+- `learner/app/api/register/route.ts` — learner self-registration (public): creates a confirmed user, sets profile to active, grants learner portal access, assigns the member role atomically.
+- `command/app/api/users/route.ts` — admin user create/delete: **caller-gated** (see rule below) before any service-role action; DELETE also blocks self-deletion.
+- `learner/app/api/payment/create-session/route.ts` — **caller-gated**; verifies the booking belongs to the caller and derives the amount from the DB (never the request body).
 
 Rules:
 - Import `createAdminClient()` from `lib/supabase/admin` — never the browser or SSR client
+- **Verify the caller before any privileged action.** If a route acts *on behalf of an authenticated user* (anything except deliberately-public self-registration), authenticate the caller server-side with the SSR client (`lib/supabase/server.ts` → `auth.getUser()`), confirm the required status/role/ownership, and return `401`/`403` **before** touching the admin client. The service-role key bypasses RLS, so the route handler is the only place this check can live — RLS will not save you here.
+- **Never trust amounts, ids, prices, or roles from the request body** for privileged operations — read them from the DB using the verified caller's identity.
+- Public self-registration routes are the exception to caller-verification, but still validate/trim all input before writes.
 - Validate all input fields before any DB writes
 - Roll back (delete user / academy) on any step failure to avoid partial state
 - Return `NextResponse.json({ error })` on failure; `NextResponse.json({ ... })` on success

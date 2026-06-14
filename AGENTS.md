@@ -161,9 +161,17 @@ Change only what is needed for the task.
 
 Every changed line should be explainable by the user request.
 
+### Component Conventions
+
+Before creating any new component, read and apply `./skills/component-hook-separation.md`.
+
+- Every component with state, effects, or handlers must have a companion `useComponentName.ts` hook in the same directory
+- The `.tsx` file is a pure render layer — no `useState`, `useEffect`, or business logic
+- Pure display components (no state, no effects, no handlers) are the only exception
+
 ### Plan
 
-When asked for a plan to be made, write it as a Markdown file under `.plans/`.
+When asked for a plan to be made, read and apply `./skills/plan-authoring.md`, and write it as a Markdown file under `.plans/`. Every plan must carry the status model defined there (overall status + per-item ⬜ TODO / 🔄 IN PROGRESS / ✅ DONE / ⏸ PARKED / ✖ ABORTED, with reasons on parked/aborted and verification notes on done).
 
 - Plan filenames must start with the date, e.g. `2026-04-23-<short-topic>.md`.
 - For large multi-phase requests or list-based changes, keep the plan doc up to date with accurate completion checklists.

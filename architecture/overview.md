@@ -15,7 +15,7 @@ The platform's core purpose is to replace paper-based and informal booking proce
 **Purpose:** Book driving courses, track booking history, upload required documents  
 **Domain:** `learner` portal in Supabase
 
-A student-facing booking application. Learners browse available service offerings from accredited academies, select a school, pick a schedule slot, upload requirement documents, and confirm a booking — all in a guided 5-step wizard. The portal also shows their booking history and status.
+A student-facing booking application. Learners browse available service offerings from accredited academies, select a school, pick a schedule slot, upload requirement documents, confirm a booking, and pay — all in a guided 6-step wizard. Step 6 creates a PayMongo Checkout Session and redirects the learner to a hosted payment page (Card, GCash, GrabPay, Maya, BillEase, QRPh). The portal also shows their booking history and status.
 
 ### School Portal (`./academy`)
 **Audience:** Driving school administrators (academy-admin role)  
@@ -95,18 +95,19 @@ These are architectural invariants that must not be violated regardless of how f
 | Database | Supabase (PostgreSQL) | Shared |
 | Auth | Supabase Auth | Shared |
 | Storage | Supabase Storage | Shared (not fully wired yet) |
-| Realtime | Supabase Realtime | Available, not yet used |
+| Realtime | Supabase Realtime | Used for in-app notification delivery |
+| Email | Resend (planned) | SMTP provider for Supabase Auth emails (reset/invite/confirm); Supabase's built-in mailer is dev-only. No app-level email yet. |
 | Hosting | Vercel | All three portals |
 
 ---
 
-## Current State (May 2026)
+## Current State (June 2026)
 
 | Portal | Status |
 |--------|--------|
-| RS Learner (learner) | Core booking wizard fully functional and Supabase-wired (Steps 1–5). Dashboard shows booking history fetched from DB. Wallet is UI-only. |
-| School Portal (academy) | Offerings, schedules, instructors, profile, and bookings management (approve/reject) are Supabase-wired. Wallet, packages, and calendar are still mock. |
-| RS Command (command) | Users and schools fully Supabase-wired (create/edit/delete). Transactions and most KPI widgets are still seeded. |
+| RS Learner (learner) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the learner to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards with per-type SVG watermarks. In-app notifications live (bell icon, panel, Realtime delivery). Wallet is UI-only. |
+| School Portal (academy) | Offerings, schedules, instructors, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Wallet, packages, and calendar are still mock. |
+| RS Command (command) | Users and schools fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 
 ---
 
@@ -114,8 +115,7 @@ These are architectural invariants that must not be violated regardless of how f
 
 To avoid scope creep, the following are explicitly out of scope for the current phase:
 
-- **Payment processing.** The platform does not handle money. Pricing is informational; collection happens at the school. A wallet balance display exists in the learner portal as a UX placeholder — there is no payment gateway integration.
 - **LTO system integration.** There is no direct API link to LTO's systems. Accreditation verification is manual (Command admin reviews the `lto_accred_no`).
-- **Real-time communication.** There is no chat, messaging, or push notification system. Email and SMS are not sent from the platform.
+- **Real-time communication.** There is no chat, messaging, push notification, email, or SMS system. In-app notifications (bell icon, persistent DB-backed alerts via Supabase Realtime) are implemented as a distinct, narrower feature — not a messaging system.
 - **Multi-tenancy beyond academies.** There is no concept of regions, franchises, or academy groups beyond the individual academy record.
 - **Mobile app.** All three portals are web applications, optimised for mobile browsers but not packaged as native apps.

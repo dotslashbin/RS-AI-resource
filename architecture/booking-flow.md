@@ -1,6 +1,6 @@
 # Booking Flow
 
-The booking wizard is the core user-facing feature of the DriveBook (learner) portal. It is a 5-step guided flow that takes a learner from choosing a service to submitting a confirmed booking to Supabase.
+The booking wizard is the core user-facing feature of the DriveBook (learner) portal. It is a 6-step guided flow that takes a learner from choosing a service through payment to a confirmed booking in Supabase.
 
 ---
 
@@ -16,7 +16,10 @@ Step 3: Pick Schedule
 Step 4: Upload Documents
     ↓ sets uploads (Record<id, {name, size}>)
 Step 5: Confirm & Book
-    ↓ writes booking to Supabase → BookingConfirmation screen
+    ↓ review screen — no DB writes yet
+Step 6: Payment
+    ↓ writes booking to Supabase → creates PayMongo Checkout Session → redirects to PayMongo
+    ↓ on return: /?payment=success → toast + dashboard; /?payment=cancel → toast (booking stays pending)
 ```
 
 ---
@@ -37,6 +40,7 @@ All wizard state lives in `useBookingWizard.ts` (a custom hook in `./learner/com
 | `time` | `string` | Step 3 time slot pick (format: `HH:MM`) |
 | `selectedSchedule` | `LearnerSchedule \| null` | Resolved when time is picked |
 | `uploads` | `Record<string, UploadEntry>` | Step 4 file picks |
+| `selectedMethod` | `string \| null` | Step 6 payment method selection (UI only) |
 | `offerings` | `DbOffering[]` | Fetched on mount |
 | `academies` | `LearnerAcademy[]` | Fetched when `exam` changes |
 | `schedules` | `LearnerSchedule[]` | Fetched when `school` + `exam` change |
@@ -146,33 +150,58 @@ Files are stored in React state as `{ name: string, size: number }` — no actua
 
 **Component:** `Step6Confirm/Step6Confirm.tsx` (file name retained from original 6-step design)
 
-Shows a summary of all selections: service name, school, branch/address, date and time (displayed in 12-hour format), uploaded document list, and total price. A note informs the learner that payment is collected at the school on the day.
+Shows a summary of all selections: service name, school, branch/address, date and time (displayed in 12-hour format), uploaded document list, and total price. Review-only — no DB writes happen here.
 
-**`canNext`:** Always `true` (the Confirm step is a review screen — Next writes the booking).
+**`canNext`:** Always `true`.
+
+---
+
+## Step 6 — Payment
+
+**Component:** `StepPayment/StepPayment.tsx`
+
+Displays the booking summary, total amount, and a grid of accepted payment methods (Card, GCash, GrabPay, Maya, BillEase, QRPh). The learner selects a method to highlight it; the Pay button stays disabled until a method is chosen.
+
+**`canNext`:** `!!selectedMethod`
 
 ### `confirmBooking()`
 
 The hook's `confirmBooking` is `async`. It:
 
-1. Guards against missing state: `if (!exam || !school || !branch || !selectedSchedule || !date) return`
-2. Calls `createBooking()` in `services/bookings.service.ts`
-3. `createBooking` calls `supabase.auth.getUser()` to get `learner_id`, then inserts into `public.bookings`:
+1. Guards against missing state
+2. Calls `createBooking()` → inserts into `public.bookings`:
    - `learner_id`: from auth session
    - `schedule_id`: from `selectedSchedule.id`
    - `academy_id`: from `school.id`
-   - `offering_id`: from `exam.id`
+   - `offering_id`: from `selectedSchedule.offeringId` (the academy's offering UUID — must match the schedule's own `offering_id` to satisfy the DB consistency trigger)
    - `booked_date`: from `date` (YYYY-MM-DD)
    - `price_paid`: from `exam.price`
    - `status`: `"pending"`
-4. Returns the new booking's UUID (or `null` on error)
-5. Constructs a local `Booking` object for the dashboard state (includes `dbId` if the insert succeeded)
-6. Calls `onBookingConfirmed(newBooking)` and sets `done = true`
+3. On `"already_booked"` / `"full"` / `"error"` — shows toast, aborts
+4. Calls `POST /api/payment/create-session` with `{ bookingId }` (the client also sends legacy `amountCentavos`/`description`, but the **server ignores them**)
+5. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.learner_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
+6. Browser redirects to `checkout_url` (PayMongo's hosted payment page)
 
-**`createBooking` result:** Returns `{ id, result }` where `result` is `"ok" | "already_booked" | "full" | "error"`. Postgres error `23505` (unique constraint) maps to `"already_booked"`; an exception message containing "fully booked" maps to `"full"`.
+> **Security note:** the amount is authoritative from the DB, so a tampered client request cannot underpay; the route is not callable without an authenticated session that owns the booking. (Hardened 2026-06-12 — prod-readiness learner B1.)
 
-**Current limitation:** `confirmBooking()` in the hook only uses the `id` field; the `result` value is not yet checked. A learner who hits a `"full"` or `"already_booked"` case still sees the success screen. This is a known gap — see below.
+### Payment return
 
-**After confirmation:** `BookingConfirmation.tsx` is shown — a success screen with booking summary and a "Back to Dashboard" button that calls `reset()` and `onDone()`.
+PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&booking_id=xxx`. `useAppShell` reads these params on mount (after auth) and clears the URL with `history.replaceState`. On `success`, it **verifies the `booking_id` belongs to the current user** (RLS-scoped select) before showing the success toast — a spoofed/foreign id stays silent. The bookings list is reloaded from DB so the new booking appears on the dashboard.
+
+Cancelled bookings remain in the DB as `status = "pending"` with no `payment_reference`.
+
+### Webhook
+
+`POST /api/payment/webhook` — verifies PayMongo HMAC-SHA256 signature, handles `checkout_session.payment.paid`, sets `is_paid = true` on the booking via service role. This is the authoritative payment confirmation (independent of the browser redirect).
+
+The `is_paid` write is **idempotent**: it updates `WHERE is_paid = false` and returns early if nothing transitioned, so a PayMongo retry/replay neither re-fires nor duplicates the `payment_confirmed` notification. A paid-type event arriving with no `booking_id` is logged (`console.warn`) rather than silently dropped.
+
+**Env vars required:**
+```
+PAYMONGO_SECRET_KEY=sk_test_...        # server-only
+PAYMONGO_WEBHOOK_SECRET=whsk_...       # server-only
+NEXT_PUBLIC_APP_URL=https://...        # used for success/cancel redirect URLs
+```
 
 ---
 
@@ -195,9 +224,22 @@ Step 3: date selected
 
 Step 4: uploads[] managed in state (no DB writes)
 
-Step 5: confirmBooking()
+Step 5: review only (no DB writes)
+
+Step 6: confirmBooking()
   └─ createBooking({scheduleId, academyId, offeringId, bookedDate, pricePaid})
        └─ INSERT INTO bookings → returns UUID
+  └─ POST /api/payment/create-session → PayMongo Checkout Session
+       └─ UPDATE bookings SET payment_reference = sessionId
+  └─ window.location.href = checkout_url (leaves app)
+
+On return (/?payment=success):
+  └─ useAppShell reads params → toast → getBookings() reloads
+
+Webhook (async, authoritative):
+  └─ POST /api/payment/webhook
+       └─ verify HMAC-SHA256 signature
+       └─ UPDATE bookings SET is_paid = true WHERE id = booking_id
 ```
 
 ---
@@ -214,6 +256,42 @@ Step 5: confirmBooking()
 | `schedules.service.ts` | `resolveScheduleForTime(schedules, dateStr, time)` | `LearnerSchedule \| null` |
 | `bookings.service.ts` | `createBooking(params)` | `{ id: string \| null; result: CreateBookingResult }` |
 | `bookings.service.ts` | `getBookings()` | `Booking[]` (learner's own history, RLS-scoped) |
+| `app/api/payment/create-session` | `POST` (server route) | Authenticates caller + verifies booking ownership; derives amount from `booking.price_paid`; creates PayMongo Checkout Session; stores `payment_reference` |
+| `app/api/payment/webhook` | `POST` (server route) | Verifies signature; sets `is_paid = true` on payment confirmation |
+
+---
+
+## PayMongo Sandbox Testing
+
+### Test Cards
+
+All expiry dates must be in the future. Any 3-digit CVC works.
+
+| Card Number | Network | Outcome |
+|---|---|---|
+| `4343 4343 4343 4345` | Visa | ✅ Success — no 3DS |
+| `4571 7360 0000 0075` | Visa | ✅ Success — no 3DS |
+| `5123 0000 0000 0002` | Mastercard | ✅ Success — no 3DS |
+| `4120 0000 0000 0007` | Visa | ✅ Success — 3DS required (select "Authorize" on PayMongo's test page) |
+| `5123 0000 0000 0001` | Mastercard | ✅ Success — 3DS optional |
+| `4200 0000 0000 0018` | Visa | ❌ Decline — expired card |
+| `4300 0000 0000 0017` | Visa | ❌ Decline — invalid CVC |
+| `5100 0000 0000 0198` | Mastercard | ❌ Decline — insufficient funds |
+| `4111 1111 1111 1111` | Visa | ❌ Generic decline |
+
+### E-wallets (GCash, Maya, GrabPay, ShopeePay)
+
+No real wallet account needed. PayMongo redirects to their own test page — click **"Authorize"** to succeed or **"Fail"** to decline.
+
+### QR Ph
+
+Do **not** scan the generated QR code in test mode — it processes real transactions. Use the `test_url` from the API response instead.
+
+### Webhook Local Testing
+
+1. Run `ngrok http 3000` and copy the HTTPS URL
+2. Register the webhook in the PayMongo dashboard (Developers → Webhooks) pointing to `https://<ngrok-url>/api/payment/webhook`
+3. Copy the generated signing secret into `PAYMONGO_WEBHOOK_SECRET` in `.env.local`
 
 ---
 

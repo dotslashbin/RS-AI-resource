@@ -26,6 +26,10 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260516000004_booking_status_transition.sql` | `validate_booking_status_transition()` BEFORE UPDATE trigger — enforces directed state transitions |
 | `20260516000005_booking_cancelled_by.sql` | Adds `cancelled_by uuid → profiles` column to `bookings` |
 | `20260516000006_booking_status_log.sql` | `booking_status_log` table + AFTER UPDATE trigger + RLS; immutable audit trail of status changes |
+| `20260518000001_booking_payment_reference.sql` | Adds `payment_reference text` and `is_paid boolean not null default false` to `bookings`; used by PayMongo Checkout Session flow |
+| `20260525000001_notification_type_settings.sql` | `notification_type_settings` table + RLS + seed rows for all 7 notification types |
+| `20260525000002_notifications.sql` | `notifications` table + RLS (SELECT/UPDATE/DELETE own rows; no INSERT policy — trigger/service-role only) + Realtime publication |
+| `20260525000003_notification_triggers.sql` | `notify_on_new_booking()` AFTER INSERT + `notify_on_booking_status_change()` AFTER UPDATE triggers; both SECURITY DEFINER; guard on `is_enabled` before inserting |
 
 ---
 
@@ -38,6 +42,7 @@ auth.users
               │
               ├─── user_portals ────────► portals
               ├─── user_roles ──────────► roles
+              ├─── notifications ───────► notification_type_settings
               └─── academy_members ─────► academies ──► statuses
                                               │
                                          offerings ──► offering_categories
@@ -307,7 +312,9 @@ A learner's reservation of a specific schedule occurrence.
 
 **Audit trigger:** `log_booking_status_change()` fires AFTER UPDATE and writes a row to `booking_status_log` whenever `status` changes.
 
-**Future:** `start_time` snapshot (so if a schedule's time changes, the booking still shows the original time), payment reference ID, rating/review join.
+**Payment columns:** `payment_reference text` stores the PayMongo Checkout Session ID; `is_paid boolean default false` is set to `true` by the webhook handler when payment is confirmed.
+
+**Future:** `start_time` snapshot (so if a schedule's time changes, the booking still shows the original time), rating/review join.
 
 ---
 
@@ -350,12 +357,72 @@ Immutable audit trail of every booking status change. Written only by the `log_b
 
 ---
 
+### `notification_type_settings`
+Platform-wide on/off controls per notification type. Seeded in migration; managed by Command admins through the Notification Settings page. Disabling a type suppresses future inserts of that type — it does not delete existing rows.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `type` | `text` | PK. One of 7 known values (see below) |
+| `label` | `text` | Human-readable name, e.g. "Booking Confirmed" |
+| `description` | `text` | Explains when/why this notification fires |
+| `is_enabled` | `boolean` | Default `true`. Triggers and app-layer writes check this before inserting |
+
+**Seeded types:**
+
+| Type | Recipient portal | Trigger |
+|------|-----------------|---------|
+| `booking_confirmed` | learner | Academy approves a booking |
+| `booking_rejected` | learner | Academy rejects a booking |
+| `booking_cancelled` | learner | Academy cancels a confirmed booking |
+| `new_booking` | academy | Learner creates a booking |
+| `payment_confirmed` | academy | PayMongo webhook confirms payment |
+| `academy_pending_approval` | command | Academy self-registers |
+| `new_user_registration` | command | Any user self-registers (source: `learner` or `academy_admin` in `data`) |
+
+**RLS:** All authenticated users can SELECT (needed by triggers and the app layer's `is_enabled` check). Only `admin` / `root` roles can UPDATE. No app-layer INSERT or DELETE.
+
+---
+
+### `notifications`
+Persistent in-app alerts for all three portals. Written exclusively by SECURITY DEFINER triggers and the service-role app layer (register routes, webhook). Never written by client-side code.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `user_id` | `uuid` | FK → `profiles` ON DELETE CASCADE |
+| `portal` | `text` | FK → `portals(name)`. One of `learner`, `academy`, `command`. Used in all queries and Realtime filter to prevent cross-portal contamination for dual-role users |
+| `type` | `text` | FK → `notification_type_settings(type)` ON DELETE RESTRICT |
+| `title` | `text` | Short headline |
+| `body` | `text` | Full notification message |
+| `data` | `jsonb` | Contextual payload (booking_id, academy_name, learner_name, source, etc.) |
+| `is_read` | `boolean` | Default `false`. Bidirectional — can be toggled back to unread |
+| `is_archived` | `boolean` | Default `false`. Hides from main panel; visible in archive view |
+| `created_at` | `timestamptz` | |
+
+**Fan-out model:** Command notifications are written once per target user (one row per admin/root user). This preserves per-user read/archive state at the cost of N rows per event — acceptable at RS Command scale (< 10 users).
+
+**Write paths:**
+- `notify_on_new_booking()` trigger: writes `new_booking` to all `academy-admin` members of the booking's academy
+- `notify_on_booking_status_change()` trigger: writes `booking_confirmed` / `booking_rejected` / `booking_cancelled` to the learner
+- `academy/app/api/auth/register/route.ts`: writes `academy_pending_approval` + `new_user_registration` to all command admins/root
+- `learner/app/api/register/route.ts`: writes `new_user_registration` to all command admins/root
+- `learner/app/api/payment/webhook/route.ts`: writes `payment_confirmed` to all academy-admin members of the booking's academy
+
+**Lifecycle:** `is_read` is toggled by the user (bidirectional). `is_archived` hides from main panel; appears in archive view. Delete is permanent (user-initiated, with confirmation). Main panel shows `is_archived = false`; archive view shows `is_archived = true`.
+
+**Realtime:** `notifications` is added to the `supabase_realtime` publication. Each portal subscribes to INSERTs filtered by `user_id=eq.<uid>,portal=eq.<portal>` — the `portal` filter prevents dual-role users from seeing another portal's notifications in the wrong app.
+
+**RLS:** Users SELECT, UPDATE, and DELETE their own rows (`user_id = auth.uid()`). No INSERT policy — trigger-only and service-role writes only.
+
+---
+
 ## Delete Behaviour Summary
 
 | Relationship | On Delete |
 |-------------|-----------|
 | `auth.users` → `profiles` | CASCADE |
 | `profiles` → `user_portals`, `user_roles`, `academy_members` | CASCADE |
+| `profiles` → `notifications` | CASCADE |
 | `academies` → `offerings`, `instructors`, `schedules` | CASCADE |
 | `academies` → `bookings` | RESTRICT |
 | `offerings` → `schedules` | RESTRICT |
@@ -387,7 +454,6 @@ The following tables are anticipated but not yet created. They should follow the
 |-------|---------|-------|
 | `wallet_accounts` | Learner wallet balance | One row per learner profile |
 | `wallet_transactions` | Credits, debits, booking payments | Immutable ledger rows |
-| `notifications` | In-app alerts for learners and academy admins | Status changes, booking confirmations |
 | `reviews` | Learner reviews of academies post-booking | One review per completed booking |
 | `academy_photos` | Gallery images for academy profiles | Supabase Storage paths |
 
