@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **App:** `./command`
-**Status:** DRAFT — for fine-tuning, not yet approved for execution
+**Status:** IN PROGRESS — B1 (auth gate), B3 (boundaries), I1 (mutation errors), I2 (loading states) executed (2026-06-12, build-verified). I3 (school-delete) pending decision; B2 (SMTP) deferred.
 
 > Command is an internal ops tool for a handful of staff. The bar is "no privilege holes, no silent data loss" — not polish.
 
@@ -42,7 +42,9 @@ New users are created with `email_confirm: true` and **no password**; they must 
 
 ---
 
-### B3 — No error boundaries
+### B3 — No error boundaries  ✅ DONE (2026-06-12)
+> Executed: added `app/error.tsx` (client, "Try again" reset) and `app/not-found.tsx` ("Back to Command"), styled with `.rs-page`/`.rs-card` + `--rs-*` tokens. Build registers `/_not-found`.
+
 **Files:** `command/app/` missing `error.tsx` and `not-found.tsx`
 
 A render-time throw shows the raw Next.js error overlay. Add a branded `error.tsx` (with reset button) and `not-found.tsx`. ~Same component in all three apps; copy-by-intent.
@@ -51,15 +53,13 @@ A render-time throw shows the raw Next.js error overlay. Add a branded `error.ts
 
 ## IMPORTANT (fix at launch or shortly after)
 
-### I1 — Mutations swallow errors
-**Files:** `hooks/mutations/{schools,users}/*.ts` — create/update/delete
-
-None check the Supabase response. On failure the optimistic UI already removed/changed the row, so the user sees success while the DB rejected it; the lie surfaces only on refresh. Wrap each in error handling: revert optimistic state + `toast.error()` on failure. (`<Toaster />` is now mounted, so toasts will actually show.)
+### I1 — Mutations swallow errors  ✅ DONE (2026-06-12)
+> Executed: all 6 mutation hooks (`{schools,users}/{create,update,delete}`) now return `{ error: string | null }` (Supabase error message, or parsed `{error}` + `res.ok` for the fetch-based user routes; `useUpdateUser` returns the first step error). `useSchools`/`useUsers` check it: on failure → `toast.error` and **no** state change / modal stays open; on success → state update + close. Covers save, delete, and toggleStatus. Build clean.
 
 > **⚠️ Coupling — promote to same batch as backbone B3.** The drafted `academies` non-empty CHECK migration (backbone plan **B3**) makes a blank `name`/`lto_accred_no` from the Command SchoolFormModal raise Postgres `23514`. With I1 unfixed, that insert appears to succeed optimistically then silently never persists — i.e. the constraint makes school-create *worse* until I1 surfaces the error. If backbone B3 ships, **I1 (at least the schools-create/update path) must ship with it.** Effectively raises this slice of I1 to blocker priority, conditional on B3.
 
-### I2 — No loading/disabled state on form submit
-Rapid double-click on Invite/Save fires duplicate requests. Add `isSubmitting` state, disable the button while in flight.
+### I2 — No loading/disabled state on form submit  ✅ DONE (2026-06-12)
+> Executed: `useSchools`/`useUsers` expose `isSaving`/`isDeleting`; the save handlers guard re-entry (`if (isSaving) return`). Threaded `busy` into `SchoolFormModal`, `UserModal`, and the shared `DeleteConfirmModal` (+ both wrappers) — buttons disable and show "Saving…"/"Removing…" while in flight. Build clean.
 
 ### I3 — School delete goes direct from browser
 **File:** `hooks/mutations/schools/useDeleteSchool.ts:6`
@@ -81,9 +81,9 @@ Deletes `academies` straight from the client with the anon key, relying entirely
 
 ## Proposed Execution Order
 1. ✅ B1 (`/api/users` gate) — DONE 2026-06-12 (runtime check pending; last-root guard deferred)
-2. B3 (error boundaries) — mechanical, shared across apps
-3. I1 + I2 (mutation error handling + loading states) — same files, do together
-4. I3 decision → maybe server route
+2. ✅ B3 (error boundaries) — DONE 2026-06-12
+3. ✅ I1 + I2 (mutation error handling + loading states) — DONE 2026-06-12
+4. I3 decision → maybe server route  *(only remaining decision-free-ish item; needs your call)*
 5. KPI "sample data" badges
 6. B2 (SMTP) — tracked in shared/backbone plan; verified once infra exists
 

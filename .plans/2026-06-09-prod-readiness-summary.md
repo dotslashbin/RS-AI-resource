@@ -20,10 +20,10 @@ All items below are build-verified; ⚠️ = still needs a live DB/browser runti
 |-----|--------|-------|
 | **academy** | B1 (de-brand), B2 (register validation — route layer), B3 (session/blank-screen) ⚠️, B4 (boundaries), Settings cleanup | "Hide wallet" was **moot**. B2's DB backstop (backbone B3) still gated. |
 | **learner** | B1 (create-session payment integrity) ⚠️, B2 (settings real data) ⚠️, B4 (boundaries), I1–I4 (payment hardening; I2 ⚠️), I6 (register validation) | architecture `booking-flow.md`/`conventions.md` updated. I5 (`NEXT_PUBLIC_APP_URL`) is a deployment-env item. |
-| **command** | B1 (`/api/users` caller auth gate) ⚠️ + self-delete guard | last-root delete guard deferred; B3 (boundaries) + I1/I2 still TODO |
+| **command** | B1 (`/api/users` caller auth gate) ⚠️ + self-delete guard, B3 (boundaries), I1 (mutation errors), I2 (loading states) | last-root delete guard deferred; I3 (school-delete server route) pending a decision |
 | **backbone** | — | B1 (`is_paid`) ⏸ PARKED; nothing executed |
 
-**Next decision-free candidates:** command B3 (boundaries) + I1/I2 (mutation error handling + loading states). Learner's decision-free items are all done except B3 (uploads, approval-gated) and env/polish. Command B1 (auth gate) ✅ done.
+**Remaining decision-free app work is essentially complete.** What's left: command I3 (school-delete server route — needs a decision), KPI "sample data" badges (cosmetic), academy IMPORTANT items (I1/I2/I3), and the approval-gated backbone batch + uploads feature + SMTP/deployment.
 
 ---
 
