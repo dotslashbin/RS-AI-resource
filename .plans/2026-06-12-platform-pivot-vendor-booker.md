@@ -69,11 +69,17 @@ Touches the `roles` seed, the `academy_members.role_id in (3,4)` check, `has_aca
 ### D4 — Domain vocabulary in identifiers vs copy  ⬜ OPEN
 ~500+ `exam`/`instructor`/`driving` references. Decide how far the rename goes: user-facing **copy** only (cheap, low-risk), or also **code identifiers/variable names** (clean but huge diff). **Recommendation lean:** copy + DB/labels now; identifier-level rename only where it aids clarity, deferred otherwise.
 
+### D6 — Platform brand identity  ⬜ OPEN
+The app names (command/vendor/booker) are settled, but the **platform brand is not.** Login screens (all three apps) and placeholders hardcode **"Road Safety I.T. Services"**, **"RS Road Safety network"**, and the **`roadsafety.ph`** domain (e.g. `command.roadsafety.ph`, `admin@roadsafety.ph`). A general marketplace serving non-driving verticals needs a new brand name + domain. This blocks finalizing the **P3a** login copy and the email/domain placeholders, and feeds the deployment checklist (prod domains, redirect allow-list, sender domain). **Needed before P3a/P4 copy can be written.** Also revisit `production-costs.md` (domain registration line) once chosen.
+
 ### D5 — Migration strategy ⚠️ intersects prod-readiness  ⬜ OPEN
 Migrations are immutable once applied. Two paths:
 - **(a) Pre-launch re-baseline:** prod Supabase is **not yet provisioned** (prod-readiness deployment checklist still pending), and there's no prod data. Cheapest possible moment — bake the new names directly into fresh/edited migrations + seed, no `ALTER ... RENAME` churn.
 - **(b) Rename migrations:** if any environment already has data to preserve, add new `ALTER TABLE ... RENAME` / data migrations.
 **Strong lean: (a)** — pivoting *before* prod launch is dramatically cheaper than after. This makes the pivot time-sensitive relative to the deployment checklist.
+
+> **User decision (2026-06-12):** will **not** provision production before the pivot → path **(a)** confirmed. Bake `vendor`/`booker` (and any de-constrain renames) directly into fresh/edited migrations + seed; no `ALTER … RENAME` churn, no prod-data migration.
+> **Checklist coupling:** in `.plans/2026-06-09-prod-readiness-backbone.md` → SHARED DEPLOYMENT CHECKLIST, these items change post-pivot: #3 seeds portal values `'academy'`/`'learner'` → `'vendor'`/`'booker'`; #6 "prod *learner* URL" → "prod *booker* URL"; #2 migration count grows. **Do not run the deployment checklist until the pivot lands.**
 
 ---
 
@@ -81,6 +87,11 @@ Migrations are immutable once applied. Two paths:
 - **P1 — Backbone:** portal values, role names (D2), table/column renames (D1, D3), RLS policies, helper functions, seed, comments. **Re-verify every RLS policy after portal-value changes** (security-critical).
 - **P2 — App folders + wiring:** `workspace/learner→booker`, `workspace/academy→vendor`; `PORTAL` constants in the notification services; Realtime filters; import paths; access-verification services.
 - **P3 — De-constrain vocabulary (D3/D4):** offering codes/categories, LTO/accreditation fields, instructor/examiner vocabulary, domain copy.
+  - **P3a — Login screen marketing copy (high-visibility, often missed).** Each login page hardcodes driving-school selling copy on the left info panel, and it is **duplicated within the same file** (desktop panel + mobile info view → ~2 edits per string). Grounded references (2026-06-15):
+    - `learner/components/auth/LoginPage/LoginPage.tsx` — "LTO Accredited Platform" (L46/L109); "Book exams at LTO-accredited schools near you…" (L55/L115); feature bullets "Book TDC, PDC, and MDC in minutes" / "Choose your exam type…" / "Track your booking status…" (L59–62, L117+); "Book your first exam in minutes." (L210).
+    - `academy/components/auth/LoginPage/LoginPage.tsx` — "LTO Accredited Platform" (L46/L105); "…one smart portal built for Philippine driving schools." (L55); "Build recurring exam slots and assign instructors" (L60/L113); "LTO-compliant / Fully aligned with Philippine exam requirements" (L61/L114); register placeholders "Alpha Laguna Driving Academy" + "LTO Accreditation No." (L248–249, ties to D3).
+    - `command/components/auth/LoginPage/LoginPage.tsx` — "Academy approval / Review and activate pending driving school registrations" (L59/L106) — both a rename *and* de-constrain.
+    - New generalized copy depends on **D6 (brand)**. Write it once the brand + offering vocabulary are settled; remember to update **both** the desktop and mobile copies in each file.
 - **P4 — Architecture docs:** rewrite overview/portals/schema/booking-flow/conventions for the generalized model (170 refs).
 - **P5 — Env/deploy:** per-app env, Vercel project names, `.env.example`, redirect allow-lists.
 
