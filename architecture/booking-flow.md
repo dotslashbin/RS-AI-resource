@@ -1,6 +1,6 @@
 # Booking Flow
 
-The booking wizard is the core user-facing feature of the DriveBook (learner) portal. It is a 6-step guided flow that takes a learner from choosing a service through payment to a confirmed booking in Supabase.
+The booking wizard is the core user-facing feature of the Bookdeck (booker) portal. It is a 6-step guided flow that takes a booker from choosing a service through payment to a confirmed booking in Supabase.
 
 ---
 
@@ -8,11 +8,11 @@ The booking wizard is the core user-facing feature of the DriveBook (learner) po
 
 ```
 Step 1: Choose Service
-    ↓ sets exam (DbOffering)
-Step 2: Choose School
-    ↓ sets school (LearnerAcademy), branch (address string)
+    ↓ sets offering (DbOffering)
+Step 2: Choose Vendor
+    ↓ sets vendor (BookerVendor), branch (address string)
 Step 3: Pick Schedule
-    ↓ sets date (YYYY-MM-DD), time (HH:MM), selectedSchedule (LearnerSchedule)
+    ↓ sets date (YYYY-MM-DD), time (HH:MM), selectedSchedule (BookerSchedule)
 Step 4: Upload Documents
     ↓ sets uploads (Record<id, {name, size}>)
 Step 5: Confirm & Book
@@ -26,26 +26,26 @@ Step 6: Payment
 
 ## State Management
 
-All wizard state lives in `useBookingWizard.ts` (a custom hook in `./learner/components/booking/BookingWizard/`). The hook owns all state, fetching, and side effects. `BookingWizard.tsx` is a pure render layer that calls the hook and passes state down to step components as props.
+All wizard state lives in `useBookingWizard.ts` (a custom hook in `./booker/components/booking/BookingWizard/`). The hook owns all state, fetching, and side effects. `BookingWizard.tsx` is a pure render layer that calls the hook and passes state down to step components as props.
 
 **Key state fields:**
 
 | Field | Type | Set at |
 |-------|------|--------|
 | `step` | `number` | Navigation buttons |
-| `exam` | `DbOffering \| null` | Step 1 selection |
-| `school` | `LearnerAcademy \| null` | Step 2 selection |
-| `branch` | `string \| null` | Step 2 (set to `school.address`) |
+| `offering` | `DbOffering \| null` | Step 1 selection |
+| `vendor` | `BookerVendor \| null` | Step 2 selection |
+| `branch` | `string \| null` | Step 2 (set to `vendor.address`) |
 | `date` | `string` | Step 3 calendar pick (format: `YYYY-MM-DD`) |
 | `time` | `string` | Step 3 time slot pick (format: `HH:MM`) |
-| `selectedSchedule` | `LearnerSchedule \| null` | Resolved when time is picked |
+| `selectedSchedule` | `BookerSchedule \| null` | Resolved when time is picked |
 | `uploads` | `Record<string, UploadEntry>` | Step 4 file picks |
 | `selectedMethod` | `string \| null` | Step 6 payment method selection (UI only) |
 | `offerings` | `DbOffering[]` | Fetched on mount |
-| `academies` | `LearnerAcademy[]` | Fetched when `exam` changes |
-| `schedules` | `LearnerSchedule[]` | Fetched when `school` + `exam` change |
+| `vendors` | `BookerVendor[]` | Fetched when `offering` changes |
+| `schedules` | `BookerSchedule[]` | Fetched when `vendor` + `offering` change |
 
-**Why `selectedSchedule` is separate from `time`:** `time` is a display/filter string. `selectedSchedule` holds the actual `LearnerSchedule` record including its UUID — needed to write `schedule_id` to the `bookings` table. It is resolved by `resolveScheduleForTime(schedules, date, time)` when the learner picks a time slot.
+**Why `selectedSchedule` is separate from `time`:** `time` is a display/filter string. `selectedSchedule` holds the actual `BookerSchedule` record including its UUID — needed to write `schedule_id` to the `bookings` table. It is resolved by `resolveScheduleForTime(schedules, date, time)` when the booker picks a time slot.
 
 ---
 
@@ -54,44 +54,41 @@ All wizard state lives in `useBookingWizard.ts` (a custom hook in `./learner/com
 **Component:** `Step1Offering/Step1Offering.tsx`  
 **Service:** `services/offerings.service.ts` → `getActiveOfferings()`
 
-Fetches all `is_active = true` offerings from Supabase, joining `offering_categories` for the category name. Deduplicated by `code` client-side — if multiple academies offer TDC, Step 1 shows TDC once with the lowest available price shown as "from ₱X".
+Fetches all `is_active = true` offerings from Supabase, reading the free-text `category` column. Deduplicated by `code` client-side — if multiple vendors offer the same code, Step 1 shows it once with the lowest available price shown as "from ₱X".
 
 **Deduplication:** `dedupeByCode()` in the hook returns both the deduplicated list and a `multiPriceCodes: Set<string>` — codes where more than one price exists. `Step1Offering` uses this set to decide whether to prefix the price with "from".
 
-**Category colour coding:**
-- `exam` → blue (`#3b82f6`)
-- `lesson` → green (`#10b981`)
-- `other` → amber (`#f59e0b`)
+**Category styling:** `category` is vendor-defined free text. The UI applies a small fixed colour map for a few known values with a neutral fallback for anything custom — there is no fixed category set.
 
-**`canNext`:** `!!exam`
+**`canNext`:** `!!offering`
 
 ---
 
-## Step 2 — Choose School
+## Step 2 — Choose Vendor
 
-**Component:** `Step2School/Step2School.tsx`  
-**Service:** `services/academies.service.ts` → `getAcademiesForOffering(offeringCode)`
+**Component:** `Step2Vendor/Step2Vendor.tsx`  
+**Service:** `services/vendors.service.ts` → `getVendorsForOffering(offeringCode)`
 
-Fetches academies that have an active offering matching the selected `code`. Uses a PostgREST `!inner` join through the `offerings` table to filter, then deduplicates by academy `id` and filters to only `status = 'active'` academies. Each result is a `LearnerAcademy` (id, name, address, branch, phone).
+Fetches vendors that have an active offering matching the selected `code`. Uses a PostgREST `!inner` join through the `offerings` table to filter, then deduplicates by vendor `id` and filters to only `status = 'active'` vendors. Each result is a `BookerVendor` (id, name, address, branch, phone).
 
-**Map:** A Leaflet tile map is shown as a location placeholder. It displays the user's geolocation dot if the browser grants location permission. The map does not show academy markers — academy coordinates (`lat`, `lng`) do not yet exist in the DB schema. This is deferred.
+**Map:** A Leaflet tile map is shown as a location placeholder. It displays the user's geolocation dot if the browser grants location permission. The map does not show vendor markers — vendor coordinates (`lat`, `lng`) do not yet exist in the DB schema. This is deferred.
 
-**RLS dependency:** A migration (`20260515000001_learner_academy_read_policy.sql`) grants active learners read access to active academies. Without this, the query returns zero rows.
+**RLS dependency:** A migration (`20260515000001_booker_vendor_read_policy.sql`) grants active bookers read access to active vendors. Without this, the query returns zero rows.
 
-**Selecting a school** sets both `school` (the full `LearnerAcademy` object) and `branch` (set to `school.address` as a display string). This also triggers the schedules fetch.
+**Selecting a vendor** sets both `vendor` (the full `BookerVendor` object) and `branch` (set to `vendor.address` as a display string). This also triggers the schedules fetch.
 
-**`canNext`:** `!!school && !!branch`
+**`canNext`:** `!!vendor && !!branch`
 
-**Future:** Once `lat`/`lng` columns are added to `academies`, academy markers can be placed on the map and used for proximity sorting.
+**Future:** Once `lat`/`lng` columns are added to `vendors`, vendor markers can be placed on the map and used for proximity sorting.
 
 ---
 
 ## Step 3 — Pick Schedule
 
 **Component:** `Step3Schedule/Step3Schedule.tsx`  
-**Service:** `services/schedules.service.ts` → `getSchedulesForAcademy(academyId, offeringCode)`
+**Service:** `services/schedules.service.ts` → `getSchedulesForVendor(vendorId, offeringCode)`
 
-Fetches all active schedules for the selected academy that belong to an offering with the matching code. Returns `LearnerSchedule[]` with: `id`, `startDate`, `startTime` (HH:MM), `endTime`, `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `maxCapacity`.
+Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `startTime` (HH:MM), `endTime`, `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `maxCapacity`.
 
 ### Calendar
 
@@ -112,13 +109,13 @@ Occurrence dates are computed client-side from each schedule's recurrence rule:
 
 ### Time Slots
 
-When the learner picks a date, `getTimesForDate(schedules, dateStr)` finds all schedules that have an occurrence on that date and collects their `startTime` values, deduplicated and sorted. These are displayed as buttons in 12-hour format (e.g., "8:00 AM").
+When the booker picks a date, `getTimesForDate(schedules, dateStr)` finds all schedules that have an occurrence on that date and collects their `startTime` values, deduplicated and sorted. These are displayed as buttons in 12-hour format (e.g., "8:00 AM").
 
 ### `handleSelectTime(t)`
 
 The hook exposes `handleSelectTime` instead of raw `setTime`. It sets `time` and simultaneously resolves `selectedSchedule` via `resolveScheduleForTime(schedules, date, t)` — finding the first schedule that has an occurrence on `date` at `startTime = t`.
 
-When the learner changes their date selection, `handleSelectTime("")` is called to clear both `time` and `selectedSchedule`.
+When the booker changes their date selection, `handleSelectTime("")` is called to clear both `time` and `selectedSchedule`.
 
 **`canNext`:** `!!date && !!time`
 
@@ -130,7 +127,7 @@ When the learner changes their date selection, `handleSelectTime("")` is called 
 
 **Component:** `Step4Documents/Step4Documents.tsx`
 
-Document requirements come directly from `exam.requirements` — the `RequirementItem[]` array fetched from the `offerings` table (JSONB column). Each item has an `id`, `label`, and `required` flag. Academy admins define these in the offering form; different academies or offerings can have different requirements for the same exam code.
+Document requirements come directly from `offering.requirements` — the `RequirementItem[]` array fetched from the `offerings` table (JSONB column). Each item has an `id`, `label`, and `required` flag. Vendor admins define these in the offering form; different vendors or offerings can have different requirements for the same offering code.
 
 Files are stored in React state as `{ name: string, size: number }` — no actual file content is stored or uploaded. The progress bar and "X of N required uploaded" counter are purely client-side.
 
@@ -142,7 +139,7 @@ Files are stored in React state as `{ name: string, size: number }` — no actua
 1. The booking is created first (Step 5 writes to `bookings`)
 2. Files are uploaded to Supabase Storage under a path like `bookings/{booking_id}/{doc_id}`
 3. `booking_documents` rows are written linking back to the booking
-4. The learner portal needs a Storage policy allowing authenticated uploads under their booking's path
+4. The booker portal needs a Storage policy allowing authenticated uploads under their booking's path
 
 ---
 
@@ -150,7 +147,7 @@ Files are stored in React state as `{ name: string, size: number }` — no actua
 
 **Component:** `Step6Confirm/Step6Confirm.tsx` (file name retained from original 6-step design)
 
-Shows a summary of all selections: service name, school, branch/address, date and time (displayed in 12-hour format), uploaded document list, and total price. Review-only — no DB writes happen here.
+Shows a summary of all selections: service name, vendor, branch/address, date and time (displayed in 12-hour format), uploaded document list, and total price. Review-only — no DB writes happen here.
 
 **`canNext`:** Always `true`.
 
@@ -160,7 +157,7 @@ Shows a summary of all selections: service name, school, branch/address, date an
 
 **Component:** `StepPayment/StepPayment.tsx`
 
-Displays the booking summary, total amount, and a grid of accepted payment methods (Card, GCash, GrabPay, Maya, BillEase, QRPh). The learner selects a method to highlight it; the Pay button stays disabled until a method is chosen.
+Displays the booking summary, total amount, and a grid of accepted payment methods (Card, GCash, GrabPay, Maya, BillEase, QRPh). The booker selects a method to highlight it; the Pay button stays disabled until a method is chosen.
 
 **`canNext`:** `!!selectedMethod`
 
@@ -170,19 +167,19 @@ The hook's `confirmBooking` is `async`. It:
 
 1. Guards against missing state
 2. Calls `createBooking()` → inserts into `public.bookings`:
-   - `learner_id`: from auth session
+   - `booker_id`: from auth session
    - `schedule_id`: from `selectedSchedule.id`
-   - `academy_id`: from `school.id`
-   - `offering_id`: from `selectedSchedule.offeringId` (the academy's offering UUID — must match the schedule's own `offering_id` to satisfy the DB consistency trigger)
+   - `vendor_id`: from `vendor.id`
+   - `offering_id`: from `selectedSchedule.offeringId` (the vendor's offering UUID — must match the schedule's own `offering_id` to satisfy the DB consistency trigger)
    - `booked_date`: from `date` (YYYY-MM-DD)
-   - `price_paid`: from `exam.price`
+   - `price_paid`: from `offering.price`
    - `status`: `"pending"`
 3. On `"already_booked"` / `"full"` / `"error"` — shows toast, aborts
 4. Calls `POST /api/payment/create-session` with `{ bookingId }` (the client also sends legacy `amountCentavos`/`description`, but the **server ignores them**)
-5. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.learner_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
+5. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.booker_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
 6. Browser redirects to `checkout_url` (PayMongo's hosted payment page)
 
-> **Security note:** the amount is authoritative from the DB, so a tampered client request cannot underpay; the route is not callable without an authenticated session that owns the booking. (Hardened 2026-06-12 — prod-readiness learner B1.)
+> **Security note:** the amount is authoritative from the DB, so a tampered client request cannot underpay; the route is not callable without an authenticated session that owns the booking. (Hardened 2026-06-12 — prod-readiness booker B1.)
 
 ### Payment return
 
@@ -211,11 +208,11 @@ NEXT_PUBLIC_APP_URL=https://...        # used for success/cancel redirect URLs
 Mount
   └─ getActiveOfferings() → offerings[]
 
-Step 1: exam selected
-  └─ getAcademiesForOffering(exam.code) → academies[]
+Step 1: offering selected
+  └─ getVendorsForOffering(offering.code) → vendors[]
 
-Step 2: school selected
-  └─ getSchedulesForAcademy(school.id, exam.code) → schedules[]
+Step 2: vendor selected
+  └─ getSchedulesForVendor(vendor.id, offering.code) → schedules[]
 
 Step 3: date selected
   └─ getAvailableDaysInMonth(schedules, year, month) → Set<number>
@@ -227,7 +224,7 @@ Step 4: uploads[] managed in state (no DB writes)
 Step 5: review only (no DB writes)
 
 Step 6: confirmBooking()
-  └─ createBooking({scheduleId, academyId, offeringId, bookedDate, pricePaid})
+  └─ createBooking({scheduleId, vendorId, offeringId, bookedDate, pricePaid})
        └─ INSERT INTO bookings → returns UUID
   └─ POST /api/payment/create-session → PayMongo Checkout Session
        └─ UPDATE bookings SET payment_reference = sessionId
@@ -249,13 +246,13 @@ Webhook (async, authoritative):
 | Service | Function | Returns |
 |---------|----------|---------|
 | `offerings.service.ts` | `getActiveOfferings()` | `DbOffering[]` |
-| `academies.service.ts` | `getAcademiesForOffering(code)` | `LearnerAcademy[]` |
-| `schedules.service.ts` | `getSchedulesForAcademy(academyId, code)` | `LearnerSchedule[]` |
+| `vendors.service.ts` | `getVendorsForOffering(code)` | `BookerVendor[]` |
+| `schedules.service.ts` | `getSchedulesForVendor(vendorId, code)` | `BookerSchedule[]` |
 | `schedules.service.ts` | `getAvailableDaysInMonth(schedules, year, month)` | `Set<number>` |
 | `schedules.service.ts` | `getTimesForDate(schedules, dateStr)` | `string[]` |
-| `schedules.service.ts` | `resolveScheduleForTime(schedules, dateStr, time)` | `LearnerSchedule \| null` |
+| `schedules.service.ts` | `resolveScheduleForTime(schedules, dateStr, time)` | `BookerSchedule \| null` |
 | `bookings.service.ts` | `createBooking(params)` | `{ id: string \| null; result: CreateBookingResult }` |
-| `bookings.service.ts` | `getBookings()` | `Booking[]` (learner's own history, RLS-scoped) |
+| `bookings.service.ts` | `getBookings()` | `Booking[]` (booker's own history, RLS-scoped) |
 | `app/api/payment/create-session` | `POST` (server route) | Authenticates caller + verifies booking ownership; derives amount from `booking.price_paid`; creates PayMongo Checkout Session; stores `payment_reference` |
 | `app/api/payment/webhook` | `POST` (server route) | Verifies signature; sets `is_paid = true` on payment confirmation |
 
@@ -300,12 +297,12 @@ Do **not** scan the generated QR code in test mode — it processes real transac
 | Area | Current state | Future |
 |------|--------------|--------|
 | Document uploads | In-memory only (no Storage writes) | Supabase Storage + `booking_documents` writes |
-| Capacity display | No slot count shown to learner | Query booking counts per (schedule, date); show "Limited" warning |
-| Academy map | Tile + user dot only | Add `lat`/`lng` to `academies`; show academy markers |
+| Capacity display | No slot count shown to booker | Query booking counts per (schedule, date); show "Limited" warning |
+| Vendor map | Tile + user dot only | Add `lat`/`lng` to `vendors`; show vendor markers |
 | `confirmBooking` result handling | Only `id` used; `"already_booked"` / `"full"` show success screen | Check `result` in wizard and display appropriate error toast |
 | Wallet / payment | Static info text | Wallet accounts table, deduction on confirm |
 | Cancellation / reschedule | Dashboard "Reschedule" button is placeholder | Write cancellation flow, status updates |
-| Examiner info on confirmation | Not shown | Could surface from `schedules.examiner_name` on the confirmation screen |
-| ~~Duplicate booking check~~ | ~~None~~ | **Done** — DB `UNIQUE (learner_id, schedule_id, booked_date)` + service maps `23505` to `"already_booked"` |
+| Contact info on confirmation | Not shown | Could surface from `schedules.contact_name` on the confirmation screen |
+| ~~Duplicate booking check~~ | ~~None~~ | **Done** — DB `UNIQUE (booker_id, schedule_id, booked_date)` + service maps `23505` to `"already_booked"` |
 | ~~Booking history from DB~~ | ~~Dashboard shows seed data~~ | **Done** — `getBookings()` fetches real rows; loaded on login |
 | ~~Capacity overbooking~~ | ~~No DB enforcement~~ | **Done** — `check_booking_capacity()` BEFORE INSERT trigger |

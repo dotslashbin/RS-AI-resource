@@ -6,9 +6,9 @@ Access in this platform has three independent layers, all enforced at the databa
 
 1. **Active status** — Is this user account active? (`profiles.status_id = 1`)
 2. **Portal membership** — Does this user have access to this portal? (row in `user_portals`)
-3. **Role** — What can this user do within that portal? (`user_roles` or `academy_members`)
+3. **Role** — What can this user do within that portal? (`user_roles` or `vendor_members`)
 
-A user can be active and have portal access but no elevated role — that is the default state for learners and academy members. Elevated roles (`admin`, `root`, `academy-admin`) must be explicitly granted.
+A user can be active and have portal access but no elevated role — that is the default state for bookers and vendor members. Elevated roles (`admin`, `root`, `vendor-admin`) must be explicitly granted.
 
 ---
 
@@ -35,55 +35,55 @@ A second trigger (`handle_user_email_update`) keeps `profiles.email` in sync if 
 
 There are two onboarding paths depending on the portal:
 
-### Academy self-registration path
+### Vendor self-registration path
 
-The academy portal has a registration form that calls the server-side Route Handler `POST /api/auth/register`. This handler uses the service-role admin client to:
+The vendor portal has a registration form that calls the server-side Route Handler `POST /api/auth/register`. This handler uses the service-role admin client to:
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
 2. Immediately set the user's profile to `status_id = active`
-3. Grant `academy` portal access (`user_portals` row)
-4. Create the academy record with `status_id = pending_activation`
-5. Link the user as `academy-admin` in `academy_members`
+3. Grant `vendor` portal access (`user_portals` row)
+4. Create the vendor record with `status_id = pending_activation`
+5. Link the user as `vendor-admin` in `vendor_members`
 
-**Result:** The user is immediately active and can log in to the School Portal. The *academy itself* remains `pending_activation` until a Command admin reviews and approves it. Until the academy is activated, the school admin can log in but their academy will not appear to learners in the booking flow.
+**Result:** The user is immediately active and can log in to the Vendor Portal. The *vendor itself* remains `pending_activation` until a Command admin reviews and approves it. Until the vendor is activated, the vendor admin can log in but their vendor will not appear to bookers in the booking flow.
 
 ```
-Academy self-registration form
+Vendor self-registration form
     │
     ▼
 POST /api/auth/register (service role — bypasses RLS)
     │
     ├─ auth.users row created (confirmed)
     ├─ profiles row: status = active
-    ├─ user_portals row: academy portal
-    ├─ academies row: status = pending_activation
-    └─ academy_members row: academy-admin
+    ├─ user_portals row: vendor portal
+    ├─ vendors row: status = pending_activation
+    └─ vendor_members row: vendor-admin
     │
     ▼
 User can log in immediately
-Academy awaits Command admin approval
+Vendor awaits Command admin approval
 ```
 
-### Learner self-registration path
+### Booker self-registration path
 
-The learner portal has a registration form that calls the server-side Route Handler `POST /api/register`. This handler uses the service-role client to:
+The booker portal has a registration form that calls the server-side Route Handler `POST /api/register`. This handler uses the service-role client to:
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
 2. Immediately set the user's profile to `status_id = active` and store their phone number
-3. Grant `learner` portal access (`user_portals` row)
+3. Grant `booker` portal access (`user_portals` row)
 4. Assign the `member` role (`user_roles` row)
 
-**Result:** The user is immediately active and can log in to the Learner Portal. No Command admin intervention is required.
+**Result:** The user is immediately active and can log in to the Booker Portal. No Command admin intervention is required.
 
 ```
-Learner registration form
+Booker registration form
     │
     ▼
 POST /api/register (service role — bypasses RLS)
     │
     ├─ auth.users row created (confirmed)
     ├─ profiles row: status = active, phone stored
-    ├─ user_portals row: learner portal
+    ├─ user_portals row: booker portal
     └─ user_roles row: member
     │
     ▼
@@ -109,14 +109,14 @@ User can now log in
     ▼ (optional — for elevated access)
 Command admin assigns role (user_roles row)
     OR
-Academy admin grants academy membership (academy_members row)
+Vendor admin grants vendor membership (vendor_members row)
 ```
 
 ### App-level access verification
 
 Each portal has a service function that re-checks access from the client side on session restore:
 
-- `learner.service.ts` → `verifyLearnerAccess()`: checks `status = active` + `user_portals` (learner) + `user_roles` (member). Returns `{ allowed, reason }` where reason can be `"no_access"`, `"suspended"`, or `"pending"`.
+- `booker.service.ts` → `verifyBookerAccess()`: checks `status = active` + `user_portals` (booker) + `user_roles` (member). Returns `{ allowed, reason }` where reason can be `"no_access"`, `"suspended"`, or `"pending"`.
 - `command.service.ts` → `verifyCommandAccess()`: checks active + command portal + admin or root role.
 
 These are in addition to RLS — they drive the login gate UI (showing appropriate error states). They do not replace RLS.
@@ -129,9 +129,9 @@ Portals are rows in the `portals` table (seeded, not user-editable):
 
 | ID | Name | Portal |
 |----|------|--------|
-| 1 | `academy` | School Portal (`./academy`) |
-| 2 | `learner` | RS Learner (`./learner`) |
-| 3 | `command` | RS Command (`./command`) |
+| 1 | `vendor` | Vendor Portal (`./vendor`) |
+| 2 | `booker` | Bookdeck Booker (`./booker`) |
+| 3 | `command` | Bookdeck Command (`./command`) |
 
 Access to a portal is determined by the presence of a `user_portals` row for `(user_id, portal_id)`. A user can have access to multiple portals — their `profiles` row is shared across all of them.
 
@@ -148,11 +148,11 @@ Roles are rows in the `roles` table (seeded, not user-editable):
 | 1 | `root` | Platform-wide | `user_roles` |
 | 2 | `admin` | Platform-wide | `user_roles` |
 | 3 | `member` | Platform-wide | `user_roles` |
-| 4 | `academy-admin` | Per-academy | `academy_members` |
+| 4 | `vendor-admin` | Per-vendor | `vendor_members` |
 
-**Platform-wide roles** (`user_roles`): Apply across the entire system. `root` is a superuser that can delete bookings and perform other destructive operations. `admin` can manage users and academies. `member` is the standard role — all learners and basic academy staff hold this role.
+**Platform-wide roles** (`user_roles`): Apply across the entire system. `root` is a superuser that can delete bookings and perform other destructive operations. `admin` can manage users and vendors. `member` is the standard role — all bookers and basic vendor staff hold this role.
 
-**Academy-scoped roles** (`academy_members`): `academy-admin` grants administrative access to a specific academy's data. A user can be `academy-admin` of multiple academies (one `academy_members` row per academy). The `academy_members.role_id` is constrained to `member` (3) or `academy-admin` (4) — platform roles belong in `user_roles`.
+**Vendor-scoped roles** (`vendor_members`): `vendor-admin` grants administrative access to a specific vendor's data. A user can be `vendor-admin` of multiple vendors (one `vendor_members` row per vendor). The `vendor_members.role_id` is constrained to `member` (3) or `vendor-admin` (4) — platform roles belong in `user_roles`.
 
 ---
 
@@ -202,20 +202,20 @@ returns boolean language sql security definer set search_path = public as $$
 $$;
 ```
 
-### `public.is_academy_member(academy_id uuid) → boolean`
-Returns `true` if the calling user has any membership row in `academy_members` for the given academy.
+### `public.is_vendor_member(vendor_id uuid) → boolean`
+Returns `true` if the calling user has any membership row in `vendor_members` for the given vendor.
 
-### `public.has_academy_role(academy_id uuid, role_name text) → boolean`
-Returns `true` if the calling user has a specific role at a specific academy.
+### `public.has_vendor_role(vendor_id uuid, role_name text) → boolean`
+Returns `true` if the calling user has a specific role at a specific vendor.
 
 ```sql
-create function public.has_academy_role(academy_id uuid, role_name text)
+create function public.has_vendor_role(vendor_id uuid, role_name text)
 returns boolean language sql security definer set search_path = public as $$
   select exists (
-    select 1 from public.academy_members am
+    select 1 from public.vendor_members am
     join public.roles r on r.id = am.role_id
     where am.user_id = auth.uid()
-      and am.academy_id = has_academy_role.academy_id
+      and am.vendor_id = has_vendor_role.vendor_id
       and r.name = role_name
   )
 $$;
@@ -223,18 +223,28 @@ $$;
 
 ---
 
+## Table Grants (privilege layer beneath RLS)
+
+RLS is the *row* filter, but it only runs **after** PostgREST passes the table-level privilege check. The `public`-schema defaults grant the API roles no DML, so every table needs explicit `GRANT`s (see `20260620000001_api_role_grants.sql`):
+
+- **`anon`** — no table privileges (no policy targets anon; unauthenticated requests read nothing).
+- **`authenticated`** — only the operations each table's RLS policies permit (never `TRUNCATE`); RLS then narrows to the allowed rows.
+- **`service_role`** — full DML (trusted server-side role; bypasses RLS).
+
+A table with RLS but no grant returns `permission denied` for logged-in users — so **every new table migration must add its grants**.
+
 ## RLS Policy Patterns
 
-### Learner data access pattern
+### Booker data access pattern
 ```sql
--- Learners can only read their own data
-using (learner_id = auth.uid() and public.is_active())
+-- Bookers can only read their own data
+using (booker_id = auth.uid() and public.is_active())
 ```
 
-### Academy admin data access pattern
+### Vendor admin data access pattern
 ```sql
--- Academy admins can read all data for their academy
-using (public.is_active() and public.has_academy_role(academy_id, 'academy-admin'))
+-- Vendor admins can read all data for their vendor
+using (public.is_active() and public.has_vendor_role(vendor_id, 'vendor-admin'))
 ```
 
 ### Command admin pattern
@@ -248,14 +258,14 @@ using (
 
 ### Public lookup table pattern
 ```sql
--- Lookup tables (statuses, portals, roles, offering_categories) are readable by all authenticated users
+-- Lookup tables (statuses, portals, roles) are readable by all authenticated users
 using (true)
 ```
 
-### Learner browsing pattern (academies, schedules)
+### Booker browsing pattern (vendors, schedules)
 ```sql
--- Active learners can read active records from any academy
--- (no academy membership required — this is public catalogue data)
+-- Active bookers can read active records from any vendor
+-- (no vendor membership required — this is public catalogue data)
 using (public.is_active() and <record>.is_active = true)
 ```
 
@@ -263,15 +273,15 @@ using (public.is_active() and <record>.is_active = true)
 
 ## What Each Portal Can See
 
-| Table | Learner | Academy Admin | Command Admin |
+| Table | Booker | Vendor Admin | Command Admin |
 |-------|---------|---------------|---------------|
 | `profiles` | Own row | Own row | All rows |
-| `academies` | Active only | Own academy | All |
-| `offerings` | Active only | Own academy | All |
-| `schedules` | Active only | Own academy (all statuses) | All |
-| `instructors` | — | Own academy | All |
-| `bookings` | Own bookings | Own academy bookings | All |
-| `booking_documents` | Own | Own academy's | All |
+| `vendors` | Active only | Own vendor | All |
+| `offerings` | Active only | Own vendor | All |
+| `schedules` | Active only | Own vendor (all statuses) | All |
+| `staff` | — | Own vendor | All |
+| `bookings` | Own bookings | Own vendor bookings | All |
+| `booking_documents` | Own | Own vendor's | All |
 
 ---
 
@@ -289,7 +299,7 @@ If a new portal or role is ever needed:
 ## Security Notes
 
 - `SUPABASE_SERVICE_ROLE_KEY` bypasses all RLS. It must never appear in client-side code, `.env.local` committed to version control, or any `NEXT_PUBLIC_` variable.
-- The service-role client (`lib/supabase/admin.ts` in the academy portal) is used exclusively in server-side Route Handlers (e.g., the registration endpoint). It must never be imported in client components.
+- The service-role client (`lib/supabase/admin.ts` in the vendor portal) is used exclusively in server-side Route Handlers (e.g., the registration endpoint). It must never be imported in client components.
 - The `anon` key (used when no user is logged in) should only be able to read truly public data. Currently, all meaningful data requires an authenticated session.
 - Session tokens are managed by `@supabase/ssr` — cookies are set server-side and refreshed automatically. Do not implement custom session management.
 - `prevent_status_self_update()` is a DB trigger that blocks any non-admin from changing their own `status_id` via a direct update, even if they have an authenticated session.
@@ -298,7 +308,7 @@ If a new portal or role is ever needed:
 
 ## Future Considerations
 
-- **Self-service registration:** Implemented for learners (immediate activation) and academy operators (academy pending activation). Command portal users still require manual creation by a Command admin.
+- **Self-service registration:** Implemented for bookers (immediate activation) and vendor operators (vendor pending activation). Command portal users still require manual creation by a Command admin.
 - **SSO / OAuth:** Supabase Auth supports OAuth providers (Google, Facebook). If added, the `handle_new_user` trigger still fires and the portal-granting flow remains unchanged.
-- **Academy-level roles beyond admin:** If schools need instructor-level portal access (view their own schedule, check in learners), a new role `academy-instructor` can be added to `roles` and `academy_members`, with targeted RLS policies.
-- **Role expiry:** `user_portals.granted_at` and `academy_members.granted_at` record when access was granted but there is no expiry mechanism. Adding a `revoked_at` column and incorporating it into RLS policies would support time-limited access.
+- **Vendor-level roles beyond admin:** If vendors need staff-level portal access (view their own schedule, check in bookers), a new role `vendor-staff` can be added to `roles` and `vendor_members`, with targeted RLS policies.
+- **Role expiry:** `user_portals.granted_at` and `vendor_members.granted_at` record when access was granted but there is no expiry mechanism. Adding a `revoked_at` column and incorporating it into RLS policies would support time-limited access.

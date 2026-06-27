@@ -4,10 +4,10 @@
 
 ```
 workspace/
-├── command/    # RS Command — internal ops portal; manages users, academies, roles, and portal access across all three apps
-├── learner/    # DriveBook — student-facing exam booking portal; TDC/PDC/MDC booking wizard, wallet, schedule, document upload
-├── academy/    # School Portal — driving school admin dashboard; bookings, instructors, schedules, wallet, packages, school profile
-└── api/        # shared Supabase project — migrations, types, seed data
+├── command/     # RS Command — internal ops portal; manages users, vendors, roles, and portal access across all three apps
+├── booker/      # Bookdeck Booker — customer-facing booking portal; booking wizard, wallet, schedule, document upload
+├── vendor/      # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
+└── backbone/    # shared Supabase project — migrations, types, seed data
 ```
 
 These are independent apps sharing one Supabase project. They are not a monorepo — no shared dependencies or build tooling.
@@ -16,13 +16,13 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 
 ## Shared Tech Stack
 
-### Frontend (all three Next.js apps that are in "command", "learner", and "academy" folders)
+### Frontend (all three Next.js apps that are in "command", "booker", and "vendor" folders)
 
 - **Framework**: Next.js (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui (base-nova style, neutral palette)
 - **Theming**: next-themes (light/dark via `class` strategy)
-- **Maps**: Leaflet + react-leaflet (client-side only via `dynamic` import) — learner only. academy and command have no maps.
+- **Maps**: Leaflet + react-leaflet (client-side only via `dynamic` import) — booker only. vendor and command have no maps.
 - **Icons**: lucide-react
 - **Notifications**: sonner
 
@@ -95,7 +95,8 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 ### Invariants
 
 - All Supabase tables must have RLS enabled — no exceptions
-- No app writes raw SQL outside of migration files in `api/supabase/migrations/`
+- Every new table must include explicit table-level `GRANT`s for the API roles in its migration (RLS alone is not enough — PostgREST checks table privileges first). Follow `20260620000001_api_role_grants.sql`: `anon` none; `authenticated` only the operations its RLS policies permit (never `TRUNCATE`); `service_role` full DML. The `public` default privileges grant no DML, so a table without grants returns `permission denied` for logged-in users
+- No app writes raw SQL outside of migration files in `backbone/supabase/migrations/`
 - `SUPABASE_SERVICE_ROLE_KEY` never appears in client-side code or any `NEXT_PUBLIC_` variable
 - Migration files are never edited after being applied — create a new migration instead
 - Types must be regenerated (`supabase gen types typescript`) after every schema change

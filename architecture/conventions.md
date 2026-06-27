@@ -35,7 +35,7 @@ All three apps follow this same layout. There is no `src/` directory.
 
 ## No Shared Code Between Apps
 
-The learner, academy, and command portals do not share any code. They are independent applications — no shared npm package, no symlinks, no monorepo tooling.
+The booker, vendor, and command portals do not share any code. They are independent applications — no shared npm package, no symlinks, no monorepo tooling.
 
 When the same utility (e.g., `fmt24to12`, `cn`) is needed in two portals, it is copied intentionally. This is a deliberate tradeoff: coupling the apps through a shared package creates deployment dependencies and forces version coordination that is premature at this scale.
 
@@ -63,7 +63,7 @@ export async function getActiveOfferings(): Promise<DbOffering[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("offerings")
-    .select("id, name, code, description, price, duration, requirements, offering_categories(name)")
+    .select("id, name, code, description, price, duration, requirements, category")
     .eq("is_active", true)
     .order("code")
   if (error || !data) return []
@@ -112,7 +112,7 @@ The browser client is used in all service files because those services are calle
 
 ### Admin Client (`lib/supabase/admin.ts`)
 
-Exists as a shared module in the **academy portal**. The **learner portal** also has a server-side registration Route Handler that uses the service role key, but creates the admin client inline (no `admin.ts` module file). Prefer the module pattern (academy style) for any new portal — it keeps service-role instantiation in one place and makes it easy to audit.
+Exists as a shared module in the **vendor portal**. The **booker portal** also has a server-side registration Route Handler that uses the service role key, but creates the admin client inline (no `admin.ts` module file). Prefer the module pattern (vendor style) for any new portal — it keeps service-role instantiation in one place and makes it easy to audit.
 
 ```ts
 // lib/supabase/admin.ts — server-only, never import from client components
@@ -131,10 +131,10 @@ export function createAdminClient() {
 
 Used when an operation must bypass RLS or use server-only secrets. Current examples:
 
-- `academy/app/api/auth/register/route.ts` — academy self-registration (public): creates a confirmed user, activates their profile, grants portal access, creates the academy record (pending activation), and assigns the academy-admin role atomically.
-- `learner/app/api/register/route.ts` — learner self-registration (public): creates a confirmed user, sets profile to active, grants learner portal access, assigns the member role atomically.
+- `vendor/app/api/auth/register/route.ts` — vendor self-registration (public): creates a confirmed user, activates their profile, grants portal access, creates the vendor record (pending activation), and assigns the vendor-admin role atomically.
+- `booker/app/api/register/route.ts` — booker self-registration (public): creates a confirmed user, sets profile to active, grants booker portal access, assigns the member role atomically.
 - `command/app/api/users/route.ts` — admin user create/delete: **caller-gated** (see rule below) before any service-role action; DELETE also blocks self-deletion.
-- `learner/app/api/payment/create-session/route.ts` — **caller-gated**; verifies the booking belongs to the caller and derives the amount from the DB (never the request body).
+- `booker/app/api/payment/create-session/route.ts` — **caller-gated**; verifies the booking belongs to the caller and derives the amount from the DB (never the request body).
 
 Rules:
 - Import `createAdminClient()` from `lib/supabase/admin` — never the browser or SSR client
@@ -142,7 +142,7 @@ Rules:
 - **Never trust amounts, ids, prices, or roles from the request body** for privileged operations — read them from the DB using the verified caller's identity.
 - Public self-registration routes are the exception to caller-verification, but still validate/trim all input before writes.
 - Validate all input fields before any DB writes
-- Roll back (delete user / academy) on any step failure to avoid partial state
+- Roll back (delete user / vendor) on any step failure to avoid partial state
 - Return `NextResponse.json({ error })` on failure; `NextResponse.json({ ... })` on success
 - Never put Route Handler logic in a client component or service file
 
@@ -188,15 +188,15 @@ This is the only file that ever calls `createClient().auth.*`. Do not scatter au
 
 In addition to the database-level RLS, each portal has a client-side access check function that runs on session restore and drives the login gate UI. These functions are in the portal's domain service file and are **not** a replacement for RLS — they are a UX layer that shows meaningful error states (wrong portal, suspended, pending activation) when a user tries to access a portal they are not permitted to use.
 
-**`learner.service.ts` → `verifyLearnerAccess()`**
+**`booker.service.ts` → `verifyBookerAccess()`**
 
 ```ts
 export type AccessDeniedReason = "no_access" | "suspended" | "pending"
 
-export async function verifyLearnerAccess(): Promise<{ allowed: boolean; reason: AccessDeniedReason | null }>
+export async function verifyBookerAccess(): Promise<{ allowed: boolean; reason: AccessDeniedReason | null }>
 ```
 
-Checks: active Supabase session + `user_portals` row for `learner` + `user_roles` row for `member` + `profiles.status_id = active`. Returns `{ allowed: true, reason: null }` on full pass, or one of the three denial reasons.
+Checks: active Supabase session + `user_portals` row for `booker` + `user_roles` row for `member` + `profiles.status_id = active`. Returns `{ allowed: true, reason: null }` on full pass, or one of the three denial reasons.
 
 **`command.service.ts` → `verifyCommandAccess()`**
 
@@ -239,7 +239,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 ## Component Conventions
 
 - **Prefer server components** unless interactivity, browser APIs, or React state are required. Add `"use client"` only when necessary.
-- **Leaflet** must always be dynamically imported (`ssr: false`) — never imported at module level from a server component. This applies to the learner portal only.
+- **Leaflet** must always be dynamically imported (`ssr: false`) — never imported at module level from a server component. This applies to the booker portal only.
 - **shadcn/ui components** are added via `npx shadcn@latest add <component>` — never hand-edited. They live in `components/ui/`.
 - **Naming:** Component files use `PascalCase.tsx`. Hook files use `camelCase.ts`. Service files use `camelCase.service.ts`.
 - **Co-location:** A component that owns a hook lives in the same folder: `ComponentName/ComponentName.tsx` + `ComponentName/useComponentName.ts`.
@@ -254,7 +254,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - `cn()` from `lib/utils.ts` for conditional class merging
 - Theme variables are defined in `globals.css` under `:root` (light) and `.dark` selectors
 
-**Learner portal design tokens (examples):**
+**Booker portal design tokens (examples):**
 
 | Token | Light | Dark |
 |-------|-------|------|

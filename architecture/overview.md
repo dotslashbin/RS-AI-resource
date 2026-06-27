@@ -2,34 +2,34 @@
 
 ## What This Is
 
-RS (Road Safety) is a multi-portal web platform for the Philippine LTO (Land Transportation Office) driving school ecosystem. It connects three distinct user groups — driving school operators, learners, and the RS internal team — through three independent portals that share a single Supabase backend.
+Bookdeck is a multi-portal web platform — a general booking marketplace. It connects three distinct user groups — vendor operators, bookers, and the Bookdeck internal team — through three independent portals that share a single Supabase backend.
 
-The platform's core purpose is to replace paper-based and informal booking processes at LTO-accredited driving schools. Learners book driving courses (TDC, PDC, MDC, and others) online; schools manage their offerings, schedules, and instructors through their own portal; and the RS team controls platform access and academy approval through an internal admin portal.
+The platform's core purpose is to let vendors sell bookable offerings (facility rentals, coaching sessions, classes, appointments — any vertical) and let bookers discover and reserve them online. Vendors manage their offerings, schedules, and staff through their own portal; and the Bookdeck team controls platform access and vendor approval through an internal admin portal.
 
 ---
 
 ## The Three Portals
 
-### RS Learner (`./learner`)
-**Audience:** Driving school learners  
-**Purpose:** Book driving courses, track booking history, upload required documents  
-**Domain:** `learner` portal in Supabase
+### Bookdeck Booker (`./booker`)
+**Audience:** Vendor bookers  
+**Purpose:** Book offerings, track booking history, upload required documents  
+**Domain:** `booker` portal in Supabase
 
-A student-facing booking application. Learners browse available service offerings from accredited academies, select a school, pick a schedule slot, upload requirement documents, confirm a booking, and pay — all in a guided 6-step wizard. Step 6 creates a PayMongo Checkout Session and redirects the learner to a hosted payment page (Card, GCash, GrabPay, Maya, BillEase, QRPh). The portal also shows their booking history and status.
+A customer-facing booking application. Bookers browse available offerings from active vendors, select a vendor, pick a schedule slot, upload requirement documents, confirm a booking, and pay — all in a guided 6-step wizard. Step 6 creates a PayMongo Checkout Session and redirects the booker to a hosted payment page (Card, GCash, GrabPay, Maya, BillEase, QRPh). The portal also shows their booking history and status.
 
-### School Portal (`./academy`)
-**Audience:** Driving school administrators (academy-admin role)  
-**Purpose:** Manage the school's offerings, schedules, instructors, and incoming bookings  
-**Domain:** `academy` portal in Supabase
+### Vendor Portal (`./vendor`)
+**Audience:** Vendor administrators (vendor-admin role)  
+**Purpose:** Manage the vendor's offerings, schedules, staff, and incoming bookings  
+**Domain:** `vendor` portal in Supabase
 
-An operations dashboard for driving schools. Each academy's admin can define what services they offer, set up recurring or one-time schedule slots, manage their instructors, and (future) review and action incoming bookings from learners.
+An operations dashboard for vendors. Each vendor's admin can define what services they offer, set up recurring or one-time schedule slots, manage their staff, and (future) review and action incoming bookings from bookers.
 
-### RS Command (`./command`)
-**Audience:** RS internal operations team (admin / root roles)  
-**Purpose:** Platform-wide user management, academy approval, operational oversight  
+### Bookdeck Command (`./command`)
+**Audience:** Bookdeck internal operations team (admin / root roles)  
+**Purpose:** Platform-wide user management, vendor approval, operational oversight  
 **Domain:** `command` portal in Supabase
 
-An internal ops portal. Command staff approve new academies (verifying LTO accreditation), grant or revoke portal access for users, and monitor platform-wide activity. It is the only portal with the authority to change user and academy status.
+An internal ops portal. Command staff approve new vendors (verifying accreditation where applicable), grant or revoke portal access for users, and monitor platform-wide activity. It is the only portal with the authority to change user and vendor status.
 
 ---
 
@@ -39,7 +39,7 @@ The three portals are independent Next.js applications — not a monorepo, not m
 
 - **Security isolation.** Each app can only access the data its users are authorised to see, enforced at the DB layer via RLS. There is no shared session or cookie between portals.
 - **Deployment independence.** Each portal can be deployed, updated, or taken down without affecting the others. This is particularly important for Command, which is an internal tool that may have different release cadence.
-- **UI divergence.** The three audiences have very different workflows. A learner portal optimised for mobile-first booking and an admin portal optimised for dense data tables should not share a component tree.
+- **UI divergence.** The three audiences have very different workflows. A booker portal optimised for mobile-first booking and an admin portal optimised for dense data tables should not share a component tree.
 - **Simplicity now.** The tradeoff is duplicated utility code. This is acceptable at the current scale. A shared package or monorepo can be introduced later if the duplication cost becomes significant.
 
 ---
@@ -54,12 +54,12 @@ All three portals connect to the same Supabase project. There is no inter-app AP
 
 ---
 
-## Philippine Context
+## Regional / Domain Context
 
-The platform is built for the Philippine LTO ecosystem. This shapes several decisions:
+The platform launches in the Philippine market but is vertical-agnostic. Notes:
 
-- **Accreditation:** Academies must hold a valid LTO accreditation number (`lto_accred_no`). Command approves academies after verifying this.
-- **Offering codes:** TDC (Theoretical Driving Course), PDC (Practical Driving Course), MDC (Motorcycle Driving Course) are the canonical LTO-defined course types. The `code` field on offerings captures these. The platform is not limited to these three — `offering_categories` allows `exam`, `lesson`, and `other` types.
+- **Accreditation:** optional. Vendors may record an accreditation/license number (`accreditation_no`, nullable) if their vertical has one; many (e.g. facility rentals) won't. Command approves vendors after review.
+- **Offering codes & categories:** each offering has a short vendor-defined `code` (badge, ≤6 chars) and a free-text `category` (e.g. "Rental", "Coaching", "Class"). There is no fixed category set — categories are whatever vendors type, surfaced dynamically in filters.
 - **Currency:** Philippine Peso (₱). All prices are stored as `numeric(10,2)`.
 - **Phone format:** `+63 9XX XXX XXXX`
 - **Locale:** `en-PH` is used for date formatting.
@@ -91,7 +91,7 @@ These are architectural invariants that must not be violated regardless of how f
 | Theming | next-themes (light/dark via `class`) | All three portals |
 | Icons | lucide-react | All three portals |
 | Notifications | sonner | All three portals |
-| Maps | Leaflet (client-side, dynamic import) | Learner portal only |
+| Maps | Leaflet (client-side, dynamic import) | Booker portal only |
 | Database | Supabase (PostgreSQL) | Shared |
 | Auth | Supabase Auth | Shared |
 | Storage | Supabase Storage | Shared (not fully wired yet) |
@@ -105,9 +105,9 @@ These are architectural invariants that must not be violated regardless of how f
 
 | Portal | Status |
 |--------|--------|
-| RS Learner (learner) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the learner to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards with per-type SVG watermarks. In-app notifications live (bell icon, panel, Realtime delivery). Wallet is UI-only. |
-| School Portal (academy) | Offerings, schedules, instructors, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Wallet, packages, and calendar are still mock. |
-| RS Command (command) | Users and schools fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
+| Bookdeck Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery). Wallet is UI-only. |
+| Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Wallet, packages, and calendar are still mock. |
+| Bookdeck Command (command) | Users and vendors fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 
 ---
 
@@ -115,7 +115,7 @@ These are architectural invariants that must not be violated regardless of how f
 
 To avoid scope creep, the following are explicitly out of scope for the current phase:
 
-- **LTO system integration.** There is no direct API link to LTO's systems. Accreditation verification is manual (Command admin reviews the `lto_accred_no`).
+- **External accreditation/registry integration.** There is no API link to any external licensing/registry system. Accreditation verification, where relevant, is manual (Command admin reviews the `accreditation_no`).
 - **Real-time communication.** There is no chat, messaging, push notification, email, or SMS system. In-app notifications (bell icon, persistent DB-backed alerts via Supabase Realtime) are implemented as a distinct, narrower feature — not a messaging system.
-- **Multi-tenancy beyond academies.** There is no concept of regions, franchises, or academy groups beyond the individual academy record.
+- **Multi-tenancy beyond vendors.** There is no concept of regions, franchises, or vendor groups beyond the individual vendor record.
 - **Mobile app.** All three portals are web applications, optimised for mobile browsers but not packaged as native apps.
