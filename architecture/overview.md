@@ -96,7 +96,7 @@ These are architectural invariants that must not be violated regardless of how f
 | Auth | Supabase Auth | Shared |
 | Storage | Supabase Storage | Shared (not fully wired yet) |
 | Realtime | Supabase Realtime | Used for in-app notification delivery |
-| Email | Resend (planned) | SMTP provider for Supabase Auth emails (reset/invite/confirm); Supabase's built-in mailer is dev-only. No app-level email yet. |
+| Email | Resend (integrated) | Two independent paths: (1) app notification emails — one row in `notifications` sends one email via a single `send-notification-email` Edge Function that calls the Resend **API**; (2) auth emails (password recovery) via Resend **SMTP** for Supabase Auth. Local dev uses Supabase's built-in mailer (Mailpit). |
 | Hosting | Vercel | All three portals |
 
 ---
@@ -109,6 +109,8 @@ These are architectural invariants that must not be violated regardless of how f
 | Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Wallet, packages, and calendar are still mock. |
 | Bookdeck Command (command) | Users and vendors fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 
+Platform-wide since June 2026: every in-app notification also sends one email via Resend (centralized in the `send-notification-email` Edge Function — no Resend code in any app), gated by a per-portal email kill-switch in `notification_email_settings`. Password recovery is implemented end-to-end in all three portals (reset request + set-new-password), with auth emails delivered via Resend SMTP when hosted and Mailpit locally.
+
 ---
 
 ## What This Platform Is Not (Scope Limits)
@@ -116,6 +118,6 @@ These are architectural invariants that must not be violated regardless of how f
 To avoid scope creep, the following are explicitly out of scope for the current phase:
 
 - **External accreditation/registry integration.** There is no API link to any external licensing/registry system. Accreditation verification, where relevant, is manual (Command admin reviews the `accreditation_no`).
-- **Real-time communication.** There is no chat, messaging, push notification, email, or SMS system. In-app notifications (bell icon, persistent DB-backed alerts via Supabase Realtime) are implemented as a distinct, narrower feature — not a messaging system.
+- **Real-time communication.** There is no chat, messaging, push, or SMS system. In-app notifications (bell icon, persistent DB-backed alerts via Supabase Realtime) are implemented as a distinct, narrower feature — not a messaging system. Every in-app notification now also sends one email (via Resend, through the `send-notification-email` Edge Function), and password-recovery uses Resend SMTP — but these are notification/auth emails, not a chat or messaging channel. Push and SMS remain out of scope.
 - **Multi-tenancy beyond vendors.** There is no concept of regions, franchises, or vendor groups beyond the individual vendor record.
 - **Mobile app.** All three portals are web applications, optimised for mobile browsers but not packaged as native apps.

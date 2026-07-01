@@ -31,6 +31,9 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260525000002_notifications.sql` | `notifications` table + RLS (SELECT/UPDATE/DELETE own rows; no INSERT policy — trigger/service-role only) + Realtime publication |
 | `20260525000003_notification_triggers.sql` | `notify_on_new_booking()` AFTER INSERT + `notify_on_booking_status_change()` AFTER UPDATE triggers; both SECURITY DEFINER; guard on `is_enabled` before inserting |
 | `20260620000001_api_role_grants.sql` | Table-level GRANTs for the API roles (PostgREST needs DML before RLS runs). `anon` → none; `authenticated` → exactly the operations each table's RLS policies permit (no TRUNCATE); `service_role` → full DML. Revokes the inherited `Dxtm` default (incl. TRUNCATE) from anon/authenticated and revokes their schema-`public` default privileges, so **new tables must grant explicitly** |
+| `20260624000001_notification_email_settings.sql` | `notification_email_settings` table + RLS (authenticated read; command-admin update) + seed one row per portal. Per-portal outbound-email kill-switch |
+| `20260624000002_notification_emails.sql` | `notification_emails` table + RLS (service-role only). Outbound-email delivery log; `unique(notification_id)` is the idempotency guard |
+| `20260624000003_notification_email_dispatch.sql` | `dispatch_notification_email()` AFTER INSERT trigger (`notifications_dispatch_email`) on `notifications`; enables `pg_net` + `supabase_vault`; `net.http_post`s the notification id to the `send-notification-email` Edge Function. Function URL + shared secret read from Supabase Vault; no-ops if Vault secrets are absent |
 
 ---
 
@@ -406,6 +409,39 @@ Persistent in-app alerts for all three portals. Written exclusively by SECURITY 
 
 **RLS:** Users SELECT, UPDATE, and DELETE their own rows (`user_id = auth.uid()`). No INSERT policy — trigger-only and service-role writes only.
 
+**Email dispatch:** An AFTER INSERT trigger `notifications_dispatch_email` (function `dispatch_notification_email()`, migration `20260624000003`) fires on every insert. It uses `pg_net` (`net.http_post`) to POST only the new `id` to the `send-notification-email` Edge Function, which re-reads the row with service role, renders a template, and sends via Resend. So one notification row = one email. The Edge Function URL + shared secret live in Supabase Vault (never in the migration); if they are absent (e.g. local dev without setup) the trigger no-ops so inserts and `db reset` seeding are never blocked. `net.http_post` is fire-and-forget and delivers after commit, so a send failure can never roll back or slow the insert. The three Next.js apps contain **no** Resend code — email is centralized in this one Edge Function (`backbone/supabase/functions/send-notification-email/`).
+
+---
+
+### `notification_email_settings`
+Per-portal master switch for outbound notification emails. Seeded one row per portal (all enabled). Managed by Command admins. Gates **only** the email channel — the in-app notification still fires when a portal's email is disabled. (Contrast with `notification_type_settings.is_enabled`, which gates whether the notification row is created at all.)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `portal` | `text` | PK. FK → `portals(name)`. One of `booker`, `vendor`, `command` |
+| `is_email_enabled` | `boolean` | Default `true`. The Edge Function reads the target notification's portal and skips sending (log `skipped`) when this is `false` |
+
+**RLS:** All authenticated users can SELECT (needed by the Command UI). Only `admin` / `root` roles can UPDATE. No INSERT or DELETE for authenticated — rows are seed-fixed, one per portal.
+
+---
+
+### `notification_emails`
+Outbound-email delivery log and idempotency guard. One row per notification. Written exclusively by the `send-notification-email` Edge Function via service role.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `notification_id` | `uuid` | FK → `notifications(id)` ON DELETE CASCADE. `NOT NULL UNIQUE` — the uniqueness is the idempotency guard |
+| `recipient_email` | `text` | The address the email was (or would be) sent to |
+| `status` | `text` | CHECK in (`sending`, `sent`, `failed`, `skipped`). `sending` is the claim-first state inserted before the send, then updated to `sent`/`failed` |
+| `provider_message_id` | `text` | Resend message id on success. Nullable |
+| `error` | `text` | Error detail on failure. Nullable |
+| `attempted_at` | `timestamptz` | Default `now()` |
+
+**Idempotency:** the function inserts a `sending` row first; a concurrent retry hits the `unique(notification_id)` violation and bails, so a notification is never emailed twice.
+
+**RLS:** Enabled with **no** authenticated policies — service-role-only operational data. `authenticated` has no grants either. (A command-admin SELECT policy can be added later to surface delivery failures.)
+
 ---
 
 ## Delete Behaviour Summary
@@ -415,6 +451,7 @@ Persistent in-app alerts for all three portals. Written exclusively by SECURITY 
 | `auth.users` → `profiles` | CASCADE |
 | `profiles` → `user_portals`, `user_roles`, `vendor_members` | CASCADE |
 | `profiles` → `notifications` | CASCADE |
+| `notifications` → `notification_emails` | CASCADE |
 | `vendors` → `offerings`, `staff`, `schedules` | CASCADE |
 | `vendors` → `bookings` | RESTRICT |
 | `offerings` → `schedules` | RESTRICT |

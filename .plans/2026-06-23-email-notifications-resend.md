@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-23
 **App / scope:** Cross-cutting — `backbone/supabase` (new Edge Function + migrations), `command` (admin UI). Notification-email path needs **no** booker/vendor app code (see Q1). The added password-recovery work (D-6 = A) touches **all three apps** (redirect + update-password page).
-**Status:** IN PROGRESS — all decisions resolved + **schema drafts S1–S3 APPROVED (2026-06-24)**. Ready to execute Phase 1. (Resend/Vault setup intentionally deferred by the user; the dispatch trigger no-ops until Vault is configured, so Phase 1 is safe to build first.)
+**Status:** IN PROGRESS — **Phases 1 & 2 DONE and verified end-to-end locally (A5, 2026-06-26)**: schema written+committed (backbone `a79efc0`), Edge Function built, and a real INSERT → trigger → pg_net → function → email confirmed locally. **Remaining:** Phase 3 (remote/hosted deploy), Phase 4 (Command UI), Phase 4b (password recovery), Phase 5 (close-out). UI work (4/4b) intentionally paused by the user.
 
 > One-line framing: deliver an email for every in-app notification through **one** centralized Supabase Edge Function that calls Resend, hooked off the `notifications` table — with a per-portal email kill-switch managed in Command. Optimize for: not duplicating logic across three apps, one secret location, and SOLID code.
 
@@ -143,7 +143,7 @@ Two ways to fire the HTTP call on insert:
 
 > **Approval gate CLEARED — S1, S2, S3 approved 2026-06-24.** Decisions on review: S2 stuck-`'sending'` rows left to the future retry sweep (not building timed re-claim now); pg_net + Vault confirmed as new backbone dependencies. New tables MUST include explicit API-role `GRANT`s (the `public` default grants nothing — see `20260620000001_api_role_grants.sql`).
 
-### S1 — `notification_email_settings` (per-portal email switch)  ✅ APPROVED (2026-06-24) — not yet written
+### S1 — `notification_email_settings` (per-portal email switch)  ✅ DONE — written, committed (backbone `a79efc0`), applied locally
 **File (proposed):** `backbone/supabase/migrations/20260623000001_notification_email_settings.sql`
 
 ```sql
@@ -180,7 +180,7 @@ grant select, insert, update, delete on public.notification_email_settings to se
 
 **Blast radius:** new table only; no existing data touched. Reversible via `drop table`. Type regen required afterwards. UPDATE-only for authenticated (no insert/delete from app — rows are seed-fixed per portal).
 
-### S2 — `notification_emails` (delivery log / idempotency)  ✅ APPROVED (2026-06-24) — not yet written
+### S2 — `notification_emails` (delivery log / idempotency)  ✅ DONE — written, committed (backbone `a79efc0`), applied locally
 **File (proposed):** `backbone/supabase/migrations/20260623000002_notification_emails.sql`
 
 ```sql
@@ -211,7 +211,7 @@ grant select, insert, update, delete on public.notification_emails to service_ro
 
 **Blast radius:** new table; `on delete cascade` keeps it consistent when a notification is deleted. The `unique(notification_id)` is the idempotency guard. Reversible via `drop table`.
 
-### S3 — INSERT trigger that calls the Edge Function  ✅ APPROVED (2026-06-24) — not yet written
+### S3 — INSERT trigger that calls the Edge Function  ✅ DONE — written, committed (backbone `a79efc0`), applied locally
 **File (proposed):** `backbone/supabase/migrations/20260623000003_notification_email_dispatch.sql`
 
 **WRITTEN** as `20260624000003_notification_email_dispatch.sql`. Two corrections applied vs the original sketch: (a) `pg_net` is created **without** a schema clause — its functions live in the `net` schema per Supabase's documented usage (`with schema extensions` would be wrong); (b) `supabase_vault` is created so `vault.decrypted_secrets` exists at function-create time (it also pulls in `pgsodium`; both are standard Supabase extensions, pre-enabled on hosted).
@@ -445,17 +445,12 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 
 > Resolve **D-1…D-4** first — they change S2/S3 and the function's gate. Then proceed. Each phase ends with a verification check.
 
-### Phase 0 — Decisions & setup prerequisites
-- [ ] ⬜ Resolve D-1 (dispatch mechanism)
-- [ ] ⬜ Resolve D-2 (switch granularity)
-- [ ] ⬜ Resolve D-3 (logging/idempotency)
-- [ ] ⬜ Resolve D-4 (From identity / domain) — unblocks Setup §1–§2
-- [ ] ⬜ Resolve D-5 (generic vs per-type templates)
-- [ ] ⬜ Resolve D-6 (password-recovery scope — your nod, expands to app code)
-- [ ] ⬜ **(you)** Resend domain verified (Setup §1)
-- [ ] ⬜ **(you)** Secrets generated & stored, incl. non-prod `NOTIFICATION_EMAIL_OVERRIDE_TO` (Setup §5, #5)
+### Phase 0 — Decisions & setup prerequisites  ✅ DONE (decisions) / 🔄 (hosted setup pending)
+- [x] ✅ Resolve D-1…D-6 (all resolved 2026-06-24 — see Decisions section)
+- [x] ✅ **(you)** Resend domain verified — **temporary** `roadssafetyhub.com` for now (real `ezzy.ph`/`info.ezzy.ph` later; domain swap is config-only)
+- [x] ✅ **(you)** Secrets generated & stored **locally** (`.env` + local Vault); non-prod `NOTIFICATION_EMAIL_OVERRIDE_TO` set → all local mail goes to the override inbox
 - [ ] ⬜ **(you)** Confirm Resend plan daily cap / rate limit fits expected volume (Setup §4, #6)
-- [ ] ⬜ Confirm `pg_net` is available on the Supabase plan (if D-1 = A)
+- [x] ✅ `pg_net` + `supabase_vault` available — confirmed by the successful local `db reset` + full chain
 
 ### Phase 1 — Schema (approval gate)
 - [x] ✅ Approve S1–S3 SQL drafts (2026-06-24)
@@ -463,7 +458,7 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 - [x] ✅ Create migration S2 `notification_emails` (+ grants) — `20260624000002` (2026-06-24)
 - [x] ✅ Create migration S3 dispatch trigger — `20260624000003` (2026-06-24)
 - [x] ✅ **#1**: `seed.sql` Block 8 wrapped with `disable trigger user` / `enable trigger user` so `db reset` doesn't fire sends (2026-06-24)
-- [ ] ⬜ `supabase db reset` locally; confirm migrations apply cleanly **and no email is attempted during seed** — *(you, needs local stack)*
+- [x] ✅ `supabase db reset` locally — migrations apply cleanly; no email attempted during seed (2026-06-26)
 - [x] ✖ S4: type regen — N/A (this codebase uses hand-written interfaces, not generated types; verified 2026-06-24)
 
 ### Phase 2 — Edge Function  🔄 mostly DONE (2026-06-24) — code written, runtime verification pending
@@ -491,14 +486,17 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 - [ ] ⬜ `npx tsc --noEmit` passes in `command`
 - [ ] ⬜ Toggle each of the 3 portals from the UI; verify persisted + reflected in send behaviour
 
-### Phase 4b — Password recovery (Resend SMTP + app flow) *(if D-6 = A)*
-- [ ] ⬜ Enable `[auth.email.smtp]` (Resend) in `config.toml`; set SMTP in hosted dashboard
+### Phase 4b — Password recovery (Resend SMTP + app flow) *(if D-6 = A)*  ✅ app flow done all 3 apps; ⬜ hosted SMTP pending
+> **Design (SPA fit):** no new file route. The Supabase client uses **implicit flow** (recovery returns a hash token, not a PKCE `?code=` needing a same-origin code_verifier) and registers a `PASSWORD_RECOVERY` listener **at module load** (it fires during client init, before React mounts) that latches `isRecoveryDetected()`. `useAppShell` reads that + an effect-level listener → sets `recoveryMode` → `AppShell` renders `LoginPage` in a `"reset"` view (set-new-password). On success: `updateUser({password})` → sign out → reload clean. `redirectTo = window.location.origin`. Local test = Mailpit (no Resend/SMTP needed locally).
+- [x] ✅ **booker** — implemented + `tsc` clean + **runtime-verified locally** (Mailpit → reset form → new password works, 2026-06-26).
+- [x] ✅ **vendor** — replicated + `tsc` exit 0 (2026-06-26, independently verified). ⬜ awaiting user runtime test.
+- [x] ✅ **command** — replicated + `tsc` exit 0 (2026-06-26, independently verified). ⬜ awaiting user runtime test.
+- [x] ✅ **Auth-flow + config changes made while debugging:** switched clients PKCE→**implicit** (auth-flow change); `config.toml` `site_url`→`http://localhost:3000` and `additional_redirect_urls` now lists `localhost:3000/3001/3002` + `127.0.0.1:3000` (127.0.0.1 dev origin black-screens under WSL2 — Next HMR ws doesn't bind there; use `localhost`).
+- [x] ✅ **Recovery-gate guard (all 3 apps, 2026-06-26):** the access gate (`verify*Access` → `signOut()` for users lacking that portal) was destroying the recovery session mid-reset → `updateUser` failed with "Auth session missing!". Fixed: `useAppShell` mount effect early-returns when `isRecoveryDetected()` (vendor also clears `isCheckingAuth`), so the recovery session is preserved until the password is updated. `tsc` clean all 3. Password reset is auth-level; portal access is still enforced at login.
+- [ ] ⬜ Enable `[auth.email.smtp]` (Resend) in `config.toml` + hosted dashboard SMTP *(hosted only — local uses Mailpit)*
 - [ ] ⬜ (Optional) brand the `recovery` auth template
-- [ ] ⬜ Add `redirectTo` to `resetPasswordForEmail` in each app's `auth.service.ts`
-- [ ] ⬜ Add an update-password page (handles `PASSWORD_RECOVERY` → `updateUser({password})`) in booker, vendor, command
-- [ ] ⬜ Add each `/reset-password` URL to Supabase Auth redirect allow-list
-- [ ] ⬜ E2E: request reset → email arrives via Resend → link opens update-password page → new password works
-- [ ] ⬜ `npx tsc --noEmit` passes in all three apps
+- [ ] ⬜ Hosted: set `site_url` + redirect allow-list to the prod app URLs
+- [ ] ⬜ `[inbucket]`→`[local_smtp]` config-section rename (cosmetic deprecation warning; verify v2.108 schema first)
 
 ### Phase 5 — Close-out
 - [ ] ⬜ Update `architecture/overview.md` tech-stack row: Resend "planned" → live (app notification emails)

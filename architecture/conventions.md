@@ -169,8 +169,15 @@ export async function getUser() {
   return createClient().auth.getUser()
 }
 
-export async function resetPassword(email: string) {
-  return createClient().auth.resetPasswordForEmail(email)
+export async function resetPassword(email: string, redirectTo?: string) {
+  return createClient().auth.resetPasswordForEmail(
+    email,
+    redirectTo ? { redirectTo } : undefined,
+  )
+}
+
+export async function updatePassword(newPassword: string) {
+  return createClient().auth.updateUser({ password: newPassword })
 }
 
 export function onAuthStateChange(
@@ -181,6 +188,10 @@ export function onAuthStateChange(
 ```
 
 This is the only file that ever calls `createClient().auth.*`. Do not scatter auth calls across components.
+
+`resetPassword(email, redirectTo?)` forwards `redirectTo` (the app origin) so the recovery link returns to the app, and `updatePassword(newPassword)` sets the new password once recovery is detected. See `auth-and-roles.md` for the password-recovery flow.
+
+**Browser client flow type.** The browser client (`lib/supabase/client.ts` in each portal) is created with `{ auth: { flowType: "implicit" } }`. These are pure client-rendered SPAs, so implicit flow is appropriate: password recovery returns the token in the URL hash rather than a PKCE `?code=` that would need a same-origin `code_verifier`, which makes the recovery flow reliable. The same file exposes `isRecoveryDetected()` (latched from a module-load `PASSWORD_RECOVERY` listener) that the app shell reads on mount.
 
 ---
 

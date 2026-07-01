@@ -29,6 +29,17 @@ The `profiles` row copies `id`, `full_name` (from `raw_user_meta_data`), and `em
 
 A second trigger (`handle_user_email_update`) keeps `profiles.email` in sync if the user changes their email address in Supabase Auth.
 
+### Password recovery
+
+Password recovery is implemented end-to-end in all three portals. The flow:
+
+1. From the login screen the user requests a reset; the portal calls `resetPassword(email, redirectTo)` (in `auth.service.ts`), passing the app origin as `redirectTo` so the recovery link returns to the app.
+2. The browser client (`lib/supabase/client.ts`) uses `flowType: "implicit"` — the recovery link returns the token in the URL hash rather than a PKCE `?code=` needing a same-origin `code_verifier`, which suits these client-rendered SPAs.
+3. Recovery is detected via a module-load `PASSWORD_RECOVERY` listener exposed as `isRecoveryDetected()`. `useAppShell` reads it and sets a `recoveryMode`; `AppShell` then renders `LoginPage` in a `"reset"` view (set-new-password form).
+4. **The portal access gate is skipped during recovery.** The normal mount check (`verify*Access` → `signOut()` for users lacking that portal) would otherwise destroy the recovery session before the password is updated. During recovery the gate early-returns so the recovery session survives until `updatePassword(newPassword)` succeeds; portal access is still enforced at the next login.
+
+Recovery (auth) emails are separate from notification emails — they are sent by Supabase Auth (GoTrue), delivered via Resend SMTP when hosted and via Supabase's local mailer (Mailpit) in local dev. They do **not** go through the `send-notification-email` Edge Function.
+
 ---
 
 ## User Lifecycle
