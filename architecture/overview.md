@@ -76,7 +76,7 @@ These are architectural invariants that must not be violated regardless of how f
 | No custom authentication — Supabase Auth only | Rolling custom auth introduces security surface area and maintenance burden |
 | No `SUPABASE_SERVICE_ROLE_KEY` in client-side code or `NEXT_PUBLIC_` vars | Service role bypasses all RLS — exposing it to the client breaks the entire security model |
 | Schema changes via migration files only | Mutations to a shared DB without a migration leave other portals in an unknown state |
-| Regenerate types after every schema change (`supabase gen types typescript`) | Stale types cause silent runtime errors that TypeScript cannot catch |
+| Update the hand-written TypeScript interfaces after a schema change | This repo does **not** use `supabase gen types` — types are hand-authored per service (e.g. `NotificationTypeSetting`). Stale interfaces cause silent runtime errors TypeScript can't catch |
 | No shared code between the three apps | Until a monorepo decision is made, copy intentionally rather than import across app boundaries |
 
 ---

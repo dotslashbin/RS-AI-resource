@@ -42,7 +42,7 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 - Apps communicate with Supabase only via the official client — no raw SQL from app code outside of migrations
 - Environment variables follow the pattern: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for public, `SUPABASE_SERVICE_ROLE_KEY` for server-only
 - Schema changes require a new migration file — never mutate the DB directly without a migration
-- Type generation: run `supabase gen types typescript` after any schema change
+- Types: this repo **hand-writes** TypeScript interfaces (it does **not** use `supabase gen types`) — add or update the interface in the relevant service after any schema change
 
 ---
 
@@ -99,7 +99,7 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 - No app writes raw SQL outside of migration files in `backbone/supabase/migrations/`
 - `SUPABASE_SERVICE_ROLE_KEY` never appears in client-side code or any `NEXT_PUBLIC_` variable
 - Migration files are never edited after being applied — create a new migration instead
-- Types must be regenerated (`supabase gen types typescript`) after every schema change
+- Types are hand-written interfaces (no `supabase gen types` in this repo) — update the relevant service's interface after every schema change
 
 ### Preferences
 

@@ -281,7 +281,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Every schema change must be a new migration file in `./backbone/supabase/migrations/`
 - File naming: `YYYYMMDDNNNNNN_short_description.sql` where `NNNNNN` is a 6-digit sequence
 - Never edit an applied migration — create a corrective migration instead
-- Run `supabase gen types typescript` after every migration to regenerate the TypeScript types
+- After every migration, hand-update the TypeScript interface(s) in the relevant service — this repo does **not** use `supabase gen types` (types are hand-authored)
 - Every new table must have RLS enabled (`alter table ... enable row level security`) and at least one policy
 - New policies follow the helper function patterns in `auth-roles.md` — do not write raw `auth.uid()` checks without also checking `is_active()`
 - Destructive SQL (`DROP`, `TRUNCATE`, `DELETE` without `WHERE`) requires explicit approval before running

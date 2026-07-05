@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-23
 **App / scope:** Cross-cutting — `backbone/supabase` (new Edge Function + migrations), `command` (admin UI). Notification-email path needs **no** booker/vendor app code (see Q1). The added password-recovery work (D-6 = A) touches **all three apps** (redirect + update-password page).
-**Status:** IN PROGRESS — **Phases 1 & 2 DONE and verified end-to-end locally (A5, 2026-06-26)**: schema written+committed (backbone `a79efc0`), Edge Function built, and a real INSERT → trigger → pg_net → function → email confirmed locally. **Remaining:** Phase 3 (remote/hosted deploy), Phase 4 (Command UI), Phase 4b (password recovery), Phase 5 (close-out). UI work (4/4b) intentionally paused by the user.
+**Status:** IN PROGRESS — **notification emails LIVE + verified on hosted (2026-07-03)** and locally; Command toggle UI + password-recovery (all 3 apps) built; docs done. **Remaining = deployment/verification, no more feature code:** deploy the 3 apps against the new hosted project (unblocks live recovery test + C2 redirect allow-list), runtime-confirm the Command email toggles + vendor/command recovery, then go fully live (`unset NOTIFICATION_EMAIL_OVERRIDE_TO`). Details in Phase 3–5 and the cutover checklist `.plans/2026-06-26-email-hosted-cutover.md`.
 
 > One-line framing: deliver an email for every in-app notification through **one** centralized Supabase Edge Function that calls Resend, hooked off the `notifications` table — with a per-portal email kill-switch managed in Command. Optimize for: not duplicating logic across three apps, one secret location, and SOLID code.
 
@@ -126,8 +126,8 @@ Two ways to fire the HTTP call on insert:
 
 **Recommendation: A, then selectively B.** The registry pattern makes this non-binding — start generic, override individual types with no change to the handler (OCP). See the template table under "Email templates" for the full list either way. Note: templates are authored **in code**, not in the Resend dashboard.
 
-### D-4 — From identity / sending domain  ✅ RESOLVED (2026-06-24)
-**Intended sending domain: `info.ezzy.com` (→ `info.ezzy.ph` once purchased). From: `Ezzy <no-reply@…>`.** A **temporary domain is in use for now**; the live value is whatever is currently verified in Resend, and `NOTIFICATION_EMAIL_FROM` must match it. Switching to the real domain later is config-only — see the runbook `architecture/email-sending-domain.md`. The same domain/From is reused for password-recovery SMTP (D-6). (Until the domain is verified, Resend only allows `onboarding@resend.dev` to your own account email — usable for the first smoke test only.)
+### D-4 — From identity / sending domain  ✅ RESOLVED (2026-06-24; prod domain finalized 2026-06-26)
+**Prod sending domain: `mail.ezzy.ph` (subdomain of the purchased `ezzy.ph`, DNS on Hostinger). From: `Ezzy <no-reply@mail.ezzy.ph>`.** Local dev currently uses a **temporary** verified domain (`roadssafetyhub.com`) in `.env`; the live value is whatever is verified in Resend and `NOTIFICATION_EMAIL_FROM` must match it. Switching domains is config-only — runbook `architecture/email-sending-domain.md`. Same domain/From reused for password-recovery SMTP (D-6). **Hosted cutover checklist:** `.plans/2026-06-26-email-hosted-cutover.md`. (Until the domain is verified, Resend only allows `onboarding@resend.dev` to your own account email — usable for the first smoke test only.)
 
 > Note on brand: the rest of the product/code still says "Bookdeck" (the "EzzyBook" rename is decided-but-deferred). Email leads with **"Ezzy"** to match the `info.ezzy.com` domain (chosen to be rename-agnostic and avoid a display-name/domain mismatch). Template header/footer copy uses "Ezzy" accordingly; notification `title`/`body` text is unchanged (it carries vendor/booking names, not the platform brand).
 
@@ -473,18 +473,17 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 - [x] ✅ `supabase functions serve` + curl smoke test → `{"outcome":"sent"}`, email delivered to override inbox, `notification_emails` row written (A4, 2026-06-26)
 - [x] ✅ **Full local chain verified (A5, 2026-06-26):** Vault secrets set (`edge_function_base_url=http://host.docker.internal:54321`), a real `notifications` INSERT fired the trigger → pg_net → function → email delivered. Confirms trigger→function→Resend. *(Remote/hosted equivalent = Phase 3, still pending.)*
 
-### Phase 3 — Wire it end-to-end
-- [ ] ⬜ Deploy function: `supabase functions deploy send-notification-email`
-- [ ] ⬜ Set Vault `edge_function_base_url` + secret to the deployed URL
-- [ ] ⬜ Trigger a real notification (book a slot in booker) → vendor admin receives `new_booking` email
-- [ ] ⬜ Toggle vendor email OFF in Command → next `new_booking` writes in-app only, **no email**, log row `skipped`
-- [ ] ⬜ Toggle back ON → email resumes
+### Phase 3 — Wire it end-to-end (hosted)  ✅ notification path live-verified (2026-07-03) — see cutover checklist `.plans/2026-06-26-email-hosted-cutover.md`
+- [x] ✅ Function deployed to hosted (via Supabase↔GitHub integration; verify-JWT off)
+- [x] ✅ Vault `edge_function_base_url` + `notification_email_secret` set on hosted (new project `fbxbwnfeimzhgxpshdpa`)
+- [x] ✅ Notification triggered on hosted → email delivered (`notification_emails` `sent` + `provider_message_id`) — sent to override inbox (override still ON)
+- [ ] ⬜ Confirm per-portal kill-switch on hosted (toggle a portal OFF → `skipped`; toggle back ON)
 
-### Phase 4 — Command UI
-- [ ] ⬜ Extend `notifications-admin.service.ts` with email-settings read/update
-- [ ] ⬜ Add "Email Delivery" section + `useEmailSettings.ts` hook (pure-render `.tsx`)
-- [ ] ⬜ `npx tsc --noEmit` passes in `command`
-- [ ] ⬜ Toggle each of the 3 portals from the UI; verify persisted + reflected in send behaviour
+### Phase 4 — Command UI  ✅ built + `tsc` clean (2026-06-26); ⬜ awaiting runtime test
+- [x] ✅ Extended `notifications-admin.service.ts` with `NotificationEmailSetting` + `getEmailSettings()` / `updateEmailSetting(portal, enabled)` (RLS gates update to command admins)
+- [x] ✅ Added an "Email Delivery" card (3 per-portal toggles) to `NotificationSettingsPage.tsx`; loading + optimistic toggle handled in the existing `useNotificationSettingsPage.ts` hook (extended rather than a separate `useEmailSettings.ts` — matches the page's single-hook structure; `.tsx` stays pure render)
+- [x] ✅ `tsc --noEmit` passes in `command` (exit 0)
+- [ ] ⬜ Toggle each of the 3 portals from the UI; verify persisted + a disabled portal suppresses email while the in-app notification still fires
 
 ### Phase 4b — Password recovery (Resend SMTP + app flow) *(if D-6 = A)*  ✅ app flow done all 3 apps; ⬜ hosted SMTP pending
 > **Design (SPA fit):** no new file route. The Supabase client uses **implicit flow** (recovery returns a hash token, not a PKCE `?code=` needing a same-origin code_verifier) and registers a `PASSWORD_RECOVERY` listener **at module load** (it fires during client init, before React mounts) that latches `isRecoveryDetected()`. `useAppShell` reads that + an effect-level listener → sets `recoveryMode` → `AppShell` renders `LoginPage` in a `"reset"` view (set-new-password). On success: `updateUser({password})` → sign out → reload clean. `redirectTo = window.location.origin`. Local test = Mailpit (no Resend/SMTP needed locally).
@@ -493,15 +492,19 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 - [x] ✅ **command** — replicated + `tsc` exit 0 (2026-06-26, independently verified). ⬜ awaiting user runtime test.
 - [x] ✅ **Auth-flow + config changes made while debugging:** switched clients PKCE→**implicit** (auth-flow change); `config.toml` `site_url`→`http://localhost:3000` and `additional_redirect_urls` now lists `localhost:3000/3001/3002` + `127.0.0.1:3000` (127.0.0.1 dev origin black-screens under WSL2 — Next HMR ws doesn't bind there; use `localhost`).
 - [x] ✅ **Recovery-gate guard (all 3 apps, 2026-06-26):** the access gate (`verify*Access` → `signOut()` for users lacking that portal) was destroying the recovery session mid-reset → `updateUser` failed with "Auth session missing!". Fixed: `useAppShell` mount effect early-returns when `isRecoveryDetected()` (vendor also clears `isCheckingAuth`), so the recovery session is preserved until the password is updated. `tsc` clean all 3. Password reset is auth-level; portal access is still enforced at login.
-- [ ] ⬜ Enable `[auth.email.smtp]` (Resend) in `config.toml` + hosted dashboard SMTP *(hosted only — local uses Mailpit)*
+- [x] ✅ Hosted Auth → SMTP (Resend) configured (cutover C1, 2026-07-03)
+- [ ] ⬜ Hosted: Auth → URL Configuration Site URL + redirect allow-list with deployed app URLs (cutover C2) *(blocked on app deploy)*
+- [ ] ⬜ Live recovery test on each deployed app *(blocked on app deploy + C2)*
+- [ ] ⬜ Runtime-confirm recovery on **vendor** & **command** (booker verified locally; both fixed but not re-run)
 - [ ] ⬜ (Optional) brand the `recovery` auth template
-- [ ] ⬜ Hosted: set `site_url` + redirect allow-list to the prod app URLs
-- [ ] ⬜ `[inbucket]`→`[local_smtp]` config-section rename (cosmetic deprecation warning; verify v2.108 schema first)
+- [ ] ⬜ `[inbucket]`→`[local_smtp]` config-section rename (cosmetic)
 
-### Phase 5 — Close-out
-- [ ] ⬜ Update `architecture/overview.md` tech-stack row: Resend "planned" → live (app notification emails)
-- [ ] ⬜ Note email layer in `architecture/` notifications/schema docs as needed
-- [ ] ⬜ Update this plan's statuses + record verification
+### Phase 5 — Close-out  🔄 docs done; go-live steps pending
+- [x] ✅ `architecture/overview.md` tech-stack row updated (Resend integrated); schema/conventions/auth-and-roles synced; master guide `architecture/email-notifications-guide.md` written
+- [x] ✅ Plan statuses reconciled to reality (2026-07-03)
+- [ ] ⬜ **(you)** Confirm Resend plan daily/rate limits fit expected volume
+- [ ] ⬜ Deploy the 3 apps against the new project (Vercel env → new URL + anon key) — unblocks C2, recovery test, go-live
+- [ ] ⬜ Go fully live: `supabase secrets unset NOTIFICATION_EMAIL_OVERRIDE_TO` (prod; keep ON for staging)
 
 ---
 
