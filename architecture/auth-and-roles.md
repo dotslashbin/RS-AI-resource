@@ -46,33 +46,51 @@ Recovery (auth) emails are separate from notification emails — they are sent b
 
 There are two onboarding paths depending on the portal:
 
-### Vendor self-registration path
+### Vendor self-registration path (KYC-gated)
 
-The vendor portal has a registration form that calls the server-side Route Handler `POST /api/auth/register`. This handler uses the service-role admin client to:
+Vendor onboarding is a **required KYC stage** — see `vendor-kyc.md` for the full
+subsystem. The key access-control property: **no auth user or vendor record is
+created until the entire KYC flow is submitted** (D-7 = D). The multi-step form
+fields live in browser `localStorage` and the documents are held in memory; only
+the final submit creates anything. Abandoning KYC leaves nothing behind.
+
+The final submit calls the server-side Route Handler `POST /api/auth/register`
+(multipart: fields + applicant type + document files). Using the service-role
+admin client, it **atomically** (rolling back on any failure):
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
 2. Immediately set the user's profile to `status_id = active`
 3. Grant `vendor` portal access (`user_portals` row)
 4. Create the vendor record with `status_id = pending_activation`
 5. Link the user as `vendor-admin` in `vendor_members`
+6. Create the `vendor_kyc` header (`status = submitted`) + upload the files to the
+   `vendor-kyc` bucket + insert a `vendor_kyc_documents` row per file
+7. Notify Command (`vendor_pending_approval` + `new_user_registration`)
 
-**Result:** The user is immediately active and can log in to the Vendor Portal. The *vendor itself* remains `pending_activation` until a Command admin reviews and approves it. Until the vendor is activated, the vendor admin can log in but their vendor will not appear to bookers in the booking flow.
+**Result:** The user is immediately active and can log in, but until Command
+approves and activates the vendor they see the KYC status surface
+(`KycStatusPage`: under review / approved-awaiting-activation / rejected → revise
+& resubmit), not the app. The *vendor itself* stays `pending_activation` and will
+not appear to bookers until activated. KYC approval is currently **advisory** — a
+Command admin flips the vendor active at their discretion (a hard gate is
+deferred; see `vendor-kyc.md`).
 
 ```
-Vendor self-registration form
-    │
+Multi-step registration + KYC (form in localStorage; no account yet)
+    │  (applicant type → documents → ID + selfie → review)
     ▼
-POST /api/auth/register (service role — bypasses RLS)
+POST /api/auth/register (service role — atomic, rollback on failure)
     │
     ├─ auth.users row created (confirmed)
     ├─ profiles row: status = active
     ├─ user_portals row: vendor portal
     ├─ vendors row: status = pending_activation
-    └─ vendor_members row: vendor-admin
+    ├─ vendor_members row: vendor-admin
+    ├─ vendor_kyc header: status = submitted
+    └─ vendor_kyc_documents + files in vendor-kyc bucket
     │
     ▼
-User can log in immediately
-Vendor awaits Command admin approval
+User logs in → KYC status surface until Command approves + activates the vendor
 ```
 
 ### Booker self-registration path
@@ -293,6 +311,9 @@ using (public.is_active() and <record>.is_active = true)
 | `staff` | — | Own vendor | All |
 | `bookings` | Own bookings | Own vendor bookings | All |
 | `booking_documents` | Own | Own vendor's | All |
+| `vendor_kyc` | — | Own (read + resubmit) | All (read + review) |
+| `vendor_kyc_documents` | — | Own (add/remove while `rejected`) | All (read) |
+| `kyc_document_types` | All (guidance) | All (guidance) | All (+ manage) |
 
 ---
 

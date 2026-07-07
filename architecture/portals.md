@@ -93,8 +93,8 @@ Allow vendor administrators to define their service catalogue, set up schedule a
 
 ### Current Features
 
-#### Registration Flow
-Vendor operators self-register via a form on the login screen. The form sends to the server-side Route Handler `POST /api/auth/register`, which uses the service-role admin client to: create and immediately activate the user, grant vendor portal access, create the vendor record (status `pending_activation`), and assign the `vendor-admin` role. The user can log in immediately; the vendor awaits Command approval before appearing to bookers.
+#### Registration Flow (KYC-gated)
+Vendor operators self-register via a **6-step** flow on the login screen: business details → account setup → applicant type (company/individual) → documents → identity (Valid ID + Selfie with ID via camera) → review. This is a required **KYC** stage and **no account or vendor record is created until it is submitted** — the form fields auto-save to `localStorage` and files are held in memory. The final submit sends multipart to `POST /api/auth/register`, which atomically (rollback on failure) creates and activates the user, grants vendor portal access, creates the vendor (`pending_activation`), assigns `vendor-admin`, creates the `vendor_kyc` header, uploads the documents to the private `vendor-kyc` bucket, and notifies Command. After submit the vendor logs in to the KYC status surface (under review / approved-awaiting-activation / rejected → revise & resubmit) until Command reviews and activates. See `vendor-kyc.md`.
 
 #### Offerings Page (fully wired)
 - List of the vendor's offerings, grouped or filterable by category
@@ -151,7 +151,9 @@ Vendor operators self-register via a form on the login screen. The form sends to
 
 | Feature | Status |
 |---------|--------|
-| Self-registration + vendor creation | ✅ Supabase-wired (via server Route Handler) |
+| Self-registration + vendor creation | ✅ Supabase-wired (KYC-gated atomic Route Handler) |
+| KYC onboarding (type → docs → ID/selfie) | ✅ Supabase-wired — private `vendor-kyc` bucket; camera capture; `localStorage` draft resume |
+| KYC status surface + revise & resubmit | ✅ Supabase-wired — selective-edit resubmit with Storage cleanup |
 | Offerings CRUD | ✅ Supabase-wired |
 | Schedules CRUD | ✅ Supabase-wired |
 | Staff CRUD | ✅ Supabase-wired |
@@ -170,6 +172,8 @@ Vendor operators self-register via a form on the login screen. The form sends to
 - **Offering deletion is not implemented.** Offerings can only be deactivated (`is_active = false`). Hard delete is restricted (schedules RESTRICT on delete) — would need to deactivate/delete schedules first.
 - **Packages page has no backing table.** If packages (bundles of offerings with a combined price) become a real feature, they need a DB schema.
 - **No photo/logo upload.** Vendor profile has no image support yet.
+- **KYC approval is advisory.** Command can activate a vendor whose KYC is still `submitted`/`rejected` — no hard gate yet (deferred item 8a; see `vendor-kyc.md`).
+- **No signal to the vendor on KYC review.** Approve/reject is only seen on next login — no in-app notification or email yet (deferred item 8b).
 
 ### Roadmap (Approximate Priority)
 
@@ -212,6 +216,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 - Toggle status: flips `vendors.status_id` between active and suspended (governed by the `prevent_vendor_status_self_update` trigger — only command admins may change status)
 - Delete vendor: only available to `root` role; deletes the `vendors` row (cascades to offerings, staff, schedules)
 - Vendor-list state is held in `useAppShell` and passed to both VendorsPage and OverviewPage so both see live counts
+- **KYC review:** the vendor detail modal (`VendorViewModal`) has a KYC panel showing the applicant type, status, and uploaded documents (View via signed URL), with a packet-level Approve / Reject + notes action that writes to the `vendor_kyc` header. Approval is advisory — the admin still uses the activate control (see `vendor-kyc.md`)
 
 #### Notifications Panel (fully wired)
 - Bell icon in the app header with an unread count badge (hidden when 0)
@@ -242,6 +247,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 | Vendor list | ✅ Supabase-wired |
 | Add / edit / delete vendors | ✅ Supabase-wired |
 | Vendor approval / suspension | ✅ Supabase-wired |
+| Vendor KYC review (approve/reject packet + notes) | ✅ Supabase-wired — in `VendorViewModal`; advisory (no hard activation gate yet) |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | KPI widgets | ⚠️ Vendor count live; bookings/revenue seeded |

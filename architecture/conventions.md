@@ -131,7 +131,7 @@ export function createAdminClient() {
 
 Used when an operation must bypass RLS or use server-only secrets. Current examples:
 
-- `vendor/app/api/auth/register/route.ts` — vendor self-registration (public): creates a confirmed user, activates their profile, grants portal access, creates the vendor record (pending activation), and assigns the vendor-admin role atomically.
+- `vendor/app/api/auth/register/route.ts` — vendor self-registration (public, **KYC-gated**): a multipart submit (form fields + applicant type + document files) that atomically creates a confirmed user, activates their profile, grants portal access, creates the vendor (pending activation), assigns vendor-admin, creates the `vendor_kyc` header, uploads the files to the `vendor-kyc` bucket, and inserts the document rows — rolling back all of it (objects + vendor + user) on any failure. See `vendor-kyc.md`.
 - `booker/app/api/register/route.ts` — booker self-registration (public): creates a confirmed user, sets profile to active, grants booker portal access, assigns the member role atomically.
 - `command/app/api/users/route.ts` — admin user create/delete: **caller-gated** (see rule below) before any service-role action; DELETE also blocks self-deletion.
 - `booker/app/api/payment/create-session/route.ts` — **caller-gated**; verifies the booking belongs to the caller and derives the amount from the DB (never the request body).
@@ -145,6 +145,30 @@ Rules:
 - Roll back (delete user / vendor) on any step failure to avoid partial state
 - Return `NextResponse.json({ error })` on failure; `NextResponse.json({ ... })` on success
 - Never put Route Handler logic in a client component or service file
+
+---
+
+## Supabase Storage
+
+First live use: the private `vendor-kyc` bucket (vendor KYC documents). Patterns
+established there, to follow for future buckets (see `vendor-kyc.md`, `schema.md`):
+
+- **Buckets are private** (`public = false`) and provisioned **via migration**
+  (`insert into storage.buckets …` + `storage.objects` RLS policies), not the
+  dashboard — reproducible across local/hosted.
+- **Path convention** puts the owning entity id first: `{vendor_id}/{uuid}-{filename}`.
+  Storage RLS keys on it with `(storage.foldername(name))[1]::uuid`, mirroring the
+  table's ownership helper (`has_vendor_role`).
+- **Never expose public URLs** — read private files through short-lived
+  `createSignedUrl(path, seconds)` (~60 s), wrapped in a service function
+  (`signMyKycDocUrl`, `signKycUrl`).
+- **Uploads from a client session** go through Storage RLS; uploads with **no
+  session** (e.g. pre-account onboarding) go through a **service-role Route
+  Handler**. Sanitize filenames before building a path.
+- **Storage is not Postgres.** `db reset` and row/cascade deletes never remove
+  file blobs — delete objects explicitly (`.remove([...])`) when deleting their
+  metadata rows, or they orphan and keep consuming quota. A maintenance script
+  lives at `backbone/scripts/wipe-kyc-storage.mjs`.
 
 ---
 
@@ -262,6 +286,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Tailwind utility classes for layout and spacing
 - CSS custom properties (`var(--db-strong)`, `var(--db-text)`, etc.) for all theme-sensitive colours — never hardcode light/dark values
 - `inline style` objects are acceptable for complex, dynamic, or one-off styles that would be unwieldy as Tailwind classes
+- **CSS Modules** (`Component.module.css`) are used where the geometry is awkward as utilities/inline styles — first adopted for the KYC camera widget (`CameraCapture.module.css`, `IdentityStep.module.css`: masked cut-out overlay, oval/card frames). When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
 - `cn()` from `lib/utils.ts` for conditional class merging
 - Theme variables are defined in `globals.css` under `:root` (light) and `.dark` selectors
 

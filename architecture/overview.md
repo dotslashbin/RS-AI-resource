@@ -50,7 +50,7 @@ All three portals connect to the same Supabase project. There is no inter-app AP
 
 - **Database:** All tables, RLS policies, and helper functions are defined in `./backbone/supabase/migrations/`
 - **Auth:** Supabase Auth is the only authentication mechanism across all portals. Each user has one auth identity; access to a specific portal is determined by their `user_portals` rows, not by which app they open
-- **Storage:** Supabase Storage (used for booking documents; bucket setup is a future task)
+- **Storage:** Supabase Storage — the private `vendor-kyc` bucket is live (vendor KYC/verification documents, see `vendor-kyc.md`); booking-document uploads are not yet wired (still in-memory in the booker UI)
 
 ---
 
@@ -94,19 +94,19 @@ These are architectural invariants that must not be violated regardless of how f
 | Maps | Leaflet (client-side, dynamic import) | Booker portal only |
 | Database | Supabase (PostgreSQL) | Shared |
 | Auth | Supabase Auth | Shared |
-| Storage | Supabase Storage | Shared (not fully wired yet) |
+| Storage | Supabase Storage | Shared. Live for vendor KYC (private `vendor-kyc` bucket); booking-document uploads not yet wired |
 | Realtime | Supabase Realtime | Used for in-app notification delivery |
 | Email | Resend (integrated) | Two independent paths: (1) app notification emails — one row in `notifications` sends one email via a single `send-notification-email` Edge Function that calls the Resend **API**; (2) auth emails (password recovery) via Resend **SMTP** for Supabase Auth. Local dev uses Supabase's built-in mailer (Mailpit). |
 | Hosting | Vercel | All three portals |
 
 ---
 
-## Current State (June 2026)
+## Current State (July 2026)
 
 | Portal | Status |
 |--------|--------|
 | Bookdeck Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery). Wallet is UI-only. |
-| Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Wallet, packages, and calendar are still mock. |
+| Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Vendor onboarding runs a required **KYC stage** (applicant type → documents → ID + selfie capture) with a private Storage bucket and Command review — no account is created until KYC is submitted (see `vendor-kyc.md`). Wallet, packages, and calendar are still mock. |
 | Bookdeck Command (command) | Users and vendors fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 
 Platform-wide since June 2026: every in-app notification also sends one email via Resend (centralized in the `send-notification-email` Edge Function — no Resend code in any app), gated by a per-portal email kill-switch in `notification_email_settings`. Password recovery is implemented end-to-end in all three portals (reset request + set-new-password), with auth emails delivered via Resend SMTP when hosted and Mailpit locally.

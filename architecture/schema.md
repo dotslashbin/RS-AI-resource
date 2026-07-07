@@ -34,6 +34,8 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260624000001_notification_email_settings.sql` | `notification_email_settings` table + RLS (authenticated read; command-admin update) + seed one row per portal. Per-portal outbound-email kill-switch |
 | `20260624000002_notification_emails.sql` | `notification_emails` table + RLS (service-role only). Outbound-email delivery log; `unique(notification_id)` is the idempotency guard |
 | `20260624000003_notification_email_dispatch.sql` | `dispatch_notification_email()` AFTER INSERT trigger (`notifications_dispatch_email`) on `notifications`; enables `pg_net` + `supabase_vault`; `net.http_post`s the notification id to the `send-notification-email` Edge Function. Function URL + shared secret read from Supabase Vault; no-ops if Vault secrets are absent |
+| `20260706000001_vendor_kyc.sql` | Vendor KYC: `kyc_document_types` (per-type suggested-document guidance, seeded), `vendor_kyc` (per-vendor header — applicant type + whole-packet review state), `vendor_kyc_documents` (one row per uploaded file) + RLS + grants. See `vendor-kyc.md` |
+| `20260706000002_vendor_kyc_storage.sql` | Private `vendor-kyc` Storage bucket (10 MB; jpeg/png/pdf) + `storage.objects` RLS policies keyed on `(storage.foldername(name))[1]::uuid` = vendor id |
 
 ---
 
@@ -56,6 +58,10 @@ auth.users
                                          bookings
                                               │
                                          booking_documents
+
+  vendors ──► vendor_kyc (1:1 header) ──► vendor_kyc_documents
+                  (kyc_type + review state)   (label + storage_path)
+  kyc_document_types (per-type suggested-document guidance; no FK)
 ```
 
 ---
@@ -444,6 +450,63 @@ Outbound-email delivery log and idempotency guard. One row per notification. Wri
 
 ---
 
+### `kyc_document_types`
+Per-applicant-type list of **suggested** verification documents — guidance only (D-1 = B). Seeded; managed by Command admins. Not referenced by any FK: uploads carry a free-text label, so this table only drives the "Suggested: …" hint shown for the chosen applicant type. See `vendor-kyc.md`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `code` | `text` | PK, e.g. `business_permit` |
+| `label` | `text` | Display name, e.g. "Business Permit" |
+| `description` | `text` | Default `''` |
+| `applies_to` | `text` | CHECK in (`company`, `individual`, `both`). Default `both`. Suggestions shown to a vendor = rows where `applies_to in (vendor kyc_type, 'both')` |
+| `sort_order` | `smallint` | Default `0` |
+
+**RLS:** all authenticated users SELECT (guidance is not sensitive); `admin`/`root` manage. Seeded rows cover both types (e.g. business permit, DTI/SEC registration → company; government ID, selfie with ID → individual; proof of address → both).
+
+---
+
+### `vendor_kyc`
+One KYC header row per vendor. Carries the applicant type **and** the whole-packet review state (D-2/D-6 = B). Created by the atomic submit route (`vendor/app/api/auth/register/route.ts`) at submission time — there is no pre-submission server-side state (pre-submit progress lives in a browser draft).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `vendor_id` | `uuid` | PK, FK → `vendors` ON DELETE CASCADE |
+| `kyc_type` | `text` | CHECK in (`company`, `individual`) |
+| `status` | `text` | CHECK in (`submitted`, `approved`, `rejected`). Default `submitted` |
+| `review_notes` | `text` | Reviewer notes (shown to the vendor on rejection). Nullable |
+| `reviewed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The Command reviewer |
+| `reviewed_at` | `timestamptz` | Nullable |
+| `submitted_at` | `timestamptz` | Default `now()` |
+
+**RLS:** vendor admins SELECT their own header and may UPDATE it to resubmit (rejected → submitted); Command admins/root SELECT all and UPDATE the review fields. Approve/reject writes here. KYC approval is currently **advisory** — it does not hard-gate `vendors` activation (deferred; see `vendor-kyc.md`).
+
+---
+
+### `vendor_kyc_documents`
+One row per uploaded KYC file (file bytes live in the `vendor-kyc` Storage bucket; rows are metadata). Free-form label per document (D-1 = B). Mirrors `booking_documents`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `vendor_id` | `uuid` | FK → `vendor_kyc(vendor_id)` ON DELETE CASCADE |
+| `label` | `text` | Vendor-provided free text, e.g. "Business Permit". The identity photos are stored as `"Valid ID"` / `"Selfie with ID"` |
+| `storage_path` | `text` | Object path in `vendor-kyc`: `{vendor_id}/{uuid}-{filename}` |
+| `uploaded_at` | `timestamptz` | Default `now()` |
+
+Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own docs and may INSERT/DELETE **only while the header is `rejected`** (the resubmit window); Command admins/root SELECT all. No UPDATE. Deleting a doc during resubmit also removes its Storage object (app-level cleanup in `resubmitKyc`) — a `db reset` alone would orphan the blobs.
+
+---
+
+## Storage buckets
+
+| Bucket | Public | Limits | Path convention | Access |
+|--------|--------|--------|-----------------|--------|
+| `vendor-kyc` | No (private) | 10 MB; `image/jpeg`, `image/png`, `application/pdf` | `{vendor_id}/{uuid}-{filename}` | `storage.objects` RLS keyed on `(storage.foldername(name))[1]::uuid` = vendor id: vendor admins read own + write while `rejected`; Command admins read all. Viewed via time-limited signed URLs only |
+
+> Booking-document uploads (`booking_documents`) are **not** yet wired to Storage — still in-memory in the booker UI (see `portals.md`). `vendor-kyc` is the first live bucket. **`db reset` never deletes Storage blobs** — use `backbone/scripts/wipe-kyc-storage.mjs` to reclaim space (see `vendor-kyc.md`).
+
+---
+
 ## Delete Behaviour Summary
 
 | Relationship | On Delete |
@@ -458,6 +521,8 @@ Outbound-email delivery log and idempotency guard. One row per notification. Wri
 | `schedules` → `bookings` | RESTRICT |
 | `bookings` → `booking_documents` | CASCADE |
 | `bookings` → `booking_status_log` | CASCADE |
+| `vendors` → `vendor_kyc` | CASCADE |
+| `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
 | Staff → schedules | SET NULL |
 | Profile → offerings, schedules, staff | SET NULL (created_by) |
 
