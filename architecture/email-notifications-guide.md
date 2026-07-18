@@ -13,7 +13,9 @@ Two **independent** email paths, both sending via **Resend**, sharing one verifi
 | Path | Trigger | Delivery |
 |------|---------|----------|
 | **Notification emails** (the 7 in-app notification types) | Every row inserted into `public.notifications` | AFTER-INSERT DB trigger → `pg_net` → **Edge Function** `send-notification-email` → **Resend API** |
-| **Auth emails** (password recovery) | Supabase GoTrue (`resetPasswordForEmail`) | **Resend SMTP** (hosted) / **Mailpit** (local) |
+| **Auth emails** (password recovery) | Supabase GoTrue (`resetPasswordForEmail`) | **Resend SMTP** (hosted) / **local mailbox** (local, `http://127.0.0.1:54324`) |
+
+> **Local mail UI naming:** the config key in `config.toml` is `[inbucket]`, though the UI at `http://127.0.0.1:54324` may present as **Mailpit** — same service, same port.
 
 **Notification path detail:** one `notifications` row = one email. The trigger (`notifications_dispatch_email`, migration `20260624000003`) posts only the notification `id`; the function re-reads the row, checks the per-portal switch, resolves the recipient, renders a template, sends via Resend, and logs to `notification_emails`. **No Resend code lives in the three apps** — it's centralized in the one function.
 

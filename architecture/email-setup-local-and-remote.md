@@ -98,9 +98,9 @@ from net._http_response order by created desc limit 5;
 
 ---
 
-## Part B — Remote / hosted setup (project `yohbcehqstkhecdbxilm`)
+## Part B — Remote / hosted setup (project `fbxbwnfeimzhgxpshdpa`)
 
-> Confirm `yohbcehqstkhecdbxilm` is the project you intend before running these — they act on it.
+> Use **your** project ref — see `backbone/.env` `SUPABASE_PROJECT_ID` (currently `fbxbwnfeimzhgxpshdpa`, mirrored in `backbone/supabase/.temp/project-ref`). Confirm it's the project you intend before running these — they act on it.
 
 ### B1. Push the schema to hosted
 ```bash
@@ -108,12 +108,13 @@ cd backbone
 supabase db push        # applies the 3 new migrations (tables + trigger + pg_net/vault extensions)
 ```
 Safe: the trigger **no-ops until the Vault secrets are set** (B4), so this alone sends nothing.
+> **Note:** if the Supabase↔GitHub integration is active, migrations apply automatically on merge to master and this manual `db push` may be unnecessary (verify with `supabase migration list`). See `email-notifications-guide.md` §6.3.
 
 ### B2. Set the function secrets (hosted)
 ```bash
 supabase secrets set \
   RESEND_API_KEY=re_xxx \
-  NOTIFICATION_EMAIL_FROM="Ezzy <no-reply@info.ezzy.com>" \
+  NOTIFICATION_EMAIL_FROM="Ezzy <no-reply@ezzy.ph>" \
   NOTIFICATION_EMAIL_SECRET="<random — remember for B4>"
 # until you're confident, keep prod pointed at a test inbox too:
 supabase secrets set NOTIFICATION_EMAIL_OVERRIDE_TO="you@inbox"
@@ -128,13 +129,13 @@ supabase functions deploy send-notification-email --no-verify-jwt
 ### B4. Set the Vault secrets (hosted)
 SQL Editor on the hosted project:
 ```sql
-select vault.create_secret('https://yohbcehqstkhecdbxilm.supabase.co', 'edge_function_base_url', 'prod');
+select vault.create_secret('https://fbxbwnfeimzhgxpshdpa.supabase.co', 'edge_function_base_url', 'prod');   -- your project ref, from backbone/.env SUPABASE_PROJECT_ID
 select vault.create_secret('<SAME string as NOTIFICATION_EMAIL_SECRET in B2>', 'notification_email_secret', 'prod');
 ```
 (No `host.docker.internal` here — the real project URL is reachable over HTTPS.)
 
 ### B5. Verify the domain & test
-- Ensure `info.ezzy.com` is **Verified** in Resend (see `email-sending-domain.md`); until then keep
+- Ensure `ezzy.ph` is **Verified** in Resend (see `email-sending-domain.md`); until then keep
   `NOTIFICATION_EMAIL_OVERRIDE_TO` set to an address you can receive at.
 - Create a booking against the hosted-backed app → expect an email + a `notification_emails` row.
 - Inspect function logs: `supabase functions logs send-notification-email` (or the dashboard), and the
@@ -151,7 +152,7 @@ select vault.create_secret('<SAME string as NOTIFICATION_EMAIL_SECRET in B2>', '
 | Run the function | `supabase functions serve … --no-verify-jwt` (terminal open) | `supabase functions deploy … --no-verify-jwt` (one-time) |
 | Function secrets | `.env` via `--env-file` | `supabase secrets set …` |
 | Apply schema | `supabase db reset` | `supabase db push` |
-| `edge_function_base_url` (Vault) | `http://host.docker.internal:54321` | `https://yohbcehqstkhecdbxilm.supabase.co` |
+| `edge_function_base_url` (Vault) | `http://host.docker.internal:54321` | `https://fbxbwnfeimzhgxpshdpa.supabase.co` (your ref — `backbone/.env`) |
 | `SUPABASE_URL` / service key | auto-injected (don't set) | auto-injected (don't set) |
 | Vault persistence | **wiped by `db reset`** — re-add each time | persists |
 | Email recipients | always override inbox | override until verified, then real |

@@ -368,7 +368,7 @@ If you go per-type (D-5 Option B), these are the templates to author. If you go 
 - Add an **"Email Delivery"** section above/below the existing per-type toggles.
 - Three toggles — Booker, Vendor, Command — bound to `notification_email_settings.is_email_enabled`.
 - Extend `notifications-admin.service.ts` with `getEmailSettings()` / `updateEmailSetting(portal, enabled)`, mirroring the existing `getNotificationTypeSettings` / `updateNotificationTypeSetting` shape.
-- Follow the component/hook separation rule: the toggle section gets a `useEmailSettings.ts` hook; the `.tsx` stays a pure render layer (`./skills/component-hook-separation.md`).
+- Follow the component/hook separation rule: the toggle section gets a `useEmailSettings.ts` hook; the `.tsx` stays a pure render layer (`./skills/component-separation.md`).
 - Visible to `admin`/`root` only (same gate the page already applies).
 - (If D-2 = B, the per-type rows gain a second "Email" toggle column alongside the existing enable toggle.)
 

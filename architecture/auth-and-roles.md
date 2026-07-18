@@ -95,12 +95,14 @@ User logs in → KYC status surface until Command approves + activates the vendo
 
 ### Booker self-registration path
 
-The booker portal has a registration form that calls the server-side Route Handler `POST /api/register`. This handler uses the service-role client to:
+The booker portal has a registration form that calls the server-side Route Handler `POST /api/register`. This handler uses the service-role client (inlined in the route rather than via a shared `lib/supabase/admin.ts`) to:
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
 2. Immediately set the user's profile to `status_id = active` and store their phone number
 3. Grant `booker` portal access (`user_portals` row)
 4. Assign the `member` role (`user_roles` row)
+5. Roll back on any failure — if a step fails, the just-created auth user is removed via `admin.deleteUser` so no partial account is left behind
+6. Notify Command — fires a `new_user_registration` notification to command admins (best-effort; failure never blocks the registration response)
 
 **Result:** The user is immediately active and can log in to the Booker Portal. No Command admin intervention is required.
 
@@ -190,15 +192,16 @@ Roles are rows in the `roles` table (seeded, not user-editable):
 All RLS policies use these `SECURITY DEFINER` functions defined in `20260504000002_schema.sql`. They are `SECURITY DEFINER` to avoid recursion (RLS on `profiles` would otherwise trigger when checking `profiles` inside a policy).
 
 ### `public.is_active() → boolean`
-Returns `true` if the calling user's profile has `status_id = 1` (active).  
+Returns `true` if the calling user's profile has the `active` status.  
 Used in nearly every RLS policy as the first gate.
 
 ```sql
 create function public.is_active()
 returns boolean language sql security definer set search_path = public as $$
   select exists (
-    select 1 from public.profiles
-    where id = auth.uid() and status_id = 1
+    select 1 from public.profiles p
+    join public.statuses s on s.id = p.status_id
+    where p.id = auth.uid() and s.name = 'active'
   )
 $$;
 ```
@@ -231,21 +234,21 @@ returns boolean language sql security definer set search_path = public as $$
 $$;
 ```
 
-### `public.is_vendor_member(vendor_id uuid) → boolean`
+### `public.is_vendor_member(p_vendor_id uuid) → boolean`
 Returns `true` if the calling user has any membership row in `vendor_members` for the given vendor.
 
-### `public.has_vendor_role(vendor_id uuid, role_name text) → boolean`
+### `public.has_vendor_role(p_vendor_id uuid, p_role_name text) → boolean`
 Returns `true` if the calling user has a specific role at a specific vendor.
 
 ```sql
-create function public.has_vendor_role(vendor_id uuid, role_name text)
+create function public.has_vendor_role(p_vendor_id uuid, p_role_name text)
 returns boolean language sql security definer set search_path = public as $$
   select exists (
     select 1 from public.vendor_members am
     join public.roles r on r.id = am.role_id
     where am.user_id = auth.uid()
-      and am.vendor_id = has_vendor_role.vendor_id
-      and r.name = role_name
+      and am.vendor_id = has_vendor_role.p_vendor_id
+      and r.name = has_vendor_role.p_role_name
   )
 $$;
 ```
@@ -308,7 +311,7 @@ using (public.is_active() and <record>.is_active = true)
 | `vendors` | Active only | Own vendor | All |
 | `offerings` | Active only | Own vendor | All |
 | `schedules` | Active only | Own vendor (all statuses) | All |
-| `staff` | — | Own vendor | All |
+| `staff` | Active only | Own vendor | All |
 | `bookings` | Own bookings | Own vendor bookings | All |
 | `booking_documents` | Own | Own vendor's | All |
 | `vendor_kyc` | — | Own (read + resubmit) | All (read + review) |
@@ -333,7 +336,7 @@ If a new portal or role is ever needed:
 - `SUPABASE_SERVICE_ROLE_KEY` bypasses all RLS. It must never appear in client-side code, `.env.local` committed to version control, or any `NEXT_PUBLIC_` variable.
 - The service-role client (`lib/supabase/admin.ts` in the vendor portal) is used exclusively in server-side Route Handlers (e.g., the registration endpoint). It must never be imported in client components.
 - The `anon` key (used when no user is logged in) should only be able to read truly public data. Currently, all meaningful data requires an authenticated session.
-- Session tokens are managed by `@supabase/ssr` — cookies are set server-side and refreshed automatically. Do not implement custom session management.
+- Session handling is client-side: these are implicit-flow SPAs with no `middleware.ts`, so the Supabase browser client persists and refreshes the session in the browser (the `useAppShell` hooks drive auth gating and token refresh on the client). `@supabase/ssr` server clients are used only for server-side reads (e.g. in Route Handlers), not for middleware-based cookie refresh. Do not implement custom session management.
 - `prevent_status_self_update()` is a DB trigger that blocks any non-admin from changing their own `status_id` via a direct update, even if they have an authenticated session.
 
 ---

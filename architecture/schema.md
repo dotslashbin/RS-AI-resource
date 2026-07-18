@@ -31,11 +31,13 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260525000002_notifications.sql` | `notifications` table + RLS (SELECT/UPDATE/DELETE own rows; no INSERT policy — trigger/service-role only) + Realtime publication |
 | `20260525000003_notification_triggers.sql` | `notify_on_new_booking()` AFTER INSERT + `notify_on_booking_status_change()` AFTER UPDATE triggers; both SECURITY DEFINER; guard on `is_enabled` before inserting |
 | `20260620000001_api_role_grants.sql` | Table-level GRANTs for the API roles (PostgREST needs DML before RLS runs). `anon` → none; `authenticated` → exactly the operations each table's RLS policies permit (no TRUNCATE); `service_role` → full DML. Revokes the inherited `Dxtm` default (incl. TRUNCATE) from anon/authenticated and revokes their schema-`public` default privileges, so **new tables must grant explicitly** |
+| `20260620000002_booker_contacts_rpc.sql` | `get_booker_contacts(uuid)` SECURITY DEFINER RPC — returns booker `full_name/email/phone` to a vendor-admin for bookers who booked their vendor (`profiles` RLS otherwise blocks the join) |
 | `20260624000001_notification_email_settings.sql` | `notification_email_settings` table + RLS (authenticated read; command-admin update) + seed one row per portal. Per-portal outbound-email kill-switch |
 | `20260624000002_notification_emails.sql` | `notification_emails` table + RLS (service-role only). Outbound-email delivery log; `unique(notification_id)` is the idempotency guard |
 | `20260624000003_notification_email_dispatch.sql` | `dispatch_notification_email()` AFTER INSERT trigger (`notifications_dispatch_email`) on `notifications`; enables `pg_net` + `supabase_vault`; `net.http_post`s the notification id to the `send-notification-email` Edge Function. Function URL + shared secret read from Supabase Vault; no-ops if Vault secrets are absent |
 | `20260706000001_vendor_kyc.sql` | Vendor KYC: `kyc_document_types` (per-type suggested-document guidance, seeded), `vendor_kyc` (per-vendor header — applicant type + whole-packet review state), `vendor_kyc_documents` (one row per uploaded file) + RLS + grants. See `vendor-kyc.md` |
 | `20260706000002_vendor_kyc_storage.sql` | Private `vendor-kyc` Storage bucket (10 MB; jpeg/png/pdf) + `storage.objects` RLS policies keyed on `(storage.foldername(name))[1]::uuid` = vendor id |
+| `20260716161916_remote_schema.sql` | db-diff redeclaration (existing functions re-emitted via `CREATE OR REPLACE`); the only material change is recreating the `pg_net` extension in schema `public` |
 
 ---
 
@@ -51,14 +53,16 @@ auth.users
               ├─── notifications ───────► notification_type_settings
               └─── vendor_members ─────► vendors ──► statuses
                                               │
-                                         offerings
-                                              │
+                                         offerings ◄─┐
+                                              │       │
                                          schedules ──► staff
-                                              │
+                                              │       │
+                                              │   staff_specialties (staff ↔ offerings)
                                          bookings
                                               │
                                          booking_documents
 
+  vendors ──► vendor_status_log (status-change audit trail)
   vendors ──► vendor_kyc (1:1 header) ──► vendor_kyc_documents
                   (kyc_type + review state)   (label + storage_path)
   kyc_document_types (per-type suggested-document guidance; no FK)
@@ -110,6 +114,7 @@ One-to-one extension of `auth.users`. Created automatically on signup via the `h
 | `id` | `uuid` | PK, FK → `auth.users` ON DELETE CASCADE |
 | `full_name` | `text` | |
 | `email` | `text` | Kept in sync with `auth.users.email` via trigger |
+| `phone` | `text NOT NULL DEFAULT ''` | Contact phone number |
 | `notes` | `text` | Internal notes (Command use) |
 | `status_id` | `smallint` | FK → `statuses`. Default `3` (pending_activation) |
 | `created_at` | `timestamptz` | |
@@ -157,6 +162,9 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `address` | `text` | Full street address |
 | `phone` | `text` | |
 | `email` | `text` | |
+| `tagline` | `text NOT NULL DEFAULT ''` | Short one-line vendor tagline (vendor portal) |
+| `description` | `text NOT NULL DEFAULT ''` | Longer vendor description (vendor portal) |
+| `website` | `text NOT NULL DEFAULT ''` | Vendor website URL (vendor portal) |
 | `operating_hours` | `text` | Free-text, e.g. "Mon–Sat 8AM–5PM" |
 | `branch` | `text` | Optional display label for a single campus, e.g. `"Main Branch"`. `NULL` means no branch distinction. |
 | `region` | `text NOT NULL DEFAULT ''` | Geographic coverage area. Entered by Command admins; not collected during self-registration. |
@@ -187,7 +195,7 @@ Two independent forms insert into this table:
 
 If per-branch registration (individual branches each with their own name, address, and schedule) is ever needed, the right model is a dedicated `vendor_branches` table — not repurposing either of these columns.
 
-**Future fields to consider:** `lat`, `lng` (geographic coordinates for map markers), `logo_path` (Supabase Storage path for vendor logo), `website`.
+**Future fields to consider:** `lat`, `lng` (geographic coordinates for map markers), `logo_path` (Supabase Storage path for vendor logo).
 
 ---
 
@@ -202,6 +210,28 @@ Junction table: user membership in a specific vendor with a per-vendor role.
 | `granted_at` | `timestamptz` | |
 
 PK: `(user_id, vendor_id)` — one role per user per vendor. A user can be a member of multiple vendors (different `vendor_id` rows).
+
+---
+
+### `vendor_status_log`
+Immutable audit trail of every vendor status change. Written only by the `log_vendor_status_change()` AFTER UPDATE trigger — never by application code. Read by the Command portal for approval history.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `vendor_id` | `uuid` | FK → `vendors` ON DELETE CASCADE |
+| `changed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The user (via `auth.uid()`) whose session triggered the change; preserved as NULL if the profile is later deleted |
+| `from_status` | `smallint` | FK → `statuses`. Nullable — NULL on the first log entry if status was never explicitly set |
+| `to_status` | `smallint` | FK → `statuses`. NOT NULL. The status after the update |
+| `notes` | `text NOT NULL DEFAULT ''` | Optional reason recorded by the Command admin. Empty in all trigger-written rows |
+| `changed_at` | `timestamptz` | Default `now()` |
+
+Two BEFORE UPDATE triggers on `vendors` gate status changes before this log is written: `prevent_vendor_status_self_update()` (only Command admins/root may change `status_id`) and `validate_vendor_status_transition()` (enforces `pending → active|suspended`, `active ↔ suspended`). `log_vendor_status_change()` then writes this row AFTER UPDATE.
+
+**RLS:**
+- Command admins/root can SELECT all rows
+- Vendor admins can SELECT rows for their own vendor (`has_vendor_role`)
+- INSERT policy is `with check (false)` — no direct inserts; trigger-only writes (executed via `SECURITY DEFINER`). No UPDATE/DELETE policies
 
 ---
 
@@ -239,15 +269,35 @@ Staff (people who deliver offerings — coaches, trainers, attendants) associate
 |--------|------|-------|
 | `id` | `uuid` | PK |
 | `vendor_id` | `uuid` | FK → `vendors` ON DELETE CASCADE |
-| `full_name` | `text` | |
-| `email` | `text` | Optional |
-| `phone` | `text` | Optional |
-| `license_no` | `text` | Optional staff license number |
-| `specialties` | `text[]` | Array of offering codes they can teach |
-| `is_active` | `boolean` | Default `true` |
+| `first_name` | `text` | NOT NULL |
+| `last_name` | `text` | NOT NULL |
+| `email` | `text` | Optional. `staff_email_format` CHECK validates shape when present |
+| `phone` | `text` | Default `''` |
+| `experience` | `text` | Free-text experience summary, e.g. "4 yrs". Default `''` |
+| `status` | `text` | Default `active`. CHECK in (`active`, `on_leave`, `inactive`). Inactive staff are archived; on_leave are temporarily unavailable |
 | `created_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Auto-updated by trigger |
+
+Unique index: `staff_vendor_email_key on (vendor_id, email) where email is not null` — email is unique per vendor when provided.
+
+The offerings a staff member is qualified to deliver live in the `staff_specialties` junction table (below), not on this table.
+
+---
+
+### `staff_specialties`
+Junction table: the offerings a staff member is qualified for. Powers staff-to-offering assignment in the vendor portal.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `staff_id` | `uuid` | FK → `staff` ON DELETE CASCADE |
+| `offering_id` | `uuid` | FK → `offerings` ON DELETE CASCADE |
+
+PK: `(staff_id, offering_id)`. Index on `offering_id`.
+
+**Integrity:** A `check_staff_specialty_vendor()` BEFORE INSERT OR UPDATE trigger ensures the staff member and the offering belong to the same vendor — the cross-vendor constraint cannot be expressed as an FK (no shared `vendor_id` column).
+
+**RLS:** Any active authenticated user can SELECT (non-sensitive; `staff` RLS filters at query time). Vendor admins can INSERT/DELETE specialties for their own staff (`has_vendor_role` on the staff's vendor). No UPDATE policy.
 
 ---
 
@@ -331,7 +381,7 @@ Files uploaded by the booker at booking time.
 | `is_required` | `boolean` | Whether this document was required at booking time |
 | `uploaded_at` | `timestamptz` | |
 
-Write-once semantics — to replace a document, delete + insert. Only bookers may insert documents for their own bookings, and only while the booking is `pending`.
+Write-once semantics — to replace a document, delete + insert. Only bookers may insert documents for their own bookings (INSERT policy checks ownership + `is_active()`). The `pending`-only restriction applies to DELETE: bookers may remove documents only while the booking is still `pending`.
 
 > **Current state:** Document uploads in the booker portal are in-memory only (file metadata stored in React state). Supabase Storage integration and `booking_documents` writes are a planned follow-up task.
 
@@ -516,8 +566,11 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `profiles` → `notifications` | CASCADE |
 | `notifications` → `notification_emails` | CASCADE |
 | `vendors` → `offerings`, `staff`, `schedules` | CASCADE |
+| `vendors` → `vendor_status_log` | CASCADE |
 | `vendors` → `bookings` | RESTRICT |
 | `offerings` → `schedules` | RESTRICT |
+| `offerings` → `staff_specialties` | CASCADE |
+| `staff` → `staff_specialties` | CASCADE |
 | `schedules` → `bookings` | RESTRICT |
 | `bookings` → `booking_documents` | CASCADE |
 | `bookings` → `booking_status_log` | CASCADE |
@@ -525,6 +578,9 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
 | Staff → schedules | SET NULL |
 | Profile → offerings, schedules, staff | SET NULL (created_by) |
+| `bookings.cancelled_by` → `profiles` | SET NULL |
+| `booking_status_log.changed_by` → `profiles` | SET NULL |
+| `vendor_status_log.changed_by` → `profiles` | SET NULL |
 
 RESTRICT is used on relationships where deletion would leave orphaned financial or booking records. SET NULL preserves the record when its creator is removed.
 
@@ -535,7 +591,8 @@ RESTRICT is used on relationships where deletion would leave orphaned financial 
 See `auth-roles.md` for the full access control model. Schema-level summary:
 
 - RLS is enabled on every table without exception.
-- All RLS policies call one or more of the helper functions (`is_active()`, `is_portal_member()`, `has_role()`, `has_vendor_role()`) defined in `20260504000002_schema.sql`. These helpers are `SECURITY DEFINER` to avoid recursion.
+- All RLS policies call one or more of the helper functions (`is_active()`, `is_portal_member()`, `has_role()`, `has_vendor_role()`, `is_vendor_member(uuid)`) defined in `20260504000002_schema.sql`. These helpers are `SECURITY DEFINER` to avoid recursion.
+- **`get_booker_contacts(p_vendor_id uuid)` RPC** (`20260620000002_booker_contacts_rpc.sql`): a `SECURITY DEFINER` function returning `booker_id / full_name / email / phone` for bookers who have booked a given vendor. `profiles` RLS only permits self + Command-admin reads, so a vendor-admin's profile join returns null; this RPC lets vendor-admins surface booker contact details for their own bookings. Scoped two ways — the caller must be a `vendor-admin` of `p_vendor_id` (`has_vendor_role`), and only bookers who actually booked that vendor are returned. It exposes only the three contact columns, never `notes`/`status_id`. `EXECUTE` granted to `authenticated` and `service_role` (not `anon`).
 - Policies follow the principle of least privilege: read access is only granted to the specific roles that need it, not to `authenticated` broadly (with narrow exceptions for lookup tables and the booker-readable vendors policy).
 - **Table-level GRANTs are required in addition to RLS.** PostgREST enforces table privileges *before* RLS runs, and the `public` default privileges grant the API roles no DML. Every new table must add explicit `GRANT`s (in its own migration) following `20260620000001_api_role_grants.sql`: `anon` gets none, `authenticated` gets only the operations its RLS policies permit (never `TRUNCATE`), `service_role` gets full DML. Skipping this makes the table return `permission denied` for logged-in users even with correct RLS.
 

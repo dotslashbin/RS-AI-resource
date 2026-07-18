@@ -2,9 +2,11 @@
 
 ## What This Is
 
-Bookdeck is a multi-portal web platform — a general booking marketplace. It connects three distinct user groups — vendor operators, bookers, and the Bookdeck internal team — through three independent portals that share a single Supabase backend.
+"Bookdeck" (the working name used throughout these docs) is a multi-portal web platform — a general booking marketplace. It connects three distinct user groups — vendor operators, bookers, and the Bookdeck internal team — through three independent portals that share a single Supabase backend.
 
 The platform's core purpose is to let vendors sell bookable offerings (facility rentals, coaching sessions, classes, appointments — any vertical) and let bookers discover and reserve them online. Vendors manage their offerings, schedules, and staff through their own portal; and the Bookdeck team controls platform access and vendor approval through an internal admin portal.
+
+> **Note on the brand name.** The display/brand name is configured at deploy time, not hardcoded. Each app exports `APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "<placeholder>"` and `APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "<placeholder>"` from its `lib/constants.ts` (the fallbacks are per-app placeholders). `NEXT_PUBLIC_APP_NAME` sets the product name shown across the UI and `NEXT_PUBLIC_APP_DOMAIN` the domain shown on the login screen. The code contains no hardcoded brand string. "Bookdeck" is a working placeholder used throughout these docs. The DB portal identifiers `booker` / `vendor` / `command` are real and unaffected.
 
 ---
 
@@ -85,7 +87,7 @@ These are architectural invariants that must not be violated regardless of how f
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Framework | Next.js 15 (App Router) | All three portals |
+| Framework | Next.js 16 (App Router) | All three portals |
 | Language | TypeScript 5.7 (strict) | All three portals |
 | Styling | Tailwind CSS 3.4 + shadcn/ui (base-nova) | All three portals |
 | Theming | next-themes (light/dark via `class`) | All three portals |
@@ -105,7 +107,7 @@ These are architectural invariants that must not be violated regardless of how f
 
 | Portal | Status |
 |--------|--------|
-| Bookdeck Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery). Wallet is UI-only. |
+| Bookdeck Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery). Transactions page wired to real bookings (Total Spent / Bookings / Pending summary + payment history). |
 | Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired. In-app notifications live. Vendor onboarding runs a required **KYC stage** (applicant type → documents → ID + selfie capture) with a private Storage bucket and Command review — no account is created until KYC is submitted (see `vendor-kyc.md`). Wallet, packages, and calendar are still mock. |
 | Bookdeck Command (command) | Users and vendors fully Supabase-wired (create/edit/delete). In-app notifications live with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 

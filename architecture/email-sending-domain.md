@@ -11,7 +11,7 @@
 ## Why it's config-only (the design that makes this cheap)
 - **Notification emails** read the From from the Edge Function secret `NOTIFICATION_EMAIL_FROM` at send time. Nothing about the domain is hardcoded in the function, the migrations, or the three apps.
 - **The dispatch trigger** (`20260624000003_notification_email_dispatch.sql`) stores only the *function URL + shared secret* in Vault — **not** the email domain. So a domain change never touches the database.
-- **Password-recovery / auth emails** read the sender from Supabase Auth's SMTP settings (dashboard for hosted, `config.toml` for local) — also config.
+- **Password-recovery / auth emails** read the sender from Supabase Auth's SMTP settings (dashboard for hosted) — also config. Locally there's no sender to set: `[auth.email.smtp]` is commented out in `config.toml` and mail goes to Inbucket.
 
 So the domain appears in a small, known set of config places (the checklist below), and nowhere in versioned application logic.
 
@@ -36,7 +36,7 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
    (Secrets apply to new invocations after deploy.)
 6. **Update password-recovery SMTP sender** (only if recovery email is configured):
    - Hosted: Supabase Dashboard → Project Settings → Auth → SMTP → change the **sender email** to `no-reply@NEW` (host/user/pass stay the same — still `smtp.resend.com` / `resend` / your Resend API key).
-   - Local: edit `[auth.email.smtp].admin_email` in `backbone/supabase/config.toml` to `no-reply@NEW`.
+   - Local: nothing to change. `[auth.email.smtp]` is **commented out** in `backbone/supabase/config.toml`; local recovery mail is served by the enabled `[inbucket]` block (port 54324), so **all** local mail lands in the Inbucket/local mailbox regardless of sender or domain. The local sender/domain can't be changed this way.
 7. **Send a test** — trigger one notification (and one password reset, if configured) and confirm it arrives from `NEW` and isn't flagged as spam.
 8. **Retire `OLD`** in Resend once you've confirmed `NEW` works (and remove `OLD`'s DNS records if you no longer want it sending).
 
@@ -50,7 +50,7 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
 | **DNS host for `NEW`** | Add Resend's MX/SPF/DKIM records | n/a (registrar/DNS) |
 | **`NOTIFICATION_EMAIL_FROM` secret** | `Ezzy <no-reply@NEW>` | `supabase secrets set` (hosted) + `functions/.env` (local) |
 | **Edge Function deploy** | Redeploy to pick up the secret | `supabase functions deploy …` |
-| **Auth SMTP sender** | sender email → `no-reply@NEW` | Dashboard → Auth → SMTP (hosted) / `config.toml` (local) |
+| **Auth SMTP sender** | sender email → `no-reply@NEW` | Dashboard → Auth → SMTP (hosted only) — local uses Inbucket, no sender/domain to change |
 | **In-email display name** (optional) | only if rebranding the name, not the domain — see §4 | `base.ts` in the function (code) |
 | **Plan/docs** (optional) | update `info.ezzy.com` references for accuracy | `.plans/2026-06-23-email-notifications-resend.md`, this file |
 

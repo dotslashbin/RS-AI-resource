@@ -7,7 +7,7 @@ The booking wizard is the core user-facing feature of the Bookdeck (booker) port
 ## Flow Overview
 
 ```
-Step 1: Choose Service
+Step 1: Choose Offering
     ↓ sets offering (DbOffering)
 Step 2: Choose Vendor
     ↓ sets vendor (BookerVendor), branch (address string)
@@ -40,7 +40,6 @@ All wizard state lives in `useBookingWizard.ts` (a custom hook in `./booker/comp
 | `time` | `string` | Step 3 time slot pick (format: `HH:MM`) |
 | `selectedSchedule` | `BookerSchedule \| null` | Resolved when time is picked |
 | `uploads` | `Record<string, UploadEntry>` | Step 4 file picks |
-| `selectedMethod` | `string \| null` | Step 6 payment method selection (UI only) |
 | `offerings` | `DbOffering[]` | Fetched on mount |
 | `vendors` | `BookerVendor[]` | Fetched when `offering` changes |
 | `schedules` | `BookerSchedule[]` | Fetched when `vendor` + `offering` change |
@@ -49,7 +48,7 @@ All wizard state lives in `useBookingWizard.ts` (a custom hook in `./booker/comp
 
 ---
 
-## Step 1 — Choose Service
+## Step 1 — Choose Offering
 
 **Component:** `Step1Offering/Step1Offering.tsx`  
 **Service:** `services/offerings.service.ts` → `getActiveOfferings()`
@@ -155,11 +154,11 @@ Shows a summary of all selections: service name, vendor, branch/address, date an
 
 ## Step 6 — Payment
 
-**Component:** `StepPayment/StepPayment.tsx`
+**Component:** `StepPayment/StepPayment.tsx` (props: `{offering, vendor, date, time}`)
 
-Displays the booking summary, total amount, and a grid of accepted payment methods (Card, GCash, GrabPay, Maya, BillEase, QRPh). The booker selects a method to highlight it; the Pay button stays disabled until a method is chosen.
+In-app this step is a summary screen only: it displays the booking summary (Service / Vendor / Date & Time / Total) and a "Secured by PayMongo" line — there is **no** in-app payment-method selector. Payment method is chosen later on PayMongo's hosted checkout page (see `confirmBooking()` below). The accepted methods (card, gcash, grab_pay, paymaya, billease, qrph) are server config, passed as `payment_method_types` when the Checkout Session is created in `app/api/payment/create-session/route.ts` — not an in-app choice.
 
-**`canNext`:** `!!selectedMethod`
+**`canNext`:** `step === 6` (always true — nothing to select on this screen).
 
 ### `confirmBooking()`
 

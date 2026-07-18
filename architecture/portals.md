@@ -32,12 +32,12 @@ A 6-step guided flow:
 - Booking history list (`BookingCard` components), fetched from the `bookings` table on login
 - Click-to-open booking detail modal
 - `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
-- **My Results** widget: shows the booker's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, vendor name, date, price paid, and a Certificate button (placeholder). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
+- **Offering Status** widget (`BookingStatusWidget`): shows the booker's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, vendor name, date, price paid, and a Certificate button (placeholder, via `handleCertificate`). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
 
-#### Wallet Page
-- Balance display (static ₱0.00 placeholder)
-- Transaction list (empty)
-- Add funds button (non-functional)
+#### Transactions Page
+- Wired to the booker's real bookings (`TransactionsPage`)
+- Summary cards: Total Spent, Bookings, Pending
+- Payment history list derived from the booker's bookings
 
 #### Settings Page
 - Display name, email, and phone (read-only) — name/email from the Supabase Auth session, phone from `profiles.phone` (via `useSettingsPage`)
@@ -45,7 +45,7 @@ A 6-step guided flow:
 - Logout
 
 #### Navigation
-- Bottom tab bar (Dashboard, Booking)
+- Bottom tab bar (Dashboard, Booking, Transactions)
 - Sidebar with Settings (hamburger toggle)
 - Light/dark theme toggle
 
@@ -57,11 +57,10 @@ A 6-step guided flow:
 | Booking written to DB on confirm | ✅ Supabase-wired (Step 6) |
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
 | Booking history on dashboard | ✅ Supabase-wired (fetched on login) |
-| My Results widget | ✅ Live — completed bookings as individual cards |
+| Offering Status widget | ✅ Live — completed bookings as individual cards |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
-| Wallet balance | ❌ Static placeholder |
-| Wallet transactions | ❌ No data |
+| Transactions page (Total Spent / Bookings / Pending + payment history) | ✅ Supabase-wired (derived from bookings) |
 | User profile editing | ❌ Not implemented |
 | Booking cancellation / reschedule | ❌ Not implemented |
 
@@ -280,6 +279,6 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Booking creation | ✅ Done | — | — |
 | Booking status update | ❌ (cancel only) | ⚠️ Confirm/cancel done; complete pending | ❌ (view) |
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
-| Wallet | ❌ Placeholder | — | ❌ (transactions) |
+| Wallet / Transactions | ✅ Transactions live (from bookings) | ❌ Wallet mock | ❌ (transactions mock) |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |

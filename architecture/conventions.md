@@ -256,6 +256,10 @@ Checks: active session + `user_portals` row for `command` + `user_roles` row for
 | `NEXT_PUBLIC_SUPABASE_URL` | Public (client + server) | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (client + server) | Anon key for RLS-protected access |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only | Bypasses RLS — never expose to client |
+| `NEXT_PUBLIC_APP_NAME` | Public (client + server) | App display name; re-exported as `APP_NAME` from each app's `lib/constants.ts` with a placeholder fallback. Also read server-side in booker's `create-session/route.ts` |
+| `NEXT_PUBLIC_APP_DOMAIN` | Public (client + server) | App domain; re-exported as `APP_DOMAIN` from each app's `lib/constants.ts` with a placeholder fallback |
+| `NEXT_PUBLIC_APP_URL` | Public (client + server) | Booker payment return URL — base for PayMongo success/cancel redirects |
+| `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in booker & vendor; command currently lacks it |
 
 Each portal has its own `.env.local`. All three point to the same Supabase project URL and keys.
 
@@ -278,6 +282,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - **shadcn/ui components** are added via `npx shadcn@latest add <component>` — never hand-edited. They live in `components/ui/`.
 - **Naming:** Component files use `PascalCase.tsx`. Hook files use `camelCase.ts`. Service files use `camelCase.service.ts`.
 - **Co-location:** A component that owns a hook lives in the same folder: `ComponentName/ComponentName.tsx` + `ComponentName/useComponentName.ts`.
+- **Separation of concerns (mandatory):** Every component with state, effects, or handlers gets a companion `useComponentName.ts` hook. The `.tsx` is a pure render layer — no `useState`/`useEffect`, no business logic, and no static inline `style={{}}`. Non-trivial styling goes in Tailwind utilities/tokens or a co-located `ComponentName.module.css`; only genuinely dynamic, one-off values (e.g. a width computed from state) may stay inline. A pure display component (no state/effects/handlers, no non-trivial styling) is the only exception and may have just the `.tsx`. See `skills/component-separation.md`.
 
 ---
 
@@ -285,8 +290,8 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 
 - Tailwind utility classes for layout and spacing
 - CSS custom properties (`var(--db-strong)`, `var(--db-text)`, etc.) for all theme-sensitive colours — never hardcode light/dark values
-- `inline style` objects are acceptable for complex, dynamic, or one-off styles that would be unwieldy as Tailwind classes
-- **CSS Modules** (`Component.module.css`) are used where the geometry is awkward as utilities/inline styles — first adopted for the KYC camera widget (`CameraCapture.module.css`, `IdentityStep.module.css`: masked cut-out overlay, oval/card frames). When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
+- Static inline `style` objects are **not** acceptable — move static styling to Tailwind utilities/tokens or a co-located `.module.css`. Only genuinely dynamic, state/data-driven one-off values (e.g. a width or transform computed at runtime) may remain inline. See `skills/component-separation.md`.
+- **CSS Modules** (`Component.module.css`) usage differs by app. **booker** and **vendor** are Tailwind-first, leaning on `db-*` token utility classes (`text-db-strong`, `db-sub`, `bg-[var(--db-card-bg)]`, etc.), with CSS Modules reserved for awkward geometry (e.g. the KYC camera widget: `CameraCapture.module.css`, `IdentityStep.module.css` — masked cut-out overlay, oval/card frames). **command** is effectively CSS-Modules-first (~45 `.module.css` files). The login surfaces across the apps also use CSS Modules. When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
 - `cn()` from `lib/utils.ts` for conditional class merging
 - Theme variables are defined in `globals.css` under `:root` (light) and `.dark` selectors
 

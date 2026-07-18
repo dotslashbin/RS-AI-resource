@@ -164,11 +164,12 @@ Every changed line should be explainable by the user request.
 
 ### Component Conventions
 
-Before creating any new component, read and apply `./skills/component-hook-separation.md`.
+Before creating any new component, read and apply `./skills/component-separation.md`.
 
 - Every component with state, effects, or handlers must have a companion `useComponentName.ts` hook in the same directory
-- The `.tsx` file is a pure render layer — no `useState`, `useEffect`, or business logic
-- Pure display components (no state, no effects, no handlers) are the only exception
+- The `.tsx` file is a pure render layer — no `useState`, `useEffect`, business logic, or static inline `style={{}}` blocks
+- Non-trivial styling goes in a co-located `ComponentName.module.css` (or shared Tailwind tokens/utilities), not inline in the `.tsx`; only genuinely dynamic one-off values may stay inline
+- Pure display components (no state, no effects, no handlers, no non-trivial styling) are the only exception
 
 ### Plan
 

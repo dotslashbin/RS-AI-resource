@@ -25,7 +25,7 @@ Why Vault at all? The dispatch trigger is defined in a **migration** (source-con
 | `notification_email_secret` | **Vault** | **You invent it:** a long random string you generate | Shared secret for the trigger→function handshake. **Must equal** the function's `NOTIFICATION_EMAIL_SECRET`. |
 | `NOTIFICATION_EMAIL_SECRET` | Edge Function | **Same value** as `notification_email_secret` above | The function compares the incoming `x-webhook-secret` header to this. |
 | `RESEND_API_KEY` | Edge Function | Resend dashboard → API Keys | Already created. Doubles as the SMTP password for password recovery. |
-| `NOTIFICATION_EMAIL_FROM` | Edge Function | Your decision: `Ezzy <no-reply@info.ezzy.com>` | Domain must be Verified in Resend. |
+| `NOTIFICATION_EMAIL_FROM` | Edge Function | Your decision (e.g. `Ezzy <no-reply@ezzy.ph>`) | Domain must be Verified in Resend (`ezzy.ph` is the current verified domain). |
 | `NOTIFICATION_EMAIL_OVERRIDE_TO` | Edge Function | A test inbox you own | **Non-prod only** — redirects every email here. Leave unset in prod. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Edge Function | Auto-injected by the platform | You don't set these on hosted. |
 
@@ -81,7 +81,7 @@ These are NOT in Vault — they're function env. Set them with the CLI (hosted):
 ```bash
 supabase secrets set \
   RESEND_API_KEY=re_xxx \
-  NOTIFICATION_EMAIL_FROM="Ezzy <no-reply@info.ezzy.com>" \
+  NOTIFICATION_EMAIL_FROM="Ezzy <no-reply@ezzy.ph>" \
   NOTIFICATION_EMAIL_SECRET="<the SAME random string you put in Vault>"
 # non-prod only:
 supabase secrets set NOTIFICATION_EMAIL_OVERRIDE_TO="you@example.com"
