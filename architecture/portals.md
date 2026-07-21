@@ -49,6 +49,9 @@ A 6-step guided flow:
 - Sidebar with Settings (hamburger toggle)
 - Light/dark theme toggle
 
+#### Progressive Web App (2026-07, live)
+Installable to a home screen on Android and iOS. `app/manifest.ts` declares name/icons/`display: "standalone"`; the same hand-rolled service worker pattern as vendor (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets, with cross-origin requests (Supabase, Realtime, PayMongo) explicitly never intercepted or cached. A dismissible "Install App" banner (`components/layout/InstallPrompt`) offers a real one-tap install on Android/Chromium, instructions-only on iOS Safari, or a "reopen in Safari" message on other iOS browsers. **Known gap specific to booker:** the Step 6 PayMongo redirect leaves the app's origin — in standalone mode, the return trip from PayMongo's hosted checkout page is not guaranteed to land back inside the installed app window (may open in a browser tab instead); the booking record and webhook `is_paid` flag remain authoritative regardless, so this is a cosmetic risk, not a data-integrity one, but it has not yet been live-tested on real devices. See `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -59,6 +62,7 @@ A 6-step guided flow:
 | Booking history on dashboard | ✅ Supabase-wired (fetched on login) |
 | Offering Status widget | ✅ Live — completed bookings as individual cards |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install, and specifically the PayMongo checkout round-trip in standalone mode, still need physical-hardware verification |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
 | Transactions page (Total Spent / Bookings / Pending + payment history) | ✅ Supabase-wired (derived from bookings) |
 | User profile editing | ❌ Not implemented |
@@ -68,6 +72,7 @@ A 6-step guided flow:
 
 - **Document uploads not persisted.** Files are selected and shown in the UI but not sent to Supabase Storage or written to `booking_documents`. The booking record exists but has no attached documents.
 - **Vendor map has no vendor markers.** `vendors` table has no `lat`/`lng` columns. The map shows the user's location only.
+- **PWA install/payment behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors), but an actual home-screen install-and-launch on real Android/iOS hardware, and specifically **the PayMongo checkout round-trip from an installed standalone app**, still need physical-device testing before this is considered fully done.
 
 ### Roadmap (Approximate Priority)
 
@@ -77,6 +82,7 @@ A 6-step guided flow:
 4. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
 5. Display contact info (from `schedules.contact_name`) on booking confirmation and detail screens
 6. ~~Push/in-app notifications when booking status changes~~ **Done** — full notifications system live
+7. Real-device PWA verification — Android/iOS install-and-launch, and specifically the PayMongo checkout round-trip from an installed standalone app
 
 ---
 
@@ -146,6 +152,9 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 - Light/dark theme toggle
 - Multi-vendor support: if a user is `vendor-admin` at multiple vendors, they can switch between them
 
+#### Progressive Web App (2026-07, live)
+Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker and Command do not have this yet — see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -159,6 +168,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 | Vendor profile | ✅ Supabase-wired |
 | Incoming bookings list | ✅ Supabase-wired |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Calendar (schedules + bookings overlay) | ❌ Mock data |
 | Booking status management | ✅ Supabase-wired (approve/cancel; complete pending) |
 | Booking document viewing | ❌ Not implemented |
@@ -173,6 +183,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 - **No photo/logo upload.** Vendor profile has no image support yet.
 - **KYC approval is advisory.** Command can activate a vendor whose KYC is still `submitted`/`rejected` — no hard gate yet (deferred item 8a; see `vendor-kyc.md`).
 - **No signal to the vendor on KYC review.** Approve/reject is only seen on next login — no in-app notification or email yet (deferred item 8b).
+- **PWA install/camera behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors; offline fallback and install-flow logic tested via Playwright), but an actual home-screen install-and-launch on real Android/iOS hardware, and KYC camera capture (`getUserMedia`) from an *installed* iOS PWA specifically (historically quirky), still need physical-device testing.
 
 ### Roadmap (Approximate Priority)
 
@@ -182,6 +193,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 4. Vendor logo/photo upload (Supabase Storage)
 5. Wire calendar page to real schedules + bookings from DB
 6. ~~Notifications when a new booking arrives~~ **Done** — full notifications system live
+7. Real-device PWA verification (Android/iOS install, iOS KYC camera in installed PWA)
 
 ---
 
@@ -282,3 +294,4 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Wallet / Transactions | ✅ Transactions live (from bookings) | ❌ Wallet mock | ❌ (transactions mock) |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |
+| Installable PWA | ✅ Live (real-device verification pending, incl. PayMongo round-trip) | ✅ Live (real-device verification pending) | — Not planned |
