@@ -186,6 +186,10 @@ PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&bo
 
 Cancelled bookings remain in the DB as `status = "pending"` with no `payment_reference`.
 
+### Live status updates after booking (2026-07)
+
+Once a booking exists, its status keeps updating on the booker's dashboard **without a refresh** — a Realtime `postgres_changes` subscription on `bookings` (`event: "UPDATE"`, `filter: booker_id=eq.<uid>`) patches the status in place whenever the vendor confirms/rejects/cancels it. The payload carries only the flat `bookings` columns (no joins), so the handler patches the mutable `status` field onto the row already in state rather than re-mapping a full `Booking`; if the row isn't in local state (e.g. booked on another device after login) it falls back to a full `getBookings()` refetch. This shares the same realtime channel as in-app notifications (`useAppShell.ts`). See `.plans/2026-07-18-live-updates-no-refresh.md` for the full design (including the equivalent on the vendor side — incoming bookings + status/payment changes).
+
 ### Webhook
 
 `POST /api/payment/webhook` — verifies PayMongo HMAC-SHA256 signature, handles `checkout_session.payment.paid`, sets `is_paid = true` on the booking via service role. This is the authoritative payment confirmation (independent of the browser redirect).

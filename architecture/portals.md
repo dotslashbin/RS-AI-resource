@@ -30,6 +30,7 @@ A 6-step guided flow:
 
 #### Dashboard
 - Booking history list (`BookingCard` components), fetched from the `bookings` table on login
+- **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`, filtered to the booker's own `booker_id`) patches the status in place when a vendor confirms/rejects/cancels, no refresh needed. See `.plans/2026-07-18-live-updates-no-refresh.md`.
 - Click-to-open booking detail modal
 - `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
 - **Offering Status** widget (`BookingStatusWidget`): shows the booker's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, vendor name, date, price paid, and a Certificate button (placeholder, via `handleCertificate`). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
@@ -59,9 +60,9 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 | Booking wizard (Steps 1–6) | ✅ Supabase-wired |
 | Booking written to DB on confirm | ✅ Supabase-wired (Step 6) |
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
-| Booking history on dashboard | ✅ Supabase-wired (fetched on login) |
+| Booking history on dashboard | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
 | Offering Status widget | ✅ Live — completed bookings as individual cards |
-| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install, and specifically the PayMongo checkout round-trip in standalone mode, still need physical-hardware verification |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
 | Transactions page (Total Spent / Bookings / Pending + payment history) | ✅ Supabase-wired (derived from bookings) |
@@ -128,8 +129,9 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 
 #### Bookings Page (fully wired)
 - Incoming booking list with status filter tabs (all / pending / confirmed / completed / cancelled)
+- **Live updates** — a Realtime `postgres_changes` subscription (`bookings` `INSERT`+`UPDATE`, filtered to the selected vendor) brings in new bookings and status/payment changes (e.g. a booker cancellation, the PayMongo webhook's `is_paid`) without a refresh; the subscription re-scopes when switching between multiple vendors. See `.plans/2026-07-18-live-updates-no-refresh.md`.
 - Approve and reject actions write to the `bookings` table; DB triggers log status changes to `booking_status_log`
-- Optimistic UI: state updates immediately on approve/reject; reverts on error with a toast notification
+- Optimistic UI: state updates immediately on approve/reject; reverts on error with a toast notification (reconciles idempotently with the live Realtime echo of the same change)
 - Pending count badge on the filter tab
 - Booker name fetched via `profiles` join on `bookings`
 
@@ -153,7 +155,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 - Multi-vendor support: if a user is `vendor-admin` at multiple vendors, they can switch between them
 
 #### Progressive Web App (2026-07, live)
-Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker and Command do not have this yet — see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
+Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker has the identical setup (see its own Current Features above); Command does not have this (desktop admin tool) — see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
 ### What Is Live vs. Mock
 
@@ -166,8 +168,8 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | Schedules CRUD | ✅ Supabase-wired |
 | Staff CRUD | ✅ Supabase-wired |
 | Vendor profile | ✅ Supabase-wired |
-| Incoming bookings list | ✅ Supabase-wired |
-| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| Incoming bookings list | ✅ Supabase-wired; new bookings + status/payment changes appear **live** via Realtime (no refresh) |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Calendar (schedules + bookings overlay) | ❌ Mock data |
 | Booking status management | ✅ Supabase-wired (approve/cancel; complete pending) |
@@ -215,6 +217,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 
 #### Users Page (fully wired)
 - List of all profiles across all portals, fetched from `profiles` + `user_portals` + `user_roles`
+- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — pairs with the live `new_user_registration`/`vendor_pending_approval` notifications, since the table itself is not Realtime-subscribed. See `.plans/2026-07-18-live-updates-no-refresh.md`.
 - Create user: `POST /api/users` server route (uses `auth.admin.createUser` via service role key; `handle_new_user` trigger creates the profile row, then portals and role are inserted). The route is **caller-gated** — verifies the requester is an active command admin/root server-side before any service-role action.
 - Edit user: updates `profiles`, reconciles `user_portals` and `user_roles` client-side (RLS permits command admins)
 - Delete user: `DELETE /api/users?id=<uuid>` server route (uses `auth.admin.deleteUser`; cascades to profile, portals, roles). Same caller-gate; also blocks self-deletion.
@@ -222,6 +225,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 
 #### Vendors Page (fully wired)
 - List of all vendors, fetched from `vendors` + `statuses`
+- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — same rationale as the Users page. See `.plans/2026-07-18-live-updates-no-refresh.md`.
 - Add vendor: inserts to `vendors` with `name`, `accreditation_no`, `region`, `branches`, `phone`, `email`
 - Edit vendor: updates the same fields
 - Toggle status: flips `vendors.status_id` between active and suspended (governed by the `prevent_vendor_status_self_update` trigger — only command admins may change status)
@@ -259,7 +263,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 | Add / edit / delete vendors | ✅ Supabase-wired |
 | Vendor approval / suspension | ✅ Supabase-wired |
 | Vendor KYC review (approve/reject packet + notes) | ✅ Supabase-wired — in `VendorViewModal`; advisory (no hard activation gate yet) |
-| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery, optimistic read/archive/delete |
+| In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | KPI widgets | ⚠️ Vendor count live; bookings/revenue seeded |
 | Transactions | ❌ Mock data (`ALL_TXNS` constant — wallet table not built) |

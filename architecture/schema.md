@@ -38,6 +38,7 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260706000001_vendor_kyc.sql` | Vendor KYC: `kyc_document_types` (per-type suggested-document guidance, seeded), `vendor_kyc` (per-vendor header — applicant type + whole-packet review state), `vendor_kyc_documents` (one row per uploaded file) + RLS + grants. See `vendor-kyc.md` |
 | `20260706000002_vendor_kyc_storage.sql` | Private `vendor-kyc` Storage bucket (10 MB; jpeg/png/pdf) + `storage.objects` RLS policies keyed on `(storage.foldername(name))[1]::uuid` = vendor id |
 | `20260716161916_remote_schema.sql` | db-diff redeclaration (existing functions re-emitted via `CREATE OR REPLACE`); the only material change is recreating the `pg_net` extension in schema `public` |
+| `20260718000001_bookings_realtime.sql` | `alter publication supabase_realtime add table public.bookings` — enables Realtime on `bookings` (previously only `notifications` was published). Booker subscribes to `UPDATE` (own bookings, live status changes); vendor subscribes to `INSERT`+`UPDATE` (own vendor's bookings, live incoming bookings + status/payment changes). Delivery is scoped by the existing `bookings` RLS SELECT policies — no new policies or grants needed |
 
 ---
 

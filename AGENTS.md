@@ -138,6 +138,7 @@ Do not assume the task is fully understood.
 - If the request is unclear in a way that affects implementation, ask before changing code.
 - Surface tradeoffs instead of hiding uncertainty.
 - Push back when a simpler or safer approach is available.
+- Before responding to any task, read and apply `.claude/skills/developerboss/SKILL.md` — pre-flight checklist for scope, locating existing patterns, data-layer implications, and risk surface.
 
 ### Simplicity First
 
@@ -164,16 +165,19 @@ Every changed line should be explainable by the user request.
 
 ### Component Conventions
 
-Before creating any new component, read and apply `./skills/component-separation.md`.
+Before creating any new component, read and apply `.claude/skills/component-separation/SKILL.md`.
+
+Before making any visual or interaction change, read and apply `.claude/skills/ux-design/SKILL.md`.
 
 - Every component with state, effects, or handlers must have a companion `useComponentName.ts` hook in the same directory
 - The `.tsx` file is a pure render layer — no `useState`, `useEffect`, business logic, or static inline `style={{}}` blocks
 - Non-trivial styling goes in a co-located `ComponentName.module.css` (or shared Tailwind tokens/utilities), not inline in the `.tsx`; only genuinely dynamic one-off values may stay inline
 - Pure display components (no state, no effects, no handlers, no non-trivial styling) are the only exception
+- Plans (see Plan section below) that introduce or modify components must call this out per component, not leave it implicit
 
 ### Plan
 
-When asked for a plan to be made, read and apply `./skills/plan-authoring.md`, and write it as a Markdown file under `.plans/`. Every plan must carry the status model defined there (overall status + per-item ⬜ TODO / 🔄 IN PROGRESS / ✅ DONE / ⏸ PARKED / ✖ ABORTED, with reasons on parked/aborted and verification notes on done).
+When asked for a plan to be made, read and apply `.claude/skills/plan-authoring/SKILL.md`, and write it as a Markdown file under `.plans/`. Every plan must carry the status model defined there (overall status + per-item ⬜ TODO / 🔄 IN PROGRESS / ✅ DONE / ⏸ PARKED / ✖ ABORTED, with reasons on parked/aborted and verification notes on done).
 
 - Plan filenames must start with the date, e.g. `2026-04-23-<short-topic>.md`.
 - For large multi-phase requests or list-based changes, keep the plan doc up to date with accurate completion checklists.
@@ -181,7 +185,7 @@ When asked for a plan to be made, read and apply `./skills/plan-authoring.md`, a
   1. Create a plan.
   2. Review the plan and carry out any investigations or auditing. Identify gaps and fill in if obvious or trivial, otherwise ask. If there are decisions to make, ask.
   3. Review the plan for under-specified areas where a poor solution could still satisfy the written plan.
-  4. Check all planned changes against best practices for the relevant layer — schema design, RLS, TypeScript, React, SQL, security. Flag any violations or concerns before execution. Do not proceed if a critical issue is found.
+  4. Check all planned changes against best practices for the relevant layer — schema design, RLS, TypeScript, React, SQL, security. For any new or modified component, this explicitly includes `.claude/skills/component-separation/SKILL.md` — the plan item must state how render/hook/style separation is satisfied, not assume it. Flag any violations or concerns before execution. Do not proceed if a critical issue is found.
   5. Resolve questions/problems.
   6. Refine the plan into an explicit execution order referencing detailed sections instead of duplicating detail inline.
   7. Present the plan to the user and get explicit approval before executing.

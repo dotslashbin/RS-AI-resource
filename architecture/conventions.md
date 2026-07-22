@@ -259,7 +259,7 @@ Checks: active session + `user_portals` row for `command` + `user_roles` row for
 | `NEXT_PUBLIC_APP_NAME` | Public (client + server) | App display name; re-exported as `APP_NAME` from each app's `lib/constants.ts` with a placeholder fallback. Also read server-side in booker's `create-session/route.ts` |
 | `NEXT_PUBLIC_APP_DOMAIN` | Public (client + server) | App domain; re-exported as `APP_DOMAIN` from each app's `lib/constants.ts` with a placeholder fallback |
 | `NEXT_PUBLIC_APP_URL` | Public (client + server) | Booker payment return URL — base for PayMongo success/cancel redirects |
-| `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in booker & vendor; command currently lacks it |
+| `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in all three portals (uniform since 2026-07; command's badge is styled with Tailwind arbitrary-value classes rather than a CSS Module, unlike the rest of its CSS-Modules-first codebase — a deliberate exception for parity with booker/vendor, see `.plans/2026-07-18-devversionbadge-uniform-patch.md`) |
 
 Each portal has its own `.env.local`. All three point to the same Supabase project URL and keys.
 
