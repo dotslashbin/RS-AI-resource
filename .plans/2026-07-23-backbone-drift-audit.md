@@ -116,10 +116,21 @@ if (count) {
 - **Downstream:** none — no schema, RLS, grant, or type change. Pure app code.
 - **Reversibility:** trivial revert (remove the added block).
 
-<!-- 🔄 IN PROGRESS (2026-07-24) — implemented exactly as drafted in both files;
-     `command` type-checks clean (`tsc --noEmit`, exit 0). Not yet ✅ DONE: no
-     live/browser verification performed (attempting an actual delete against a
-     booker/vendor with real bookings and confirming the friendly message). -->
+**Follow-up found during live testing (2026-07-24):** user ran `supabase db
+reset`, attempted to delete "Citywide Sports Center" (seeded with 2
+bookings), and saw a generic "Failed to delete vendor, please try again."
+instead of the specific message above. Root cause: the *hook* returned the
+correct message, but the *calling* components discarded it —
+`command/components/vendors/VendorsPage/useVendors.ts:67` and
+`command/components/users/UsersPage/useUsers.ts:74` both showed a hardcoded
+generic `toast.error(...)` instead of the returned `error` string. Fixed:
+both now do `toast.error(error)`. `command` re-type-checked clean (exit 0).
+Create/update/status toasts in the same files were left untouched — same
+generic pattern, but out of scope for B1.
+
+<!-- 🔄 IN PROGRESS (2026-07-24) — implemented + one follow-up bug found via
+     live testing and fixed (see above). Not yet ✅ DONE: user has not yet
+     re-confirmed the corrected message actually appears on screen. -->
 
 ### B2 — `check_booking_capacity()` has an unmitigated TOCTOU race — concurrent bookings can overbook  🔄 IN PROGRESS
 **File:** `backbone/supabase/migrations/20260516000002_booking_capacity_trigger.sql:11-39`

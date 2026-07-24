@@ -1,6 +1,6 @@
 # Changing the email sending domain (runbook)
 
-**Purpose:** how to switch the domain Bookdeck/Ezzy sends notification + password-recovery emails from — e.g. moving from a temporary/test domain to the real one (`ezzy.ph` or `info.ezzy.ph`) once it's purchased.
+**Purpose:** how to switch the domain Ezzy sends notification + password-recovery emails from. **Current sending domain: `ezzy.ph`, verified in Resend (2026-07-03).** Use this runbook if you ever need to move off it — e.g. to a different subdomain like `info.ezzy.ph`.
 
 **TL;DR:** the sending domain is **configuration, not code**. The From address lives in a secret (`NOTIFICATION_EMAIL_FROM`) and the SMTP sender lives in Supabase Auth settings. Changing domains means: verify the new domain in Resend (DNS), update those config values, redeploy/restart so they take effect, then retire the old domain. No migrations, no app rebuild — unless you also rebrand the in-email display name (see §4).
 
@@ -68,5 +68,5 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
 ## Notes
 - **Nothing in the database changes** for a domain switch — no migration.
 - **Verify before cutover.** Until `NEW` shows Verified in Resend, sends from it will fail or be limited; keep `OLD` active until `NEW` is confirmed working.
-- **Current value of record:** whatever domain is presently verified in Resend should match `NOTIFICATION_EMAIL_FROM`. If you used a temporary domain now, set `NOTIFICATION_EMAIL_FROM` to that temp domain until you run this runbook for `ezzy.ph`.
+- **Current value of record:** `ezzy.ph` is the presently verified domain in Resend, and `NOTIFICATION_EMAIL_FROM` is already set to `Ezzy <no-reply@ezzy.ph>` to match. Only re-run this runbook if switching off `ezzy.ph` to a different domain.
 - **One SPF record per name.** When adding records at the new DNS host, ensure the sending subdomain has a single SPF TXT (Resend's) — don't merge it with unrelated root-domain SPF entries.

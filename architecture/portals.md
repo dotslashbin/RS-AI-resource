@@ -4,7 +4,7 @@ Current state, feature inventory, gaps, and roadmap for each of the three portal
 
 ---
 
-## Bookdeck Booker — Booker Portal (`./booker`)
+## Ezzy Booker — Booker Portal (`./booker`)
 
 **Audience:** Vendor bookers  
 **Portal name in DB:** `booker`  
@@ -30,7 +30,7 @@ A 6-step guided flow:
 
 #### Dashboard
 - Booking history list (`BookingCard` components), fetched from the `bookings` table on login
-- **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`, filtered to the booker's own `booker_id`) patches the status in place when a vendor confirms/rejects/cancels, no refresh needed. See `.plans/2026-07-18-live-updates-no-refresh.md`.
+- **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`, filtered to the booker's own `booker_id`) patches the status in place when a vendor confirms/rejects/cancels, no refresh needed.
 - Click-to-open booking detail modal
 - `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
 - **Offering Status** widget (`BookingStatusWidget`): shows the booker's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, vendor name, date, price paid, and a Certificate button (placeholder, via `handleCertificate`). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
@@ -87,7 +87,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 
 ---
 
-## Bookdeck Vendor — Vendor Portal (`./vendor`)
+## Ezzy Vendor — Vendor Portal (`./vendor`)
 
 **Audience:** Vendor administrators  
 **Portal name in DB:** `vendor`  
@@ -129,7 +129,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 
 #### Bookings Page (fully wired)
 - Incoming booking list with status filter tabs (all / pending / confirmed / completed / cancelled)
-- **Live updates** — a Realtime `postgres_changes` subscription (`bookings` `INSERT`+`UPDATE`, filtered to the selected vendor) brings in new bookings and status/payment changes (e.g. a booker cancellation, the PayMongo webhook's `is_paid`) without a refresh; the subscription re-scopes when switching between multiple vendors. See `.plans/2026-07-18-live-updates-no-refresh.md`.
+- **Live updates** — a Realtime `postgres_changes` subscription (`bookings` `INSERT`+`UPDATE`, filtered to the selected vendor) brings in new bookings and status/payment changes (e.g. a booker cancellation, the PayMongo webhook's `is_paid`) without a refresh; the subscription re-scopes when switching between multiple vendors.
 - Approve and reject actions write to the `bookings` table; DB triggers log status changes to `booking_status_log`
 - Optimistic UI: state updates immediately on approve/reject; reverts on error with a toast notification (reconciles idempotently with the live Realtime echo of the same change)
 - Pending count badge on the filter tab
@@ -199,9 +199,9 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 
 ---
 
-## Bookdeck Command (`./command`)
+## Ezzy Command (`./command`)
 
-**Audience:** Bookdeck internal operations team  
+**Audience:** Ezzy internal operations team  
 **Portal name in DB:** `command`  
 **User roles:** `admin` or `root` (in `user_roles`)
 
@@ -217,7 +217,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 
 #### Users Page (fully wired)
 - List of all profiles across all portals, fetched from `profiles` + `user_portals` + `user_roles`
-- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — pairs with the live `new_user_registration`/`vendor_pending_approval` notifications, since the table itself is not Realtime-subscribed. See `.plans/2026-07-18-live-updates-no-refresh.md`.
+- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — pairs with the live `new_user_registration`/`vendor_pending_approval` notifications, since the table itself is not Realtime-subscribed.
 - Create user: `POST /api/users` server route (uses `auth.admin.createUser` via service role key; `handle_new_user` trigger creates the profile row, then portals and role are inserted). The route is **caller-gated** — verifies the requester is an active command admin/root server-side before any service-role action.
 - Edit user: updates `profiles`, reconciles `user_portals` and `user_roles` client-side (RLS permits command admins)
 - Delete user: `DELETE /api/users?id=<uuid>` server route (uses `auth.admin.deleteUser`; cascades to profile, portals, roles). Same caller-gate; also blocks self-deletion.
@@ -225,7 +225,7 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 
 #### Vendors Page (fully wired)
 - List of all vendors, fetched from `vendors` + `statuses`
-- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — same rationale as the Users page. See `.plans/2026-07-18-live-updates-no-refresh.md`.
+- **Refresh button** in the toolbar re-fetches the list in place (no page reload) — same rationale as the Users page.
 - Add vendor: inserts to `vendors` with `name`, `accreditation_no`, `region`, `branches`, `phone`, `email`
 - Edit vendor: updates the same fields
 - Toggle status: flips `vendors.status_id` between active and suspended (governed by the `prevent_vendor_status_self_update` trigger — only command admins may change status)

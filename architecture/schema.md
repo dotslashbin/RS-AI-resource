@@ -41,6 +41,9 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260718000001_bookings_realtime.sql` | `alter publication supabase_realtime add table public.bookings` — enables Realtime on `bookings` (previously only `notifications` was published). Booker subscribes to `UPDATE` (own bookings, live status changes); vendor subscribes to `INSERT`+`UPDATE` (own vendor's bookings, live incoming bookings + status/payment changes). Delivery is scoped by the existing `bookings` RLS SELECT policies — no new policies or grants needed |
 | `20260722000001_vendor_address_fields.sql` | Adds `address_line1`, `barangay`, `city`, `city_code`, `province`, `province_code`, `zip_code` to `vendors`; backfills `address_line1` from the old `address` value. No RLS/grant changes (row-scoped policy, table-level grants already cover new columns) |
 | `20260722000002_vendor_barangay_strict.sql` | Corrective migration (not an edit of `20260722000001` — see `AGENTS.md`): adds `barangay_code`, since barangay was revised from free text to a strict pick-from-list needing the same code-based edit-time resolution as `city_code`/`province_code` |
+| `20260724000001_kyc_document_types_grant_fix.sql` | Grants `insert, update, delete` on `kyc_document_types` to `authenticated` — closes a gap where the table's RLS policy already permitted command admin/root writes but the table-level grant only covered `select`, so writes failed with `permission denied` regardless of RLS |
+| `20260724000002_vendor_members_vendor_id_index.sql` | Adds `vendor_members_vendor_id_idx` on `vendor_members(vendor_id)` — the existing `(user_id, vendor_id)` PK couldn't efficiently support the `vendor_id`-only lookup `notify_on_new_booking()` runs on every booking insert |
+| `20260724000003_booking_capacity_lock.sql` | Redefines `check_booking_capacity()` to `select ... for update` the `schedules` row before counting existing bookings — closes a TOCTOU race where two concurrent inserts for the last slot could both pass the capacity check before either committed |
 
 ---
 
@@ -368,7 +371,7 @@ A booker's reservation of a specific schedule occurrence.
 
 **Unique constraint:** `(booker_id, schedule_id, booked_date)` — a booker cannot book the same schedule occurrence twice. Error code `23505` is caught in the booker service and surfaced as `"already_booked"`.
 
-**Capacity trigger:** `check_booking_capacity()` fires BEFORE INSERT and counts existing `pending + confirmed` rows for the same `(schedule_id, booked_date)` against `schedules.max_capacity`. Raises an exception if at capacity.
+**Capacity trigger:** `check_booking_capacity()` fires BEFORE INSERT and counts existing `pending + confirmed` rows for the same `(schedule_id, booked_date)` against `schedules.max_capacity`. Raises an exception if at capacity. As of `20260724000003_booking_capacity_lock.sql`, it also takes `select ... for update` on the `schedules` row first, closing a TOCTOU race where two concurrent inserts for the last slot could previously both pass the check before either committed.
 
 **Status transition trigger:** `validate_booking_status_transition()` fires BEFORE UPDATE. Allowed transitions: `pending → confirmed|cancelled`, `confirmed → completed|cancelled`, `completed → refunded`. All other transitions raise an exception.
 
@@ -461,7 +464,7 @@ Persistent in-app alerts for all three portals. Written exclusively by SECURITY 
 | `is_archived` | `boolean` | Default `false`. Hides from main panel; visible in archive view |
 | `created_at` | `timestamptz` | |
 
-**Fan-out model:** Command notifications are written once per target user (one row per admin/root user). This preserves per-user read/archive state at the cost of N rows per event — acceptable at Bookdeck Command scale (< 10 users).
+**Fan-out model:** Command notifications are written once per target user (one row per admin/root user). This preserves per-user read/archive state at the cost of N rows per event — acceptable at Ezzy Command scale (< 10 users).
 
 **Write paths:**
 - `notify_on_new_booking()` trigger: writes `new_booking` to all `vendor-admin` members of the booking's vendor

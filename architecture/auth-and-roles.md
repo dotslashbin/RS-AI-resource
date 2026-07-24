@@ -160,9 +160,9 @@ Portals are rows in the `portals` table (seeded, not user-editable):
 
 | ID | Name | Portal |
 |----|------|--------|
-| 1 | `vendor` | Vendor Portal (`./vendor`) |
-| 2 | `booker` | Bookdeck Booker (`./booker`) |
-| 3 | `command` | Bookdeck Command (`./command`) |
+| 1 | `vendor` | Ezzy Vendor (`./vendor`) |
+| 2 | `booker` | Ezzy Booker (`./booker`) |
+| 3 | `command` | Ezzy Command (`./command`) |
 
 Access to a portal is determined by the presence of a `user_portals` row for `(user_id, portal_id)`. A user can have access to multiple portals — their `profiles` row is shared across all of them.
 

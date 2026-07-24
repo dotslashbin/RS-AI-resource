@@ -2,17 +2,17 @@
 
 ## What This Is
 
-"Bookdeck" (the working name used throughout these docs) is a multi-portal web platform — a general booking marketplace. It connects three distinct user groups — vendor operators, bookers, and the Bookdeck internal team — through three independent portals that share a single Supabase backend.
+"Ezzy" is a multi-portal web platform — a general booking marketplace. It connects three distinct user groups — vendor operators, bookers, and the Ezzy internal team — through three independent portals that share a single Supabase backend.
 
-The platform's core purpose is to let vendors sell bookable offerings (facility rentals, coaching sessions, classes, appointments — any vertical) and let bookers discover and reserve them online. Vendors manage their offerings, schedules, and staff through their own portal; and the Bookdeck team controls platform access and vendor approval through an internal admin portal.
+The platform's core purpose is to let vendors sell bookable offerings (facility rentals, coaching sessions, classes, appointments — any vertical) and let bookers discover and reserve them online. Vendors manage their offerings, schedules, and staff through their own portal; and the Ezzy team controls platform access and vendor approval through an internal admin portal.
 
-> **Note on the brand name.** The display/brand name is configured at deploy time, not hardcoded. Each app exports `APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "<placeholder>"` and `APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "<placeholder>"` from its `lib/constants.ts` (the fallbacks are per-app placeholders). `NEXT_PUBLIC_APP_NAME` sets the product name shown across the UI and `NEXT_PUBLIC_APP_DOMAIN` the domain shown on the login screen. The code contains no hardcoded brand string. "Bookdeck" is a working placeholder used throughout these docs. The DB portal identifiers `booker` / `vendor` / `command` are real and unaffected.
+> **Note on the brand name.** The real brand is **Ezzy**. `command` and `vendor` render it live via `NEXT_PUBLIC_APP_NAME`/`NEXT_PUBLIC_APP_DOMAIN` env vars, re-exported as `APP_NAME`/`APP_DOMAIN` from each app's `lib/constants.ts`. **`booker` is not yet rebranded in code** — its `.env.local` sets the Ezzy values, but nothing in `booker`'s source reads them; the UI still hardcodes "Bookdeck" throughout (login page, not-found page, payment description, dashboard guide panel). This gap is tracked in `.plans/2026-07-14-app-name-env-var.md` (booker's swap plus `backbone/supabase/seed.sql`'s `@bookdeck.com` seed emails are the pieces still outstanding). These docs say "Ezzy" to match the intended/shipped brand — treat "Bookdeck" as stale wherever you see it in booker's own source, not as the doc being wrong. The DB portal identifiers `booker` / `vendor` / `command` are real and unaffected either way.
 
 ---
 
 ## The Three Portals
 
-### Bookdeck Booker (`./booker`)
+### Ezzy Booker (`./booker`)
 **Audience:** Vendor bookers  
 **Purpose:** Book offerings, track booking history, upload required documents  
 **Domain:** `booker` portal in Supabase
@@ -26,8 +26,8 @@ A customer-facing booking application. Bookers browse available offerings from a
 
 An operations dashboard for vendors. Each vendor's admin can define what services they offer, set up recurring or one-time schedule slots, manage their staff, and (future) review and action incoming bookings from bookers.
 
-### Bookdeck Command (`./command`)
-**Audience:** Bookdeck internal operations team (admin / root roles)  
+### Ezzy Command (`./command`)
+**Audience:** Ezzy internal operations team (admin / root roles)  
 **Purpose:** Platform-wide user management, vendor approval, operational oversight  
 **Domain:** `command` portal in Supabase
 
@@ -108,9 +108,9 @@ These are architectural invariants that must not be violated regardless of how f
 
 | Portal | Status |
 |--------|--------|
-| Bookdeck Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB, with **booking status updating live** (Realtime, no refresh) when a vendor confirms/rejects/cancels. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery, arrival toast). Transactions page wired to real bookings (Total Spent / Bookings / Pending summary + payment history). Installable as a PWA (manifest, icons, offline fallback, install banner); the standalone-mode PayMongo checkout round-trip is not yet live-tested on real devices (see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`). |
-| Vendor Portal (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired, with **incoming bookings and status/payment changes appearing live** (Realtime, no refresh). In-app notifications live (arrival toast). Vendor onboarding runs a required **KYC stage** (applicant type → documents → ID + selfie capture) with a private Storage bucket and Command review — no account is created until KYC is submitted (see `vendor-kyc.md`). Installable as a PWA (manifest, icons, offline fallback, install banner). Wallet, packages, and calendar are still mock. |
-| Bookdeck Command (command) | Users and vendors fully Supabase-wired (create/edit/delete), with a **manual refresh button** on each table to pull in changes made elsewhere (e.g. a new registration) without a page reload. In-app notifications live (arrival toast) with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
+| Ezzy Booker (booker) | Core booking wizard fully functional and Supabase-wired (Steps 1–6). PayMongo Checkout Sessions integrated — booking creates a payment session and redirects the booker to PayMongo's hosted page; webhook sets `is_paid` on return. Dashboard shows booking history fetched from DB, with **booking status updating live** (Realtime, no refresh) when a vendor confirms/rejects/cancels. "My Results" section shows completed bookings as individual cards. In-app notifications live (bell icon, panel, Realtime delivery, arrival toast). Transactions page wired to real bookings (Total Spent / Bookings / Pending summary + payment history). Installable as a PWA (manifest, icons, offline fallback, install banner); the standalone-mode PayMongo checkout round-trip is not yet live-tested on real devices (see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`). |
+| Ezzy Vendor (vendor) | Offerings, schedules, staff, profile, and bookings management (approve/reject) are Supabase-wired, with **incoming bookings and status/payment changes appearing live** (Realtime, no refresh). In-app notifications live (arrival toast). Vendor onboarding runs a required **KYC stage** (applicant type → documents → ID + selfie capture) with a private Storage bucket and Command review — no account is created until KYC is submitted (see `vendor-kyc.md`). Installable as a PWA (manifest, icons, offline fallback, install banner). Wallet, packages, and calendar are still mock. |
+| Ezzy Command (command) | Users and vendors fully Supabase-wired (create/edit/delete), with a **manual refresh button** on each table to pull in changes made elsewhere (e.g. a new registration) without a page reload. In-app notifications live (arrival toast) with platform-wide Notification Type Settings admin page. Transactions and most KPI widgets are still seeded. |
 
 Platform-wide since June 2026: every in-app notification also sends one email via Resend (centralized in the `send-notification-email` Edge Function — no Resend code in any app), gated by a per-portal email kill-switch in `notification_email_settings`. Password recovery is implemented end-to-end in all three portals (reset request + set-new-password), with auth emails delivered via Resend SMTP when hosted and Mailpit locally.
 
@@ -123,4 +123,4 @@ To avoid scope creep, the following are explicitly out of scope for the current 
 - **External accreditation/registry integration.** There is no API link to any external licensing/registry system. Accreditation verification, where relevant, is manual (Command admin reviews the `accreditation_no`).
 - **Real-time communication.** There is no chat, messaging, push, or SMS system. In-app notifications (bell icon, persistent DB-backed alerts via Supabase Realtime) are implemented as a distinct, narrower feature — not a messaging system. Every in-app notification now also sends one email (via Resend, through the `send-notification-email` Edge Function), and password-recovery uses Resend SMTP — but these are notification/auth emails, not a chat or messaging channel. Push and SMS remain out of scope.
 - **Multi-tenancy beyond vendors.** There is no concept of regions, franchises, or vendor groups beyond the individual vendor record.
-- **Mobile app.** All three portals are web applications, optimised for mobile browsers. Booker and vendor are now installable to a home screen as PWAs (standalone display, offline fallback), but this is not a native app — no App Store/Play Store distribution, no push notifications. A separate native-mobile track (Expo, targeting booker) is under consideration but not started.
+- **Mobile app.** All three portals are web applications, optimised for mobile browsers. Booker and vendor are now installable to a home screen as PWAs (standalone display, offline fallback), but this is not a native app — no App Store/Play Store distribution, no push notifications. A separate native-mobile track (Expo) has been scaffolded for both booker and vendor (`ezzy-booker-mobile/`, `ezzy-vendor-mobile/` at the repo root) — bare project setups with no app code built out yet. Full buildout is blocked on open decisions, see `.plans/2026-07-21-ezzy-booker-mobile-buildout.md`.
