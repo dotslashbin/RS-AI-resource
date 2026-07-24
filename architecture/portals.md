@@ -146,7 +146,7 @@ Vendor operators self-register via a **6-step** flow on the login screen: busine
 - Add/Edit/Delete buttons are non-functional
 
 #### Vendor Profile Page (fully wired)
-- Display and edit: vendor name, address, phone, email, operating hours, year established, accreditation/license number
+- Display and edit: vendor name, address (Province/City/Barangay pickers, Address Line 1, ZIP Code), phone, email, operating hours, year established, accreditation/license number
 - Save changes writes to `vendors` table
 
 #### Layout

@@ -52,7 +52,7 @@ sign-in; the left info panel / mobile toggle behaviour is unchanged):
 
 | Step | Screen | Notes |
 |------|--------|-------|
-| 1 | Business details | name, year established, address, phone, operating hours |
+| 1 | Business details | name, year established, address (Province/City/Barangay pickers, Address Line 1, ZIP Code), phone, operating hours |
 | 2 | Account setup | email + password — **validated only, no account created** |
 | 3 | Applicant type | `company` or `individual` (see below); company also enters accreditation/license no. |
 | 4 | Documents | free-form: label + file per document; suggestions shown per type; ≥1 required |

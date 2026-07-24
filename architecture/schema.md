@@ -39,6 +39,8 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260706000002_vendor_kyc_storage.sql` | Private `vendor-kyc` Storage bucket (10 MB; jpeg/png/pdf) + `storage.objects` RLS policies keyed on `(storage.foldername(name))[1]::uuid` = vendor id |
 | `20260716161916_remote_schema.sql` | db-diff redeclaration (existing functions re-emitted via `CREATE OR REPLACE`); the only material change is recreating the `pg_net` extension in schema `public` |
 | `20260718000001_bookings_realtime.sql` | `alter publication supabase_realtime add table public.bookings` — enables Realtime on `bookings` (previously only `notifications` was published). Booker subscribes to `UPDATE` (own bookings, live status changes); vendor subscribes to `INSERT`+`UPDATE` (own vendor's bookings, live incoming bookings + status/payment changes). Delivery is scoped by the existing `bookings` RLS SELECT policies — no new policies or grants needed |
+| `20260722000001_vendor_address_fields.sql` | Adds `address_line1`, `barangay`, `city`, `city_code`, `province`, `province_code`, `zip_code` to `vendors`; backfills `address_line1` from the old `address` value. No RLS/grant changes (row-scoped policy, table-level grants already cover new columns) |
+| `20260722000002_vendor_barangay_strict.sql` | Corrective migration (not an edit of `20260722000001` — see `AGENTS.md`): adds `barangay_code`, since barangay was revised from free text to a strict pick-from-list needing the same code-based edit-time resolution as `city_code`/`province_code` |
 
 ---
 
@@ -160,7 +162,15 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `name` | `text` | Vendor display name |
 | `accreditation_no` | `text` | Optional accreditation/license number (nullable). Not all verticals are accredited |
 | `year_established` | `smallint` | Optional |
-| `address` | `text` | Full street address |
+| `address` | `text` | Full formatted address, recomputed by the app (`formatFullAddress()`) from the structured fields below on every write. Read-only display string for booker/command — those apps only ever read it, never write it |
+| `address_line1` | `text NOT NULL DEFAULT ''` | Street / building / unit — free text |
+| `barangay` | `text NOT NULL DEFAULT ''` | Barangay display name — PSGC reference data, strict pick (filtered by city). Paired with `barangay_code` |
+| `barangay_code` | `text NOT NULL DEFAULT ''` | PSGC barangay code — authoritative for cascading lookups and edit-time dropdown resolution, not the display name |
+| `city` | `text NOT NULL DEFAULT ''` | City / municipality display name — PSGC reference data, strict pick (filtered by province). Paired with `city_code` |
+| `city_code` | `text NOT NULL DEFAULT ''` | PSGC city/municipality code — authoritative for cascading lookups and edit-time dropdown resolution |
+| `province` | `text NOT NULL DEFAULT ''` | Province display name — PSGC reference data, strict pick. Paired with `province_code`. Includes 3 synthetic pseudo-provinces (`NCR`/"Metro Manila", `ISABELA-CITY`, `COTABATO-CITY`) for the 19 PSGC cities that have no real province |
+| `province_code` | `text NOT NULL DEFAULT ''` | PSGC province code (or synthetic pseudo-province code) — authoritative for cascading lookups and edit-time dropdown resolution |
+| `zip_code` | `text NOT NULL DEFAULT ''` | Postal/ZIP code — free text, 4 digits typical for PH addresses |
 | `phone` | `text` | |
 | `email` | `text` | |
 | `tagline` | `text NOT NULL DEFAULT ''` | Short one-line vendor tagline (vendor portal) |
@@ -182,7 +192,7 @@ Two independent forms insert into this table:
 
 | Writer | Location | Fields written |
 |--------|----------|----------------|
-| Vendor self-registration | `vendor/app/api/auth/register/route.ts` | `name`, `accreditation_no`, `year_established`, `address`, `phone`, `email`, `operating_hours` |
+| Vendor self-registration | `vendor/app/api/auth/register/route.ts` | `name`, `accreditation_no`, `year_established`, `address` (computed), `address_line1`, `barangay`, `barangay_code`, `city`, `city_code`, `province`, `province_code`, `zip_code`, `phone`, `email`, `operating_hours` |
 | Command admin SchoolFormModal | `command/components/schools/SchoolFormModal` | `name`, `accreditation_no`, `region`, `branches`, `phone`, `email` |
 
 `region` and `branches` are not collected during self-registration — they default to `''` and `1`. They can be set or updated by Command admins at any time without affecting the vendor portal.
