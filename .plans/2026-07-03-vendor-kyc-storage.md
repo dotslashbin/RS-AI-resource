@@ -2,7 +2,11 @@
 
 **Date:** 2026-07-03
 **Scope:** `backbone/supabase` (Storage bucket + migrations), `vendor` (upload UI), `command` (review UI). First real Supabase Storage implementation in the project.
-**Status:** DRAFT — for review; resolve decisions, then approve schema before execution.
+**Status:** ✅ COMPLETE — executed 2026-07-06; **status corrected 2026-07-28** during a
+cross-plan staleness audit, which found this plan still reading "DRAFT … do not create
+migrations until approved" three weeks after its schema shipped and went into daily use.
+All seven decisions were resolved on 2026-07-06 and every S-item below is live. The
+`⬜ TODO` markers on S1–S3 were never flipped.
 
 > One-line framing: let vendors upload KYC/verification documents to a **private** Supabase Storage bucket, and let Command admins review (approve/reject) them as part of the existing vendor-approval flow. Optimize for: security (private files, strict RLS), and reusing the vendor status/approval model already in place.
 
@@ -109,11 +113,16 @@ KYC is split into **company** and **individual**, each with its own **suggested*
 
 ---
 
-## Schema changes (drafts — approval gate; do not create migrations until approved)
+## Schema changes — ✅ ALL SHIPPED (approval gate satisfied 2026-07-06)
+
+> The heading below originally read "drafts — approval gate; do not create migrations until
+> approved". That gate was passed and the migrations exist. Kept as the record of what was
+> approved and built.
 
 > New tables MUST include explicit API-role grants (see `20260620000001_api_role_grants.sql`). Proposed file: `backbone/supabase/migrations/2026XXXX000001_vendor_kyc.sql` (+ a storage-policies migration if kept separate).
 
-### S1 — `kyc_document_types` **guidance** list (D-1 = B: suggestions only, not enforced)  ⬜ TODO
+### S1 — `kyc_document_types` **guidance** list (D-1 = B: suggestions only, not enforced)  ✅ DONE
+<!-- verified 2026-07-28: created in 20260706000001_vendor_kyc.sql; grant corrected later by 20260724000001 (drift audit I1) -->
 ```sql
 create table public.kyc_document_types (
   code        text primary key,          -- e.g. 'business_permit'
@@ -143,7 +152,8 @@ insert into public.kyc_document_types (code, label, applies_to, sort_order) valu
   ('proof_of_address','Proof of Address',              'both',       4);
 ```
 
-### S1b — `vendor_kyc` header (D-6 = B; carries the whole-packet review state per D-2 = B)  ⬜ TODO
+### S1b — `vendor_kyc` header (D-6 = B; carries the whole-packet review state per D-2 = B)  ✅ DONE
+<!-- verified 2026-07-28: created in 20260706000001_vendor_kyc.sql -->
 ```sql
 create table public.vendor_kyc (
   vendor_id    uuid primary key references public.vendors(id) on delete cascade,
@@ -159,7 +169,8 @@ create table public.vendor_kyc (
 -- Grants per api_role_grants pattern. (Full RLS drafted at the backend step.)
 ```
 
-### S2 — `vendor_kyc_documents` (file metadata only — review state lives on the header, D-2 = B)  ⬜ TODO
+### S2 — `vendor_kyc_documents` (file metadata only — review state lives on the header, D-2 = B)  ✅ DONE
+<!-- verified 2026-07-28: created in 20260706000001_vendor_kyc.sql -->
 ```sql
 create table public.vendor_kyc_documents (
   id           uuid        primary key default gen_random_uuid(),
@@ -189,7 +200,8 @@ grant select, insert, update, delete on public.vendor_kyc_documents to service_r
 ```
 > **Review notes for the backend step:** (1) initial insert happens via the **service-role atomic submit route** (D-7 = D), so the authenticated INSERT/DELETE policies matter for the **revise-after-rejection** flow (the vendor is logged in then); consider restricting them to when the header `status = 'rejected'`. (2) Confirm whether deleting a row should also delete the Storage object (app-level cleanup).
 
-### S3 — Storage bucket + `storage.objects` policies (D-5 = A)  ⬜ TODO
+### S3 — Storage bucket + `storage.objects` policies (D-5 = A)  ✅ DONE
+<!-- verified 2026-07-28: 20260706000002_vendor_kyc_storage.sql — private bucket, 10 MB cap, jpeg/png/pdf only, storage.objects policies -->
 ```sql
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('vendor-kyc','vendor-kyc', false, 10485760,

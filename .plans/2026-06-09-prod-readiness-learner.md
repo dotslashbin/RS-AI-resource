@@ -4,6 +4,8 @@
 **App:** `./learner`
 **Status:** IN PROGRESS — B1, B2, B4, I1–I4, I6 executed (2026-06-12, build-verified). B3 (uploads) pending approval; I5 is a deployment-env item.
 
+> ⚠️ **Pre-pivot plan (annotated 2026-07-29).** This plan predates the 2026-06-12 platform pivot: the `learner` app was renamed to **`booker`** and no `learner/` directory exists any more. Every file path below is stale by name. Open items were **not** re-verified against `booker/` during the staleness audit — treat any remaining ⬜ TODO here as *unconfirmed*, and check `booker/` before acting on it. See `.plans/2026-06-12-platform-pivot-vendor-booker.md`.
+
 > Public-facing, handles real money via PayMongo. The bar is higher here than the internal tools — payment integrity and not lying to users are the themes.
 
 > **Legend:** B# = Blocker, I# = Important. **These numbers are plan-local** — learner I1 is *not* the same as command I1 or backbone I1. Always qualify cross-plan references by app (e.g. "command I1", "backbone B3").

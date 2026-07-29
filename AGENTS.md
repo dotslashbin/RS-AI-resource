@@ -4,13 +4,23 @@
 
 ```
 workspace/
-├── command/     # RS Command — internal ops portal; manages users, vendors, roles, and portal access across all three apps
-├── booker/      # Bookdeck Booker — customer-facing booking portal; booking wizard, wallet, schedule, document upload
-├── vendor/      # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
-└── backbone/    # shared Supabase project — migrations, types, seed data
+├── command/               # RS Command — internal ops portal; manages users, vendors, roles, and portal access across all three apps
+├── booker/                # Bookdeck Booker — customer-facing booking portal; booking wizard, wallet, schedule, document upload
+├── vendor/                # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
+├── backbone/              # shared Supabase project — migrations, types, seed data
+├── ezzy-booker-mobile/    # Expo/React Native counterpart to booker — scaffold only, see .plans/2026-07-21-ezzy-booker-mobile-buildout.md
+├── ezzy-vendor-mobile/    # Expo/React Native counterpart to vendor — scaffold only, no app code yet
+├── architecture/          # ecosystem documentation (schema, portals, auth, conventions) — the shared source of truth
+└── .plans/                # dated plan documents for multi-phase work
 ```
 
-These are independent apps sharing one Supabase project. They are not a monorepo — no shared dependencies or build tooling.
+These are independent apps sharing one Supabase project. They are not a monorepo — no shared dependencies or build tooling. Each app folder is its own git repository; this root repo tracks only `architecture/`, `.plans/`, `.claude/`, and the top-level Markdown.
+
+**Working from this root is the intended default**, including for the mobile apps — it keeps `architecture/`, `.plans/`, and the shared skills in context. Consequences to respect:
+
+- Nested `AGENTS.md` files layer on top of this one (see AGENTS.md Use). The mobile apps carry React Native overrides to the web-oriented rules below.
+- Package and toolchain commands are **not** root-relative. Run them against the target app, e.g. `npm --prefix ezzy-vendor-mobile run start`, or from inside the app folder. `tsconfig.json`, `node_modules/`, and `@/*` path aliases are all app-local.
+- Git commits for an app must be made inside that app's folder — this root repo does not contain their history.
 
 ---
 
@@ -25,6 +35,16 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 - **Maps**: Leaflet + react-leaflet (client-side only via `dynamic` import) — booker only. vendor and command have no maps.
 - **Icons**: lucide-react
 - **Notifications**: sonner
+
+### Mobile (the Expo apps in "ezzy-booker-mobile" and "ezzy-vendor-mobile" folders)
+
+- **Framework**: Expo SDK 57 + React Native, `expo-router` (file-based routing under `src/app/`)
+- **Language**: TypeScript (strict), `@/*` aliased to that app's `./src/*`
+- **Expo has changed** — read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing code; do not rely on pre-SDK-57 memory
+- **Installing packages**: Expo-adjacent packages go through `npx expo install` (resolves the SDK-57-compatible version); plain npm packages via `npm install`. Either way, installing a dependency is an approval gate
+- **Backend**: same shared Supabase project, same RLS boundaries — the mobile apps are new *clients*, not a new backend. `@supabase/ssr` does not apply; RN needs its own session-persistence adapter
+- **Public env vars** use the `EXPO_PUBLIC_` prefix, not `NEXT_PUBLIC_`. `SUPABASE_SERVICE_ROLE_KEY` must never reach a mobile client under any prefix — service-role work stays behind the web apps' API routes
+- **Store compliance**: read and apply `.claude/skills/mobile-dev/SKILL.md` before implementing or reviewing any mobile feature
 
 ### Backend / Database
 
@@ -105,7 +125,7 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 
 - `trash` over `rm` — recoverable beats permanent
 - Canadian English spelling
-- Update `AGENTS.md`, `SOUL.md`, `USER.md`, and/or `README.md` when they can be meaningfully improved, with only genuinely useful changes
+- Update `AGENTS.md` (root or nested), the relevant `architecture/` document, and/or `README.md` when they can be meaningfully improved, with only genuinely useful changes
 
 ---
 
@@ -126,7 +146,7 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 
 ### Session Start
 
-- Make sure the context includes: AGENTS.md, SOUL.md, and USER.md
+- Make sure the context includes this `AGENTS.md`, plus the nested `AGENTS.md` of any app being worked on
 - Do not reread startup again unless asked or some context is missing
 
 ### Think Before Coding
@@ -174,6 +194,8 @@ Before making any visual or interaction change, read and apply `.claude/skills/u
 - Non-trivial styling goes in a co-located `ComponentName.module.css` (or shared Tailwind tokens/utilities), not inline in the `.tsx`; only genuinely dynamic one-off values may stay inline
 - Pure display components (no state, no effects, no handlers, no non-trivial styling) are the only exception
 - Plans (see Plan section below) that introduce or modify components must call this out per component, not leave it implicit
+
+The `.module.css` rule above is web-specific. React Native has no CSS modules — the Expo apps override that one bullet in their own `AGENTS.md` while keeping the render/hook split and the no-inline-styles rule intact.
 
 ### Plan
 

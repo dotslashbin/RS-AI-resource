@@ -44,6 +44,11 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260724000001_kyc_document_types_grant_fix.sql` | Grants `insert, update, delete` on `kyc_document_types` to `authenticated` — closes a gap where the table's RLS policy already permitted command admin/root writes but the table-level grant only covered `select`, so writes failed with `permission denied` regardless of RLS |
 | `20260724000002_vendor_members_vendor_id_index.sql` | Adds `vendor_members_vendor_id_idx` on `vendor_members(vendor_id)` — the existing `(user_id, vendor_id)` PK couldn't efficiently support the `vendor_id`-only lookup `notify_on_new_booking()` runs on every booking insert |
 | `20260724000003_booking_capacity_lock.sql` | Redefines `check_booking_capacity()` to `select ... for update` the `schedules` row before counting existing bookings — closes a TOCTOU race where two concurrent inserts for the last slot could both pass the capacity check before either committed |
+| `20260724000004_divisions.sql` | ⚠️ **NOT ON THIS BRANCH — see the caveat under `divisions` below.** `divisions` (Ezzy business-vertical taxonomy, seeded with 13 rows) + `vendors.division_id` FK (nullable, `ON DELETE RESTRICT`, indexed) + RLS/grants. Every vendor is associated with exactly one division. See the `divisions` table entry below |
+| `20260725000001_platform_fee_settings.sql` | `platform_fee_settings` — single-row (`id smallint check (id = 1)`) global platform commission percentage + `set_updated_at()` trigger + RLS/grants. Seeded at `0` so no environment charges a fee until Command configures one |
+| `20260725000002_booking_transactions.sql` | `booking_transactions` (immutable per-payment ledger: amount paid, fee %, fee amount, payout) + `create_booking_transaction()` SECURITY DEFINER trigger on `bookings` `AFTER UPDATE OF is_paid`, firing only on a false→true transition + RLS/grants. Snapshots the fee percentage at payment time so changing it never alters historical payouts |
+| `20260726000001_platform_fee_settings_rls_tighten.sql` | Narrows the `platform_fee_settings` RLS policies |
+| `20260728000001_device_push_tokens.sql` | `device_push_tokens` (per-install Expo push token, shared across portals, own-rows-only RLS) + `notification_push_settings` (per-portal push kill switch, mirroring `notification_email_settings`) + `dispatch_notification_push()` trigger on `notifications` `AFTER INSERT` → pg_net → `send-push-notification` Edge Function + RLS/grants. Same pg_net + Vault chokepoint as the email dispatcher, and silently no-ops when Vault is unconfigured so local dev and `seed.sql` are never blocked |
 
 ---
 
@@ -57,7 +62,11 @@ auth.users
               ├─── user_portals ────────► portals
               ├─── user_roles ──────────► roles
               ├─── notifications ───────► notification_type_settings
+              ├─── device_push_tokens ──► portals (one row per mobile install;
+              │                            push delivery addresses)
               └─── vendor_members ─────► vendors ──► statuses
+                                              │
+                                              ├──► divisions (business-vertical taxonomy)
                                               │
                                          offerings ◄─┐
                                               │       │
@@ -66,7 +75,16 @@ auth.users
                                               │   staff_specialties (staff ↔ offerings)
                                          bookings
                                               │
-                                         booking_documents
+                                              ├──► booking_documents
+                                              │
+                                         booking_transactions (immutable payment ledger,
+                                              1:1, created on first payment)
+
+  platform_fee_settings (single row — global commission %; snapshotted onto
+                         booking_transactions at payment time, never joined)
+
+  notification_email_settings / notification_push_settings (one row per portal —
+                         per-channel kill switches read by the two dispatchers)
 
   vendors ──► vendor_status_log (status-change audit trail)
   vendors ──► vendor_kyc (1:1 header) ──► vendor_kyc_documents
@@ -183,6 +201,7 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `branch` | `text` | Optional display label for a single campus, e.g. `"Main Branch"`. `NULL` means no branch distinction. |
 | `region` | `text NOT NULL DEFAULT ''` | Geographic coverage area. Entered by Command admins; not collected during self-registration. |
 | `branches` | `smallint NOT NULL DEFAULT 1` | Count of branches. Managed by Command portal only; defaults to `1` for self-registered vendors. |
+| `division_id` | `smallint` | FK → `divisions`. `ON DELETE RESTRICT`, indexed. Nullable — `NULL` only for vendors that existed before this column shipped; required going forward at both self-registration and Command's manual vendor-creation form. Unrelated to `region`/`branches` — a business-vertical grouping, not geography |
 | `status_id` | `smallint` | FK → `statuses`. Default `3` (pending_activation) |
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Auto-updated by trigger |
@@ -195,10 +214,10 @@ Two independent forms insert into this table:
 
 | Writer | Location | Fields written |
 |--------|----------|----------------|
-| Vendor self-registration | `vendor/app/api/auth/register/route.ts` | `name`, `accreditation_no`, `year_established`, `address` (computed), `address_line1`, `barangay`, `barangay_code`, `city`, `city_code`, `province`, `province_code`, `zip_code`, `phone`, `email`, `operating_hours` |
-| Command admin SchoolFormModal | `command/components/schools/SchoolFormModal` | `name`, `accreditation_no`, `region`, `branches`, `phone`, `email` |
+| Vendor self-registration | `vendor/app/api/auth/register/route.ts` | `name`, `accreditation_no`, `year_established`, `address` (computed), `address_line1`, `barangay`, `barangay_code`, `city`, `city_code`, `province`, `province_code`, `zip_code`, `phone`, `email`, `operating_hours`, `division_id` |
+| Command admin VendorFormModal | `command/components/vendors/VendorFormModal` | `name`, `accreditation_no`, `region`, `branches`, `phone`, `email`, `division_id` |
 
-`region` and `branches` are not collected during self-registration — they default to `''` and `1`. They can be set or updated by Command admins at any time without affecting the vendor portal.
+`region` and `branches` are not collected during self-registration — they default to `''` and `1`. They can be set or updated by Command admins at any time without affecting the vendor portal. `division_id`, by contrast, **is** collected at self-registration (required) — Command can still reassign it at any time via the same form.
 
 #### `branch` vs `branches` — important distinction
 
@@ -210,6 +229,35 @@ Two independent forms insert into this table:
 If per-branch registration (individual branches each with their own name, address, and schedule) is ever needed, the right model is a dedicated `vendor_branches` table — not repurposing either of these columns.
 
 **Future fields to consider:** `lat`, `lng` (geographic coordinates for map markers), `logo_path` (Supabase Storage path for vendor logo).
+
+---
+
+### `divisions`
+
+> ⚠️ **Branch/deployment caveat (verified 2026-07-29).** This table and `vendors.division_id`
+> describe the *intended* schema. The migration `20260724000004_divisions.sql` exists only on
+> `backbone`'s `feature/division_assoc_reg` branch and is **absent from the hosted project** —
+> `GET /rest/v1/divisions` returns `PGRST205`, and `vendors.division_id` returns `42703`. The
+> app side is merged and live, so vendor self-registration and Command's Vendors page are
+> broken against hosted until the branch is merged and pushed. See
+> `.plans/2026-07-24-vendor-divisions.md`. Everything below is accurate to the migration, not
+> to what is currently deployed.
+
+Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyFood, EzzyRide, EzzyHome, EzzyPets, EzzyLaw, EzzyPark, EzzyLearn, EzzyWork, EzzyStay). Seeded with these 13 rows; **full CRUD by Command admins** (add/edit/soft-disable) via the Divisions settings page — unlike most other lookup tables in this schema, which are seed-fixed. Every vendor is associated with exactly one.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `smallint` | PK, identity |
+| `name` | `text` | Unique, e.g. `"EzzyDrive"` |
+| `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation; treated as immutable afterward (referenced by future filter URLs) though not DB-enforced immutable |
+| `sort_order` | `smallint` | Default `0`. Display order |
+| `is_active` | `boolean` | Default `true`. Soft-disable — hides from new vendor selection (app-layer filter, not RLS) without breaking existing `vendors.division_id` references |
+| `created_at` | `timestamptz` | |
+| `updated_at` | `timestamptz` | Auto-updated by trigger |
+
+**RLS:** all authenticated users SELECT (needed by Command's assignment/CRUD UI — both active and disabled rows, since Command must be able to see and re-enable disabled ones); `admin`/`root` (command portal) manage (insert/update/delete) via a single `for all` policy, mirroring `kyc_document_types`. **`anon` has no grant** (matches every other table in this schema) — the vendor **registration** form is pre-account (no session yet), so it cannot read this table directly; it goes through `vendor/app/api/divisions/route.ts` (public GET, service-role) instead. See `conventions.md`'s Route Handlers list.
+
+**Delete semantics:** `vendors.division_id` is `ON DELETE RESTRICT` — a division referenced by any vendor cannot be hard-deleted; Command's UI only ever offers disable (`is_active = false`), never delete, for exactly this reason.
 
 ---
 
@@ -422,6 +470,55 @@ Immutable audit trail of every booking status change. Written only by the `log_b
 
 ---
 
+### `platform_fee_settings`
+Single-row global configuration: the commission percentage the platform takes from every booking payment. Seeded by migration at `0`; managed by Command admins via the Settings → Platform Fee tab. Applies across the board — there is no per-vendor rate.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `smallint` | PK, `default 1`, `check (id = 1)` — makes the table physically single-row, so no query has to decide which config row is current |
+| `fee_percent` | `numeric(5,2)` | NOT NULL, default `0`, `check (>= 0 and <= 100)`. Percentage deducted from each payment |
+| `updated_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The Command admin who last changed the rate. Written by the app layer — `set_updated_at()` only maintains `updated_at` |
+| `updated_at` | `timestamptz` | Default `now()`; maintained by the `set_updated_at()` trigger |
+
+**Seeded at `0` deliberately** — a migration must be environment-neutral and must never start charging vendors a fee on its own. Local dev sets a demonstration rate (12%) in `seed.sql`; production is configured through the Command UI.
+
+**RLS:** all authenticated users SELECT (the trigger reads it via SECURITY DEFINER, and both the Command settings UI and the vendor Transactions page surface the rate); only `admin`/`root` on the `command` portal UPDATE. No INSERT/DELETE for authenticated — the single row is seed-fixed, mirroring `notification_email_settings`.
+
+> **The rate is never applied live at read time.** It is snapshotted onto each `booking_transactions` row when payment is confirmed. Editing it affects future payments only — see `booking_transactions`.
+
+---
+
+### `booking_transactions`
+Immutable ledger of confirmed payments — one row per booking, created the moment that booking is first paid. Holds the financial breakdown: what the booker paid, the platform's cut, and what the vendor is owed. Read by the vendor Transactions page.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `booking_id` | `uuid` | FK → `bookings` ON DELETE CASCADE. **`NOT NULL UNIQUE`** — enforces 1:1 and is the idempotency guard against the trigger firing twice |
+| `vendor_id` | `uuid` | FK → `vendors` ON DELETE RESTRICT. Denormalised from `bookings.vendor_id` for efficient RLS filtering, same rationale as `bookings.vendor_id` itself |
+| `amount_paid` | `numeric(10,2)` | NOT NULL. Copied from `bookings.price_paid` |
+| `platform_fee_percent` | `numeric(5,2)` | NOT NULL. The `platform_fee_settings.fee_percent` value **in force when this payment was confirmed** — a historical record, not a live lookup |
+| `platform_fee_amount` | `numeric(10,2)` | NOT NULL. `round(amount_paid * platform_fee_percent / 100, 2)` |
+| `payout_amount` | `numeric(10,2)` | NOT NULL. `amount_paid - platform_fee_amount`. Computed from a single rounded fee value, so `platform_fee_amount + payout_amount = amount_paid` exactly |
+| `created_at` | `timestamptz` | Default `now()`. **When payment was confirmed** — this is the transaction date the apps filter and summarise by, *not* `bookings.booked_date` (when the service occurs) |
+
+Index: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc)` — every read is "this vendor's transactions, newest first", optionally within a date range.
+
+**Write path — trigger only.** `bookings_create_transaction` (`create_booking_transaction()`, SECURITY DEFINER) fires `AFTER UPDATE OF is_paid on bookings`, guarded by `when (old.is_paid is distinct from new.is_paid and new.is_paid = true)`. That is exactly the write the PayMongo webhook performs (`booker/app/api/payment/webhook/route.ts` does `update bookings set is_paid = true ... where is_paid = false`), so **a failed, abandoned, or expired payment never produces a row here** — `is_paid` simply stays `false` and the trigger never fires. Anchoring to the *column* rather than the webhook means the ledger stays correct no matter which code path confirms a payment in future (e.g. a manual "mark as paid" admin action), and required no changes to the booker app.
+
+**Why the fee is snapshotted, not recomputed:** so that changing the global percentage never retroactively moves a vendor's historical payout figures. Mirrors how `booking_status_log` and `vendor_status_log` preserve history rather than deriving it.
+
+**Status is deliberately NOT stored here.** The financial figures must never drift, but booking status is live and mutable (`pending → confirmed → completed → refunded`); freezing it would show a booking as permanently "confirmed" after it was refunded. Readers join `bookings` for current status. Refunded/cancelled rows **stay in the ledger** (the payment really happened) but the apps exclude them from payout totals.
+
+**No backfill.** Bookings already `is_paid = true` before this migration shipped have no ledger row — the trigger only fires on a fresh false→true transition. This was a deliberate decision: there is no historical fee percentage to snapshot for payments made before any fee policy existed, so inventing one would be more misleading than an admittedly-incomplete ledger.
+
+**RLS:**
+- Vendor admins SELECT their own vendor's rows — `is_active() and has_vendor_role(vendor_id, 'vendor-admin')`. The `is_active()` guard is **required**: `has_vendor_role()` checks membership and role only and does *not* consider profile status, so without it a **suspended** vendor-admin would retain access to financial data
+- Command admins/root SELECT all rows
+- No INSERT/UPDATE/DELETE policies for authenticated — trigger-only writes, mirroring `booking_status_log`. The ledger is append-only by construction
+
+---
+
 ### `notification_type_settings`
 Platform-wide on/off controls per notification type. Seeded in migration; managed by Command admins through the Notification Settings page. Disabling a type suppresses future inserts of that type — it does not delete existing rows.
 
@@ -492,6 +589,44 @@ Per-portal master switch for outbound notification emails. Seeded one row per po
 | `is_email_enabled` | `boolean` | Default `true`. The Edge Function reads the target notification's portal and skips sending (log `skipped`) when this is `false` |
 
 **RLS:** All authenticated users can SELECT (needed by the Command UI). Only `admin` / `root` roles can UPDATE. No INSERT or DELETE for authenticated — rows are seed-fixed, one per portal.
+
+---
+
+### `notification_push_settings`
+Per-portal master switch for outbound **push** notifications — the exact counterpart of `notification_email_settings`, deliberately mirroring its shape so Command manages both channels the same way. Gates only the push channel; the in-app notification and the email are unaffected.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `portal` | `text` | PK. FK → `portals(name)`. One of `booker`, `vendor`, `command` |
+| `is_push_enabled` | `boolean` | Default `true`. Read by the `dispatch_notification_push()` trigger before it calls the Edge Function |
+
+**A missing row counts as disabled, not enabled.** The trigger tests `is not true`, so a portal nobody has configured never starts pushing to lock screens.
+
+**RLS:** All authenticated users can SELECT (Command UI). Only `admin` / `root` in the `command` portal can UPDATE. No INSERT or DELETE for authenticated — seed-fixed, one row per portal.
+
+---
+
+### `device_push_tokens`
+One row per app install that has been granted notification permission. Written by the mobile clients for their own user; read for dispatch by `service_role` inside the `send-push-notification` Edge Function, **never by a client**.
+
+**Shared across portals, not vendor-specific.** `ezzy-vendor-mobile` was the first consumer; `ezzy-booker-mobile` uses the same table with `portal = 'booker'`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK, default `gen_random_uuid()` |
+| `user_id` | `uuid` | FK → `profiles(id)` ON DELETE CASCADE |
+| `token` | `text` | `NOT NULL UNIQUE` — an `ExpoPushToken[...]`. Unique because reinstalling or restoring a backup can hand the same token to a different user; one row per token is what stops a notification reaching whoever held it previously |
+| `platform` | `text` | CHECK in (`ios`, `android`) |
+| `portal` | `text` | FK → `portals(name)`. Which app this install is |
+| `device_name` | `text` | Nullable, for the user to recognise a device |
+| `created_at` | `timestamptz` | Default `now()` |
+| `last_seen_at` | `timestamptz` | Default `now()`. Touched after each successful send |
+
+**Indexes:** `device_push_tokens_user_portal_idx` on `(user_id, portal)` — the dispatch lookup.
+
+**Token hygiene:** the Expo Push API returns `DeviceNotRegistered` for uninstalled apps and revoked permissions; the Edge Function deletes those rows. Without that the table accumulates dead addresses and every send slows.
+
+**RLS:** own rows only, in all four directions (`user_id = auth.uid()`). There is deliberately **no** cross-user SELECT policy — a push token is a delivery address, and dispatch runs under `service_role`, which bypasses RLS.
 
 ---
 
@@ -588,6 +723,8 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `schedules` → `bookings` | RESTRICT |
 | `bookings` → `booking_documents` | CASCADE |
 | `bookings` → `booking_status_log` | CASCADE |
+| `bookings` → `booking_transactions` | CASCADE |
+| `vendors` → `booking_transactions` | RESTRICT |
 | `vendors` → `vendor_kyc` | CASCADE |
 | `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
 | Staff → schedules | SET NULL |
@@ -595,6 +732,7 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `bookings.cancelled_by` → `profiles` | SET NULL |
 | `booking_status_log.changed_by` → `profiles` | SET NULL |
 | `vendor_status_log.changed_by` → `profiles` | SET NULL |
+| `platform_fee_settings.updated_by` → `profiles` | SET NULL |
 
 RESTRICT is used on relationships where deletion would leave orphaned financial or booking records. SET NULL preserves the record when its creator is removed.
 
@@ -606,6 +744,7 @@ See `auth-roles.md` for the full access control model. Schema-level summary:
 
 - RLS is enabled on every table without exception.
 - All RLS policies call one or more of the helper functions (`is_active()`, `is_portal_member()`, `has_role()`, `has_vendor_role()`, `is_vendor_member(uuid)`) defined in `20260504000002_schema.sql`. These helpers are `SECURITY DEFINER` to avoid recursion.
+- **`has_vendor_role()` and `is_vendor_member()` do not check whether the caller is active.** They test membership and role only, so a **suspended** user still passes them. Every vendor-scoped policy must therefore be written as `is_active() and has_vendor_role(...)` — see `bookings`, `booking_status_log`, `booking_transactions`. Omitting `is_active()` silently leaves suspended vendor staff with read access. (Command-admin policies are gated by `is_portal_member('command') and has_role(...)` instead and do not add `is_active()`, matching the existing policies on those same tables.)
 - **`get_booker_contacts(p_vendor_id uuid)` RPC** (`20260620000002_booker_contacts_rpc.sql`): a `SECURITY DEFINER` function returning `booker_id / full_name / email / phone` for bookers who have booked a given vendor. `profiles` RLS only permits self + Command-admin reads, so a vendor-admin's profile join returns null; this RPC lets vendor-admins surface booker contact details for their own bookings. Scoped two ways — the caller must be a `vendor-admin` of `p_vendor_id` (`has_vendor_role`), and only bookers who actually booked that vendor are returned. It exposes only the three contact columns, never `notes`/`status_id`. `EXECUTE` granted to `authenticated` and `service_role` (not `anon`).
 - Policies follow the principle of least privilege: read access is only granted to the specific roles that need it, not to `authenticated` broadly (with narrow exceptions for lookup tables and the booker-readable vendors policy).
 - **Table-level GRANTs are required in addition to RLS.** PostgREST enforces table privileges *before* RLS runs, and the `public` default privileges grant the API roles no DML. Every new table must add explicit `GRANT`s (in its own migration) following `20260620000001_api_role_grants.sql`: `anon` gets none, `authenticated` gets only the operations its RLS policies permit (never `TRUNCATE`), `service_role` gets full DML. Skipping this makes the table return `permission denied` for logged-in users even with correct RLS.
@@ -619,7 +758,7 @@ The following tables are anticipated but not yet created. They should follow the
 | Table | Purpose | Notes |
 |-------|---------|-------|
 | `wallet_accounts` | Booker wallet balance | One row per booker profile |
-| `wallet_transactions` | Credits, debits, booking payments | Immutable ledger rows |
+| `wallet_transactions` | Credits, debits, booking payments | Immutable ledger rows. **Not the same thing as `booking_transactions`** (which already exists): that one records the platform-fee/payout split of a confirmed booking payment. `wallet_transactions` would be a booker-side balance ledger. Do not conflate them |
 | `reviews` | Booker reviews of vendors post-booking | One review per completed booking |
 | `vendor_photos` | Gallery images for vendor profiles | Supabase Storage paths |
 

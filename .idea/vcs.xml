@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/backbone" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/booker" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/command" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ezzy-booker-mobile" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/ezzy-vendor-mobile" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/prototypes/backoffice" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/prototypes/booking-client" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/prototypes/school-client" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/website" vcs="Git" />
+  </component>
+</project>

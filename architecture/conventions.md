@@ -2,11 +2,13 @@
 
 Patterns established across all three portals. New code should follow these without deviation unless there is a documented reason.
 
+> **Scope of this document.** Everything below describes the **three Next.js portals** unless it says otherwise. The Expo mobile apps share the *principles* — service layer, hook-as-controller, no shared code, RLS-first — but almost none of the mechanics: no `@supabase/ssr`, no Route Handlers, no Tailwind, no CSS Modules, no server components. Their divergences are collected in **Mobile (Expo) Conventions** near the end of this file; read that section instead of adapting the web rules by eye.
+
 ---
 
 ## Project Structure
 
-Each portal is a self-contained Next.js 15 App Router application. The root of each app looks like:
+Each portal is a self-contained Next.js 16 App Router application. The root of each app looks like:
 
 ```
 app/
@@ -29,7 +31,7 @@ services/
 public/               Static assets
 ```
 
-All three apps follow this same layout. There is no `src/` directory.
+All three apps follow this same layout. There is no `src/` directory. (The Expo apps do have one — see Mobile Conventions.)
 
 ---
 
@@ -132,6 +134,7 @@ export function createAdminClient() {
 Used when an operation must bypass RLS or use server-only secrets. Current examples:
 
 - `vendor/app/api/auth/register/route.ts` — vendor self-registration (public, **KYC-gated**): a multipart submit (form fields + applicant type + document files) that atomically creates a confirmed user, activates their profile, grants portal access, creates the vendor (pending activation), assigns vendor-admin, creates the `vendor_kyc` header, uploads the files to the `vendor-kyc` bucket, and inserts the document rows — rolling back all of it (objects + vendor + user) on any failure. See `vendor-kyc.md`.
+- `vendor/app/api/divisions/route.ts` — public GET, serves the active `divisions` list for the registration form's division select. Exists because the registration page is shown pre-account (`anon`, which has zero table grants in this schema — `20260620000001_api_role_grants.sql`) — a direct browser query against `divisions` 401s. Reads via `createAdminClient()` instead, the same public/anonymous exception the register route itself already relies on.
 - `booker/app/api/register/route.ts` — booker self-registration (public): creates a confirmed user, sets profile to active, grants booker portal access, assigns the member role atomically.
 - `command/app/api/users/route.ts` — admin user create/delete: **caller-gated** (see rule below) before any service-role action; DELETE also blocks self-deletion.
 - `booker/app/api/payment/create-session/route.ts` — **caller-gated**; verifies the booking belongs to the caller and derives the amount from the DB (never the request body).
@@ -282,7 +285,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - **shadcn/ui components** are added via `npx shadcn@latest add <component>` — never hand-edited. They live in `components/ui/`.
 - **Naming:** Component files use `PascalCase.tsx`. Hook files use `camelCase.ts`. Service files use `camelCase.service.ts`.
 - **Co-location:** A component that owns a hook lives in the same folder: `ComponentName/ComponentName.tsx` + `ComponentName/useComponentName.ts`.
-- **Separation of concerns (mandatory):** Every component with state, effects, or handlers gets a companion `useComponentName.ts` hook. The `.tsx` is a pure render layer — no `useState`/`useEffect`, no business logic, and no static inline `style={{}}`. Non-trivial styling goes in Tailwind utilities/tokens or a co-located `ComponentName.module.css`; only genuinely dynamic, one-off values (e.g. a width computed from state) may stay inline. A pure display component (no state/effects/handlers, no non-trivial styling) is the only exception and may have just the `.tsx`. See `skills/component-separation.md`.
+- **Separation of concerns (mandatory):** Every component with state, effects, or handlers gets a companion `useComponentName.ts` hook. The `.tsx` is a pure render layer — no `useState`/`useEffect`, no business logic, and no static inline `style={{}}`. Non-trivial styling goes in Tailwind utilities/tokens or a co-located `ComponentName.module.css`; only genuinely dynamic, one-off values (e.g. a width computed from state) may stay inline. A pure display component (no state/effects/handlers, no non-trivial styling) is the only exception and may have just the `.tsx`. See `.claude/skills/component-separation/SKILL.md`.
 
 ---
 
@@ -290,10 +293,13 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 
 - Tailwind utility classes for layout and spacing
 - CSS custom properties (`var(--db-strong)`, `var(--db-text)`, etc.) for all theme-sensitive colours — never hardcode light/dark values
-- Static inline `style` objects are **not** acceptable — move static styling to Tailwind utilities/tokens or a co-located `.module.css`. Only genuinely dynamic, state/data-driven one-off values (e.g. a width or transform computed at runtime) may remain inline. See `skills/component-separation.md`.
+- Static inline `style` objects are **not** acceptable — move static styling to Tailwind utilities/tokens or a co-located `.module.css`. Only genuinely dynamic, state/data-driven one-off values (e.g. a width or transform computed at runtime) may remain inline. See `.claude/skills/component-separation/SKILL.md`.
 - **CSS Modules** (`Component.module.css`) usage differs by app. **booker** and **vendor** are Tailwind-first, leaning on `db-*` token utility classes (`text-db-strong`, `db-sub`, `bg-[var(--db-card-bg)]`, etc.), with CSS Modules reserved for awkward geometry (e.g. the KYC camera widget: `CameraCapture.module.css`, `IdentityStep.module.css` — masked cut-out overlay, oval/card frames). **command** is effectively CSS-Modules-first (~45 `.module.css` files). The login surfaces across the apps also use CSS Modules. When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
 - `cn()` from `lib/utils.ts` for conditional class merging
 - Theme variables are defined in `globals.css` under `:root` (light) and `.dark` selectors
+- **Print styles** (first use: the vendor Transactions page, 2026-07). Per-component show/hide uses Tailwind `print:` variants (`print:hidden`, `hidden print:block`); **structural** resets on shared layout containers live in one `@media print` block in `globals.css`. The shell is built for a fixed-height scrolling viewport — `.sp-page` is `min-height:100vh; display:flex`, `<main>` is `overflow-hidden`, its content div `overflow-y-auto` — and any of those silently clips a printed document to a single page unless released.
+
+> **Printing a paginated list — non-obvious, do not "simplify".** `window.print()` serialises the DOM as it stands; it does not re-render. A page that renders only the current page of rows will therefore print only those rows, silently truncating an export. The vendor Transactions page deliberately renders its filtered data **twice**: the paginated view (`print:hidden`) and a full unpaginated view (`hidden print:block`) that always receives every row matching the active filter. Collapsing these into one render reintroduces the truncation bug. See `.plans/2026-07-25-vendor-transactions-platform-fee.md` (I4).
 
 **Booker portal design tokens (examples):**
 
@@ -318,6 +324,126 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 
 ---
 
+## Mobile (Expo) Conventions
+
+Applies to `ezzy-vendor-mobile` and `ezzy-booker-mobile`. These **override** the web rules above wherever they conflict. `ezzy-vendor-mobile` is the reference implementation; `ezzy-booker-mobile` is a scaffold whose own plan predates it.
+
+**Read the versioned docs.** https://docs.expo.dev/versions/v57.0.0/ — SDK 57 is new enough that most recalled patterns for navigation, notifications and config are stale.
+
+### Project structure
+
+Unlike the portals, the mobile apps **do** have a `src/` directory, and `@/*` resolves to it.
+
+```
+src/
+  app/                    expo-router file-based routes
+    _layout.tsx           providers + Stack.Protected guards
+    (app)/                the signed-in tab group
+  components/<domain>/    ComponentName/{.tsx, .styles.ts, use*.ts}
+  hooks/                  TanStack Query wrappers, Realtime subscriptions
+  lib/
+    supabase/client.ts    createClient from @supabase/supabase-js (NOT @supabase/ssr)
+    supabase/secureStorageAdapter.ts
+    constants.ts  format.ts  queryClient.ts  notifications.ts  pushModule.ts
+  providers/              SessionGate, Snackbar, Push
+  services/<domain>.service.ts
+  theme/                  tokens.ts, AppThemeProvider, useAppTheme
+```
+
+Package and toolchain commands are **app-local**, not root-relative: `npm --prefix ezzy-vendor-mobile run start`, or run from inside the folder.
+
+### Supabase client
+
+`@supabase/ssr` does not apply — there is no SSR and no cookie jar. Use `createClient` from `@supabase/supabase-js` directly, which is the exact opposite of the web rule above.
+
+```ts
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: secureStorageAdapter,   // OS keystore, not AsyncStorage
+    detectSessionInUrl: false,       // no URL bar; deep links handled explicitly
+    flowType: "pkce",                // web portals use implicit — deliberate divergence
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+})
+```
+
+Four things that are all load-bearing:
+
+- **`react-native-url-polyfill/auto` must be imported before the client is constructed.** Hermes ships an incomplete `URL` that realtime-js needs.
+- **Session storage is `expo-secure-store` behind a chunking adapter.** iOS caps a Keychain value near 2 KB and a Supabase session exceeds it, so the adapter splits the value across numbered keys with a small manifest. Plain AsyncStorage is unencrypted on disk — acceptable for cached reads, never for a token that authorises approvals.
+- **`flowType: "pkce"`** is correct for a public client that cannot hold a secret. Do not "align" it with the web portals.
+- **Auto-refresh is tied to `AppState`** — a backgrounded app must not keep a refresh timer running.
+
+### There are no Route Handlers
+
+The mobile apps have no server. Anything needing the service-role key is called **over HTTPS against a deployed web app's Route Handler**; the key never enters the binary. Public config uses the `EXPO_PUBLIC_` prefix, and *anything* under that prefix is readable by anyone who unpacks the app.
+
+| Variable | Purpose |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Publishable/anon key — RLS-protected access |
+| `EXPO_PUBLIC_APP_NAME` | Display name; also read by `app.config.js` so the home-screen label and in-app branding cannot drift |
+| `EXPO_PUBLIC_VENDOR_PORTAL_URL` | Where mobile links out to for registration, KYC, account deletion, privacy policy. Optional — links hide rather than break when unset |
+
+**`.env` is gitignored and is not uploaded to EAS.** A build that bundles JS on EAS servers (`preview`, `production`) reads **EAS environment variables** instead, which must be set per environment with `eas env:set` and pinned by an `"environment"` field on the build profile. Skipping this produces a build that installs and then dies at startup — see `.plans/2026-07-28-vendor-mobile-preview-crash.md`.
+
+**Configuration is validated without throwing.** `lib/constants.ts` exports `MISSING_CONFIG: string[]` and the root layout renders a `ConfigErrorScreen` when it is non-empty. A module-scope `throw` is a red box in a development build but a *silent process death* in a release build — do not reintroduce one.
+
+### Component conventions — RN variant
+
+The render/hook split is **unchanged**: every component with state, effects or handlers gets a companion `useComponentName.ts`, and the `.tsx` stays a pure render layer.
+
+What differs: React Native has no CSS modules. Static styling lives in a co-located `ComponentName.styles.ts`, and in a theme-aware app it exports a **`makeStyles(tokens)` factory** that the component memoises — a module-level `StyleSheet.create` singleton would freeze one theme's colours at import time.
+
+```ts
+// ComponentName.styles.ts
+export const makeStyles = (t: Tokens) => StyleSheet.create({ … })
+```
+```tsx
+const { tokens } = useAppTheme()
+const styles = useMemo(() => makeStyles(tokens), [tokens])
+```
+
+Static inline `style={{}}` remains prohibited; only genuinely dynamic values (a gesture-driven transform, a width from state) may stay inline. Pure display components with no state, effects, handlers or non-trivial styling are the only exception to the companion hook.
+
+### Routing
+
+`expo-router` on `standard-navigation`. **`@react-navigation/*` is forbidden** — removed from the SDK at 56. Auth gating uses `Stack.Protected` guards in `app/_layout.tsx`.
+
+Two traps: a route file and a group index that both resolve to `/` collide silently (hence `(app)/dashboard.tsx`, not `(app)/index.tsx`), and typed routes regenerate only when `expo start` actually runs — no flag does it.
+
+**A guarded `<Stack>` must set `initialRouteName` explicitly.** A false guard removes the screen from the navigator entirely. If that empties the stack — which happens on every auth transition, because the access gate spends a network round trip in `checking` with no guard passing — `StackRouter` falls back to `initialRouteName`, or, absent it, to `routeNames[0]`: the first *declared* `<Stack.Screen>`. In `ezzy-vendor-mobile` that was the deliberately unguarded `reset-password` screen, so sign-in, sign-out and vendor switch all landed on a "this reset link is missing its code" error. Point it at the unguarded anchor route (`index`), whose job is deciding where a user belongs.
+
+`unstable_settings.anchor` does **not** substitute: it only sorts *undeclared* routes, while the router reads the navigator prop. Related: a "back to sign in" affordance should replace to `/`, never `/sign-in` — that screen sits behind a `!signedIn` guard, so the navigation is silently dropped whenever a session exists.
+
+### Native modules that throw on import
+
+`expo-notifications` throws **during module evaluation** on Expo Go for Android, taking down every module that imports it — including the root layout, producing a crash with no logs. It is loaded through a guarded accessor (`lib/pushModule.ts`) and every consumer goes through that:
+
+```ts
+const Notifications = loadNotifications()
+if (!Notifications) return
+```
+
+A plain `import * as Notifications from "expo-notifications"` is a bug even when guarded at the call site, because the guard sits inside a file that never finishes loading. `import type * as … from "expo-notifications"` is fine — type imports are erased and emit no `require`.
+
+Detect Expo Go with `Constants.appOwnership === "expo"`. It is deprecated, but its replacement `executionEnvironment` reports `storeClient` for both Expo Go *and* dev clients, which is precisely the distinction needed.
+
+### Services and state
+
+Services follow the web pattern — one file per domain, `async` functions, no React imports, map `DbRow` to clean types, return safe fallbacks. Types and service logic are **copied and adapted** from the web app, never imported across the repo boundary.
+
+Server state is TanStack Query with an `AppState` focus manager and bounded AsyncStorage persistence. Writes are never queued offline.
+
+**Pure logic that needs testing must live in its own module.** Tests run under `node --test --experimental-strip-types` with no test framework, so anything importing `lib/supabase/client` cannot load. Extract the testable part (`vendorMapping.ts`, `bookingErrors.ts`, `transactionTotals.ts`) and leave the Supabase call in the service.
+
+### Store compliance is a build requirement
+
+Read `.claude/skills/mobile-dev/SKILL.md` before implementing or reviewing a mobile feature. The rules that most often change code rather than metadata: permission minimalism (re-read the *merged* manifest after `expo prebuild` — dependencies add permissions you did not ask for), every blocked/empty state needing real copy and a way forward, push tokens counting as a device identifier in data-safety declarations, and Apple 4.2 requiring genuine native capability rather than a web wrapper.
+
+---
+
 ## Git and Deployment
 
 - Apps deploy independently to Vercel — one Vercel project per portal
@@ -325,6 +451,8 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Environment variables are set in the Vercel project settings for each app
 - The `./backbone` folder contains the Supabase project config — migrations are applied via the Supabase CLI (`supabase db push` or via the Supabase dashboard)
 - Migrations are version-controlled and must be committed before being applied to the production DB
+- **Each app folder is its own git repository.** The workspace root repo tracks only `architecture/`, `.plans/`, `.claude/` and the top-level Markdown — a commit for an app must be made **inside that app's folder**, because the root repo does not contain its history
+- **Mobile ships through EAS Build**, not Vercel. Environment variables live in EAS (`eas env:set`) per environment, separately from the app's gitignored `.env`. See `ezzy-vendor-mobile/EAS-SETUP.md`
 
 ---
 
@@ -343,3 +471,17 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 | Importing `lib/supabase/admin.ts` from a client component or service file | Exposes `SUPABASE_SERVICE_ROLE_KEY` to the browser bundle — admin client is server-only |
 | Calling `createClient().auth.*` directly in components instead of via `auth.service.ts` | Scatters auth calls — all auth operations go through the service wrapper |
 | Adding access verification logic to RLS policies instead of separating it into a service | RLS is a security gate, not a UX layer — denial reasons belong in the app-level service |
+
+**Mobile-specific (Expo apps):**
+
+| Anti-pattern | Why |
+|-------------|-----|
+| `import * as Notifications from "expo-notifications"` at module level | Throws during evaluation on Expo Go/Android and takes the whole module graph above it down, crashing with no logs. Use `loadNotifications()` from `lib/pushModule.ts` |
+| `@react-navigation/*` imports | Removed from the SDK at 56 — `expo-router` on `standard-navigation` is the only navigator |
+| Any secret under `EXPO_PUBLIC_` | The prefix is inlined into the bundle; anyone who unpacks the app can read it |
+| Session tokens in AsyncStorage | Unencrypted on disk. Use the SecureStore chunking adapter — a Supabase session exceeds iOS's ~2 KB Keychain cap |
+| A module-scope `throw` for missing configuration | Silent process death in a release build. Report through `MISSING_CONFIG` + `ConfigErrorScreen` |
+| Module-level `StyleSheet.create` in a theme-aware component | Freezes one theme's colours at import time — export `makeStyles(tokens)` instead |
+| Optimistic write for booking approval | `validate_booking_status_transition` forbids `confirmed → pending`, so it cannot be undone. Use the deferred-commit pattern |
+| Importing types or services from a web app across the repo boundary | Same copy-by-intent rule as between portals, plus the toolchains are incompatible |
+| Assuming a feature verified on Android is done | No phase is complete until both platforms are exercised, and iOS has never been run here |

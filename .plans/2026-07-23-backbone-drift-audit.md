@@ -2,7 +2,9 @@
 
 **Date:** 2026-07-23
 **App / scope:** `backbone/supabase/migrations/` cross-checked against `architecture/*.md`
-**Status:** IN PROGRESS
+**Status:** IN PROGRESS — B1, B2, I1, I2 ✅ DONE (fixes landed 2026-07-24; **statuses were
+stale and corrected 2026-07-28** during a cross-plan audit). Remaining: I3 (accepted, not
+actionable) and I4 (`pg_net` schema).
 
 > Audit of the entire migration history against the documented architecture
 > (`schema.md`, `auth-and-roles.md`, `conventions.md`, `portals.md`,
@@ -56,7 +58,14 @@ things that can't be verified from this repo.
 
 ## BLOCKERS
 
-### B1 — Hard-deleting a user or vendor breaks once bookings exist  🔄 IN PROGRESS
+### B1 — Hard-deleting a user or vendor breaks once bookings exist  ✅ DONE
+<!-- Re-verified 2026-07-28 during a staleness audit; the item was still marked IN PROGRESS. -->
+**✅ DONE — verified 2026-07-28 by reading both call sites.** Both delete paths now pre-check
+`bookings` and refuse with a message that names the count and points at suspension instead:
+`command/app/api/users/route.ts` DELETE counts on `booker_id`, and
+`command/hooks/mutations/vendors/useDeleteVendor.ts` counts on `vendor_id`. No raw
+FK-violation can reach the UI. Verification was source-read only — not exercised against a
+live DB with real bookings.
 **Files:** `command/app/api/users/route.ts:72-85` (DELETE handler),
 `command/hooks/mutations/vendors/useDeleteVendor.ts:1-10`
 **Schema:** `backbone/supabase/migrations/20260507000004_bookings.sql:22-25` —
@@ -132,7 +141,14 @@ generic pattern, but out of scope for B1.
      live testing and fixed (see above). Not yet ✅ DONE: user has not yet
      re-confirmed the corrected message actually appears on screen. -->
 
-### B2 — `check_booking_capacity()` has an unmitigated TOCTOU race — concurrent bookings can overbook  🔄 IN PROGRESS
+### B2 — `check_booking_capacity()` has an unmitigated TOCTOU race — concurrent bookings can overbook  ✅ DONE
+<!-- Re-verified 2026-07-28 during a staleness audit; the item was still marked IN PROGRESS. -->
+**✅ DONE (migration `20260724000003_booking_capacity_lock.sql`) — verified 2026-07-28 by
+reading the migration.** `check_booking_capacity()` now takes `select max_capacity … for
+update` on the `schedules` row before counting, so concurrent inserts for the same
+`(schedule_id, booked_date)` serialise on that row lock and the second sees the first's
+committed count. Verification was source-read only — **no concurrent-insert test was run**, so
+the race is closed by construction rather than by demonstration.
 **File:** `backbone/supabase/migrations/20260516000002_booking_capacity_trigger.sql:11-39`
 **App:** `booker/services/bookings.service.ts` — plain `.insert(...)`, confirmed
 no app-level locking either.
@@ -206,7 +222,12 @@ $$;
 
 ## IMPORTANT
 
-### I1 — `kyc_document_types` grant doesn't match its own RLS policy  🔄 IN PROGRESS
+### I1 — `kyc_document_types` grant doesn't match its own RLS policy  ✅ DONE
+<!-- Re-verified 2026-07-28 during a staleness audit; the item was still marked IN PROGRESS. -->
+**✅ DONE (migration `20260724000001_kyc_document_types_grant_fix.sql`) — verified 2026-07-28.**
+`grant insert, update, delete on public.kyc_document_types to authenticated` now backs the
+`for all` RLS policy, so a command admin's write reaches the policy instead of being refused
+by table privileges first.
 **File:** `backbone/supabase/migrations/20260706000001_vendor_kyc.sql:37-44`
 **Doc:** `architecture/schema.md:524` ("RLS: all authenticated users SELECT
 … `admin`/`root` manage")
@@ -244,7 +265,13 @@ grant insert, update, delete on public.kyc_document_types to authenticated;
      that step); full behavioral verification (a command admin UI actually
      editing a row) remains deferred as noted below, no such UI exists yet. -->
 
-### I2 — `vendor_members` has no index supporting its vendor_id lookup  🔄 IN PROGRESS
+### I2 — `vendor_members` has no index supporting its vendor_id lookup  ✅ DONE
+<!-- Re-verified 2026-07-28 during a staleness audit; the item was still marked IN PROGRESS. -->
+**✅ DONE (migration `20260724000002_vendor_members_vendor_id_index.sql`) — verified
+2026-07-28.** `vendor_members_vendor_id_idx on public.vendor_members (vendor_id)` now supports
+the `vendor_id`-only predicate in `notify_on_new_booking()`, which runs on every booking
+insert. Verified by reading the migration; **no `EXPLAIN` was run** to confirm the planner
+actually chooses it.
 **File:** `backbone/supabase/migrations/20260504000002_schema.sql:85-91` (PK is
 `(user_id, vendor_id)`, no other index; confirmed no index added in any later
 migration)

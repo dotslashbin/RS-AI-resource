@@ -25,7 +25,9 @@ Each app is its own repo (`booker`, `vendor`, `command`) + `backbone`. Do the pi
 
 ---
 
-## P1 — Backbone DB re-baseline  ⬜ TODO  ⚠️ highest risk (RLS)
+## P1 — Backbone DB re-baseline  ✅ DONE (2026-06-18)  ⚠️ was highest risk (RLS)
+<!-- Marker corrected 2026-07-28: the plan's own status line already recorded P1–P4 as DONE
+     and build/grep-verified; this heading was never flipped. -->
 **STAGED (decision 2026-06-18):** **P1a pure rename → RLS gate → P2 app wiring (Stage A)**, *then* **P1b category-model change + its app UI (Stage B)**. Rationale: isolate "did the rename break RLS/builds" from "did the category model change break rendering." Edit migrations in place, reseed, reset, regen types. Identifiers confirmed 2026-06-18.
 
 ### P1a — Pure rename (vendor / booker / staff / contact / accreditation)  ✅ DONE (2026-06-18)

@@ -4,6 +4,8 @@
 **App:** `./academy`
 **Status:** IN PROGRESS — B1, B2 (route layer), B4 + Settings cleanup executed (2026-06-12, build-verified). B2's DB backstop (backbone B3) + IMPORTANT items (I1, I2, I5 doc-viewing) pending.
 
+> ⚠️ **Pre-pivot plan (annotated 2026-07-29).** This plan predates the 2026-06-12 platform pivot: the `academy` app was renamed to **`vendor`** and no `academy/` directory exists any more. Every file path below is stale by name. Open items were **not** re-verified against `vendor/` during the staleness audit — treat any remaining ⬜ TODO here as *unconfirmed*, and check `vendor/` before acting on it. See `.plans/2026-06-12-platform-pivot-vendor-booker.md`.
+
 > Multi-tenant: every driving school sees this app. The theme is "no other school's data/name leaking in" and "don't strand a user on a blank screen."
 
 > **Legend:** B# = Blocker, I# = Important. **These numbers are plan-local** — academy I1 is *not* the same as command I1 or backbone I1. Always qualify cross-plan references by app (e.g. "command I1", "backbone B3").

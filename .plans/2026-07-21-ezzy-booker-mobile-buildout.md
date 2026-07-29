@@ -209,6 +209,23 @@ src/
 - Machine: `tsc --noEmit`; `expo-doctor` stays green after each dependency addition (don't let it regress from the 20/20 baseline already confirmed).
 - Live (simulator/device, cannot be fully machine-verified): sign in, sign out, register a new booker (against local Supabase + tunneled booker dev server, or hosted), forgot-password → email arrives (Mailpit locally / Resend hosted, per `email-notifications-guide.md`) → tapping the link opens the app directly at the reset screen → new password takes effect → portal/role denial states (`no_access`/`suspended`/`pending`) each render correctly → session survives an app kill+relaunch → session survives backgrounding past a token-refresh interval (tests the `AppState` wiring specifically, not just "it worked once").
 
+## Carried over from ezzy-vendor-mobile (added 2026-07-29)
+
+- **Any guarded `<Stack>` must set `initialRouteName` explicitly, from the first
+  commit.** When a `Stack.Protected` guard flips false, expo-router removes the
+  screen from the navigator; if that empties the stack, `StackRouter` falls back
+  to `initialRouteName` — or, absent it, to `routeNames[0]`, the first *declared*
+  `<Stack.Screen>`. In vendor-mobile that was the unguarded `reset-password`
+  screen, so every sign-in, sign-out and vendor switch landed on a password-reset
+  error. Ph1's auth gate here has the same shape (a `checking` window where no
+  guard passes) and would reproduce it exactly. Note that
+  `unstable_settings.anchor` does **not** cover this — it only sorts undeclared
+  routes; the router reads the navigator prop. Full analysis:
+  `.plans/2026-07-29-vendor-mobile-guard-fallback-route.md` §2.
+- Related: any auth screen's "back to sign in" affordance should replace to `/`,
+  not `/sign-in`, since the latter is itself behind a `!signedIn` guard and the
+  navigation is silently dropped while a session exists (same plan, I1).
+
 ## Notes
 - No code changes made — plan only, per instruction.
 - No commits by the agent — user handles commits.

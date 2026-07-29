@@ -4,6 +4,14 @@
 **Scope:** `vendor` app only — a new identity-verification step in the KYC onboarding flow. **Frontend-only** (no migration, no backend change — see below).
 **Status:** ✅ BUILT (2026-07-06) — code complete + `tsc` clean; item 6 = manual/device testing (user to run).
 
+> **Marker correction (2026-07-28).** D-1 to D-4 were still carrying `⬜ TODO` even though the
+> feature shipped on 2026-07-06 — the plan's own status line already said BUILT, so the
+> decision markers were simply never flipped. All four were re-verified against the code and
+> all four went the recommended way: no camera dependency (`useCamera` + native
+> `getUserMedia`, no `react-webcam`), CSS Modules (`CameraCapture.module.css`), a dedicated
+> `IdentityStep`, and required capture with a `handleFallbackFile` path. Nothing about the
+> plan's substance changed — only markers that misrepresented finished work.
+
 > One-line framing: after the document-upload step, require the vendor to capture (1) a **valid ID** and (2) a **selfie holding the ID**, using the device camera with an on-screen alignment overlay and clear instructions. The two photos become regular KYC documents that flow through the existing submit pipeline.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
@@ -38,26 +46,26 @@ The captured photos are just **two more labelled documents** (`"Valid ID"`, `"Se
 
 ## Open decisions (resolve before execution)
 
-### D-1 — Dependency for camera capture  ⬜ TODO
+### D-1 — Dependency for camera capture  ✅ RESOLVED → **A, no dependency** (marker corrected 2026-07-28)
 - **A (recommended): none — native `getUserMedia` + `<canvas>`.** Fully covers live preview + frame capture → `Blob`/`File`. No install; fewest moving parts; smallest bundle. The camera lifecycle lives in a `useCamera` hook.
 - **B: `react-webcam`** (small, maintained wrapper). Slightly less lifecycle code, but a new dep for something the platform does natively.
 
 **Recommendation: A.** (So "install dependencies" is likely a **no-op** — I'll only install if you pick B or we add detection later.) *Face-detection libraries are intentionally excluded — see Out of scope.*
 
-### D-2 — Styling-separation method for the new components  ⬜ TODO
+### D-2 — Styling-separation method for the new components  ✅ RESOLVED → **A, CSS Modules** (marker corrected 2026-07-28)
 You asked to **separate styling from the render component starting here**. Two mechanisms are in play in this repo:
 - **A (recommended for this widget): CSS Modules** (`CameraCapture.module.css`). Next-native, literally a separate file, and the cleanest way to express the overlay geometry (masked cut-out, oval/rect, any pulse animation). `.tsx` references `styles.x`.
 - **B: Tailwind utilities + `cn()`** (the direction in `.plans/2026-07-06-loginpage-destyle-refactor.md`). Keeps one system, but the overlay mask/geometry is awkward in arbitrary values.
 
 **Recommendation: A (CSS Modules) for the camera widget**, since it's a self-contained visual with non-trivial geometry; keep Tailwind as the general go-forward for form chrome. *(Either way, no inline `style={{}}` objects in the new components.)*
 
-### D-3 — Step placement in the flow  ⬜ TODO
+### D-3 — Step placement in the flow  ✅ RESOLVED → **A, dedicated Identity step** (marker corrected 2026-07-28)
 - **A (recommended): a new dedicated step** — insert **"Identity Verification"** between the current documents step (4) and review (5), making the flow 6 steps. Clear, focused, easy back/next.
 - **B: fold into the documents step** (4) as a required sub-section. Fewer steps, but a busier screen.
 
 **Recommendation: A.**
 
-### D-4 — Required-ness + fallback when camera is unavailable  ⬜ TODO
+### D-4 — Required-ness + fallback when camera is unavailable  ✅ RESOLVED → **A, required + file fallback** (marker corrected 2026-07-28)
 - **A (recommended): required, with a file-upload fallback.** Both captures are mandatory to proceed. If the camera is denied/absent (permissions, no hardware, unsupported browser), show a **"choose a file instead"** fallback for that item so users aren't hard-blocked.
 - **B: camera-only, hard-required.** Cleaner intent, but blocks anyone without a working camera.
 
