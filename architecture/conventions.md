@@ -432,6 +432,14 @@ const styles = useMemo(() => makeStyles(tokens), [tokens])
 
 Static inline `style={{}}` remains prohibited; only genuinely dynamic values (a gesture-driven transform, a width from state) may stay inline. Pure display components with no state, effects, handlers or non-trivial styling are the only exception to the companion hook.
 
+### Layout traps — where a style is silently ignored
+
+Two library defaults quietly override styles written in a `.styles.ts`. Both have cost build cycles in `ezzy-vendor-mobile`, and both share a failure mode worth naming: **the style is accepted, type-checks, lints, bundles and does nothing.** No tool in the toolchain can see either one. When a spacing or sizing change appears to have no effect on device, suspect the container before re-tuning the value.
+
+**A horizontal `ScrollView` fills its cross axis.** React Native puts `flexGrow: 1` in the base style of *every* `ScrollView` — `baseHorizontal: { flexGrow: 1, flexShrink: 1, … }` at `react-native/Libraries/Components/ScrollView/ScrollView.js:1887-1892`, applied unconditionally at `:1763`. In a `flex: 1` column parent, a horizontal scroller therefore expands to fill all remaining *vertical* space, and its content container's default `alignItems: "stretch"` stretches every child to that height. A filter-chip strip built this way rendered chips roughly 400pt tall, filling half the screen, while `minHeight` and `paddingVertical` on the chip had no effect whatsoever. Pass `style={{ flexGrow: 0 }}` to the ScrollView itself — not `contentContainerStyle`, which is a different element — and set `alignItems: "center"` on the content container as a second line of defence. Vertical scrollers want the default and must be left alone.
+
+**`gap` on a FlashList content container is inert.** FlashList v2 lays every cell out absolutely (`ViewHolder.js:44`, `position: "absolute"`), so a flex `gap` in `contentContainerStyle` has nothing to act on; `padding` *is* honoured, which makes the failure look selective. Row spacing goes through `ItemSeparatorComponent`. Two further details: a separator renders only when `trailingItem !== undefined` (`ViewHolder.js:32`), so the last row has none by design, and the cell memo compares `ItemSeparatorComponent` **by identity** (`:75`) — an inline arrow component remounts every separator on each render, so memoise it.
+
 ### Routing
 
 `expo-router` on `standard-navigation`. **`@react-navigation/*` is forbidden** — removed from the SDK at 56. Auth gating uses `Stack.Protected` guards in `app/_layout.tsx`.

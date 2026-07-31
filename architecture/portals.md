@@ -373,7 +373,9 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 - **Push is unproven.** Needs an FCM v1 service-account key on EAS, the Edge Function deployed, and a Vault secret set.
 - **Not submitted to either store.** Blocked on a public privacy policy and a Play Console account-type decision. **Brand assets no longer block** — the real icon and splash landed 2026-07-30 (`.plans/2026-07-30-vendor-mobile-brand-assets.md`); only the store *listing* assets (screenshots, descriptions) remain outstanding. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
 - **Password reset deep links** need the mobile redirect URLs added to `backbone/supabase/config.toml` — a cross-app change, not yet made.
+- **Only two of the five legal booking status transitions are reachable from any UI.** `validate_booking_status_transition` (`20260516000004`) permits `pending → confirmed | cancelled`, `confirmed → completed | cancelled`, and `completed → refunded`. Both this app and the **vendor web portal** implement only the two `pending` ones, so a vendor cannot mark a booking completed or cancel one they already confirmed. For non-pending bookings the mobile detail screen currently states *"No action needed"*, which is inaccurate. Planned in `.plans/2026-07-31-vendor-mobile-booking-status-actions.md` (DRAFT). Note that `refunded` is written by **nothing in any app** — it exists as a display status only, and there is no refund flow, so treating it as a UI gap rather than a payments question would be a mistake.
 - Bugs found on the first real-device run (2026-07-28) are outstanding.
+- **The notification swipe fix is unverified on device.** `.plans/2026-07-30-vendor-mobile-ui-fixes.md` B1 corrected an inversion where the Archive panel prompted a delete and the Delete panel archived with no confirmation at all. Code complete, never run on hardware — and the swap compiles either way, so no machine check can confirm it.
 
 ### Roadmap (Approximate Priority)
 

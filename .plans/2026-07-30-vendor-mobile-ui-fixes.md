@@ -3,7 +3,12 @@
 **Date:** 2026-07-30
 **App / scope:** `./ezzy-vendor-mobile` only — two component fixes.
 **No backbone, no schema, no other app, no new dependency.**
-**Status:** IN PROGRESS — approved 2026-07-30 and **both stages executed the same day**.
+**Status:** BLOCKED (2026-07-31) — **I1 ✖ superseded** by
+`.plans/2026-07-31-vendor-mobile-filter-density.md` B0, which found the real cause and
+is device-confirmed. **B1 (notification swipe) is code complete but still unverified on
+device** — that single check is all that stands between this plan and COMPLETE.
+
+Originally: approved 2026-07-30 and both stages executed the same day.
 **B1 and I1 are code complete and machine-checked**, and both sit at 🔄 rather than ✅
 because **neither fix is machine-provable**: B1's swap compiles either way, and I1's
 sizing and tap area are visual. One device pass closes both.
@@ -91,7 +96,20 @@ row (`:108`, with an `accessibilityHint` that says so), and archive by the 44pt 
 button inside the row (`:112`). The swipe is documented as a shortcut, never the only
 path (`:20-22`) — that convention is what stops this being a total loss of function.
 
-### The filter chips are oversized, not stretched
+### ~~The filter chips are oversized, not stretched~~ — **WRONG. This section is the root cause of three failed passes.**
+
+> **✖ RETRACTED 2026-07-31.** A device photo showed the chips at roughly **400pt tall**,
+> filling ~45% of the screen. They *were* being stretched. The paragraph below asserted
+> the opposite from reasoning alone, without opening the library source — and every
+> subsequent measurement, table and "fix" in this plan was built on it. Corrected
+> analysis: `.plans/2026-07-31-vendor-mobile-filter-density.md` §0.9.
+>
+> The error: RN puts **`flexGrow: 1` in the base style of every horizontal
+> `ScrollView`** (`react-native/Libraries/Components/ScrollView/ScrollView.js:1887-1892`,
+> applied at `:1763`). So the strip *did* have flex — supplied by the library, not by
+> this file. It expanded to fill the column, and the content container stretched each
+> chip to that height. `minHeight` and `paddingVertical` never controlled the chip
+> height at all, which is why tuning them three times changed nothing.
 
 Ruled out the obvious suspect: the chips are **not** being stretched by the horizontal
 `ScrollView`'s default `alignItems: "stretch"`. The `ScrollView` has no flex and sits
@@ -179,7 +197,16 @@ Archive button unregressed. **Android only** — iOS blocked on companion **B9**
 
 ## IMPORTANT
 
-### I1 — Booking status filter chips are ~27% taller than vendor's  🔄 CODE COMPLETE (2026-07-30) — needs device confirmation
+### I1 — ~~Booking status filter chips are ~27% taller than vendor's~~  ✖ SUPERSEDED (2026-07-31)
+
+> **The premise was wrong.** The chips were not "~27% taller" — they were being stretched
+> to roughly **400pt** by the horizontal `ScrollView`'s `flexGrow: 1` base style, and no
+> value in this item's analysis ever reached the rendered height. Two tuning passes here
+> plus two more in the follow-up plan changed nothing on screen.
+>
+> Resolved by `.plans/2026-07-31-vendor-mobile-filter-density.md` **B0** — device-confirmed
+> in commit `477d347`. Everything below is retained as the record of a wrong track; the
+> investigation section that caused it is marked retracted at line 94.
 **File:** `src/components/bookings/BookingFilterTabs/BookingFilterTabs.styles.ts:12-20`
 (`chip`), `:33-40` (`gradient`)
 **Web reference:** `vendor/components/bookings/BookingsPage/BookingsPage.tsx:26-31`
@@ -278,6 +305,21 @@ changed — as it just did.
 gap between what is seen and what is tappable is wider than before. Tapping just above
 and below a chip should still register — that is the one thing this revision makes more
 important to check, not less.
+
+#### I1 reopened — 2026-07-31. Device test: **still reads as unchanged.**
+
+Root-cause work moved to `.plans/2026-07-31-vendor-mobile-filter-density.md`. Two
+corrections that land on this section:
+
+- **The old chip was 36pt, not 38pt.** The table at line 105 added 2px of border on top
+  of `minHeight`; RN is border-box, so the border was already inside it. Every delta in
+  the I1 tables above is overstated by 2.
+- **The second pass swapped a height *floor* for additive padding.** `minHeight: 36`
+  absorbed OS-scaled label text for free; `paddingVertical: 6` cannot. Above a font
+  scale of ~1.5× the change is worth 0pt, and above that it makes the chip **taller**
+  than the original. `grep` confirms no `maxFontSizeMultiplier` anywhere in `src/`, so
+  nothing bounds it. This fits all three user reports in sequence; the new plan's B1
+  confirms or kills it at zero cost.
 
 ---
 
