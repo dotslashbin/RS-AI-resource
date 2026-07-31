@@ -371,7 +371,7 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 
 - **iOS has never been built or run.** Not a bug backlog item — the project holds no Apple Developer Program membership, so no iOS device build is possible. Every "done" marker in the mobile plan is Android-only.
 - **Push is unproven.** Needs an FCM v1 service-account key on EAS, the Edge Function deployed, and a Vault secret set.
-- **Not submitted to either store.** Blocked on brand assets, a public privacy policy, and a Play Console account-type decision. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
+- **Not submitted to either store.** Blocked on a public privacy policy and a Play Console account-type decision. **Brand assets no longer block** — the real icon and splash landed 2026-07-30 (`.plans/2026-07-30-vendor-mobile-brand-assets.md`); only the store *listing* assets (screenshots, descriptions) remain outstanding. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
 - **Password reset deep links** need the mobile redirect URLs added to `backbone/supabase/config.toml` — a cross-app change, not yet made.
 - Bugs found on the first real-device run (2026-07-28) are outstanding.
 

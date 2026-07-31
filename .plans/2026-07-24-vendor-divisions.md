@@ -2,8 +2,21 @@
 
 **Date:** 2026-07-24
 **App / scope:** `backbone` (migration), `vendor` (registration Step 1), `command` (Divisions CRUD + vendor assignment)
-**Status:** COMPLETE (executed and verified 2026-07-24) — but see the branch-state warning immediately below: the migration is **not merged**, so the shipped code is currently running against a schema that lacks the table.
+**Status:** COMPLETE (executed and verified 2026-07-24; branch-integration gap closed locally 2026-07-30) — **hosted is still not migrated**, see the resolution note below.
 
+> ✅ **RESOLVED LOCALLY (2026-07-30).** `feature/division_assoc_reg` was merged into `develop` and the local DB reset. Verified against the running local Postgres:
+> - `public.divisions` → **13 rows**; `vendors.division_id` present, **3 of 3 seeded vendors assigned**
+> - `supabase_migrations.schema_migrations` → **41 applied, latest `20260728000001`** (so `20260724000004_divisions.sql` is in)
+> - `develop`'s `seed.sql` now carries the division assignments (Block 3), which it did not before the merge
+>
+> The merge was clean: the feature branch was 1 commit ahead / 3 behind, `git merge-tree` reported no conflicts, the duplicated `snippets/Untitled query 799.sql` was byte-identical on both sides, and the feature branch never touched `package.json`. The two stale seed snapshots in `supabase/snippets/` (a pre-divisions copy and a divisions copy, both superseded by the now-1034-line `seed.sql`) were deleted in the same pass.
+>
+> ⚠️ **Still outstanding — hosted (`fbxbwnfeimzhgxpshdpa`) has not been pushed.** And the ordering is now awkward: `20260724000004_divisions.sql` sorts *before* four migrations that were merged into `develop` alongside it (`20260725000001`, `20260725000002`, `20260726000001`, `20260728000001`). If hosted already has any of those applied, `supabase db push` will refuse with "Found local migration files to be inserted before the last migration on remote database." **Check `supabase migration list --linked` before pushing.** Renaming the migration to a later timestamp is the usual escape, and is easier decided before the push than during it.
+>
+> ---
+>
+> <details><summary>Historical record — the stranded-branch warning, kept for the reasoning trail (superseded by the note above)</summary>
+>
 > ⚠️ **I1's migration is stranded on an unmerged branch (found 2026-07-27).** `backbone/supabase/migrations/20260724000004_divisions.sql` exists **only** on `feature/division_assoc_reg` — not merged into `develop`, `master`, or `feature/vendor_transactions`. The *app* side was merged (command's divisions commit `eebebff` is on `develop` and later branches), so every app that reads `divisions` is live against a schema where the table does not exist. After a `supabase db reset` on any branch but that one:
 > - `GET /rest/v1/divisions` → `PGRST205` "Could not find the table 'public.divisions' in the schema cache" — Command's Divisions CRUD tab is dead.
 > - `GET /rest/v1/vendors?select=…,divisions(name)` → `PGRST200` no relationship — **Command's whole Vendors page fails**, not just I6's badge, because `vendors.service.ts:8` selects `division_id, divisions(name)`. Create/update vendor also writes a `division_id` column that doesn't exist.
@@ -39,6 +52,8 @@
 >
 > This needs a `backbone` branch merge plus a `supabase db push` to hosted. Both are approval
 > gates, so neither was done as part of the audit.
+>
+> </details>
 
 > Add a `divisions` lookup table (the 13 Ezzy business-vertical brands: EzzyDrive,
 > EzzyCare, EzzyWell, EzzyCourt, EzzyFood, EzzyRide, EzzyHome, EzzyPets, EzzyLaw,

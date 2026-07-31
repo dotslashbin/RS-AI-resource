@@ -216,7 +216,7 @@ When asked for a plan to be made, read and apply `.claude/skills/plan-authoring/
 - Plans should keep the non-obvious context needed for later phases if execution may span enough work to risk losing context.
 - Plan review must explicitly check for places where the current wording could permit a weak or incorrect implementation.
 - Resolve or document ambiguities before execution starts.
-- During execution of a large approved plan, do not stop until the full approved scope is complete unless a truly blocking issue is discovered.
+- Execution cadence is one stage at a time by default — see `.claude/skills/developerboss/SKILL.md`. Running a stage range or the full scope in one pass happens when you ask for it.
 - After each major step or phase, review the work done and update the plan with completion state, important findings, and any newly discovered required work.
 
 ### Goal-Driven Execution

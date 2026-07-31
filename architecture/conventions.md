@@ -294,7 +294,7 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Tailwind utility classes for layout and spacing
 - CSS custom properties (`var(--db-strong)`, `var(--db-text)`, etc.) for all theme-sensitive colours — never hardcode light/dark values
 - Static inline `style` objects are **not** acceptable — move static styling to Tailwind utilities/tokens or a co-located `.module.css`. Only genuinely dynamic, state/data-driven one-off values (e.g. a width or transform computed at runtime) may remain inline. See `.claude/skills/component-separation/SKILL.md`.
-- **CSS Modules** (`Component.module.css`) usage differs by app. **booker** and **vendor** are Tailwind-first, leaning on `db-*` token utility classes (`text-db-strong`, `db-sub`, `bg-[var(--db-card-bg)]`, etc.), with CSS Modules reserved for awkward geometry (e.g. the KYC camera widget: `CameraCapture.module.css`, `IdentityStep.module.css` — masked cut-out overlay, oval/card frames). **command** is effectively CSS-Modules-first (~45 `.module.css` files). The login surfaces across the apps also use CSS Modules. When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
+- **CSS Modules** (`Component.module.css`) usage differs by app. **booker** and **vendor** are Tailwind-first, leaning on `db-*` token utility classes (`text-db-strong`, `db-sub`, `bg-[var(--db-card-bg)]`, etc.), with CSS Modules reserved for awkward geometry (e.g. the KYC camera widget: `CameraCapture.module.css`, `IdentityStep.module.css` — masked cut-out overlay, card frames, face dot). **command** is effectively CSS-Modules-first (~45 `.module.css` files). The login surfaces across the apps also use CSS Modules. When a component uses a CSS Module, keep the `.tsx` free of inline `style={{}}` and reference `styles.x`.
 - `cn()` from `lib/utils.ts` for conditional class merging
 - Theme variables are defined in `globals.css` under `:root` (light) and `.dark` selectors
 - **Print styles** (first use: the vendor Transactions page, 2026-07). Per-component show/hide uses Tailwind `print:` variants (`print:hidden`, `hidden print:block`); **structural** resets on shared layout containers live in one `@media print` block in `globals.css`. The shell is built for a fixed-height scrolling viewport — `.sp-page` is `min-height:100vh; display:flex`, `<main>` is `overflow-hidden`, its content div `overflow-y-auto` — and any of those silently clips a printed document to a single page unless released.
@@ -351,6 +351,31 @@ src/
 ```
 
 Package and toolchain commands are **app-local**, not root-relative: `npm --prefix ezzy-vendor-mobile run start`, or run from inside the folder.
+
+### Brand assets are generated, not hand-drawn
+
+`ezzy-vendor-mobile/assets/brand/` holds the vector source and every icon/splash PNG derived from it. **Do not hand-edit the PNGs** — regenerate:
+
+```bash
+node scripts/generate-brand-assets.js      # from inside the app folder
+```
+
+| File | Role |
+|---|---|
+| `ezzy-mark-source.svg` | Supplier file, never modified — provenance |
+| `ezzy-mark.svg` | Generated; a stray white trace artifact stripped out |
+| `_master.png` | 2048² intermediate render |
+| `icon-ios.png` · `icon-android-{foreground,monochrome}.png` · `splash-mark.png` | Outputs wired into `app.json` |
+
+Three constraints make these non-obvious, and the script asserts all three so a regeneration cannot quietly break them:
+
+- **The iOS icon must carry no alpha channel at all** — App Store Connect rejects one even when every pixel is opaque. Written with PNG colour type 2, not merely composited onto an opaque background.
+- **Android adaptive layers are 108dp, but only a centred 66dp circle is guaranteed visible** — ~626px on a 1024 canvas. The mark is inscribed in that circle (483×398); anything larger gets cropped by some launcher's mask. This is why the Android mark is visibly smaller than the iOS one — it is the safe zone, not an inconsistency.
+- **The Android foreground looks blank in an image viewer.** It is a white mark on transparency, so it composites white-on-white. Verify by compositing over `adaptiveIcon.backgroundColor`, not by opening the file.
+
+Rasterization (SVG → master PNG) uses headless Chrome or Edge, auto-detected on the Windows side under WSL and writing back through a `\\wsl.localhost\<distro>\…` UNC path. No rasterizer is installed; derivation uses `jimp-compact`, which arrives transitively via `@expo/image-utils`. On a machine without a browser the script says to supply `_master.png` by hand and continues from there.
+
+**Icons and splash are baked into the binary at build time** — they never appear on a Metro reload, and a preview build shows them only after a rebuild.
 
 ### Supabase client
 

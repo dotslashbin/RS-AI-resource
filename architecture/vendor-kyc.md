@@ -67,10 +67,15 @@ sign-in; the left info panel / mobile toggle behaviour is unchanged):
   route: company → accreditation required).
 - **Identity step.** The two photos are captured with the device camera
   (`getUserMedia` + `<canvas>`, native — no dependency) behind an alignment
-  overlay (an ID-card frame; a face oval + card frame for the selfie), with a
-  file-upload fallback if the camera is denied/absent. They ride the submit as
-  two ordinary labelled documents, `"Valid ID"` and `"Selfie with ID"` — **no
-  backend special-casing.**
+  overlay (an ID-card frame; for the selfie, a card frame plus a small
+  white centre dot and two edge ticks marking where the face goes — both the dot
+  and the card frame sit on the same vertical axis so every selfie lands
+  face-over-card centred, which is what makes the packet quick to verify in
+  Command). The overlay is a **visual guide only**: it is not burned into the
+  stored image, since `captureImage` draws the raw video frame, and there is no
+  face/ID detection or liveness behind it. A file-upload fallback covers a denied
+  or absent camera. The photos ride the submit as two ordinary labelled
+  documents, `"Valid ID"` and `"Selfie with ID"` — **no backend special-casing.**
 - **Resume.** Form fields restore from `localStorage`; because upload/capture are
   last, an interrupted vendor resumes at the pre-upload step and re-selects files
   (a cross-session resume lands at step 2 to re-enter the password, which is
@@ -193,7 +198,7 @@ Types are hand-written interfaces (this repo does not use `supabase gen types`).
 
 - **Camera widget uses CSS Modules** (`CameraCapture.module.css`,
   `IdentityStep.module.css`) — the first CSS-Modules use in the repo, chosen for
-  the overlay geometry (masked cut-out, oval/card frames) which is awkward as
+  the overlay geometry (masked cut-out, card frames, face dot) which is awkward as
   inline styles or Tailwind arbitrary values. The `.tsx` files reference
   `styles.x` and hold no inline `style={{}}`.
 - **Hook/render separation** throughout: `useCamera` owns the MediaStream

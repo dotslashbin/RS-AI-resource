@@ -14,7 +14,8 @@ both-platforms bar — every ✅ below means "code complete and machine-verified
 (`tsc` · `expo lint` · `expo-doctor` 20/20), not "verified on hardware".
 
 Open blockers: **B9** App Store Expo Go cannot open an SDK 57 project — **iOS verification
-needs a paid Apple Developer account, decision required** · **B5** brand assets · **B6**
+needs a paid Apple Developer account, decision required** · **B5** store *listing* assets
+(icon + splash done 2026-07-30) · **B6**
 privacy policy + deletion route · **B7** Play Console account type · **B8** Supabase redirect
 allow-list (blocks the password-reset deep link). **B1 resolved 2026-07-28** (transactions migrations + seed Block 9 brought onto
 `feature/vendor_mobile_dev`). **B2 approved and written.** Both B1 and B2 are **unapplied** —
@@ -1392,7 +1393,7 @@ materially raises rejection risk.
 
 ### 12.3 New blockers this review surfaced
 
-#### B5 — No brand assets exist ⬜ TODO
+#### B5 — No brand assets exist 🔄 IN PROGRESS — icon + splash ✅ DONE (2026-07-30), listing assets outstanding
 `app.json` carries the Expo template icon, splash and adaptive-icon set, and the app's
 `name` is its slug. §12's original Ph8 note already observed there is **no real logo
 anywhere in this project** — that observation is now a submission blocker, not a
@@ -1404,7 +1405,19 @@ a logo** — this needs the user's brand decision.
 **Product name RESOLVED 2026-07-28: "Ezzy Vendor".** Now sourced from
 `EXPO_PUBLIC_APP_NAME` via `app.config.js`, with the same value feeding `APP_NAME` in
 `lib/constants.ts` so the home-screen label and the in-app branding cannot drift. The value
-in `app.json` is the fallback. **Icons remain outstanding** — B5 is not closed.
+in `app.json` is the fallback.
+
+**ICONS + SPLASH RESOLVED 2026-07-30** — executed under
+`.plans/2026-07-30-vendor-mobile-brand-assets.md`, which supersedes this item for the
+binary assets. The user supplied a true vector mark on the third attempt (the first two
+files were a 64×64 PNG and an SVG that turned out to be a wrapper around a 200×62 raster).
+Delivered: iOS 1024² alpha-free icon, Android adaptive foreground + monochrome inside the
+66dp safe circle on a `#034BFC` background colour, splash on `#04060E`. Every Expo template
+artifact deleted; verified through a real `expo prebuild`. Assets are **generated** from the
+vector by `scripts/generate-brand-assets.js`, not hand-drawn — do not hand-edit the PNGs.
+
+**B5 is NOT fully closed.** Still outstanding, and still blocking submission: screenshots
+per required device class and the short + full descriptions. Those remain this plan's.
 
 #### B6 — No privacy policy or data-deletion route exists in the vendor product ⬜ TODO — **cross-app**
 Verified absent from `vendor`. Both stores require a reachable privacy-policy URL to

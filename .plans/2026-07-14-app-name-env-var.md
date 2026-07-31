@@ -2,7 +2,39 @@
 
 **Date:** 2026-07-14
 **App / scope:** `booker`, `command`, `vendor` (Next apps) + `backbone` (seed data). Cross-cutting — touches all four.
-**Status:** DRAFT — investigation complete, decisions locked; **awaiting approval to execute. No code changed.**
+**Status:** IN PROGRESS — app-code items ✅ shipped; **D3 (seed-email rebrand) is
+still ⬜ TODO**. (Status corrected 2026-07-29; the original line below was never
+updated after the app-code execution.)
+
+> ✅ **App code DONE (recorded 2026-07-29).** Verified by grep, not by memory:
+> `bookdeck` returns **zero hits** across `booker/`, `command/`, and `vendor/`
+> (excluding `node_modules`/`.next`/`.git`). All three Next apps
+> read `NEXT_PUBLIC_APP_NAME`/`NEXT_PUBLIC_APP_DOMAIN` via `lib/constants.ts`
+> (`booker/lib/constants.ts:48`, `command/lib/constants.ts:103`,
+> `vendor/lib/constants.ts:19`) and all three `.env.local` files set both vars.
+>
+> **Follow-up defect this plan introduced and did not catch:** D2 ("metadata
+> titles → unify via env var") left `command/app/layout.tsx` appending a literal
+> `Command` on top of an `APP_NAME` that already ended in "Command", rendering
+> **"Ezzy Command Command"**. Fixed 2026-07-29 along with the same duplication in
+> `command/components/auth/LoginPage/LoginPage.tsx:69` and the last hardcoded
+> brand string in `command/app/not-found.tsx:11`. The governing rule is now
+> recorded in `architecture/overview.md`: `NEXT_PUBLIC_APP_NAME` holds the
+> **complete** per-app product name and code never appends a portal word.
+>
+> ⬜ **D3 NOT done — still outstanding.** `backbone/supabase/seed.sql` still holds
+> **37** `@bookdeck.com` dev-login addresses (from `seed.sql:7` onward), plus
+> `backbone/supabase/snippets/Untitled query 799.sql` and
+> `Untitled query 209.sql`. These are mock credentials for local dev, not a
+> user-facing brand surface, which is why the app-code sweep passed without
+> touching them. An initial 2026-07-29 pass over this file wrongly recorded
+> backbone as clean; corrected the same day after a re-grep from the repo root.
+>
+> **Still outstanding from this plan's own deferred list:** EN3 — the real
+> production domain is still the `NEXT_PUBLIC_APP_DOMAIN` env value per
+> environment, and `vendor/.env.local.example` does not list either brand var
+> (`command` has no example file at all), so a fresh clone silently renders the
+> "Josh demo app" fallback.
 
 > **Goal:** "Bookdeck" was a placeholder brand hardcoded across the apps. Replace
 > the user-facing **app name** (and, per decisions below, the login **domain
