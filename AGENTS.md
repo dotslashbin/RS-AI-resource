@@ -9,7 +9,7 @@ workspace/
 ├── vendor/                # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
 ├── backbone/              # shared Supabase project — migrations, types, seed data
 ├── ezzy-booker-mobile/    # Expo/React Native counterpart to booker — scaffold only, see .plans/2026-07-21-ezzy-booker-mobile-buildout.md
-├── ezzy-vendor-mobile/    # Expo/React Native counterpart to vendor — scaffold only, no app code yet
+├── ezzy-vendor-mobile/    # Expo/React Native counterpart to vendor — built out, running on Android
 ├── architecture/          # ecosystem documentation (schema, portals, auth, conventions) — the shared source of truth
 └── .plans/                # dated plan documents for multi-phase work
 ```

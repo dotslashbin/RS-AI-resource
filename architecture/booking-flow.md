@@ -377,5 +377,21 @@ surfaces in Command's **Payouts → Owed back** rather than being papered over.
   refunded booking stops the vendor being paid; returning the booker's money is
   entirely manual and untracked.
 - **No payout rail.** "Mark as paid" records a transfer made elsewhere.
-- **Mobile apps** do not implement any of this yet; their status maps fall back
-  safely but will show raw values like "In_progress".
+- **`ezzy-booker-mobile`** does not implement any of this. It is a scaffold with no
+  app code, so a booker acknowledges on the web.
+
+### Client coverage (updated 2026-08-02)
+
+| Client | Fulfilment support |
+|---|---|
+| `vendor` (web) | ✅ Full — actions, undo, flag, payout gating |
+| `booker` (web) | ✅ Full — acknowledgement, "I've returned it", flag |
+| `command` (web) | ✅ Full — flag queue, payout release, admin override |
+| **`ezzy-vendor-mobile`** | ✅ **Full vendor side** — hand over / mark as done / got it back / undo / flag, the payout-status-driven payable rule, all nine statuses, six lifecycle filters, and an auto-confirm countdown that respects the service-date gate. Shipped 2026-08-02 (`.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`) |
+| `ezzy-booker-mobile` | ❌ None — scaffold only |
+
+> A previous note here said *"Mobile apps do not implement any of this yet; their
+> status maps fall back safely but will show raw values like 'In_progress'."* That
+> was true until 2026-08-02 and is now wrong for `ezzy-vendor-mobile` — and the
+> "fall back safely" half was **never** true of its notifications screen, where an
+> unknown type threw and took the whole screen down. Both are fixed.

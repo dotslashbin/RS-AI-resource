@@ -63,6 +63,7 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260801000006_auto_acknowledge_bookings.sql` | `auto_acknowledge_bookings()` + `pg_cron` hourly job. Promotes `fulfilled`/`returned` after 3 days; **never** touches `in_progress` |
 | `20260801000007_fulfilment_notifications.sql` | Six new `notification_type_settings` rows + rewritten `notify_on_booking_status_change()`. Undo transitions emit nothing |
 | `20260801000008_payout_release_and_override.sql` | `release_booking_payouts(uuid[])` (bulk, Command-only) + `admin_override_booking_status()` (Command-only, reason required) |
+| `20260801000009_auto_acknowledge_date_gate.sql` | Replaces `auto_acknowledge_bookings()` so a `fulfilled` booking cannot auto-complete **before its `booked_date`** (Asia/Manila). Closes the hole where a vendor marks a session done weeks early and the unattended timer releases the payout for work that has not happened. **`returned` is exempt** — reaching it required the booker to state the item came back, which is direct evidence; `fulfilled` is a unilateral vendor claim. The gate is on the **timer, not the vendor's action**: early handover by agreement stays legal, and only the unattended path is closed |
 
 ---
 

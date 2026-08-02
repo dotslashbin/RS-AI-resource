@@ -326,7 +326,7 @@ Both tabs are reachable by anyone who reaches the command portal at all — acce
 
 **Audience:** the same vendor administrators who use the vendor portal
 **Portal name in DB:** `vendor` — the same `user_portals` row. There is no mobile-specific grant, role or access check
-**Status:** Ph0–Ph6 code complete; first successful device run 2026-07-28 (Android only)
+**Status:** Ph0–Ph6 code complete; first successful device run 2026-07-28 (Android only). **Full vendor-side booking fulfilment shipped 2026-08-02** — see the Fulfilment row below
 
 ### Purpose
 
@@ -343,14 +343,18 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 | `select-vendor` | Shown only when the user administers more than one vendor. The choice is remembered across launches |
 | `blocked` | KYC-pending, suspended, or no vendor access. Real copy and a way forward for each — a blank "no access" screen is a store rejection |
 | `(app)/dashboard` | Today's stats, including the monthly payout net of the platform fee |
-| `(app)/bookings` + `bookings/[id]` | The core screen. List, filter, detail, **approve/reject** |
+| `(app)/bookings` + `bookings/[id]` | The core screen. List, six lifecycle filters with badges, detail, **approve/reject and the full fulfilment actions** (hand over / mark as done / got it back / undo / flag) |
 | `(app)/transactions` | Payment history with a summary and search. **No print** — that is a desktop job |
 | `(app)/notifications` | In-app notifications, Realtime delivery, unread badge |
-| `(app)/settings` | Theme override, vendor switch, push toggle, sign out, account-deletion link out to the web |
+| `(app)/settings` | Theme override, vendor switch, push toggle, sign out, account-deletion link out to the web, **app version** |
 
 ### Two Non-Obvious Behaviours
 
 **Approve is a deferred commit, not an optimistic write.** The DB trigger `validate_booking_status_transition` permits `pending → confirmed` but **not** `confirmed → pending`. So an "Undo" that had already written the change could never take it back. Instead the approval is held for a 4-second undo window and only then sent; it is also flushed if the app backgrounds or unmounts first, so a vendor who approves and immediately locks their phone still gets the write. Do not "simplify" this into an optimistic update.
+
+**The fulfilment payable rule is keyed on `payout_status`, never on booking status.** This is the mobile mirror of the web rule, and it is the defect the whole dual-acknowledgement feature exists to remove: the app previously counted a `confirmed` booking as money owed, i.e. work the vendor had not yet delivered. `lib/format.ts` now keys `isPayable` on `held | releasable | released | reversed` from the ledger row. A test asserts that **no booking-status string** can read as payable, so the old keying cannot quietly return.
+
+**The auto-confirm countdown respects the service-date gate, not just the 3-day window.** `20260801000009` will not promote a `fulfilled` booking before its `booked_date` (Asia/Manila) — that gate is what stops a vendor marking work done weeks early and letting the unattended timer release the payout. A flat "auto-confirms in 3 days" would therefore promise something the database refuses, so `lib/autoConfirm.ts` computes `max(changedAt + 3d, serviceDayStart)`. `returned` is exempt: reaching it required the *booker* to say the item came back. `in_progress` gets no countdown at all — no timer exists for it.
 
 **`expo-notifications` is loaded lazily, never imported at the top of a module.** On Expo Go for Android the package throws *while being evaluated*, which takes down every module that imports it — including the root layout, producing a crash with no logs. `lib/pushModule.ts` wraps it in a guarded `require()` and every consumer goes through that accessor. A plain `import * as Notifications from "expo-notifications"` anywhere in this app is a bug, even if it is guarded at the call site.
 
@@ -362,6 +366,7 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 | Vendor gate, multi-vendor picker, blocked states | ✅ Supabase-wired |
 | Dashboard stats | ✅ Supabase-wired — all four computed correctly, unlike the web dashboard (see Known Gaps) |
 | Bookings list, detail, approve/reject | ✅ Supabase-wired, with Realtime |
+| **Booking fulfilment** (hand over, mark as done, got it back, undo, flag) | ✅ Supabase-wired 2026-08-02. Writes `bookings.status` and lets the actor-aware trigger judge legality; flagging goes through `raise_booking_dispute()`. Payable is driven by `booking_transactions.payout_status`, **never** by booking status |
 | Transactions | ✅ Supabase-wired — summary, search, filters. No print |
 | Notifications | ✅ Supabase-wired, with Realtime and an unread badge |
 | Push notifications | ⚠️ Client and schema complete; **no FCM/APNs credentials**, never delivered end to end |
@@ -373,7 +378,8 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 - **Push is unproven.** Needs an FCM v1 service-account key on EAS, the Edge Function deployed, and a Vault secret set.
 - **Not submitted to either store.** Blocked on a public privacy policy and a Play Console account-type decision. **Brand assets no longer block** — the real icon and splash landed 2026-07-30 (`.plans/2026-07-30-vendor-mobile-brand-assets.md`); only the store *listing* assets (screenshots, descriptions) remain outstanding. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
 - **Password reset deep links** need the mobile redirect URLs added to `backbone/supabase/config.toml` — a cross-app change, not yet made.
-- **Only two of the five legal booking status transitions are reachable from any UI.** `validate_booking_status_transition` (`20260516000004`) permits `pending → confirmed | cancelled`, `confirmed → completed | cancelled`, and `completed → refunded`. Both this app and the **vendor web portal** implement only the two `pending` ones, so a vendor cannot mark a booking completed or cancel one they already confirmed. For non-pending bookings the mobile detail screen currently states *"No action needed"*, which is inaccurate. Planned in `.plans/2026-07-31-vendor-mobile-booking-status-actions.md` (DRAFT). Note that `refunded` is written by **nothing in any app** — it exists as a display status only, and there is no refund flow, so treating it as a UI gap rather than a payments question would be a mistake.
+- **The app version now comes from `package.json`** (2026-08-02). `app.config.js` sets `expo.version` from it, and `expo.version` was **removed from `app.json`** so nothing can drift — they had already reached 0.7.0 vs 1.0.0. `npm version <x>` now updates the OS-reported version, the store version and the Settings display together.
+- ~~**Only two of the five legal booking status transitions are reachable from any UI.**~~ **Resolved 2026-08-02 — and the premise is obsolete.** This described `validate_booking_status_transition` as of `20260516000004`, a five-transition machine. `20260801000002` replaced it with the nine-status dual-acknowledgement model, and **both** the vendor web portal and this app now implement the full vendor side. The "No action needed" copy it complained about is gone: the detail screen offers the correct action per state and, where there is none, names the state properly instead of claiming nothing is needed. The plan it cited (`.plans/2026-07-31-vendor-mobile-booking-status-actions.md`) was **✖ ABORTED** — written a day before the feature landed, it proposed `confirmed → completed`, a transition the trigger now rejects. Shipped instead via `.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`. The note's closing point still stands: **`refunded` is written by nothing in any app** — there is no refund flow, and that is a payments question, not a UI gap.
 - Bugs found on the first real-device run (2026-07-28) are outstanding.
 - **The notification swipe fix is unverified on device.** `.plans/2026-07-30-vendor-mobile-ui-fixes.md` B1 corrected an inversion where the Archive panel prompted a delete and the Delete panel archived with no confirmation at all. Code complete, never run on hardware — and the swap compiles either way, so no machine check can confirm it.
 

@@ -2,7 +2,35 @@
 
 **Date:** 2026-07-31
 **App / scope:** `ezzy-vendor-mobile` — `src/components/bookings/`, `src/hooks/useBookingActions.ts`, `src/services/bookings.service.ts`
-**Status:** DRAFT — 4 OPEN decisions, cannot execute
+**Status:** ✖ **ABORTED (2026-08-02)** — superseded by
+`.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`, which shipped this scope
+correctly. Never executed; no code was written from it.
+
+> **Why it was aborted.** This plan was written on 2026-07-31, **one day before**
+> the dual-acknowledgement feature landed (2026-08-01). It is not merely
+> incomplete — its central proposal is now *illegal*, so executing it would have
+> produced buttons that fail against the database:
+>
+> - **D1 offers `confirmed → completed`.** That transition no longer exists.
+>   `validate_booking_status_transition` (`20260801000002`) routes `confirmed` to
+>   `fulfilled` (session) or `in_progress` (custody), and `completed` is reachable
+>   only by mutual acknowledgement or the 3-day timer. A vendor cannot write
+>   `completed` directly from `confirmed` at all.
+> - **D4 asks whether it is acceptable for mobile to LEAD the web portal.** The
+>   premise inverted: vendor web shipped the full fulfilment actions on
+>   2026-08-01, so mobile *lagged*. The question it wanted answered was moot.
+> - **D3's recommendation rested on a constraint that had changed.** It argued
+>   against storing a cancellation note because `booking_status_log.notes` was
+>   written by the trigger from `NEW.rejection_reason`; `20260801000002` rewrote
+>   `log_booking_status_change()` to write `notes` directly.
+>
+> **D2 was the one part that survived** — it argued, correctly and strongly, that
+> `completed → refunded` must not ship as a status-only button because no refund
+> mechanism exists. That is still true, and the superseding plan keeps refunds
+> explicitly out of scope for the same reason.
+>
+> Kept rather than deleted, per the status model: the reasoning above is the record
+> of *why* a plan that looked ready was not.
 
 > Add the missing booking status transitions to the detail screen. **Approve and
 > Reject already exist and are wired** — the real gap is every other transition the
