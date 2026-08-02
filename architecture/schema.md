@@ -1,5 +1,11 @@
 # Database Schema
 
+> **Deploying these migrations?** See `database-reset-and-deploy.md` — which
+> command is safe in which environment, what `seed.sql` will and will not do to a
+> remote project, and the ordering that matters (notably: enable `pg_cron` before
+> any reset, or the chain fails half-applied).
+
+
 All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in filename order and must never be edited after being applied — create a new migration instead.
 
 ---
@@ -49,6 +55,14 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260725000002_booking_transactions.sql` | `booking_transactions` (immutable per-payment ledger: amount paid, fee %, fee amount, payout) + `create_booking_transaction()` SECURITY DEFINER trigger on `bookings` `AFTER UPDATE OF is_paid`, firing only on a false→true transition + RLS/grants. Snapshots the fee percentage at payment time so changing it never alters historical payouts |
 | `20260726000001_platform_fee_settings_rls_tighten.sql` | Narrows the `platform_fee_settings` RLS policies |
 | `20260728000001_device_push_tokens.sql` | `device_push_tokens` (per-install Expo push token, shared across portals, own-rows-only RLS) + `notification_push_settings` (per-portal push kill switch, mirroring `notification_email_settings`) + `dispatch_notification_push()` trigger on `notifications` `AFTER INSERT` → pg_net → `send-push-notification` Edge Function + RLS/grants. Same pg_net + Vault chokepoint as the email dispatcher, and silently no-ops when Vault is unconfigured so local dev and `seed.sql` are never blocked |
+| `20260801000001_fulfilment_patterns.sql` | `fulfilment_patterns` lookup (seeded `session` / `custody`) + `offerings.fulfilment_pattern` and `bookings.fulfilment_pattern` FK columns + snapshot/pin logic folded into `check_booking_consistency()`. The pattern is a **fulfilment shape, not a business category** — business taxonomy stays in `offerings.category` and `divisions` |
+| `20260801000002_booking_fulfilment_states.sql` | Widens `bookings_status_values` to nine states, adds `bookings.status_changed_at`, and rewrites `validate_booking_status_transition()` to be **actor-aware**. Also extends `log_booking_status_change()` to write `notes` |
+| `20260801000003_booking_payout_status.sql` | `booking_transactions.payout_status` / `released_at` + backfill + `sync_booking_payout_status()` trigger. Gates the vendor payout on mutual completion |
+| `20260801000004_booking_acknowledgement_rpc.sql` | `acknowledge_booking(uuid, boolean)` — the booker's only write path to `bookings.status` |
+| `20260801000005_booking_disputes.sql` | `booking_disputes` (flag-only) + `raise_booking_dispute()` / `resolve_booking_dispute()` RPCs + RLS/grants |
+| `20260801000006_auto_acknowledge_bookings.sql` | `auto_acknowledge_bookings()` + `pg_cron` hourly job. Promotes `fulfilled`/`returned` after 3 days; **never** touches `in_progress` |
+| `20260801000007_fulfilment_notifications.sql` | Six new `notification_type_settings` rows + rewritten `notify_on_booking_status_change()`. Undo transitions emit nothing |
+| `20260801000008_payout_release_and_override.sql` | `release_booking_payouts(uuid[])` (bulk, Command-only) + `admin_override_booking_status()` (Command-only, reason required) |
 
 ---
 
@@ -421,9 +435,37 @@ A booker's reservation of a specific schedule occurrence.
 
 **Capacity trigger:** `check_booking_capacity()` fires BEFORE INSERT and counts existing `pending + confirmed` rows for the same `(schedule_id, booked_date)` against `schedules.max_capacity`. Raises an exception if at capacity. As of `20260724000003_booking_capacity_lock.sql`, it also takes `select ... for update` on the `schedules` row first, closing a TOCTOU race where two concurrent inserts for the last slot could previously both pass the check before either committed.
 
-**Status transition trigger:** `validate_booking_status_transition()` fires BEFORE UPDATE. Allowed transitions: `pending → confirmed|cancelled`, `confirmed → completed|cancelled`, `completed → refunded`. All other transitions raise an exception.
+**Status transition trigger:** `validate_booking_status_transition()` fires BEFORE UPDATE and is **actor-aware** as of `20260801000002` — it enforces *who* may make each move, not merely the direction, because "the booker acknowledges" is not expressible in RLS (RLS gates rows, not values). The actor is derived from `auth.uid()`; **NULL means the system actor** (service_role or the pg_cron job).
 
-**Audit trigger:** `log_booking_status_change()` fires AFTER UPDATE and writes a row to `booking_status_log` whenever `status` changes.
+Nine states, two fulfilment shapes:
+
+```
+session:  pending → confirmed → fulfilled  ──(booker)──→ completed
+custody:  pending → confirmed → in_progress ─(booker)→ returned ─(vendor)→ completed
+```
+
+| From | To | Who may |
+|---|---|---|
+| `pending` | `confirmed` / `cancelled` | vendor-admin, command |
+| `confirmed` | `cancelled` | vendor-admin, command |
+| `confirmed` | `fulfilled` *(session)* / `in_progress` *(custody)* | vendor-admin, command |
+| `fulfilled` | `completed` | **booker**, system (3d), command |
+| `in_progress` | `returned` | **booker**, command |
+| `returned` | `completed` | **vendor-admin**, system (3d), command |
+| `fulfilled` / `in_progress` | `confirmed` *(undo)* | vendor-admin, command |
+| `returned` | `in_progress` *(undo)* | **booker**, command |
+| `fulfilled`/`in_progress`/`returned`/`completed` | `disputed` | booker or vendor-admin |
+| `disputed` | `completed` / `refunded` / `cancelled` | **command only** |
+| `completed` | `refunded` | **command only** |
+
+Three deliberate narrowings versus the pre-2026-08 machine:
+1. `completed → refunded` was previously open to any caller passing RLS — including vendor-admins on their own bookings. Now Command-only.
+2. **Cancellation is closed once fulfilment starts.** `fulfilled` / `in_progress` / `returned` have no path to `cancelled`; the route is `disputed`, which freezes the payout and puts a human in the loop.
+3. A Command admin who is **neither** the booker nor a vendor-admin of the booking must supply a reason via the `app.status_change_note` transaction setting (see `admin_override_booking_status()`), which lands in `booking_status_log.notes`. Dispute resolution is exempt — it carries its own `resolution_notes`.
+
+**`in_progress` has no timer, by design.** `auto_acknowledge_bookings()` never advances it: an asset that never came back must never auto-complete and pay the vendor. Command's Overview surfaces stale ones (`oversight.service.ts`) as the only escape.
+
+**Audit trigger:** `log_booking_status_change()` fires AFTER UPDATE and writes a row to `booking_status_log` whenever `status` changes. As of `20260801000002` it also populates `notes` from `current_setting('app.status_change_note')`, so an administrative override is legible afterwards rather than looking identical to a decision the two parties made themselves.
 
 **Payment columns:** `payment_reference text` stores the PayMongo Checkout Session ID; `is_paid boolean default false` is set to `true` by the webhook handler when payment is confirmed.
 
@@ -507,6 +549,10 @@ Index: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc)`
 **Write path — trigger only.** `bookings_create_transaction` (`create_booking_transaction()`, SECURITY DEFINER) fires `AFTER UPDATE OF is_paid on bookings`, guarded by `when (old.is_paid is distinct from new.is_paid and new.is_paid = true)`. That is exactly the write the PayMongo webhook performs (`booker/app/api/payment/webhook/route.ts` does `update bookings set is_paid = true ... where is_paid = false`), so **a failed, abandoned, or expired payment never produces a row here** — `is_paid` simply stays `false` and the trigger never fires. Anchoring to the *column* rather than the webhook means the ledger stays correct no matter which code path confirms a payment in future (e.g. a manual "mark as paid" admin action), and required no changes to the booker app.
 
 **Why the fee is snapshotted, not recomputed:** so that changing the global percentage never retroactively moves a vendor's historical payout figures. Mirrors how `booking_status_log` and `vendor_status_log` preserve history rather than deriving it.
+
+**Amended 2026-08-01 — the ledger is immutable in its FIGURES, not in every column.** `20260801000003` adds `payout_status` (`held → releasable → released`, or `reversed`) and `released_at`. `amount_paid`, `platform_fee_percent`, `platform_fee_amount` and `payout_amount` remain written-once and never recomputed, so changing the global fee still cannot move a vendor's historical figures. The payout lifecycle is explicitly mutable — but there is still **no `authenticated` write path**: it moves by trigger (`sync_booking_payout_status`) or by the Command-only `release_booking_payouts()` definer RPC.
+
+⚠️ **`payout_status = 'reversed'` means the VENDOR will not be paid.** It says nothing about whether the *booker* was refunded — there is no refund mechanism in this system (PayMongo's refund API is never called). Never label it "Refunded" in any UI.
 
 **Status is deliberately NOT stored here.** The financial figures must never drift, but booking status is live and mutable (`pending → confirmed → completed → refunded`); freezing it would show a booking as permanently "confirmed" after it was refunded. Readers join `bookings` for current status. Refunded/cancelled rows **stay in the ledger** (the payment really happened) but the apps exclude them from payout totals.
 

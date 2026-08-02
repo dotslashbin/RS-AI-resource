@@ -309,3 +309,73 @@ Do **not** scan the generated QR code in test mode — it processes real transac
 | ~~Duplicate booking check~~ | ~~None~~ | **Done** — DB `UNIQUE (booker_id, schedule_id, booked_date)` + service maps `23505` to `"already_booked"` |
 | ~~Booking history from DB~~ | ~~Dashboard shows seed data~~ | **Done** — `getBookings()` fetches real rows; loaded on login |
 | ~~Capacity overbooking~~ | ~~No DB enforcement~~ | **Done** — `check_booking_capacity()` BEFORE INSERT trigger, row-locked via `FOR UPDATE` on the schedule as of 2026-07-24 (closes a prior TOCTOU race under concurrent bookings for the last slot) |
+
+---
+
+## Fulfilment — establishing a completely fulfilled booking (2026-08-01)
+
+Payment is not the end of a booking. A vendor is owed their payout only once
+**both parties** agree the booking actually happened. Until 2026-08, `completed`
+was unreachable — no app wrote it — and the vendor's payout total counted a
+booking the moment they *accepted* it, before anything was delivered.
+
+### Two shapes, not two businesses
+
+`offerings.fulfilment_pattern` records **how a booking gets completed**, which is
+a different axis from *what the business is*. Business taxonomy remains
+`offerings.category` (vendor-defined free text) and the 13 `divisions`.
+
+| Pattern | Flow | Fits |
+|---|---|---|
+| `session` | vendor marks done → booker confirms | exams, lessons, consults, treatments, callouts |
+| `custody` | vendor hands over → booker returns → vendor confirms | vehicles, equipment, rooms, courts, bays |
+
+Thirteen divisions collapse to two shapes, because a shape is defined by which
+party can truthfully attest to which fact. The set is a **lookup table**
+(`fulfilment_patterns`) so a third shape is a seed row plus a trigger branch —
+but the state machine itself stays in code. Making it data-driven would let a bad
+seed row release a vendor's own payout.
+
+The pattern is **snapshotted onto `bookings`** at creation. Without that, a vendor
+editing an offering mid-flight would strand every in-progress booking.
+
+### What each party sees
+
+| DB status | Vendor | Booker |
+|---|---|---|
+| `fulfilled` | "Awaiting customer" | **"Yes, all done"** |
+| `in_progress` | "With customer" | **"I've returned it"** |
+| `returned` | **"Got it back"** | "Awaiting vendor" |
+| `disputed` | "On hold" | "On hold — Ezzy is reviewing" |
+
+Labels come from `bookingActionCopy.ts` in each app — one table feeding the
+button, its "i" popover, and the dashboard guide, so the wording that tells
+someone *when money moves* cannot drift between the three.
+
+### The money
+
+`booking_transactions.payout_status` moves `held → releasable` only when a booking
+reaches `completed`, and back to `held` if it is flagged. `released` is never
+downgraded — money that has left really has left, so a refund after release
+surfaces in Command's **Payouts → Owed back** rather than being papered over.
+
+### Timers and escapes
+
+- `fulfilled` and `returned` **auto-confirm after 3 days** (`auto_acknowledge_bookings()`,
+  hourly via pg_cron). Without this, one unresponsive person freezes a vendor's
+  money indefinitely.
+- `in_progress` has **no timer** — see `schema.md`. Command's Overview lists stale
+  ones and offers `admin_override_booking_status()`, which requires a reason.
+- Either party can **flag** a booking (`raise_booking_dispute`). The payout freezes
+  and only Command can resolve it (`resolve_booking_dispute`). There is no
+  counterparty-response step and no self-service withdrawal — resolving back to
+  `completed` covers a flag raised in error.
+
+### Still missing
+
+- **No refund mechanism.** PayMongo's refund API is never called. A cancelled or
+  refunded booking stops the vendor being paid; returning the booker's money is
+  entirely manual and untracked.
+- **No payout rail.** "Mark as paid" records a transfer made elsewhere.
+- **Mobile apps** do not implement any of this yet; their status maps fall back
+  safely but will show raw values like "In_progress".
