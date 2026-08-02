@@ -248,14 +248,12 @@ If per-branch registration (individual branches each with their own name, addres
 
 ### `divisions`
 
-> ⚠️ **Branch/deployment caveat (verified 2026-07-29).** This table and `vendors.division_id`
-> describe the *intended* schema. The migration `20260724000004_divisions.sql` exists only on
-> `backbone`'s `feature/division_assoc_reg` branch and is **absent from the hosted project** —
-> `GET /rest/v1/divisions` returns `PGRST205`, and `vendors.division_id` returns `42703`. The
-> app side is merged and live, so vendor self-registration and Command's Vendors page are
-> broken against hosted until the branch is merged and pushed. See
-> `.plans/2026-07-24-vendor-divisions.md`. Everything below is accurate to the migration, not
-> to what is currently deployed.
+> ✅ **Deployment status (re-verified 2026-08-02).** The earlier caveat here — that
+> `20260724000004_divisions.sql` lived only on `feature/division_assoc_reg` and was absent
+> from hosted — is **no longer true**. The migration is merged to `develop`, and
+> `supabase migration list --linked` reports `20260724000004` as applied on the hosted
+> project. Divisions ships via **migration, not `seed.sql`** (which inserts zero rows into
+> this table), so every environment gets the 13 rows from `db push` alone.
 
 Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyFood, EzzyRide, EzzyHome, EzzyPets, EzzyLaw, EzzyPark, EzzyLearn, EzzyWork, EzzyStay). Seeded with these 13 rows; **full CRUD by Command admins** (add/edit/soft-disable) via the Divisions settings page — unlike most other lookup tables in this schema, which are seed-fixed. Every vendor is associated with exactly one.
 

@@ -201,3 +201,46 @@ DELETE has no caller auth — add `verifyCaller()` before the admin client" is.
   match reality, fix the plan in the same breath as the code.
 - Do not mark DONE on the strength of "it should work." DONE means verified;
   if you couldn't verify, it's still 🔄 with a note on what's missing.
+
+---
+
+## The project flow, end to end
+
+Unless explicitly told otherwise, plan-driven work in this repo follows this
+sequence. Steps 2–5 are the ones people skip, and they are the ones that keep a
+plan from being confidently wrong.
+
+1. Create a plan.
+2. Review the plan and carry out any investigations or auditing. Identify gaps and
+   fill them in if obvious or trivial, otherwise ask. If there are decisions to
+   make, ask.
+3. Review the plan for under-specified areas where a poor solution could still
+   satisfy the written plan.
+4. Check all planned changes against best practices for the relevant layer —
+   schema design, RLS, TypeScript, React, SQL, security. For any new or modified
+   component this explicitly includes `.claude/skills/component-separation/SKILL.md`:
+   the plan item must **state** how render/hook/style separation is satisfied, not
+   assume it. Flag any violations or concerns before execution. Do not proceed if a
+   critical issue is found.
+5. Resolve questions and problems.
+6. Refine the plan into an explicit execution order that references the detailed
+   sections rather than duplicating their detail inline.
+7. Present the plan to the user and get explicit approval before executing.
+8. Execute.
+9. Review results and add newly discovered follow-up work to the plan before
+   continuing.
+
+Alongside the sequence:
+
+- For large multi-phase requests or list-based changes, keep the plan document up
+  to date with accurate completion checklists.
+- Plans should carry the non-obvious context later phases will need, if execution
+  may span enough work to risk losing it.
+- Plan review must explicitly check for places where the current wording could
+  permit a weak or incorrect implementation.
+- Resolve or document ambiguities before execution starts.
+- **Execution cadence is one stage at a time by default** — see
+  `.claude/skills/developerboss/SKILL.md`. Running a stage range, or the full
+  scope in one pass, happens when the user asks for it.
+- After each major step or phase, review the work done and update the plan with
+  completion state, important findings, and any newly discovered required work.

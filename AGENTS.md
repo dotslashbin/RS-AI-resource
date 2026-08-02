@@ -26,15 +26,13 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 
 ## Shared Tech Stack
 
-### Frontend (all three Next.js apps that are in "command", "booker", and "vendor" folders)
+### Frontend (`command`, `booker`, `vendor`)
 
-- **Framework**: Next.js (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui (base-nova style, neutral palette)
-- **Theming**: next-themes (light/dark via `class` strategy)
-- **Maps**: Leaflet + react-leaflet (client-side only via `dynamic` import) — booker only. vendor and command have no maps.
-- **Icons**: lucide-react
-- **Notifications**: sonner
+Next.js App Router + TypeScript + Tailwind/shadcn. Read each app's `package.json`
+for the actual dependency set — it is authoritative and this file is not. Only
+the non-obvious parts are recorded here:
+
+- **Maps are booker-only.** `vendor` and `command` have no maps at all.
 
 ### Mobile (the Expo apps in "ezzy-booker-mobile" and "ezzy-vendor-mobile" folders)
 
@@ -202,22 +200,11 @@ The `.module.css` rule above is web-specific. React Native has no CSS modules �
 When asked for a plan to be made, read and apply `.claude/skills/plan-authoring/SKILL.md`, and write it as a Markdown file under `.plans/`. Every plan must carry the status model defined there (overall status + per-item ⬜ TODO / 🔄 IN PROGRESS / ✅ DONE / ⏸ PARKED / ✖ ABORTED, with reasons on parked/aborted and verification notes on done).
 
 - Plan filenames must start with the date, e.g. `2026-04-23-<short-topic>.md`.
-- For large multi-phase requests or list-based changes, keep the plan doc up to date with accurate completion checklists.
-- Unless explicitly told otherwise, plan-driven work should follow this flow:
-  1. Create a plan.
-  2. Review the plan and carry out any investigations or auditing. Identify gaps and fill in if obvious or trivial, otherwise ask. If there are decisions to make, ask.
-  3. Review the plan for under-specified areas where a poor solution could still satisfy the written plan.
-  4. Check all planned changes against best practices for the relevant layer — schema design, RLS, TypeScript, React, SQL, security. For any new or modified component, this explicitly includes `.claude/skills/component-separation/SKILL.md` — the plan item must state how render/hook/style separation is satisfied, not assume it. Flag any violations or concerns before execution. Do not proceed if a critical issue is found.
-  5. Resolve questions/problems.
-  6. Refine the plan into an explicit execution order referencing detailed sections instead of duplicating detail inline.
-  7. Present the plan to the user and get explicit approval before executing.
-  8. Execute.
-  9. Review results and add newly discovered follow-up work to the plan before continuing.
-- Plans should keep the non-obvious context needed for later phases if execution may span enough work to risk losing context.
-- Plan review must explicitly check for places where the current wording could permit a weak or incorrect implementation.
-- Resolve or document ambiguities before execution starts.
-- Execution cadence is one stage at a time by default — see `.claude/skills/developerboss/SKILL.md`. Running a stage range or the full scope in one pass happens when you ask for it.
-- After each major step or phase, review the work done and update the plan with completion state, important findings, and any newly discovered required work.
+- The nine-step flow (create → investigate → review → check → resolve → order →
+  **approve** → execute → review), and the cadence and upkeep rules that go with
+  it, live in that skill under "The project flow, end to end".
+- **Execution cadence is one stage at a time by default.** Running a stage range,
+  or the full scope in one pass, happens when you ask for it.
 
 ### Goal-Driven Execution
 
@@ -243,18 +230,7 @@ Before saying work is complete:
 
 ## Prompt Writing
 
-When this project builds prompts for an LLM, write them as reusable, structured inputs. Keep stable content first and variable content last.
-
-1. Role and purpose — define what the AI is supposed to do, including persona, domain, tone, and audience.
-2. Stable context — background that usually does not change between calls: product context, policy, schema notes, documentation summaries.
-3. Task instructions — state the desired outcome, not every internal step. Include constraints, acceptance criteria, and failure conditions.
-4. Output requirements — specify the exact format: JSON, Markdown, XML, bullets, table, code block. Ask for confidence, assumptions, and concise justification when useful.
-5. Examples — include when the output shape or judgment criteria are not obvious. Keep them short and representative.
-6. Critical reminders — repeat only the most important rules that are easy to violate.
-7. Variable input data — put changing data last. Label inputs clearly using Markdown headings, XML-style tags, or JSON fields.
-
----
-
-## Test Taxonomy
+When writing a prompt for an LLM, read and apply
+`.claude/skills/prompt-writing/SKILL.md`.
 
 ...

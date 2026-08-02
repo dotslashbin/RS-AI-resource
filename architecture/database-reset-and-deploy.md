@@ -28,10 +28,35 @@ one — see below.
 
 ---
 
+## First, find out what has actually drifted
+
+Do this before choosing a command. It is read-only, takes seconds, and repeatedly
+turns out to contradict what you assumed:
+
+```bash
+cd backbone
+npx supabase migration list --linked
+```
+
+Each row pairs the local migration with its remote counterpart; an **empty
+`remote`** means not yet applied. Reading it beats guessing — on 2026-08-02 this
+showed staging was behind by exactly the nine `20260801*` fulfilment migrations
+and nothing else, while `20260724000004_divisions.sql` — which `schema.md` had
+warned was stranded on a feature branch and missing from hosted — was in fact
+already applied. That one command replaced two wrong assumptions.
+
+If the gap is only migrations and you want to keep remote data, you want `db push`.
+Reach for `db reset` only when you also want `seed.sql`'s dataset and accept losing
+what is there.
+
+---
+
 ## What ships in migrations vs what lives in seed
 
-This split is deliberate and load-bearing. Verified 2026-08-01: `seed.sql` inserts
-into **none** of the config or lookup tables.
+This split is deliberate and load-bearing. Verified 2026-08-01 and re-confirmed
+2026-08-02: `seed.sql` inserts into **none** of the config or lookup tables —
+`divisions` included, which is why the lookup arrives from `db push` alone and
+needs no seed run.
 
 **Shipped by migrations — every environment gets these from `db push` alone:**
 
@@ -53,10 +78,21 @@ importantly — **`auth.users` rows with known passwords**.
 Three `insert into auth.users` blocks (`seed.sql:53`, `:122`, `:857`) create
 sign-in-able accounts:
 
-| Account | Password |
-|---|---|
-| `root@bookdeck.com` | `Bookdeck@root1` |
-| everyone else (`ben@`, `maria@`, `marco@`, …) | `DevSeed@pass1` |
+Passwords are **distinct per account** — not one shared password (corrected
+2026-08-02; this table previously claimed everyone shared `DevSeed@pass1`).
+
+| Account | Password | | Account | Password |
+|---|---|---|---|---|
+| `root@bookdeck.com` | `Bookdeck@root1` | | `clara@` | `DevSeed@pass6` |
+| `marco@` | `DevSeed@pass1` | | `dante@` | `DevSeed@pass7` |
+| `liza@` | `DevSeed@pass2` | | `pia@` | `DevSeed@pass8` |
+| `jun@` | `DevSeed@pass3` | | `gab@` | `DevSeed@pass9` |
+| `ana@` | `DevSeed@pass4` | | `sofia@` | `DevSeed@pass10` |
+| `rico@` | `DevSeed@pass5` | | `jose@` | `DevSeed@pass11` |
+| | | | `maria@` | `DevSeed@pass12` |
+| | | | `ben@` | `DevSeed@pass13` |
+| | | | `carla@` | `DevSeed@pass14` |
+| | | | `dino@` | `DevSeed@pass15` |
 
 On a **hosted** project these are reachable by anyone who knows the project URL.
 That is acceptable for a throwaway staging environment as a *deliberate* decision;
@@ -92,10 +128,38 @@ then seeds). Both paths are worth testing before a remote deploy.
 
 ---
 
+## Why "it worked locally" predicts nothing about hosted
+
+The local stack is not a smaller copy of hosted. Every divergence below has bitten
+this project at least once, and all four were confirmed here rather than assumed.
+When a remote run fails and the local one passed, start with this list.
+
+| Divergence | Local | Hosted | Symptom |
+|---|---|---|---|
+| **Session `search_path`** | `"$user", public, extensions` — so unqualified `gen_salt`/`crypt` resolve | seeding role lacks `extensions` | `42883 function … does not exist` |
+| **Extension availability** | CLI image ships them; migrations just `create extension` | must be enabled in the dashboard first | chain dies mid-migration, project left half-applied |
+| **`auth` schema on reset** | dropped and rebuilt with everything else | managed, often **preserved** | duplicate key on `auth.users` |
+| **Backfills in migrations** | reset applies them to *empty* tables, so they no-op | run against real rows | logic never exercised locally ships broken |
+
+The generalisable rule: **schema-qualify anything that lives outside `public`.** A
+bare function name is a bet on the caller's `search_path`, and that bet is only
+safe in the environment you happened to test in. This applies to `pgcrypto`
+(`crypt`, `gen_salt`, `digest`, `hmac`), and to any future extension function used
+from `seed.sql` or a migration.
+
+The last row is the sneakiest, because nothing errors — the local reset simply
+never runs the backfill. If a migration carries one, test it with
+`npx supabase migration up --local` against a seeded database, not only via reset.
+
+---
+
 ## Staging — deliberate fresh start
 
 Use when you want staging to mirror local exactly, and you accept losing
 everything currently in it.
+
+> Proven end-to-end against hosted on **2026-08-02** — every step below, including
+> both recoveries, reflects an actual run rather than an intended one.
 
 ### 1. Enable `pg_cron` in the dashboard FIRST
 
@@ -109,6 +173,18 @@ half-migrated. Enabling it first makes the `if not exists` a no-op.
 
 This is the single most likely step to go wrong, and the only one whose failure is
 messy rather than clean.
+
+**The dashboard will ask you for a schema and offer only `pg_catalog`. That is
+correct — accept it.** `pg_cron`'s control file declares `schema = pg_catalog` with
+`relocatable = false`, so the extension fixes its own placement and there is
+nothing else to choose. (Contrast `pg_net`, which *is* relocatable and sits in
+`public` — that one gives a real dropdown.)
+
+That registration is bookkeeping, not object placement. pg_cron's install script
+creates its own `cron` schema and puts everything there — `cron.job`,
+`cron.job_run_details`, and 7 functions including `cron.schedule()`. So the
+`cron.schedule(...)` call in `20260801000006` resolves normally. Choosing
+`pg_catalog` does **not** put `cron.job` in `pg_catalog`.
 
 ### 2. Confirm which project you are pointed at
 
@@ -183,6 +259,35 @@ npx supabase db reset --linked
 ```
 
 Have this ready *before* starting rather than discovering it mid-reset.
+
+### Recovery — `function gen_salt(unknown) does not exist` (SQLSTATE 42883)
+
+Hit on the **hosted** seed run, 2026-08-02. `gen_salt` and `crypt` are `pgcrypto`
+functions, and on Supabase — hosted *and* local — `pgcrypto` installs into the
+**`extensions`** schema, not `public`:
+
+```
+extname  | schema
+pgcrypto | extensions
+```
+
+Locally the seed worked only because the CLI's session `search_path` is
+`"$user", public, extensions`, so bare `gen_salt` still resolved. The role the CLI
+seeds with against hosted does not carry `extensions` on its path, so the same SQL
+fails there. **A seed that passes locally proves nothing about hosted for anything
+pgcrypto-backed.**
+
+Fixed by schema-qualifying all 16 call sites in `seed.sql`:
+
+```sql
+extensions.crypt('DevSeed@pass1', extensions.gen_salt('bf'))
+```
+
+This is portable — it resolves in both environments, whereas patching
+`search_path` only papers over the role difference. Migrations were checked and
+use **no** pgcrypto functions, so `db push` was never affected; this was
+seed-only. Apply the same qualification to any future `crypt`/`gen_salt`/`digest`/
+`hmac` use.
 
 ---
 
