@@ -64,6 +64,11 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260801000007_fulfilment_notifications.sql` | Six new `notification_type_settings` rows + rewritten `notify_on_booking_status_change()`. Undo transitions emit nothing |
 | `20260801000008_payout_release_and_override.sql` | `release_booking_payouts(uuid[])` (bulk, Command-only) + `admin_override_booking_status()` (Command-only, reason required) |
 | `20260801000009_auto_acknowledge_date_gate.sql` | Replaces `auto_acknowledge_bookings()` so a `fulfilled` booking cannot auto-complete **before its `booked_date`** (Asia/Manila). Closes the hole where a vendor marks a session done weeks early and the unattended timer releases the payout for work that has not happened. **`returned` is exempt** — reaching it required the booker to state the item came back, which is direct evidence; `fulfilled` is a unilateral vendor claim. The gate is on the **timer, not the vendor's action**: early handover by agreement stays legal, and only the unattended path is closed |
+| `20260803000001_offering_duration_units.sql` | Replaces free-text `offerings.duration` with `duration_minutes` (normalised) + `duration_unit` (the vendor's frame, and the **granularity discriminator**). Parses and backfills the old text — reporting any row it had to default — then drops the column. `month` is fixed at 30 days |
+| `20260803000002_schedule_availability.sql` | A schedule becomes an **availability rule**: `max_capacity` → `capacity_per_slot` (default 20 → **1**), `start_time`/`end_time` nullable, `end_date` added. **Also repoints `check_booking_capacity()`** — plpgsql resolves column names at runtime, so the rename alone would have broken every booking insert |
+| `20260803000003_booking_units.sql` | `bookings` gains `start_time`, `end_time`, `end_date`, `quantity` — the bookable unit that never existed. Backfills from each booking's schedule. Widens `bookings_no_duplicate` to a unique **index** including `coalesce(start_time,'00:00')`, so a booker may hold several slots on one date |
+| `20260803000004_booking_derive_price_and_span.sql` | `check_booking_consistency()` now **derives** `price_paid` (`offering.price * quantity`) and the booking's span, and pins them plus `quantity` against UPDATE. Closes a hole where the client wrote `price_paid` and the PayMongo route then trusted it |
+| `20260803000005_booking_slot_and_capacity.sql` | `check_booking_placement()` replaces `check_booking_capacity()`: slot-boundary legality, window fit, **recurrence validity in the DB** (previously app-layer only), per-covered-slot capacity, and same-booker overlap. Renamed so it sorts **after** `bookings_check_consistency` — BEFORE triggers fire alphabetically and this one reads the span that one computes |
 
 ---
 
@@ -92,8 +97,16 @@ auth.users
                                               │
                                               ├──► booking_documents
                                               │
+                                              ├──► booking_disputes (flag; freezes the payout
+                                              │                      until Command resolves)
+                                              │
                                          booking_transactions (immutable payment ledger,
                                               1:1, created on first payment)
+
+  fulfilment_patterns (session | custody — the SHAPE of how a booking completes)
+        ▲                    ▲
+        │                    └── bookings.fulfilment_pattern (snapshot, pinned at insert)
+        └── offerings.fulfilment_pattern
 
   platform_fee_settings (single row — global commission %; snapshotted onto
                          booking_transactions at payment time, never joined)
@@ -310,6 +323,32 @@ Two BEFORE UPDATE triggers on `vendors` gate status changes before this log is w
 
 ---
 
+### `fulfilment_patterns`
+The set of booking fulfilment **shapes** — who acknowledges what, in what order. Seeded by migration (`20260801000001`), not by `seed.sql`, because the FK defaults on `offerings`/`bookings` depend on the rows existing in every environment.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `code` | `text` | PK, e.g. `session`. Referenced by `offerings.fulfilment_pattern` and `bookings.fulfilment_pattern`. Treat as immutable after creation |
+| `name` | `text` | Display name, e.g. "Session" |
+| `description` | `text` | Default `''` |
+| `sort_order` | `smallint` | Default `0` |
+| `is_active` | `boolean` | Default `true`. Soft-disable — hides from new offering selection (app-layer filter, not RLS) without breaking existing offerings. Mirrors `divisions.is_active` |
+
+**Seeded rows:**
+
+| Code | Flow | Fits |
+|---|---|---|
+| `session` | vendor marks done → booker confirms | exams, lessons, consults, treatments, callouts |
+| `custody` | vendor hands over → booker returns → vendor confirms | vehicles, equipment, rooms, courts, bays |
+
+**A shape, not a business category.** Business taxonomy lives in `offerings.category` (vendor-defined free text) and `divisions`. All 13 divisions collapse to these two shapes, because a shape is defined by which party can truthfully attest to which fact.
+
+⚠️ **This table carries no behaviour — do not make the state machine data-driven.** The state machine that enforces each shape lives in `validate_booking_status_transition()`, so a row inserted here **without** a matching trigger branch is inert by design: the offering can be tagged, but no fulfilment transition will be permitted. Turning it into configuration would mean a bad seed row could let a vendor acknowledge in the booker's place and release their own money, and the transition test matrix could no longer be exhaustive. Step labels live in each app's TypeScript (`bookingActionCopy.ts`), not here — UI copy in the DB would force every client to fetch it and rule out localisation.
+
+**RLS:** all authenticated users SELECT (the vendor offering form lists them; both portals resolve a booking's pattern for display); `admin`/`root` on the `command` portal manage via a single `for all` policy — deliberately narrow, since adding one without a trigger branch produces an inert pattern.
+
+---
+
 ### `offerings`
 Bookable services defined by a vendor. Each vendor defines its own offerings independently.
 
@@ -321,9 +360,11 @@ Bookable services defined by a vendor. Each vendor defines its own offerings ind
 | `name` | `text` | Display name, e.g. "1-Hour Court Rental" |
 | `code` | `text` | Short badge, e.g. `RENT`. Max 6 chars, uppercase. Unique per vendor |
 | `description` | `text` | |
-| `price` | `numeric(10,2)` | Philippine Peso. Non-negative |
-| `duration` | `text` | Free-text, e.g. "1 hour" |
+| `price` | `numeric(10,2)` | Philippine Peso. Non-negative. **Per unit of duration**, not per booking |
+| `duration_minutes` | `integer` | NOT NULL, default `60`, `check (> 0)`. Length of ONE bookable unit, normalised to minutes. The single source of truth for all slot and overlap arithmetic |
+| `duration_unit` | `text` | NOT NULL, default `hour`. CHECK in (`minute`, `hour`, `day`, `week`, `month`). The vendor's chosen frame — and the granularity discriminator. See the note below |
 | `requirements` | `jsonb` | Array of `{id, label, required}` objects defining documents bookers must upload. Default `[]` |
+| `fulfilment_pattern` | `text` | FK → `fulfilment_patterns(code)`. NOT NULL, default `'session'`. Indexed. Which fulfilment *shape* this offering uses — not a business category |
 | `is_active` | `boolean` | Default `true`. Inactive offerings hidden from bookers |
 | `created_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
 | `created_at` | `timestamptz` | |
@@ -334,6 +375,36 @@ Unique constraint: `(vendor_id, code)` — a code is unique within a vendor but 
 > **Categories are free text (no lookup table).** There is no `offering_categories` table; `offerings.category` is a plain text column. The UI derives the distinct category set client-side from loaded offerings (filters, the offering-form datalist of suggestions). Colour-coding uses a small fixed map for known values with a neutral fallback for custom ones.
 
 > **Note on `requirements`:** A JSONB array of `{id: string, label: string, required: boolean}` objects. Vendor admins define these in the offering form; bookers see them in Step 4 of the booking wizard and upload a file per item. The `id` is a stable UUID generated when the item is created — it is used as the key in the booker's upload record even if the label is later edited. Items with `required: true` block progression past Step 4 until uploaded; optional items can be skipped.
+
+> **Duration: one normalised number, two jobs for the unit.** `duration_minutes` is
+> the single source of truth — every slot boundary, span and overlap calculation
+> uses it and nothing else. `duration_unit` is the frame the vendor chose, and it
+> does double duty: it drives rendering (1440 shows as "1 day", not "1440 minutes")
+> **and it is the granularity discriminator**, because minutes alone cannot
+> distinguish "1 day" from "24 hours" and only the vendor knows which they meant.
+>
+> ```
+> granularity(unit) = minute | hour      -> time-granular (booker picks a time of day)
+>                     day | week | month -> date-granular (booker picks whole dates)
+> ```
+>
+> This is a **separate axis from `fulfilment_pattern`** and must not be folded into
+> it: a 3-day training course is `session` + date-granular, a 2-hour court booking is
+> `custody` + time-granular. All four combinations are real.
+>
+> **A `CHECK`, not a lookup table** — deliberately diverging from the
+> `fulfilment_patterns` / `divisions` idiom. That idiom exists so a *third* value can
+> be added without an `ALTER`; granularity is exhaustive by construction.
+>
+> **`month` = exactly 30 days (43,200 min).** A calendar month has no honest minute
+> count, so representing one would make `duration_minutes` a lie. 30 keeps the
+> arithmetic exact and matches how Postgres converts `interval → epoch`. The offering
+> form states this at the point of entry rather than letting a booker discover it at
+> the point of booking.
+
+> **Price is per UNIT, not per booking.** `price_paid` is derived by
+> `check_booking_consistency()` as `price * quantity` and pinned — clients do not
+> supply it. See `bookings`.
 
 ---
 
@@ -386,12 +457,13 @@ Vendor-defined availability slots for a specific offering. Stores a recurrence r
 | `offering_id` | `uuid` | FK → `offerings` ON DELETE RESTRICT |
 | `staff_id` | `uuid` | FK → `staff` ON DELETE SET NULL. Nullable |
 | `title` | `text` | Display label for this schedule slot |
-| `start_date` | `date` | When this schedule (or series) starts |
-| `start_time` | `time` | Session start time |
-| `end_time` | `time` | Session end time. Must be after `start_time` |
+| `start_date` | `date` | First available date |
+| `end_date` | `date` | Last available date, inclusive. NULL = open-ended. For date-granular offerings this and `start_date` **are** the availability; for time-granular it bounds the recurrence |
+| `start_time` | `time` | Start of the daily availability **window** — not a bookable slot. **Nullable**: NULL for date-granular offerings, which have no time of day |
+| `end_time` | `time` | End of the window. Nullable, same reason. Must be after `start_time` when both are present |
 | `days_of_week` | `smallint[]` | 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun. Empty for one-time |
 | `recurrence` | `text` | `none` / `weekly` / `biweekly` / `monthly` |
-| `max_capacity` | `integer` | Max bookers per occurrence. Positive |
+| `capacity_per_slot` | `integer` | NOT NULL, default **`1`**, `check (> 0)`. How many bookings may share ONE derived slot (time-granular) or one date (date-granular). Was `max_capacity` default `20`, which conflated "seats in a class" with "simultaneous holders of one asset" **and** was the only thing preventing a double-booking. Now it does exactly one job: sharing |
 | `is_active` | `boolean` | Default `true` |
 | `contact_name` | `text` | Optional pre-assigned contact for this slot |
 | `contact_phone` | `text` | Optional |
@@ -399,11 +471,38 @@ Vendor-defined availability slots for a specific offering. Stores a recurrence r
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Auto-updated by trigger |
 
-**Recurrence model:** `none` means a single occurrence on `start_date`. For recurring schedules, `days_of_week` specifies which days of the week the schedule runs, and `recurrence` controls the frequency (every week, every two weeks, or once a month on the same week-of-month as `start_date`). Occurrence expansion is done client-side.
+**Recurrence model** (time-granular only): `none` means a single occurrence on `start_date`. For recurring schedules, `days_of_week` specifies which days the schedule runs and `recurrence` controls the frequency (weekly, every two weeks, or the same week-of-month as `start_date`). Occurrence dates are expanded client-side for display — and, since `20260803000005`, **also validated in the database**, so a crafted insert can no longer book a date the schedule never runs on.
 
 **Integrity:** A cross-vendor trigger ensures `offering.vendor_id` and `staff.vendor_id` both match `schedule.vendor_id`, preventing data mixing between vendors.
 
-**Future:** `bookings_count` denormalised column (or a view) to efficiently check capacity; `cancelled_at` for soft-cancellation of a series.
+**A schedule is an availability RULE, not a bookable thing.** `start_time`–`end_time`
+is the daily **window**; the bookable units inside it are **derived** by dividing that
+window by the offering's `duration_minutes`. Nothing stores them — a 09:00–17:00 window
+against a 1-hour offering yields eight slots, computed identically by
+`check_booking_placement()` in the DB, `vendor/lib/slots.ts` in the schedule form's
+preview, and `booker/lib/slots.ts` in Step 3. **If that rule changes, all three change
+together**; a preview that disagrees with the trigger invites a vendor to publish slots
+the database will refuse.
+
+A **remainder is allowed and surfaced, not an error**: 09:00–17:30 at a 1-hour duration
+is 8 slots plus 30 idle minutes, and the vendor form says so. Forcing an exact multiple
+would reject a legitimate window.
+
+**Two shapes, chosen by the offering's `duration_unit`:**
+
+| Offering granularity | Uses | NULL / empty |
+|---|---|---|
+| time (`minute`/`hour`) | `start_time`, `end_time`, `recurrence`, `days_of_week` | `end_date` |
+| date (`day`/`week`/`month`) | `start_date`, `end_date` | `start_time`, `end_time`; `recurrence` = `none`, `days_of_week` empty |
+
+`check_booking_placement()` enforces those invariants, so a direct insert cannot create
+a mismatched row even though the vendor form no longer offers one.
+
+**A window may not cross midnight** (`schedules_end_after_start`). That is load-bearing
+rather than cosmetic: it is what makes a booking's span arithmetic unable to wrap — see
+`bookings`.
+
+**Future:** `cancelled_at` for soft-cancellation of a series. A `bookings_count` denormalisation is **no longer the obvious next step** — capacity is now a per-slot overlap question, not a per-occurrence count, so a single counter column could not answer it.
 
 ---
 
@@ -417,9 +516,15 @@ A booker's reservation of a specific schedule occurrence.
 | `schedule_id` | `uuid` | FK → `schedules` ON DELETE RESTRICT |
 | `vendor_id` | `uuid` | Denormalised from schedule. FK → `vendors` ON DELETE RESTRICT |
 | `offering_id` | `uuid` | Denormalised from schedule. FK → `offerings` ON DELETE RESTRICT |
-| `booked_date` | `date` | The specific occurrence date selected. App layer validates against recurrence rule |
-| `status` | `text` | `pending` / `confirmed` / `completed` / `cancelled` / `refunded`. CHECK constraint enforces allowed values; a BEFORE UPDATE trigger enforces valid transitions |
-| `price_paid` | `numeric(10,2)` | Snapshot of offering price at booking time |
+| `booked_date` | `date` | The occurrence date selected — for a date-granular booking, the FIRST date. Validated against the recurrence rule by `check_booking_placement()` (was app-layer only) |
+| `start_time` | `time` | Start of the booked slot. NULL for date-granular. **Snapshotted and pinned**, not read from the schedule |
+| `end_time` | `time` | `start_time + duration × quantity`. NULL for date-granular. Derived server-side; clients never supply it |
+| `end_date` | `date` | Last date of a date-granular booking, inclusive. NULL for time-granular |
+| `quantity` | `integer` | NOT NULL, default `1`, `check (> 0)`. How many units were booked. Drives `price_paid` and the span |
+| `status` | `text` | Nine values: `pending` / `confirmed` / `fulfilled` / `in_progress` / `returned` / `completed` / `disputed` / `cancelled` / `refunded`. CHECK constraint enforces allowed values; a BEFORE UPDATE trigger enforces valid, **actor-aware** transitions. Widened from five by `20260801000002` |
+| `status_changed_at` | `timestamptz` | When `status` last changed. Nullable — NULL for rows that have never transitioned, which the auto-acknowledge job treats as not-due. Maintained by `validate_booking_status_transition()`, deliberately **not** `updated_at` (which any column write bumps — restarting a booker's acknowledgement window on an unrelated edit would be a money bug) |
+| `fulfilment_pattern` | `text` | FK → `fulfilment_patterns(code)`. NOT NULL, default `'session'`. **Snapshot** of the offering's pattern at booking time, populated on INSERT and pinned against UPDATE by `check_booking_consistency()`. Clients never supply it |
+| `price_paid` | `numeric(10,2)` | **Derived** as `offering.price × quantity` by `check_booking_consistency()` and pinned. Clients do not write it — before `20260803000004` the booker did, and the PayMongo route then charged whatever it found |
 | `notes` | `text` | Optional booker/vendor notes |
 | `rejection_reason` | `text NOT NULL DEFAULT ''` | Reason provided by vendor when rejecting/cancelling. Empty string if not applicable |
 | `cancelled_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. Records which user performed the cancellation or rejection |
@@ -430,9 +535,17 @@ A booker's reservation of a specific schedule occurrence.
 
 `vendor_id` and `offering_id` are denormalised for efficient RLS filtering. A trigger (`check_booking_consistency`) validates they match the referenced schedule on every insert/update.
 
-**Unique constraint:** `(booker_id, schedule_id, booked_date)` — a booker cannot book the same schedule occurrence twice. Error code `23505` is caught in the booker service and surfaced as `"already_booked"`.
+**Unique index:** `(booker_id, schedule_id, booked_date, coalesce(start_time,'00:00'))` — a booker cannot hold the *same slot* twice, but may hold several slots on one date. The `coalesce` is load-bearing: NULLs compare distinct in a unique index, so date-granular rows would otherwise duplicate freely. Still raises `23505`, so the booker service's `"already_booked"` mapping is unchanged.
 
-**Capacity trigger:** `check_booking_capacity()` fires BEFORE INSERT and counts existing `pending + confirmed` rows for the same `(schedule_id, booked_date)` against `schedules.max_capacity`. Raises an exception if at capacity. As of `20260724000003_booking_capacity_lock.sql`, it also takes `select ... for update` on the `schedules` row first, closing a TOCTOU race where two concurrent inserts for the last slot could previously both pass the check before either committed.
+**The span is a snapshot, and immutable.** `start_time`/`end_time`/`end_date`/`quantity`/`price_paid` are all computed at INSERT and raise on UPDATE. Same reasoning as `fulfilment_pattern`: the schedule and the offering are mutable, and a vendor editing either must never move a booking that has already been sold. A booking therefore describes its own span with no join — which is why all three clients read these columns rather than joining `schedules`.
+
+⚠️ **`time + interval` wraps in Postgres** (`23:00 + 2h = 01:00`), and an inverted range would make the overlap capacity test match nothing and pass everything. The guard is **ordering**: the window-fit check runs *before* the arithmetic, and since a schedule window cannot cross midnight, a booking that fits inside its window provably cannot wrap.
+
+**Placement trigger:** `check_booking_placement()` (BEFORE INSERT, `20260803000005`) replaces `check_booking_capacity()`. It answers the whole "can this booking go here" question in one pass, since the parts share the same fetches: shape matches the offering's granularity, the start lands on a real slot boundary inside the window, `booked_date` is a genuine occurrence, capacity is free on **every** slot or date the booking covers, and the same booker holds nothing overlapping. It keeps the `select … for update` row lock from `20260724000003` — that is what closed the TOCTOU race — and the exact `'Schedule is fully booked'` wording, which `booker/services/bookings.service.ts` string-matches.
+
+⚠️ **Capacity is checked PER COVERED SLOT, not as one overlap count.** With multi-unit bookings the naive version is wrong: at capacity 2, if A holds 09:00–10:00 and B holds 10:00–11:00, a new 09:00–11:00 booking overlaps *two* bookings and a flat count refuses it — yet slot 09:00 would hold {A, C} = 2 and slot 10:00 {B, C} = 2, both legal.
+
+⚠️ **Trigger timing and NAME are both load-bearing.** BEFORE ROW triggers fire in **alphabetical order of trigger name**. `bookings_check_placement` sorts after `bookings_check_consistency`, which is the only reason the span it reads has already been computed — the old name `bookings_check_capacity` sorted *before* it. And placement is **INSERT only**, while consistency is **INSERT OR UPDATE** (pinning needs UPDATE): making placement match would re-validate every booking against the schedule *as it is now*, so a vendor narrowing a window would render existing bookings un-confirmable, un-completable and un-cancellable, and the hourly auto-acknowledge job would start raising.
 
 **Status transition trigger:** `validate_booking_status_transition()` fires BEFORE UPDATE and is **actor-aware** as of `20260801000002` — it enforces *who* may make each move, not merely the direction, because "the booker acknowledges" is not expressible in RLS (RLS gates rows, not values). The actor is derived from `auth.uid()`; **NULL means the system actor** (service_role or the pg_cron job).
 
@@ -500,7 +613,7 @@ Immutable audit trail of every booking status change. Written only by the `log_b
 | `changed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The user whose session triggered the change (via `auth.uid()`) |
 | `from_status` | `text` | The status before the update |
 | `to_status` | `text` | The status after the update |
-| `notes` | `text NOT NULL DEFAULT ''` | Reserved for manual notes; empty in all trigger-written rows |
+| `notes` | `text NOT NULL DEFAULT ''` | The reason supplied via the `app.status_change_note` transaction setting, which Command overrides are **required** to set (`admin_override_booking_status()`). Empty for ordinary party-driven transitions. Went unwritten from `20260516000006` until `20260801000002` taught the logger to populate it |
 | `changed_at` | `timestamptz` | Default `now()` |
 
 **RLS:**
@@ -508,6 +621,38 @@ Immutable audit trail of every booking status change. Written only by the `log_b
 - Vendor admins can SELECT rows for bookings at their vendor
 - Command admins/root can SELECT all rows
 - No INSERT/UPDATE/DELETE policies for app users — trigger-only writes (executed as service role via `SECURITY DEFINER`)
+
+---
+
+### `booking_disputes`
+A flag raised on a booking by either party. Freezes the vendor payout until a Command admin resolves it. **Flag-only by design** — there is no counterparty-response step and no self-service withdrawal; "Command resolves manually" *is* the model. A flag raised in error is resolved back to `completed`, the same single action that resolves a real one.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `booking_id` | `uuid` | FK → `bookings` ON DELETE CASCADE |
+| `raised_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
+| `raised_role` | `text` | CHECK in (`booker`, `vendor`). **Derived server-side** by the RPC from the caller's actual relationship to the booking — never accepted from the client |
+| `reason` | `text` | CHECK `char_length` between 10 and 2000 |
+| `status` | `text` | CHECK in (`open`, `resolved`). Default `open` |
+| `resolution_notes` | `text NOT NULL DEFAULT ''` | Command's note on how this was resolved |
+| `resolution_outcome` | `text` | CHECK in (`completed`, `refunded`, `cancelled`). Nullable until resolved |
+| `resolved_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
+| `resolved_at` | `timestamptz` | Nullable |
+| `created_at` / `updated_at` | `timestamptz` | `updated_at` maintained by `set_updated_at()` |
+
+**Indexes:** `booking_disputes_one_active_idx` — a **partial** unique index on `(booking_id) where status = 'open'`, so a booking has at most one live flag but may be flagged again after an earlier one is resolved. Plus `booking_disputes_booking_idx` and a partial `booking_disputes_open_idx on (created_at) where status = 'open'` powering Command's queue oldest-first.
+
+**Write path — RPC only.** No INSERT/UPDATE/DELETE policies exist for `authenticated`, mirroring `booking_status_log` and `booking_transactions`. Both `SECURITY DEFINER` RPCs move `bookings.status` in the **same transaction** as the dispute row, so the two can never disagree about whether a booking is under dispute:
+
+- `raise_booking_dispute(p_booking_id uuid, p_reason text) → uuid` — either party. Derives `raised_role`, refuses a Command admin who is neither party, rejects a second open flag, inserts, and moves the booking to `disputed` (which is what freezes the payout via `bookings_sync_payout_status`).
+- `resolve_booking_dispute(p_dispute_id uuid, p_outcome text, p_notes text default '') → void` — **Command only**. Closes the flag and moves the booking to the chosen outcome.
+
+⚠️ **Resolution text belongs in `resolution_notes`, never in `bookings.rejection_reason`.** `notify_on_booking_status_change()` treats any transition to `cancelled` carrying a non-empty `rejection_reason` as a vendor **rejection** and would email the booker "Booking Rejected" with these internal notes in the body. `resolve_booking_dispute()` deliberately never writes that column.
+
+**RLS — SELECT only:** bookers read their own bookings' flags; vendor admins read their vendor's, gated `is_active() and has_vendor_role(...)` (the helper checks membership and role only, so without `is_active()` a **suspended** vendor-admin would keep reading dispute detail); Command admins/root read all.
+
+> The fuller workflow (counterparty response, withdrawal, photo evidence) is a deferred follow-up. This table is a strict **subset** of that target shape, so reaching it is additive — nothing built here has to be undone.
 
 ---
 
@@ -541,9 +686,13 @@ Immutable ledger of confirmed payments — one row per booking, created the mome
 | `platform_fee_percent` | `numeric(5,2)` | NOT NULL. The `platform_fee_settings.fee_percent` value **in force when this payment was confirmed** — a historical record, not a live lookup |
 | `platform_fee_amount` | `numeric(10,2)` | NOT NULL. `round(amount_paid * platform_fee_percent / 100, 2)` |
 | `payout_amount` | `numeric(10,2)` | NOT NULL. `amount_paid - platform_fee_amount`. Computed from a single rounded fee value, so `platform_fee_amount + payout_amount = amount_paid` exactly |
+| `payout_status` | `text` | NOT NULL, default `'held'`. CHECK in (`held`, `releasable`, `released`, `reversed`). The payout lifecycle — the one mutable part of this row. Moved by the `sync_booking_payout_status()` trigger or the Command-only `release_booking_payouts()` RPC, never by an `authenticated` write |
+| `released_at` | `timestamptz` | When the platform recorded the payout as disbursed. Set alongside `payout_status = 'released'`; NULL otherwise |
 | `created_at` | `timestamptz` | Default `now()`. **When payment was confirmed** — this is the transaction date the apps filter and summarise by, *not* `bookings.booked_date` (when the service occurs) |
 
-Index: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc)` — every read is "this vendor's transactions, newest first", optionally within a date range.
+Indexes: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc)` — every read is "this vendor's transactions, newest first", optionally within a date range. `booking_transactions_payout_status_idx on (vendor_id, payout_status)` — Command's payout queue and the payable rule.
+
+**`payout_status` transitions** (`20260801000003`): `held → releasable` when the booking reaches `completed`; back to `held` if it is flagged (`disputed`); `→ reversed` on `cancelled`/`refunded`. **`released` is never downgraded** — money that has left really has left, so a refund after release surfaces in Command's Payouts → Owed back rather than being papered over. Both vendor clients key their "payable" rule on this column, **never** on booking status.
 
 **Write path — trigger only.** `bookings_create_transaction` (`create_booking_transaction()`, SECURITY DEFINER) fires `AFTER UPDATE OF is_paid on bookings`, guarded by `when (old.is_paid is distinct from new.is_paid and new.is_paid = true)`. That is exactly the write the PayMongo webhook performs (`booker/app/api/payment/webhook/route.ts` does `update bookings set is_paid = true ... where is_paid = false`), so **a failed, abandoned, or expired payment never produces a row here** — `is_paid` simply stays `false` and the trigger never fires. Anchoring to the *column* rather than the webhook means the ledger stays correct no matter which code path confirms a payment in future (e.g. a manual "mark as paid" admin action), and required no changes to the booker app.
 
@@ -769,6 +918,9 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `bookings` → `booking_documents` | CASCADE |
 | `bookings` → `booking_status_log` | CASCADE |
 | `bookings` → `booking_transactions` | CASCADE |
+| `bookings` → `booking_disputes` | CASCADE |
+| `fulfilment_patterns` → `offerings`, `bookings` | NO ACTION (Postgres default) — a pattern in use cannot be deleted |
+| `booking_disputes.raised_by` / `.resolved_by` → `profiles` | SET NULL |
 | `vendors` → `booking_transactions` | RESTRICT |
 | `vendors` → `vendor_kyc` | CASCADE |
 | `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
@@ -791,6 +943,18 @@ See `auth-roles.md` for the full access control model. Schema-level summary:
 - All RLS policies call one or more of the helper functions (`is_active()`, `is_portal_member()`, `has_role()`, `has_vendor_role()`, `is_vendor_member(uuid)`) defined in `20260504000002_schema.sql`. These helpers are `SECURITY DEFINER` to avoid recursion.
 - **`has_vendor_role()` and `is_vendor_member()` do not check whether the caller is active.** They test membership and role only, so a **suspended** user still passes them. Every vendor-scoped policy must therefore be written as `is_active() and has_vendor_role(...)` — see `bookings`, `booking_status_log`, `booking_transactions`. Omitting `is_active()` silently leaves suspended vendor staff with read access. (Command-admin policies are gated by `is_portal_member('command') and has_role(...)` instead and do not add `is_active()`, matching the existing policies on those same tables.)
 - **`get_booker_contacts(p_vendor_id uuid)` RPC** (`20260620000002_booker_contacts_rpc.sql`): a `SECURITY DEFINER` function returning `booker_id / full_name / email / phone` for bookers who have booked a given vendor. `profiles` RLS only permits self + Command-admin reads, so a vendor-admin's profile join returns null; this RPC lets vendor-admins surface booker contact details for their own bookings. Scoped two ways — the caller must be a `vendor-admin` of `p_vendor_id` (`has_vendor_role`), and only bookers who actually booked that vendor are returned. It exposes only the three contact columns, never `notes`/`status_id`. `EXECUTE` granted to `authenticated` and `service_role` (not `anon`).
+- **The fulfilment write paths are `SECURITY DEFINER` RPCs, not RLS.** RLS gates *rows*, not *values*, so "only the booker may acknowledge" is not expressible as a policy. Four definer functions carry those writes, each re-checking the caller itself:
+
+  | RPC | Caller | Effect |
+  |---|---|---|
+  | `acknowledge_booking(uuid, boolean)` | the booker | The booker's **only** write path to `bookings.status` (`fulfilled → completed`, `in_progress → returned`, and the `returned → in_progress` undo) |
+  | `raise_booking_dispute(uuid, text)` | booker or vendor-admin | Flags a booking and freezes the payout, in one transaction |
+  | `resolve_booking_dispute(uuid, text, text)` | Command admin/root | Closes the flag and moves the booking to the outcome |
+  | `release_booking_payouts(uuid[])` | Command admin/root | Bulk `releasable → released`. Takes **`booking_transactions` ids**, not booking ids |
+  | `admin_override_booking_status(...)` | Command admin/root | Third-party override; **reason required**, lands in `booking_status_log.notes` |
+
+  `auto_acknowledge_bookings()` is the fifth writer — an hourly `pg_cron` job running as the system actor (`auth.uid()` NULL). It promotes `fulfilled`/`returned` after 3 days, **never** `in_progress`, and (since `20260801000009`) never promotes a `fulfilled` booking before its `booked_date` in Asia/Manila.
+
 - Policies follow the principle of least privilege: read access is only granted to the specific roles that need it, not to `authenticated` broadly (with narrow exceptions for lookup tables and the booker-readable vendors policy).
 - **Table-level GRANTs are required in addition to RLS.** PostgREST enforces table privileges *before* RLS runs, and the `public` default privileges grant the API roles no DML. Every new table must add explicit `GRANT`s (in its own migration) following `20260620000001_api_role_grants.sql`: `anon` gets none, `authenticated` gets only the operations its RLS policies permit (never `TRUNCATE`), `service_role` gets full DML. Skipping this makes the table return `permission denied` for logged-in users even with correct RLS.
 

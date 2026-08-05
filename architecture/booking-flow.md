@@ -87,7 +87,7 @@ Fetches vendors that have an active offering matching the selected `code`. Uses 
 **Component:** `Step3Schedule/Step3Schedule.tsx`  
 **Service:** `services/schedules.service.ts` → `getSchedulesForVendor(vendorId, offeringCode)`
 
-Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `startTime` (HH:MM), `endTime`, `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `maxCapacity`.
+Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `endDate`, `startTime`/`endTime` (HH:MM, **nullable** — NULL for date-granular offerings), `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `capacityPerSlot`, and `durationMinutes`/`durationUnit` **per schedule** (see I10 under Step 3).
 
 ### Calendar
 
@@ -106,19 +106,51 @@ Occurrence dates are computed client-side from each schedule's recurrence rule:
 
 **Day-of-week encoding difference:** DB stores 0=Mon..6=Sun. JavaScript `Date.getDay()` returns 0=Sun..6=Sat. The helper `dbDowToJs(d) = (d + 1) % 7` converts between them.
 
-### Time Slots
+### Time Slots — derived, not stored (2026-08)
 
-When the booker picks a date, `getTimesForDate(schedules, dateStr)` finds all schedules that have an occurrence on that date and collects their `startTime` values, deduplicated and sorted. These are displayed as buttons in 12-hour format (e.g., "8:00 AM").
+`getSlotsForDate(schedules, dateStr)` divides each occurring schedule's **window** by
+that schedule's own `duration_minutes` and returns every resulting unit.
 
-### `handleSelectTime(t)`
+> **This is the change that made the booker show reality.** It previously returned the
+> distinct `start_time` values of the *schedules* on that date — one entry per schedule,
+> not per unit — so a single 09:00–17:00 schedule offered exactly **one** button no
+> matter how long the offering was.
 
-The hook exposes `handleSelectTime` instead of raw `setTime`. It sets `time` and simultaneously resolves `selectedSchedule` via `resolveScheduleForTime(schedules, date, t)` — finding the first schedule that has an occurrence on `date` at `startTime = t`.
+Each slot renders as **start–end with a per-slot "N left"**. `endTime` and capacity were
+fetched and discarded before this; nothing showed a booker how long a booking was or
+whether it was nearly full.
 
-When the booker changes their date selection, `handleSelectTime("")` is called to clear both `time` and `selectedSchedule`.
+**Quantity.** Once more than one unit fits, a quantity control appears and the booking
+spans consecutive slots. A start slot is selectable only if **every** slot the quantity
+would cover has room — `spanAvailable()` walks them all. Checking only the first slot is
+the tempting wrong implementation: the database checks the worst-case slot, so the UI
+would offer a span that is refused at the final step.
+
+**Occupancy** comes from a count query keyed by overlap, not equality — an existing
+2-unit booking occupies its second slot too. It is fetched asynchronously, and until it
+lands every slot reads as available: the DB refuses an overbooking regardless, whereas
+greying out a free slot on a slow network would block a legitimate booking.
+
+**Duration is read per schedule, not from the Step 1 card.** `getSchedulesForVendor()`
+selects `duration_minutes`/`duration_unit` through the `!inner` join it already had. Two
+vendors can share an offering code with *different* durations, and the deduped card
+keeps only the cheapest — deriving the grid from it would draw boundaries the trigger
+then rejects.
+
+### Date-granular offerings
+
+An offering measured in `day`/`week`/`month` has no time of day at all. `isOccurrence()`
+short-circuits for these — recurrence and days-of-week do not apply, their availability
+**is** the `start_date`–`end_date` range — and Step 3 shows a date range with no slot
+grid. `getDateRange()` exposes the bookable span.
+
+The two modes are chosen by `duration_unit`, never asked. Step 1 cards are deduped by
+`(code, granularity)` so an hourly and a day-based `COURT` are separate cards and the
+wizard can never open in the wrong mode.
 
 **`canNext`:** `!!date && !!time`
 
-**Future:** Capacity tracking — showing "Limited" slots when a date/time has near-full bookings — requires counting existing `bookings` rows per (schedule, booked_date). This would need either a DB view or an additional query.
+~~**Future:** Capacity tracking~~ **Done (2026-08)** — each slot shows spaces remaining, counted by overlap per slot.
 
 ---
 
@@ -171,14 +203,25 @@ The hook's `confirmBooking` is `async`. It:
    - `vendor_id`: from `vendor.id`
    - `offering_id`: from `selectedSchedule.offeringId` (the vendor's offering UUID — must match the schedule's own `offering_id` to satisfy the DB consistency trigger)
    - `booked_date`: from `date` (YYYY-MM-DD)
-   - `price_paid`: from `offering.price`
+   - `start_time`: the chosen slot, or `null` for a date-granular offering
+   - `quantity`: how many units
    - `status`: `"pending"`
+   - **`price_paid` is NOT sent.** The DB derives it as `offering.price × quantity`
+     and pins it (`20260803000004`)
 3. On `"already_booked"` / `"full"` / `"error"` — shows toast, aborts
 4. Calls `POST /api/payment/create-session` with `{ bookingId }` (the client also sends legacy `amountCentavos`/`description`, but the **server ignores them**)
 5. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.booker_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
 6. Browser redirects to `checkout_url` (PayMongo's hosted payment page)
 
 > **Security note:** the amount is authoritative from the DB, so a tampered client request cannot underpay; the route is not callable without an authenticated session that owns the booking. (Hardened 2026-06-12 — prod-readiness booker B1.)
+>
+> ⚠️ **That was only half true until 2026-08.** The *route* refused the request body, but
+> the *row it trusted* was written by the client: `createBooking` sent `price_paid`
+> straight from wizard state, and the `bookings` INSERT policy checks only
+> `booker_id = auth.uid() and is_active()` — no column guard. A booker could insert
+> `price_paid: 1` and pay ₱1 for an ₱850 booking, with `booking_transactions` recording
+> ₱1 as the vendor's revenue. `20260803000004` makes `price_paid` trigger-derived, which
+> closes it; the route needed no change, because the value it reads is now trustworthy.
 
 ### Payment return
 
@@ -219,7 +262,8 @@ Step 2: vendor selected
 
 Step 3: date selected
   └─ getAvailableDaysInMonth(schedules, year, month) → Set<number>
-     date picked → getTimesForDate(schedules, date) → string[]
+     date picked → getSlotsForDate(schedules, date) → SlotOption[]  (window ÷ duration)
+                 → getSlotOccupancy(scheduleIds, date) → spaces left per slot
      time picked → resolveScheduleForTime(schedules, date, time) → selectedSchedule
 
 Step 4: uploads[] managed in state (no DB writes)
@@ -252,9 +296,12 @@ Webhook (async, authoritative):
 | `vendors.service.ts` | `getVendorsForOffering(code)` | `BookerVendor[]` |
 | `schedules.service.ts` | `getSchedulesForVendor(vendorId, code)` | `BookerSchedule[]` |
 | `schedules.service.ts` | `getAvailableDaysInMonth(schedules, year, month)` | `Set<number>` |
-| `schedules.service.ts` | `getTimesForDate(schedules, dateStr)` | `string[]` |
+| `schedules.service.ts` | `getSlotsForDate(schedules, dateStr)` | `SlotOption[]` — derived units, not one per schedule |
+| `schedules.service.ts` | `getSlotOccupancy(scheduleIds, dateStr)` | `Map<string, number>` — overlap-keyed |
+| `schedules.service.ts` | `remainingForSlot` / `spanAvailable` | spaces left; whether N units fit **in every covered slot** |
+| `schedules.service.ts` | `getDateRange(schedules)` | `{from, to}` for date-granular offerings |
 | `schedules.service.ts` | `resolveScheduleForTime(schedules, dateStr, time)` | `BookerSchedule \| null` |
-| `bookings.service.ts` | `createBooking(params)` | `{ id: string \| null; result: CreateBookingResult }` |
+| `bookings.service.ts` | `createBooking(params)` | `{ id: string \| null; result: CreateBookingResult }` — takes `startTime` + `quantity`; **no** `pricePaid` |
 | `bookings.service.ts` | `getBookings()` | `Booking[]` (booker's own history, RLS-scoped) |
 | `app/api/payment/create-session` | `POST` (server route) | Authenticates caller + verifies booking ownership; derives amount from `booking.price_paid`; creates PayMongo Checkout Session; stores `payment_reference` |
 | `app/api/payment/webhook` | `POST` (server route) | Verifies signature; sets `is_paid = true` on payment confirmation |

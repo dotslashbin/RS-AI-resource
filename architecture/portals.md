@@ -21,9 +21,9 @@ A 6-step guided flow:
 
 | Step | UI | Data source |
 |------|----|------------|
-| 1 — Choose Service | Offering cards with category colour and price | `offerings` table (all active, deduplicated by code) |
+| 1 — Choose Service | Offering cards with category colour, price and duration | `offerings` table (active, deduped by **code + granularity**) |
 | 2 — Choose Vendor | Vendor list + Leaflet map (user location dot) | `vendors` table (filtered by offering code) |
-| 3 — Pick Schedule | Calendar + time slot buttons | `schedules` table (recurrence expanded client-side) |
+| 3 — Pick Schedule | Calendar + derived slot grid (start–end, spaces left, quantity) or a date range | `schedules` ÷ the offering's duration; occupancy counted per slot |
 | 4 — Upload Documents | Per-requirement file upload with progress bar | `offering.requirements` JSONB field (fetched from DB via `offerings` table) |
 | 5 — Confirm | Summary review screen | Review only — no DB writes |
 | 6 — Payment | Booking summary + Pay button | Writes booking to `bookings` → creates PayMongo Checkout Session → redirects to PayMongo hosted payment page |
@@ -62,6 +62,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
 | Booking history on dashboard | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
 | Offering Status widget | ✅ Live — completed bookings as individual cards |
+| Booking acknowledgement ("Yes, all done" / "I've returned it") + flag | ✅ Live (2026-08) — via the `acknowledge_booking()` and `raise_booking_dispute()` RPCs, the booker's only write paths to `bookings.status`. See `booking-flow.md` |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install, and specifically the PayMongo checkout round-trip in standalone mode, still need physical-hardware verification |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
@@ -115,14 +116,15 @@ Four KPI cards above the pending-approvals and booking-trends panels.
 
 #### Offerings Page (fully wired)
 - List of the vendor's offerings, grouped or filterable by category
-- Add offering form: name, code, category, price, duration, description, requirements
+- Add offering form: name, code, category, price **per unit**, duration as a **quantity + unit** (minute/hour/day/week/month), description, requirements. The unit decides how the offering is scheduled and booked; a `month` is stated as 30 days at the point of entry
 - Edit offering
 - Toggle offering active/inactive (`is_active`)
 - Offering category badges (free-text category; colour from a fixed map + neutral fallback)
 
 #### Schedules Page (fully wired)
 - Calendar/list view of active schedules
-- Add schedule form: title, offering picker, staff picker, date, time range, days of week, recurrence, capacity
+- Add schedule form: title, offering picker, staff picker, and then **one of two shapes chosen by the offering's duration unit** — an hourly offering gets a date, an availability window, recurrence and days-of-week, with a **live preview of the slots that window produces** (and any unused remainder); a day/week/month offering gets a date range and no time controls at all. Switching offering mid-form clears the abandoned mode's fields rather than merely hiding them
+- Changing an offering's duration **unit** is blocked while schedules reference it — the flip would leave them deriving zero slots. Narrowing a schedule's window instead *warns* with a count of bookings that fall outside it: those stay valid and must still be honoured
 - Recurrence options: none / weekly / biweekly / monthly
 - Filter by offering or staff
 - Edit and delete schedules
@@ -139,7 +141,8 @@ Four KPI cards above the pending-approvals and booking-trends panels.
 - `canSave` gate on form — disabled until required fields are valid
 
 #### Bookings Page (fully wired)
-- Incoming booking list with status filter tabs (all / pending / confirmed / completed / cancelled)
+- Incoming booking list with **six lifecycle filter tabs**, not one tab per status. `BOOKING_FILTERS` (`lib/utils.ts`) groups the nine statuses by what the vendor has to *do*: **All**, **Needs you** (`pending`, `returned`), **Active** (`confirmed`, `fulfilled`, `in_progress`), **Done** (`completed`), **Issues** (`disputed`), **Closed** (`cancelled`, `refunded`). Badge counts on "Needs you" and "Issues"
+- **Full vendor-side fulfilment (2026-08)** — hand over / mark as done / got it back / undo / flag, with `fulfilActionFor()` in `components/bookings/BookingRow/useBookingRow.ts` picking the action from `(status, fulfilmentPattern)` and every label and hint coming from the single `lib/bookingActionCopy.ts` table, so the wording that tells someone *when money moves* cannot drift between clients. (The booker keeps its own table with its own keys and audience — `booker/lib/bookingActionCopy.ts`; `ezzy-vendor-mobile` mirrors the vendor one.) Flagging goes through `raise_booking_dispute()`. See `booking-flow.md`
 - **Live updates** — a Realtime `postgres_changes` subscription (`bookings` `INSERT`+`UPDATE`, filtered to the selected vendor) brings in new bookings and status/payment changes (e.g. a booker cancellation, the PayMongo webhook's `is_paid`) without a refresh; the subscription re-scopes when switching between multiple vendors.
 - Approve and reject actions write to the `bookings` table; DB triggers log status changes to `booking_status_log`
 - Optimistic UI: state updates immediately on approve/reject; reverts on error with a toast notification (reconciles idempotently with the live Realtime echo of the same change)
@@ -199,13 +202,13 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Transactions (payment history, payout totals, filters, print/PDF) | ✅ Supabase-wired — reads `booking_transactions`; browser-verified. Mobile print-to-PDF on real devices still unverified |
 | Calendar (schedules + bookings overlay) | ❌ Mock data |
-| Booking status management | ✅ Supabase-wired (approve/cancel; complete pending) |
+| Booking status management | ✅ Supabase-wired — approve/reject **and the full vendor side of fulfilment** (hand over, mark as done, got it back, undo, flag) across all nine statuses |
 | Booking document viewing | ❌ Not implemented |
 | Packages | ❌ Mock data |
 
 ### Known Gaps
 
-- **No schedule capacity tracking.** The `max_capacity` field exists on schedules, but there's no display of how many bookers have booked each occurrence.
+- ~~**No schedule capacity tracking.**~~ ~~**Duration is asked for twice and enforced neither time.**~~ **Both resolved 2026-08-04** (`.plans/2026-08-03-offering-duration-and-booking-units.md`). Duration is now a structured quantity + unit on the offering, a schedule is an availability *window*, and the bookable slots are derived by dividing one by the other — enforced in the database, previewed live in the vendor form, and shown to the booker with spaces remaining per slot. Capacity was renamed `capacity_per_slot` (default 1) and now means only "how many bookings may share this slot". See `schema.md` → `offerings` / `schedules` / `bookings`.
 - **Offering deletion is not implemented.** Offerings can only be deactivated (`is_active = false`). Hard delete is restricted (schedules RESTRICT on delete) — would need to deactivate/delete schedules first.
 - **Packages page has no backing table.** If packages (bundles of offerings with a combined price) become a real feature, they need a DB schema.
 - **Mobile print-to-PDF is unverified on real devices.** The Transactions page's print output is machine-verified in headless Chromium (correct dual-render, all filtered rows present, nav hidden, content paginates instead of clipping, valid PDFs at desktop and 390px widths), but an actual "Print → Save as PDF" from Android Chrome and iOS Safari has not been exercised on physical hardware — mobile print sheets vary by OS and browser version. Same class of gap as the PWA items below.
@@ -218,8 +221,8 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 
 ### Roadmap (Approximate Priority)
 
-1. Schedule capacity view: show booking count vs. max_capacity per occurrence
-2. Booking status: add `completed` transition (currently approve → confirmed; complete transition not yet implemented)
+1. ~~Schedule capacity view: show booking count vs. max_capacity per occurrence~~ **Partly done (2026-08-04)** — the *booker* now sees spaces remaining per slot, and capacity is `capacity_per_slot`. What is still missing is the **vendor-side** view: a schedule's occupancy at a glance, without opening the bookings list
+2. ~~Booking status: add `completed` transition~~ **Done (2026-08)** — the whole dual-acknowledgement model shipped, not just `completed`. See `booking-flow.md`
 3. Booking documents: allow vendor admin to view uploaded documents
 4. Vendor logo/photo upload (Supabase Storage)
 5. Wire calendar page to real schedules + bookings from DB
@@ -245,6 +248,18 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 #### Overview / Dashboard
 - KPI widgets: active vendor count (live from `vendors`), total bookings, platform revenue, held wallet funds (latter three are seeded)
 - Booking trend and vendor trend charts (seeded)
+- **Fulfilment Oversight card (2026-08, live)** — `FulfilmentOversightCard`, backed by `oversight.service.ts`. Surfaces stale `in_progress` bookings (out longer than `STALE_AFTER_DAYS = 14`), the auto-completed count, and the open-flag count, and links through to the Flag Queue. This card exists because **`in_progress` is the one status with no timer**: `auto_acknowledge_bookings()` deliberately never advances it, since an asset that never came back must never auto-complete and pay the vendor. Correct — but it means a rental whose booker vanishes sits frozen forever and nothing else would tell anyone.
+
+#### Flag Queue (2026-08, fully wired)
+`components/flags/FlagQueue`, backed by `disputes.service.ts`. Lists open `booking_disputes` oldest-first (served by the partial `booking_disputes_open_idx`), showing who raised each flag, their reason, the booking, and the current `booking_transactions.payout_status`. Resolving calls `resolve_booking_dispute()`, which closes the flag and moves the booking to `completed` / `refunded` / `cancelled` in one transaction. **Command is the only party that can resolve a flag** — there is no counterparty response and no self-service withdrawal, so a flag raised in error is resolved back to `completed` by the same action.
+
+#### Payouts Page (2026-08, fully wired)
+`components/payouts/PayoutsPage`, backed by `payouts.service.ts`. Reads `booking_transactions` grouped by `payout_status` (`held` / `releasable` / `released` / `reversed`) with vendor, offering, service date, amount, fee and payout. Bulk release calls `release_booking_payouts(uuid[])`, the Command-only definer RPC. **"Owed back" is where a post-release refund surfaces** — `released` is never downgraded, because money that has left really has left, so reversing it after the fact has to be visible rather than papered over.
+
+> ⚠️ `payout_status = 'reversed'` means the **vendor** will not be paid. It says nothing about whether the *booker* was refunded — there is no refund mechanism in this system. Never label it "Refunded" in any UI.
+
+#### Admin override
+`admin_override_booking_status()` lets Command move a booking a third party otherwise could not, and **requires a reason**, which lands in `booking_status_log.notes`. Dispute resolution is exempt — it carries its own `resolution_notes`.
 
 #### Users Page (fully wired)
 - List of all profiles across all portals, fetched from `profiles` + `user_portals` + `user_roles`
@@ -299,6 +314,9 @@ Both tabs are reachable by anyone who reaches the command portal at all — acce
 | Vendor KYC review (approve/reject packet + notes) | ✅ Supabase-wired — in `VendorViewModal`; advisory (no hard activation gate yet) |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
+| Flag Queue (resolve booking disputes) | ✅ Supabase-wired — `disputes.service.ts` + `resolve_booking_dispute()` |
+| Payouts (release vendor payouts) | ✅ Supabase-wired — `payouts.service.ts` + `release_booking_payouts()` |
+| Fulfilment oversight (stale `in_progress`, open flags) | ✅ Supabase-wired — `oversight.service.ts` on the Overview |
 | Platform Fee setting | ✅ Live — global commission %, snapshotted onto each payment; browser-verified end-to-end |
 | KPI widgets | ⚠️ Vendor count live; bookings/revenue seeded |
 | Transactions | ❌ Mock data (`ALL_TXNS` constant). **No longer blocked** — `booking_transactions` now exists and holds exactly the platform-wide data this page needs; wiring it up is a small, self-contained follow-up since the table/filter/pagination UI is already built |
@@ -306,7 +324,8 @@ Both tabs are reachable by anyone who reaches the command portal at all — acce
 ### Known Gaps
 
 - **No vendor member management.** Command can approve vendors but cannot assign `vendor-admin` roles through the portal. Must be done via Supabase dashboard or SQL.
-- **No booking oversight.** Command cannot browse all bookings platform-wide from the portal UI.
+- **Booking oversight is targeted, not general.** As of 2026-08 Command *does* see the bookings that need it — stale `in_progress` on the Overview, open flags in the Flag Queue, and every paid booking on the Payouts page. What is still missing is a **general platform-wide bookings browser**: there is no screen to list or filter all bookings across vendors by status, date, or vendor.
+- **No payout rail.** The Payouts page marks a payout `released`, recording a transfer made somewhere else. Nothing actually moves money, and no refund mechanism exists — PayMongo's refund API is never called.
 - **Transactions page still on mock data** — but no longer *blocked*: `booking_transactions` (2026-07) supplies the real platform-wide rows, and the existing `TransactionsPage`/`useTransactions`/`TransactionTable` UI only needs a service swap. Note the mock's columns don't map 1:1 (it has a `method`/payment-method column, which `booking_transactions` doesn't carry).
 - **KPI accuracy.** Booking count and revenue widgets are still seeded; only vendor count is live.
 - **No password set on user creation.** New users are created with `email_confirm: true` and no password — they must use "Forgot Password" to set their own password before logging in.
@@ -315,10 +334,10 @@ Both tabs are reachable by anyone who reaches the command portal at all — acce
 
 1. Wire KPI widgets to live DB counts (total bookings, users, revenue)
 2. Vendor member management UI: assign `vendor-admin` role to a user for a specific vendor
-3. Platform-wide bookings view: list and filter all bookings across vendors
-4. Transactions page: wire the existing mock UI to `booking_transactions` for a platform-wide view (no longer blocked — the table exists as of 2026-07; note the mock's payment-method column has no equivalent)
+3. Platform-wide bookings view: list and filter all bookings across vendors (the Flag Queue, Payouts page and Overview oversight card cover the *exception* cases as of 2026-08 — this is the general browser that is still absent)
+4. Transactions page: wire the existing mock UI to `booking_transactions` for a platform-wide view (no longer blocked — the table exists as of 2026-07; note the mock's payment-method column has no equivalent). Overlaps the Payouts page, which already reads the same table — decide whether both pages should exist before building
 5. Audit log: track who approved what and when
-6. Vendor payout runs / disbursement: `booking_transactions.payout_amount` says what each vendor is owed, but nothing pays it out yet. Should also resolve the unreconciled paid-then-cancelled money noted under the vendor portal's Known Gaps
+6. Vendor payout **disbursement**: the Payouts page (2026-08) marks payouts released and gates them on mutual completion, but nothing moves money — no rail, and no refund mechanism. Should also resolve the unreconciled paid-then-cancelled money noted under the vendor portal's Known Gaps
 
 ---
 
@@ -406,9 +425,9 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Feature | Booker | Vendor | Command |
 |---------|---------|---------|---------|
 | Booking creation | ✅ Done | — | — |
-| Booking status update | ❌ (cancel only) | ⚠️ Confirm/cancel done; complete pending | ❌ (view) |
+| Booking status update | ✅ Acknowledge + flag (via RPC) | ✅ Approve/reject + full fulfilment + flag | ✅ Resolve flags, release payouts, reasoned override |
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
-| Transactions / payouts | ✅ Live — booker's own spend, from bookings | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting live; platform-wide transactions page still mock (unblocked) |
+| Transactions / payouts | ✅ Live — booker's own spend, from bookings | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
 | Platform fee configuration | — | Read-only (shown per transaction) | ✅ Live — sets the global rate |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |
