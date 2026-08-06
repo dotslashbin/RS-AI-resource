@@ -2,9 +2,8 @@
 
 **Date:** 2026-08-03
 **App / scope:** `ezzy-vendor-mobile` — plus a coupled two-file change in `vendor` (web), forced by D4
-**Status:** IN PROGRESS — all four stages coded 2026-08-03; **every visual item is
-🔄 pending a device screenshot**, which is the only verification that counts for
-B1, B2, B4 and I1
+**Status:** COMPLETE — all six items executed and verified on device 2026-08-03
+(**Android only**; iOS unverified for this app, plan B9)
 
 > Make the booking actions look right on a phone and make them explain themselves,
 > then give a new vendor the same getting-started guide the web portal has —
@@ -47,7 +46,10 @@ files and is spelled out in full at B3.
 
 ## BLOCKERS
 
-### B1 — The action bar is oversized  🔄 IN PROGRESS (coded 2026-08-03, needs a screenshot)
+### B1 — The action bar is oversized  ✅ DONE (2026-08-03)
+
+> **Verified on device 2026-08-03** by the user. Android only — iOS remains
+> unverified for this app (no Apple Developer account, plan B9).
 
 > **Executed 2026-08-03, stage 2.** `bar` split to `paddingVertical: spacing.md` /
 > `paddingHorizontal: spacing.lg`, `gap` → `spacing.sm`; the five button labels
@@ -117,7 +119,9 @@ machine check in this repo can see this — see §Verification.
 
 ---
 
-### B2 — One "i" per bar, explaining every action on screen  🔄 IN PROGRESS (coded 2026-08-03, needs a screenshot)
+### B2 — One "i" per bar, explaining every action on screen  ✅ DONE (2026-08-03)
+
+> **Verified on device 2026-08-03** by the user. Android only.
 
 > **Executed 2026-08-03, stage 3.** `useBookingActionBar` gained `visibleActions`
 > (memoised, derived from the same four values the render layer branches on) and
@@ -303,7 +307,13 @@ web dashboard guide panel showing exactly the five fulfilment actions.
 
 ---
 
-### B4 — No getting-started guide on mobile  🔄 IN PROGRESS (coded 2026-08-03, needs a screenshot)
+### B4 — No getting-started guide on mobile  ✅ DONE (2026-08-03)
+
+> **Verified on device 2026-08-03** by the user. Android only.
+> Superseded in part by `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md`
+> B2, which moves the Show-guide control out of the dashboard body into the header
+> as an icon and lifts `hidden` into a provider. The card, its content and its
+> no-flash persistence guard are unchanged by that.
 
 > **Executed 2026-08-03, stage 4.** Four new files under
 > `src/components/dashboard/GuideCard/`, mounted in `DashboardView.tsx` below the
@@ -405,7 +415,9 @@ not flash.
 
 ## IMPORTANT
 
-### I1 — The "i" trigger will read as a third button  🔄 IN PROGRESS (coded 2026-08-03, needs a screenshot)
+### I1 — The "i" trigger will read as a third button  ✅ DONE (2026-08-03)
+
+> **Verified on device 2026-08-03** by the user. Android only.
 
 > **Executed 2026-08-03, stage 2.** Extracted to its own component,
 > `src/components/bookings/ActionInfoTrigger/` — 44pt hit area drawing nothing,
