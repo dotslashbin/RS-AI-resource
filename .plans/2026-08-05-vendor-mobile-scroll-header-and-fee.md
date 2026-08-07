@@ -414,16 +414,20 @@ device, the reasoning is here to argue with.
 
 **Verification:** device, with the app backgrounded long enough to trigger it.
 
-### I3 — Documentation  ⬜ TODO
+### I3 — Documentation  🔄 IN PROGRESS
 
 Requested explicitly, and one part of it is **forced** by B3a rather than optional.
 
-| Doc | Change |
-|---|---|
-| `architecture/schema.md:54-56`, `:659` | Add `20260805000001` to the migration table. In the `platform_fee_settings` section, record that the configured rate is now reachable by any authenticated client through `current_platform_fee_percent()` while the table itself stays Command-only — **the section currently implies the value is Command-only, which stops being true** |
-| `architecture/portals.md:344-370` | Mobile Screen Inventory + behaviours: the pinned-action-row scroll model, Show-guide as a header action on every tab, and the fee rate on the Transactions card with its agreement gate |
-| `ezzy-vendor-mobile/AGENTS.md` → Traps | Add the `ListHeaderComponent` identity trap (B1 Trap 1). It belongs beside the existing `ItemSeparatorComponent` and `gap`-is-inert entries — same library, same class of bug, and this one silently breaks a text input |
-| `ezzy-vendor-mobile/AGENTS.md` → Current state | Note this plan alongside the other post-build-out polish plans |
+Partly executed 2026-08-07 during a workspace-wide documentation audit — the rows that
+document **shipped** behaviour are done; the rows that document B2/B3a/B3b cannot be
+written until those are built.
+
+| Doc | Change | State |
+|---|---|---|
+| `architecture/schema.md:54-56`, `:659` | Add `20260805000001` to the migration table. In the `platform_fee_settings` section, record that the configured rate is now reachable by any authenticated client through `current_platform_fee_percent()` while the table itself stays Command-only — **the section currently implies the value is Command-only, which stops being true** | ⬜ TODO — **blocked on B3a**; that migration does not exist yet, so there is nothing to document |
+| `architecture/portals.md` mobile section | Mobile Screen Inventory + behaviours: the pinned-action-row scroll model, Show-guide as a header action on every tab, and the fee rate on the Transactions card with its agreement gate | 🔄 **Scroll model done (2026-08-07)** — added as a non-obvious behaviour, with the "a screen that omits `<ScreenTitle />` silently loses its title" trap; the Screen Inventory now also carries the guide card, the booking span and the action-info sheet. Show-guide-as-header-action and the fee rate are **not** documented because they are **not built** (B2, B3b) |
+| `ezzy-vendor-mobile/AGENTS.md` → Traps | Add the `ListHeaderComponent` identity trap (B1 Trap 1). It belongs beside the existing `ItemSeparatorComponent` and `gap`-is-inert entries — same library, same class of bug, and this one silently breaks a text input | ✅ **DONE (2026-08-07)** — added, together with the `TAB_BAR_HEIGHT` rationale and the `<ScreenTitle />` rule. Verified by `grep -n "ListHeaderComponent" AGENTS.md`. The same three also landed in `architecture/conventions.md` → "Layout traps" and "Component conventions — RN variant", which had none of them |
+| `ezzy-vendor-mobile/AGENTS.md` → Current state | Note this plan alongside the other post-build-out polish plans | ✅ **DONE (2026-08-07)** — recorded with its real status (B1 coded and unverified; B2/B3a/B3b/I2 not started) rather than as complete |
 
 **Why the schema.md entry is not optional:** `20260726000001`'s comment asserts
 "no other role needs access". Applied migrations are never edited (an Invariant),

@@ -23,7 +23,7 @@ A 6-step guided flow:
 |------|----|------------|
 | 1 — Choose Service | Offering cards with category colour, price and duration | `offerings` table (active, deduped by **code + granularity**) |
 | 2 — Choose Vendor | Vendor list + Leaflet map (user location dot) | `vendors` table (filtered by offering code) |
-| 3 — Pick Schedule | Calendar + derived slot grid (start–end, spaces left, quantity) or a date range | `schedules` ÷ the offering's duration; occupancy counted per slot |
+| 3 — Pick Schedule | Calendar + derived slot grid (start–end, spaces left, quantity). **Date-granular offerings get no render arm — see Known Gaps** | `schedules` ÷ the offering's duration; occupancy counted per slot |
 | 4 — Upload Documents | Per-requirement file upload with progress bar | `offering.requirements` JSONB field (fetched from DB via `offerings` table) |
 | 5 — Confirm | Summary review screen | Review only — no DB writes |
 | 6 — Payment | Booking summary + Pay button | Writes booking to `bookings` → creates PayMongo Checkout Session → redirects to PayMongo hosted payment page |
@@ -72,6 +72,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 
 ### Known Gaps
 
+- **A date-granular offering cannot be booked at all.** Step 3 detects the mode correctly and computes the bookable span, but `Step3Schedule.tsx` never renders it: the panel shows *"No time slots available for this date."* and `canNext` (`!!date && !!time`) can never pass, because nothing sets a time in this mode. Any offering measured in `day`/`week`/`month` is therefore a dead end for the booker, even though the database validates such bookings fine. The vendor portal can create these schedules today, so the two sides disagree. Full trace in `booking-flow.md` → "Date-granular offerings"; the existing Playwright test is green because it only asserts the absence of slots
 - **Document uploads not persisted.** Files are selected and shown in the UI but not sent to Supabase Storage or written to `booking_documents`. The booking record exists but has no attached documents.
 - **Vendor map has no vendor markers.** `vendors` table has no `lat`/`lng` columns. The map shows the user's location only.
 - **PWA install/payment behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors), but an actual home-screen install-and-launch on real Android/iOS hardware, and specifically **the PayMongo checkout round-trip from an installed standalone app**, still need physical-device testing before this is considered fully done.
@@ -371,13 +372,13 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 | `forgot-password` / `reset-password` | Recovery by deep link. `reset-password` sits outside both auth guards deliberately: the recovery link *creates* a session, so a "signed out" guard would eject the user mid-exchange, while a "signed in" guard would block the expired-link error path |
 | `select-vendor` | Shown only when the user administers more than one vendor. The choice is remembered across launches |
 | `blocked` | KYC-pending, suspended, or no vendor access. Real copy and a way forward for each — a blank "no access" screen is a store rejection |
-| `(app)/dashboard` | Today's stats, including the monthly payout net of the platform fee |
-| `(app)/bookings` + `bookings/[id]` | The core screen. List, six lifecycle filters with badges, detail, **approve/reject and the full fulfilment actions** (hand over / mark as done / got it back / undo / flag) |
+| `(app)/dashboard` | Today's stats, including the monthly payout net of the platform fee, plus a **"Getting started" guide card** below them (`components/dashboard/GuideCard/`) — hideable, and the choice persists across launches |
+| `(app)/bookings` + `bookings/[id]` | The core screen. List, six lifecycle filters with badges, detail, **approve/reject and the full fulfilment actions** (hand over / mark as done / got it back / undo / flag). The detail also names the **offering** (name + code) and the booking's **own span** — a time range or a multi-day date range, via `fmtBookingSpan()` / `bookingDayCount()` in `lib/format.ts` — plus an **"i" affordance** on the action bar explaining what each action does to the vendor's money |
 | `(app)/transactions` | Payment history with a summary and search. **No print** — that is a desktop job |
 | `(app)/notifications` | In-app notifications, Realtime delivery, unread badge |
 | `(app)/settings` | Theme override, vendor switch, push toggle, sign out, account-deletion link out to the web, **app version** |
 
-### Two Non-Obvious Behaviours
+### Non-Obvious Behaviours
 
 **Approve is a deferred commit, not an optimistic write.** The DB trigger `validate_booking_status_transition` permits `pending → confirmed` but **not** `confirmed → pending`. So an "Undo" that had already written the change could never take it back. Instead the approval is held for a 4-second undo window and only then sent; it is also flushed if the app backgrounds or unmounts first, so a vendor who approves and immediately locks their phone still gets the write. Do not "simplify" this into an optimistic update.
 
@@ -386,6 +387,12 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 **The auto-confirm countdown respects the service-date gate, not just the 3-day window.** `20260801000009` will not promote a `fulfilled` booking before its `booked_date` (Asia/Manila) — that gate is what stops a vendor marking work done weeks early and letting the unattended timer release the payout. A flat "auto-confirms in 3 days" would therefore promise something the database refuses, so `lib/autoConfirm.ts` computes `max(changedAt + 3d, serviceDayStart)`. `returned` is exempt: reaching it required the *booker* to say the item came back. `in_progress` gets no countdown at all — no timer exists for it.
 
 **`expo-notifications` is loaded lazily, never imported at the top of a module.** On Expo Go for Android the package throws *while being evaluated*, which takes down every module that imports it — including the root layout, producing a crash with no logs. `lib/pushModule.ts` wraps it in a guarded `require()` and every consumer goes through that accessor. A plain `import * as Notifications from "expo-notifications"` anywhere in this app is a bug, even if it is guarded at the call site.
+
+**`ScreenShell` pins only the action row — the screen title scrolls away with the content (2026-08-06).** Before this, the shell pinned the title too; stacked with each screen's own toolbar, filter strip or summary cards, that left Transactions with a list viewport barely taller than one row. The title and subtitle are now handed down through `ScreenTitleContext` and rendered by `<ScreenTitle />` **inside each screen's own scroll container** — a `FlashList` header on the list screens, a `ScrollView` child on Dashboard and Settings. The consequence is the trap: **a screen that forgets to render `<ScreenTitle />` silently has no title** — no error, no warning, because the context tolerates a `null` value by design (throwing would take the screen down in a release build, which has no error boundary). It nearly happened to `bookings/[id]`, which passes no header action and so pins nothing at all. See `conventions.md` → "Component conventions — RN variant".
+
+**The action-info sheet quotes `bookingActionCopy.ts` verbatim, and there is one sheet per action *bar*, not per action.** The "i" opens a single sheet listing every action currently offered, with each body pulled straight from the copy table that also labels the buttons and drives the vendor web portal. That is deliberate: the wording being explained is the wording that tells someone *when they get paid*, and a hand-written explanation would drift from the button it explains. Same class of drift-guard as the payable rule above.
+
+**Realtime diagnostics never log the payload row.** `lib/realtimeLog.ts` is the only place either realtime hook logs from, and it takes an event type and a row id — never the row. Booking and notification payloads carry booker PII, and a console line in a release build is not a safe place for it. `SUBSCRIBED`/`CLOSED` are `__DEV__`-only noise; `CHANNEL_ERROR` and `TIMED_OUT` warn in **every** build, because a vendor reporting "it went quiet" is worth a production log line. Before this, only the two failure statuses were logged at all, which made a socket that never joined and a joined channel receiving nothing look identical — both printed nothing.
 
 ### What Is Live vs. Mock
 
@@ -407,18 +414,28 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 - **Push is unproven.** Needs an FCM v1 service-account key on EAS, the Edge Function deployed, and a Vault secret set.
 - **Not submitted to either store.** Blocked on a public privacy policy and a Play Console account-type decision. **Brand assets no longer block** — the real icon and splash landed 2026-07-30 (`.plans/2026-07-30-vendor-mobile-brand-assets.md`); only the store *listing* assets (screenshots, descriptions) remain outstanding. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
 - **Password reset deep links** need the mobile redirect URLs added to `backbone/supabase/config.toml` — a cross-app change, not yet made.
-- **The app version now comes from `package.json`** (2026-08-02). `app.config.js` sets `expo.version` from it, and `expo.version` was **removed from `app.json`** so nothing can drift — they had already reached 0.7.0 vs 1.0.0. `npm version <x>` now updates the OS-reported version, the store version and the Settings display together.
+- **The app version now comes from `package.json`** (2026-08-02). `app.config.js` sets `expo.version` from it, and `expo.version` was **removed from `app.json`** so nothing can drift — by then the two had reached 0.7.0 and 1.0.0 respectively. Those are the *pre-fix* figures, not the current version, which is **0.4.1** and moves with every `npm version <x>` — that command now updates the OS-reported version, the store version and the Settings display together.
 - ~~**Only two of the five legal booking status transitions are reachable from any UI.**~~ **Resolved 2026-08-02 — and the premise is obsolete.** This described `validate_booking_status_transition` as of `20260516000004`, a five-transition machine. `20260801000002` replaced it with the nine-status dual-acknowledgement model, and **both** the vendor web portal and this app now implement the full vendor side. The "No action needed" copy it complained about is gone: the detail screen offers the correct action per state and, where there is none, names the state properly instead of claiming nothing is needed. The plan it cited (`.plans/2026-07-31-vendor-mobile-booking-status-actions.md`) was **✖ ABORTED** — written a day before the feature landed, it proposed `confirmed → completed`, a transition the trigger now rejects. Shipped instead via `.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`. The note's closing point still stands: **`refunded` is written by nothing in any app** — there is no refund flow, and that is a payments question, not a UI gap.
-- Bugs found on the first real-device run (2026-07-28) are outstanding.
+- **Device verification is the standing bottleneck, and it is per-plan — not one backlog.** The old blanket note here ("bugs found on the first real-device run are outstanding") was wrong by 2026-08-03: filter density, the keyboard/version fixes and the action-UI-and-guide work were all completed *and* confirmed on an Android device. What is genuinely unverified today, each traceable to its own plan:
+
+  | Unverified work | Plan | State |
+  |---|---|---|
+  | Guard fallback route | `.plans/2026-07-29-vendor-mobile-guard-fallback-route.md` | IN PROGRESS — device verification outstanding |
+  | Hidden action bar | `.plans/2026-08-02-vendor-mobile-hidden-action-bar.md` | IN PROGRESS — none of it seen on a device |
+  | Live reload | `.plans/2026-08-02-vendor-mobile-live-reload.md` | IN PROGRESS — root cause still unknown |
+  | The B1 scroll/header refactor (`ScreenShell` split) | `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md` | IN PROGRESS — coded 2026-08-06, needs a screenshot |
+
+  Stages 2–5 of that last plan are **not built at all**: the show-guide header icon (B2), the `platform_fee_settings` scalar accessor and its approval gate (B3a), the fee-rate summary card (B3b), and the `StaleBanner` scroll check (I2).
 - **The notification swipe fix is unverified on device.** `.plans/2026-07-30-vendor-mobile-ui-fixes.md` B1 corrected an inversion where the Archive panel prompted a delete and the Delete panel archived with no confirmation at all. Code complete, never run on hardware — and the swap compiles either way, so no machine check can confirm it.
 
 ### Roadmap (Approximate Priority)
 
-1. Fix the bugs from first-device testing
-2. FCM credentials + deploy the push Edge Function → prove push end to end
-3. Mobile redirect URLs in `config.toml` → unblock password reset
-4. Brand assets, privacy policy, Play account → unblock submission
-5. iOS, if and when an Apple Developer membership is bought
+1. Clear the device-verification backlog in the Known Gaps table above — four plans are coded but unseen on hardware, and nothing below can be trusted until they are
+2. Finish `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md` stages 2–5: show-guide header icon, the `platform_fee_settings` accessor (**schema approval gate**), the fee-rate summary card, the `StaleBanner` check
+3. FCM credentials + deploy the push Edge Function → prove push end to end
+4. Mobile redirect URLs in `config.toml` → unblock password reset
+5. Store *listing* assets, privacy policy, Play account → unblock submission (the binary's icon and splash are done)
+6. iOS, if and when an Apple Developer membership is bought
 
 ---
 

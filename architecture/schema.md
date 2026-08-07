@@ -937,7 +937,7 @@ RESTRICT is used on relationships where deletion would leave orphaned financial 
 
 ## RLS Philosophy
 
-See `auth-roles.md` for the full access control model. Schema-level summary:
+See `auth-and-roles.md` for the full access control model. Schema-level summary:
 
 - RLS is enabled on every table without exception.
 - All RLS policies call one or more of the helper functions (`is_active()`, `is_portal_member()`, `has_role()`, `has_vendor_role()`, `is_vendor_member(uuid)`) defined in `20260504000002_schema.sql`. These helpers are `SECURITY DEFINER` to avoid recursion.

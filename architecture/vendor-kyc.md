@@ -62,9 +62,10 @@ sign-in; the left info panel / mobile toggle behaviour is unchanged):
 - **Applicant types.** `company` (registered business — DTI/SEC) vs `individual`
   (sole proprietor / freelancer). The type drives the **suggested** document
   list (guidance only — uploads are free-form) and whether the
-  **accreditation/license no.** field is asked (**company-only**; see
-  `.plans/2026-07-06-accreditation-company-only.md`, enforced in the atomic
-  route: company → accreditation required).
+  **accreditation/license no.** field is asked (**company-only**). Enforced
+  server-side in the atomic submit route —
+  `vendor/app/api/auth/register/route.ts:51` rejects a `company` submission with
+  no accreditation number before anything is written.
 - **Identity step.** The two photos are captured with the device camera
   (`getUserMedia` + `<canvas>`, native — no dependency) behind an alignment
   overlay (an ID-card frame; for the selfie, a card frame plus a small

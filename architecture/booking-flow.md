@@ -96,10 +96,13 @@ week **starts on Sunday** (2026-08), matching the vendor portal — `WDAYS` carr
 `{label, dbDow}` so display order and the DB's `0=Mon..6=Sun` encoding stay
 independent. See `conventions.md` → "Display order is never database data".
 
+For each day it calls `getAvailableDaysInMonth(schedules, year, month)` to determine
+which days have schedule occurrences. Available days show a green dot.
+
 ⚠️ **`getMondayOfWeek` must stay Monday-based regardless of what the header shows.**
 It computes the reference week for **biweekly parity**, not display — changing it to
 follow the Sunday-first header would shift which weeks a biweekly schedule runs on.
-Its name invites exactly that mistake. For each day, it calls `getAvailableDaysInMonth(schedules, year, month)` to determine which days have schedule occurrences. Available days show a green dot.
+Its name invites exactly that mistake.
 
 ### Recurrence Expansion
 
@@ -149,14 +152,42 @@ then rejects.
 
 An offering measured in `day`/`week`/`month` has no time of day at all. `isOccurrence()`
 short-circuits for these — recurrence and days-of-week do not apply, their availability
-**is** the `start_date`–`end_date` range — and Step 3 shows a date range with no slot
-grid. `getDateRange()` exposes the bookable span.
+**is** the `start_date`–`end_date` range.
 
 The two modes are chosen by `duration_unit`, never asked. Step 1 cards are deduped by
 `(code, granularity)` so an hourly and a day-based `COURT` are separate cards and the
 wizard can never open in the wrong mode.
 
-**`canNext`:** `!!date && !!time`
+> **⚠️ Step 3 has no date-granular render arm — the mode is a dead end.**
+>
+> **Detection shipped; the UI for it did not.** Everything upstream of the render layer
+> is correct, which is what makes this easy to mistake for working. All paths below are
+> under `booker/components/booking/`:
+>
+> | | |
+> |---|---|
+> | The mode is detected | `useStep3Schedule.ts:39` — `dateGranular` is true when every schedule's unit is date-granular |
+> | The span is computed and returned | `useStep3Schedule.ts:63,90` — `dateRange` via `getDateRange()` |
+> | …and consumed by nothing | `Step3Schedule.tsx:26` destructures only `{ dateGranular, unitLabel, availableDays, slotViews, maxQuantity }` |
+> | `slotViews` is empty in this mode | `useStep3Schedule.ts:42` short-circuits on `dateGranular` |
+> | So the panel renders the wrong copy | `Step3Schedule.tsx:101-102` — *"No time slots available for this date."* |
+> | And the step can never be passed | `useBookingWizard.ts:116` — `step === 3 && !!date && !!time`, and nothing sets `time` in this mode |
+>
+> A booker who picks a day/week/month offering therefore reaches a calendar that works,
+> selects an available date, and is told there are no slots — with **Next** permanently
+> disabled. The database side is complete (`check_booking_placement()` validates
+> date-granular spans); only the booker's render arm and `canNext` are missing.
+>
+> **`booker/visual-tests/pilot.spec.ts:78` does not catch this.** It asserts the *absence*
+> of time slots, which is the intended half of the behaviour, and never asserts that the
+> booker can proceed. It is green today.
+>
+> Fixing it means rendering the `dateRange` the hook already returns and widening
+> `canNext` to accept a date-granular selection. Tracked under "Carried forward" in
+> `.plans/2026-08-03-offering-duration-and-booking-units.md`.
+
+**`canNext`:** `!!date && !!time` — see the warning above; this is why the date-granular
+mode cannot be completed.
 
 ~~**Future:** Capacity tracking~~ **Done (2026-08)** — each slot shows spaces remaining, counted by overlap per slot.
 

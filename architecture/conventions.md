@@ -262,6 +262,7 @@ Checks: active session + `user_portals` row for `command` + `user_roles` row for
 | `NEXT_PUBLIC_APP_NAME` | Public (client + server) | App display name; re-exported as `APP_NAME` from each app's `lib/constants.ts` with a placeholder fallback. Also read server-side in booker's `create-session/route.ts` |
 | `NEXT_PUBLIC_APP_DOMAIN` | Public (client + server) | App domain; re-exported as `APP_DOMAIN` from each app's `lib/constants.ts` with a placeholder fallback |
 | `NEXT_PUBLIC_APP_URL` | Public (client + server) | Booker payment return URL — base for PayMongo success/cancel redirects |
+| `ALLOW_INDEXING` | **Server only** — deliberately not `NEXT_PUBLIC_` | The single switch letting search engines index a portal. Unset, or anything other than `"1"`, is the fail-closed default: `Disallow: /` plus a `noindex` header. See "Search-engine exposure is off by default" below |
 | `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in all three portals (uniform since 2026-07; command's badge is styled with Tailwind arbitrary-value classes rather than a CSS Module, unlike the rest of its CSS-Modules-first codebase — a deliberate exception for parity with booker/vendor) |
 
 Each portal has its own `.env.local`. All three point to the same Supabase project URL and keys.
@@ -297,6 +298,59 @@ without one. Three consequences, each of which cost a debugging cycle when
    of `tsc --noEmit` entirely, which is how a broken test file goes unnoticed.
 
 `npm run build` is the arbiter that Next still accepts the extension; it does.
+
+### Visual regression tests (`/ui-gallery` + Playwright)
+
+Each web app has a fixture route, `app/ui-gallery/page.tsx`, that renders components in
+isolation against hand-built props — no auth, no Supabase, no network. Query params pick
+what to render and in which theme (`/ui-gallery?mode=step3&theme=light`). The spec at
+`visual-tests/pilot.spec.ts` drives that route, screenshots it in light and dark, and also
+makes ordinary DOM assertions against it.
+
+```
+npx playwright test              # from inside the app folder
+npx playwright test --update-snapshots
+```
+
+**Coverage is uneven — do not assume it:**
+
+| App | `/ui-gallery` | `playwright.config.ts` | `visual-tests/` |
+|---|---|---|---|
+| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs + committed baselines |
+| `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs + committed baselines |
+| `command` | ✅ | ⚠️ port 3100 — **collides with `vendor`** — and still `127.0.0.1` | ❌ **none** — the harness is wired up but nothing tests it |
+
+Two things about this setup are load-bearing:
+
+- **`baseURL` and `webServer.url` must use `localhost`, never `127.0.0.1`.** Next refuses
+  its own dev resources cross-origin over `127.0.0.1` (`⚠ Blocked cross-origin request to
+  Next.js dev resource /_next/webpack-hmr`), so the page renders, **React never hydrates**,
+  and no `onClick` fires anywhere. Every interaction test fails while the screenshot looks
+  correct, which sends you hunting in the tests rather than the config. Fixed in `vendor`
+  and `booker` on 2026-08-04; **`command` is still on `127.0.0.1`** — any interactive
+  baseline recorded there before it is fixed is worthless. See I15 in
+  `.plans/2026-08-03-offering-duration-and-booking-units.md`.
+- **`toHaveScreenshot: { maxDiffPixels: 0 }`** — baselines are exact, with animations
+  disabled and the caret hidden. A diff is a real change; regenerate deliberately with
+  `--update-snapshots` and read the diff before committing it.
+
+### Search-engine exposure is off by default
+
+All three portals ship **fail-closed**: unless `ALLOW_INDEXING` is exactly `"1"`, nothing
+is indexable. Two independent layers, identical in each app, because either one alone can
+be missed by a crawler that ignores it:
+
+| Layer | File | Off (default) | On |
+|---|---|---|---|
+| `robots.txt` | `app/robots.ts` | `Disallow: /` | `Allow: /` plus `Disallow: /api/` |
+| Response header | `next.config.ts` | `X-Robots-Tag: noindex, nofollow, noarchive` | header absent |
+
+`ALLOW_INDEXING` is **server-only and deliberately not `NEXT_PUBLIC_`** — both consumers
+run on the server, and a public prefix would put the deployment's indexing posture in the
+client bundle for no reason. Getting this wrong fails in both directions: leave it set on
+`command` and the internal ops portal turns up in Google; leave it unset on `booker` at
+launch and the customer-facing portal is never indexed at all. See
+`.plans/2026-08-02-web-apps-search-engine-exposure.md`.
 
 ### Display order is never database data
 
@@ -362,7 +416,7 @@ value on the item rather than relying on position.
 - Never edit an applied migration — create a corrective migration instead
 - After every migration, hand-update the TypeScript interface(s) in the relevant service — this repo does **not** use `supabase gen types` (types are hand-authored)
 - Every new table must have RLS enabled (`alter table ... enable row level security`) and at least one policy
-- New policies follow the helper function patterns in `auth-roles.md` — do not write raw `auth.uid()` checks without also checking `is_active()`
+- New policies follow the helper function patterns in `auth-and-roles.md` — do not write raw `auth.uid()` checks without also checking `is_active()`
 - Destructive SQL (`DROP`, `TRUNCATE`, `DELETE` without `WHERE`) requires explicit approval before running
 
 ---
@@ -475,13 +529,19 @@ const styles = useMemo(() => makeStyles(tokens), [tokens])
 
 Static inline `style={{}}` remains prohibited; only genuinely dynamic values (a gesture-driven transform, a width from state) may stay inline. Pure display components with no state, effects, handlers or non-trivial styling are the only exception to the companion hook.
 
+**A screen renders its own title, inside its own scroll container (2026-08-06).** `ScreenShell` pins only the action row; the title and subtitle travel down through `ScreenTitleContext` and are rendered by `<ScreenTitle />` wherever that screen's content actually scrolls — a `FlashList` header on the list screens, a `ScrollView` child on Dashboard and Settings. Any new screen must place `<ScreenTitle />` itself. **Forgetting it costs the title with no diagnostic**: the context's default is `null` and `<ScreenTitle />` renders nothing rather than throwing, deliberately — this app has no error boundary, so a throw here would take the whole screen down in a release build. Same shape of failure as the `initialRouteName` trap under Routing below: the code is valid, and the screen is simply wrong.
+
 ### Layout traps — where a style is silently ignored
 
-Two library defaults quietly override styles written in a `.styles.ts`. Both have cost build cycles in `ezzy-vendor-mobile`, and both share a failure mode worth naming: **the style is accepted, type-checks, lints, bundles and does nothing.** No tool in the toolchain can see either one. When a spacing or sizing change appears to have no effect on device, suspect the container before re-tuning the value.
+Four library defaults quietly override or discard what a component asks for. All have cost build cycles in `ezzy-vendor-mobile`, and they share a failure mode worth naming: **the code is accepted, type-checks, lints, bundles and does the wrong thing.** No tool in the toolchain can see any of them. When a spacing, sizing or focus behaviour appears not to take on device, suspect the container before re-tuning the value.
 
 **A horizontal `ScrollView` fills its cross axis.** React Native puts `flexGrow: 1` in the base style of *every* `ScrollView` — `baseHorizontal: { flexGrow: 1, flexShrink: 1, … }` at `react-native/Libraries/Components/ScrollView/ScrollView.js:1887-1892`, applied unconditionally at `:1763`. In a `flex: 1` column parent, a horizontal scroller therefore expands to fill all remaining *vertical* space, and its content container's default `alignItems: "stretch"` stretches every child to that height. A filter-chip strip built this way rendered chips roughly 400pt tall, filling half the screen, while `minHeight` and `paddingVertical` on the chip had no effect whatsoever. Pass `style={{ flexGrow: 0 }}` to the ScrollView itself — not `contentContainerStyle`, which is a different element — and set `alignItems: "center"` on the content container as a second line of defence. Vertical scrollers want the default and must be left alone.
 
 **`gap` on a FlashList content container is inert.** FlashList v2 lays every cell out absolutely (`ViewHolder.js:44`, `position: "absolute"`), so a flex `gap` in `contentContainerStyle` has nothing to act on; `padding` *is* honoured, which makes the failure look selective. Row spacing goes through `ItemSeparatorComponent`. Two further details: a separator renders only when `trailingItem !== undefined` (`ViewHolder.js:32`), so the last row has none by design, and the cell memo compares `ItemSeparatorComponent` **by identity** (`:75`) — an inline arrow component remounts every separator on each render, so memoise it.
+
+**A list header must be an element, never a component type.** The same reference-identity rule as `ItemSeparatorComponent`, with a worse symptom. React reconciles an element by its `type`, so `header={<Toolbar />}` written inline is stable across renders and `Toolbar` keeps its state; `ListHeaderComponent={() => <Toolbar />}` is a **new function identity every render**, which remounts the entire header subtree. `RefreshableList` therefore types its `header` prop as `ReactElement` to make the wrong form a type error. The symptom that found it: the Transactions header contains a search field, and remounting it dropped focus and closed the keyboard on every keystroke — the list itself looked perfectly fine.
+
+**The tab bar's height is a constant, not a hook.** Anything that must clear the floating tab bar uses `TAB_BAR_HEIGHT + insets.bottom` from `theme/tokens.ts`, never a re-derived literal. The correct API is unreachable: `useBottomTabBarHeight` is vendored *inside* `expo-router` (`build/react-navigation/bottom-tabs/utils/`) and is not re-exported from the public entry point, which forwards only `./native` and `./elements`. Installing `@react-navigation/bottom-tabs` to obtain it is worse than hardcoding — expo-router carries its own copy, so a second install brings a **different** `BottomTabBarHeightContext` that the tab navigator never populates. That fix looks clean and silently returns nothing. The constant exists because the number was previously written out at two call sites that disagreed (49 in `SnackbarProvider`, 64 in `DashboardView`), with nothing able to catch the drift.
 
 ### Routing
 

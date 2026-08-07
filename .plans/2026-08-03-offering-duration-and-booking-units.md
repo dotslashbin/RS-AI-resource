@@ -2,9 +2,15 @@
 
 **Date:** 2026-08-03
 **App / scope:** `backbone/` (schema), `vendor/` (offering + schedule forms), `booker/` (wizard steps 1/3/5/6), `ezzy-vendor-mobile/` (display only)
-**Status:** ✅ **COMPLETE (2026-08-04)** — all 6 stages, all 9 blockers, and 15 of 17
-important items. Two are explicitly out of scope and carried forward (I14, I15's
-`command` arm); see "Carried forward" at the end.
+**Status:** ✅ **COMPLETE (2026-08-04)**, with one shortfall found later — all 6 stages,
+all 9 blockers, and 15 of 17 important items. Two were out of scope and carried forward
+(I14, I15's `command` arm).
+
+⚠️ **Amended 2026-08-07:** a documentation audit found the **booker's date-granular render
+arm was never built**, so a `day`/`week`/`month` offering cannot be booked at all. It is
+not a regression — it was never shipped, and no check here covered it. Added as a third
+item under "Carried forward" at the end; read that before trusting the claim below that
+"the booker wizard [is] granularity-driven".
 
 <details><summary>Prior status line</summary>
 
@@ -1835,9 +1841,21 @@ test, and all UI. **No item here may be marked ✅ on a type-check alone.**
 
 ## 15. Carried forward — open, and deliberately not fixed here
 
-Both are **pre-existing and unrelated to duration**. Recorded so they are not
-rediscovered as new, and so no future stage claims a check it cannot run.
+The first is **this plan's own shortfall**, found during the 2026-08-07 documentation
+audit. The other two are **pre-existing and unrelated to duration**. Recorded so they are
+not rediscovered as new, and so no future stage claims a check it cannot run.
 
+- **⚠️ The booker's date-granular render arm was never built — this plan's status line
+  overstates it.** "Both the vendor form and the booker wizard are granularity-driven" is
+  half true: detection shipped, the UI did not. `useStep3Schedule.ts:39,63,90` detects the
+  mode and returns `dateRange`, but `Step3Schedule.tsx:26` never destructures it, so
+  `slotViews` is empty (`:42`) and the panel renders *"No time slots available for this
+  date."* (`Step3Schedule.tsx:101-102`). `canNext` (`useBookingWizard.ts:116`) requires
+  `!!time`, which nothing sets in this mode — **a day/week/month offering cannot be booked
+  at all.** I5's mobile arm and B8 are unaffected; this is booker-only.
+  `visual-tests/pilot.spec.ts:78` is green because it asserts only the *absence* of slots,
+  never that the step can be passed — so no check here ever covered it. The fix is a render
+  arm plus a `canNext` widening, and needs its own plan.
 - **I14 — `npm run lint` is broken repo-wide in `vendor`.** A config circularity in
   `@eslint/eslintrc` aborts before any source file is read; `npx eslint lib/utils.ts`
   fails identically. **Lint was therefore never available as a verification tool for
