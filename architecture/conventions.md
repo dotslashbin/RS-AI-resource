@@ -276,6 +276,49 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Do not use `any` — use `unknown` with a type narrowing assertion where the DB returns untyped data (`as unknown as DbRow[]`)
 - Type DB response shapes with private `interface DbRow` in the service file, map to clean types before returning
 
+### Unit tests in the web apps (`vendor`, 2026-08)
+
+`vendor` now carries the same zero-dependency runner the mobile app uses:
+`npm test` → `node --test --experimental-strip-types "lib/**/*.test.ts"`. No
+framework, no new dependency. `booker` and `command` have none yet.
+
+**The same rule applies as on mobile: pure logic that needs a test lives in its own
+module.** `node --test` has no bundler, so a test can only load files that resolve
+without one. Three consequences, each of which cost a debugging cycle when
+`lib/occurrence.ts` was first added:
+
+1. **No `@/` alias in a module a test loads.** `node` cannot resolve it. Use relative
+   imports (`./types`), which are identical under `tsc` and webpack.
+2. **Value imports need an explicit `.ts` extension** (`from "./occurrence.ts"`).
+   *Type-only* imports do not — type-stripping erases them before Node ever resolves
+   them, which is why a file can look fine until its first value import.
+3. **`allowImportingTsExtensions: true`** in `tsconfig.json` makes (2) legal. Prefer
+   it over excluding `**/*.test.ts` from the config — excluding drops the tests out
+   of `tsc --noEmit` entirely, which is how a broken test file goes unnoticed.
+
+`npm run build` is the arbiter that Next still accepts the extension; it does.
+
+### Display order is never database data
+
+A UI array's **index must never be used as a stored value.** The vendor day-of-week
+picker did exactly that — it wrote `WD_SHORT`'s array index into
+`schedules.days_of_week`, whose encoding is `0=Mon … 6=Sun`. Reordering those labels
+for display (Sunday-first) would silently have remapped every day a vendor picked,
+with **no type error, no constraint violation and no failing test** — schedules would
+simply have run on the wrong days.
+
+Both apps now carry the encoding explicitly:
+
+```ts
+export const WEEKDAYS: { label: string; dbDow: number }[] = [
+  { label: "Su", dbDow: 6 }, { label: "Mo", dbDow: 0 }, …
+]
+```
+
+Read `dbDow` for anything that touches data; reorder the array freely for display.
+Generalise the habit: when a list is both rendered and persisted, carry the stored
+value on the item rather than relying on position.
+
 ---
 
 ## Component Conventions

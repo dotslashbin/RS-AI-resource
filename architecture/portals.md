@@ -120,14 +120,24 @@ Four KPI cards above the pending-approvals and booking-trends panels.
 - Edit offering
 - Toggle offering active/inactive (`is_active`)
 - Offering category badges (free-text category; colour from a fixed map + neutral fallback)
+- **Live booking count per offering (2026-08)** — a filled badge beside the code and category chips, hidden entirely when zero. Counts **live** bookings only: `cancelled` and `refunded` are excluded, using the same predicate as the schedule page's availability, so the two surfaces cannot disagree. Grouped by `offering_id`, never `offeringCode` — the code is vendor-editable, so grouping on it would move history when a vendor renames one. Derived in-memory from the shell's bookings; no extra query
 
 #### Schedules Page (fully wired)
-- Calendar/list view of active schedules
+- Calendar/list view of active schedules, **week starting Sunday** (2026-08)
+- **Day markers (2026-08)** — a dot per distinct offering category on that day, plus a guaranteed dot when the day has bookings, capped at three. Each cell is a real `<button>` with an `aria-label` naming its contents ("23 — 2 schedules, 1 booking"), because a 4px dot cannot carry meaning by colour alone. Which days are marked comes from `lib/occurrence.ts`, **not** an inline filter — see the note below
 - Add schedule form: title, offering picker, staff picker, and then **one of two shapes chosen by the offering's duration unit** — an hourly offering gets a date, an availability window, recurrence and days-of-week, with a **live preview of the slots that window produces** (and any unused remainder); a day/week/month offering gets a date range and no time controls at all. Switching offering mid-form clears the abandoned mode's fields rather than merely hiding them
 - Changing an offering's duration **unit** is blocked while schedules reference it — the flip would leave them deriving zero slots. Narrowing a schedule's window instead *warns* with a count of bookings that fall outside it: those stay valid and must still be honoured
 - Recurrence options: none / weekly / biweekly / monthly
 - Filter by offering or staff
 - Edit and delete schedules
+- **Per-slot availability in the day panel (2026-08)** — each derived slot lists as `09:00–10:00 · 2 of 5 left`, or `Full`. Date-granular schedules show a single "This date" row. Occupancy is counted by **overlap**, matching `check_booking_placement()`: a multi-unit booking consumes every slot it covers, and a multi-day booking every date in its span
+
+> **The occurrence rule lives in four places** — `check_booking_placement()`
+> (`20260803000005`, the authority), `booker/services/schedules.service.ts`,
+> `vendor/lib/occurrence.ts`, and the test that asserts the last two agree across a
+> full year. Four copies is forced: `AGENTS.md` forbids cross-app imports and the
+> first is plpgsql. `vendor/lib/occurrence.test.ts` is the drift alarm — if it fails,
+> reconcile all four rather than patching whichever side is red.
 
 #### Calendar Page (mock)
 - Monthly calendar view showing schedule dots and booking indicators
@@ -221,7 +231,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 
 ### Roadmap (Approximate Priority)
 
-1. ~~Schedule capacity view: show booking count vs. max_capacity per occurrence~~ **Partly done (2026-08-04)** — the *booker* now sees spaces remaining per slot, and capacity is `capacity_per_slot`. What is still missing is the **vendor-side** view: a schedule's occupancy at a glance, without opening the bookings list
+1. ~~Schedule capacity view: show booking count vs. max_capacity per occurrence~~ **Done (2026-08-04)** — both sides now show spaces remaining per slot: the booker in Step 3's grid, the vendor in the schedule day panel (`09:00–10:00 · 2 of 5 left`). Capacity is `capacity_per_slot`, counted by overlap so a multi-unit or multi-day booking consumes every slot it covers
 2. ~~Booking status: add `completed` transition~~ **Done (2026-08)** — the whole dual-acknowledgement model shipped, not just `completed`. See `booking-flow.md`
 3. Booking documents: allow vendor admin to view uploaded documents
 4. Vendor logo/photo upload (Supabase Storage)

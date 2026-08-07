@@ -91,7 +91,15 @@ Fetches all active schedules for the selected vendor that belong to an offering 
 
 ### Calendar
 
-The calendar shows the current month and allows navigation forward/backward. For each day, it calls `getAvailableDaysInMonth(schedules, year, month)` to determine which days have schedule occurrences. Available days show a green dot.
+The calendar shows the current month and allows navigation forward/backward. The
+week **starts on Sunday** (2026-08), matching the vendor portal — `WDAYS` carries
+`{label, dbDow}` so display order and the DB's `0=Mon..6=Sun` encoding stay
+independent. See `conventions.md` → "Display order is never database data".
+
+⚠️ **`getMondayOfWeek` must stay Monday-based regardless of what the header shows.**
+It computes the reference week for **biweekly parity**, not display — changing it to
+follow the Sunday-first header would shift which weeks a biweekly schedule runs on.
+Its name invites exactly that mistake. For each day, it calls `getAvailableDaysInMonth(schedules, year, month)` to determine which days have schedule occurrences. Available days show a green dot.
 
 ### Recurrence Expansion
 
