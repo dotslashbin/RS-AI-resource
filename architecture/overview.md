@@ -70,11 +70,55 @@ The three portals are independent Next.js applications — not a monorepo, not m
 
 ## Shared Backend
 
-All three portals **and the mobile clients** connect to the same Supabase project. There is no inter-app API — all communication goes through Supabase (PostgreSQL + RLS). Key shared resources:
+All three portals **and the mobile clients** connect to the same Supabase project *within a given environment*. There is no inter-app API — all communication goes through Supabase (PostgreSQL + RLS). Key shared resources:
 
 - **Database:** All tables, RLS policies, and helper functions are defined in `./backbone/supabase/migrations/`
 - **Auth:** Supabase Auth is the only authentication mechanism across all portals. Each user has one auth identity; access to a specific portal is determined by their `user_portals` rows, not by which app they open
 - **Storage:** Supabase Storage — the private `vendor-kyc` bucket is live (vendor KYC/verification documents, see `vendor-kyc.md`); booking-document uploads are not yet wired (still in-memory in the booker UI)
+
+---
+
+## Environments — which app talks to which database
+
+**Two Supabase projects exist as of 2026-08-10.** Until that date there was only one, and every doc that says "the shared Supabase project" was written under that assumption. Verified live on 2026-08-10 by reading each deployed bundle for its `NEXT_PUBLIC_SUPABASE_URL`.
+
+| Domain | Supabase project | Notes |
+|---|---|---|
+| `command.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
+| `vendor.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
+| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` | ⚠️ deliberate — booker is not launched; repoint at production when it is |
+| `staging-command.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
+| `staging-vendor.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
+| `staging-booker.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
+| local dev | local stack on `127.0.0.1:54321` | `supabase start` in `backbone/` |
+
+Setting up production is documented in `supabase-production-setup.md`.
+
+### Three traps this arrangement sets
+
+**`NEXT_PUBLIC_*` is baked in at build time.** Changing the variables in Vercel does nothing until you **redeploy with the build cache disabled** — Turbopack will otherwise reuse chunks with the old URL compiled in. Both crossed-over deployments found on 2026-08-10 (`staging-command` writing to *production*, `booker` reading *staging*) survived an env-var edit for exactly this reason.
+
+**Vercel scopes variables per environment.** A value set on Preview leaves Production untouched, and the settings page looks correct either way. Confirm which environment a domain actually builds from before editing.
+
+**Verify from outside, not from the dashboard.** The only trustworthy check is what the served bundle contains:
+
+```bash
+H=https://command.ezzy.ph; curl -s $H \
+  | grep -oE '/_next/static/chunks/[^"]+\.js' | sort -u | sed "s|^|$H|" \
+  | xargs -n1 curl -s | grep -ohE 'https://[a-z]{20}\.supabase\.co' | sort -u
+```
+
+Name the host once as `$H`. Any version of this that repeats the hostname eventually has one copy go stale and silently reports on the wrong app.
+
+### The CLI link is a loaded gun
+
+`backbone/supabase/.temp/project-ref` decides which project every `supabase` command hits. **Check it before every command that writes.**
+
+```bash
+cat backbone/supabase/.temp/project-ref
+```
+
+⚠️ **Never run `supabase config push`.** It writes the *local* `config.toml` to the linked project, and that file declares `site_url = "http://localhost:3000"` with localhost-only redirects — pushing it would overwrite production's auth URL configuration with development values. `config.toml` governs the local stack only; localhost is correct there and must stay.
 
 ---
 

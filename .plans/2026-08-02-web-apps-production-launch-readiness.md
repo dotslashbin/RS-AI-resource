@@ -193,6 +193,8 @@ accidental `--include-seed` cannot fire.
 ## BLOCKERS
 
 ### B1 — Password recovery is unreachable in production until the hosted redirect allow-list is set  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B4.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `backbone/supabase/config.toml:154,160`;
 `vendor/components/auth/LoginPage/useLoginPage.ts:181`;
 `command/services/auth.service.ts:16`; `booker/services/auth.service.ts:32`
@@ -227,6 +229,8 @@ this is not "fixed" twice.
 ---
 
 ### B2 — Vendor KYC registration will 413 on Vercel: the whole packet posts through one Route Handler  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B1.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `vendor/app/api/auth/register/route.ts:13,71-77,144-154`;
 `vendor/components/auth/LoginPage/useLoginPage.ts:292`
 
@@ -368,6 +372,8 @@ failed to load renders `—`, never a confident `₱ 0`.
 ---
 
 ### B4 — The vendor portal has no access verification: a suspended user is shown "awaiting activation"  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as B-I2.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `vendor/components/layout/AppShell/useAppShell.ts:130-174`;
 `vendor/services/vendor.service.ts:22-44`;
 `vendor/components/auth/LoginPage/useLoginPage.ts:144-176`;
@@ -412,6 +418,8 @@ its hook. No new component, no logic in a `.tsx`.
 ---
 
 ### B5 — Command approving or rejecting KYC notifies nobody: the onboarding funnel dead-ends  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as B-I1.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `backbone/supabase/migrations/20260525000001_notification_type_settings.sql`
 (7 seeded types); `20260801000007_fulfilment_notifications.sql` (6 more);
 `command/services/kyc-admin.service.ts`
@@ -443,6 +451,8 @@ and nothing is delivered.
 ---
 
 ### B6 — The two public registration routes are unauthenticated, unthrottled, and never verify the email  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B2.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `vendor/app/api/auth/register/route.ts:20-190`;
 `booker/app/api/register/route.ts:8-60`; `vendor/app/api/divisions/route.ts:10`
 
@@ -486,7 +496,46 @@ I10 rather than forced here, because turning on confirmations changes the
 
 ---
 
-### B7 — No security headers on any of the three apps  ⬜ TODO
+### B7 — No security headers on any of the three apps  ⬜ TODO · ⚠️ **booker arm REACTIVATED (2026-08-10)**
+
+> **The "booker is not deploying" assumption below is now false.** `booker.ezzy.ph` is
+> live and serving `HTTP 200`. Measured headers on 2026-08-10 — the complete set:
+>
+> ```
+> strict-transport-security: max-age=63072000
+> ```
+>
+> That is Vercel's own default. **No CSP, no `X-Frame-Options`, no
+> `X-Content-Type-Options`, no `Referrer-Policy`, no `X-Robots-Tag`.** `vendor` and
+> `command` each carry a full header set; the customer-facing app carries none.
+>
+> The migration note directly below states its own reactivation condition — *"if booker
+> later launches, the booker column of the CSP table below is the part still owed"* —
+> and that condition has been met. The booker column is owed now.
+>
+> Two couplings when it is picked up:
+> - `connect-src` must be **derived** from `NEXT_PUBLIC_SUPABASE_URL`, never copied as a
+>   wildcard — see `.plans/2026-08-08-csp-blocks-supabase-connections.md` I2 and B1.
+>   Copying is what broke sign-in on the other two portals.
+> - booker additionally needs the Leaflet tile host and `api.paymongo.com`; it is the
+>   only app with maps or a payment provider in the browser.
+>
+> **Update, later on 2026-08-10 — the SEO half is now live, the header half is not.**
+> booker was released (deployed **v0.15.1**, up from a stale v0.7.0 that predated the SEO
+> guards entirely). It now serves `robots.txt` → `Disallow: /` and
+> `X-Robots-Tag: noindex, nofollow, noarchive`.
+>
+> Re-measured after that release — still **absent**: `Content-Security-Policy`,
+> `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`.
+> `booker/next.config.ts` sets `X-Robots-Tag` and nothing else, so no deploy can fix this;
+> **the booker column of the CSP table below is unwritten code and remains owed.**
+>
+> **Its Supabase pointing is now deliberate, not a mistake.** booker stays on staging
+> `fbxbwnfeimzhgxpshdpa` until it launches; the other five domains are mapped in
+> `architecture/overview.md` → "Environments". Repointing it at production is what turns
+> this item back into a launch blocker.
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B7.** Migrated **narrowed to `vendor` + `command` only** — `booker` is not deploying, so its Leaflet and PayMongo CSP directives were dropped. **If booker later launches, the booker column of the CSP table below is the part still owed.** Do not execute from here.
+
 **Files:** `vendor/next.config.ts:14-24`; `booker/next.config.ts:14-24`;
 `command/next.config.ts:9-19`
 
@@ -573,6 +622,8 @@ one-way door.
 ---
 
 ### B12 — There is no way to create the first Command user on a production project  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as B-B4.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 *(Raised 2026-08-03 from the seeder question. The bootstrap gap is the real
 finding; the lookup-table half of the ask turned out to need nothing — see
 "Seeders" below.)*
@@ -629,6 +680,8 @@ the only recovery, so it must stay runnable after launch, not be a one-shot.
 ---
 
 ### B11 — Government IDs are collected with no privacy notice and no consent anywhere  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B3 (⏸ parked there).** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 *(Found on second review, 2026-08-03.)*
 **Files:** `vendor/components/auth/LoginPage/` (the 6-step registration);
 `booker/components/auth/LoginPage/`; `vendor/app/` (no `privacy` route)
@@ -728,6 +781,8 @@ Do **not** add a second confirm dialog — the existing one is correctly placed;
 this is information at the decision point, not another gate.
 
 ### I4 — Hosted auth settings are weaker than the apps assume  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B5.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **File:** `backbone/supabase/config.toml:173,179,182,196,218`
 
 Four values to confirm and correct on the **hosted** project (the repo file is
@@ -741,6 +796,8 @@ the local stack's config and may or may not match):
 | `[auth.rate_limit] email_sent` | `2` (`:196`) | if mirrored on hosted, **two** auth emails per hour project-wide — password resets would be throttled to uselessness on day one | raise with custom SMTP configured |
 
 ### I5 — `enable_signup = true` leaves an unmanaged account-creation path open  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-B5 (merged with I4).** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **File:** `backbone/supabase/config.toml:173,218`
 
 Both registration flows go through service-role Route Handlers that use
@@ -822,6 +879,8 @@ without `PAYMONGO_SECRET_KEY` and `PAYMONGO_WEBHOOK_SECRET`.
 so the doc and the code move together.
 
 ### I10 — A wrong email at registration is unrecoverable  ⬜ TODO
+> 🔀 **MOVED (2026-08-08) → `.plans/2026-08-07-vendor-signup-production-preparations.md` as A-I8.** Copied there in full for the vendor sign-up launch so this plan could stay 📌 pinned. **Do not execute from here** — the live version is the other plan. Kept for the record per the status model.
+
 **Files:** `vendor/app/api/auth/register/route.ts:98-101`;
 `command/components/users/UserModal/`; `auth-and-roles.md:30`
 

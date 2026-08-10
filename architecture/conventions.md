@@ -352,6 +352,84 @@ client bundle for no reason. Getting this wrong fails in both directions: leave 
 launch and the customer-facing portal is never indexed at all. See
 `.plans/2026-08-02-web-apps-search-engine-exposure.md`.
 
+> ⚠️ **The env var is inert if the deployed build predates the guard.** On 2026-08-10
+> `booker.ezzy.ph` was serving v0.7.0 while the repo was at v0.15.0 — the SEO guards
+> (commit `37953af`) had never been deployed. `ALLOW_INDEXING` was correctly unset and the
+> app was still fully indexable: no `robots.txt` (404), no header, no meta tag, because the
+> running code contained nothing that read the variable. **Verify the deployment, not the
+> dashboard:**
+>
+> ```bash
+> curl -s https://<host>/robots.txt      # expect: User-Agent: * / Disallow: /
+> curl -sI https://<host> | grep -i x-robots-tag
+> ```
+>
+> A 404 from `robots.txt` means the guard is not deployed, whatever the variable says. Note
+> that Next adds `noindex` to *every* 404 response automatically, so checking a missing
+> path proves nothing — test the homepage.
+
+**Security headers are not the same thing, and `booker` still lacks them.** `vendor` and
+`command` each send a full set (CSP, `X-Frame-Options`, `X-Content-Type-Options`,
+`Referrer-Policy`, `Permissions-Policy`); `booker/next.config.ts` sets **only**
+`X-Robots-Tag`. It was excluded when those headers shipped, on the assumption booker was
+not deploying — an assumption that stopped being true. Tracked as the booker arm of
+`LR-B7` in `.plans/2026-08-02-web-apps-production-launch-readiness.md`.
+
+When that arm is picked up, `connect-src` must be **derived** from
+`NEXT_PUBLIC_SUPABASE_URL`, never copied as a wildcard — copying is precisely what broke
+sign-in on the other two portals (see below). booker additionally needs the Leaflet tile
+host and `api.paymongo.com`; it is the only app with maps or a browser-side payment
+provider.
+
+### CSP `connect-src` must be derived, never hardcoded
+
+`vendor/next.config.ts` and `command/next.config.ts` build `connect-src` from
+`NEXT_PUBLIC_SUPABASE_URL` at config time via `supabaseConnectSrc()`, falling back to a
+wildcard with a warning if the variable is missing or unparseable.
+
+This exists because the first version hardcoded the hosted wildcard, which silently
+excluded the local Supabase origin: **both portals became completely unusable against a
+local stack** — no sign-in, no query, no Realtime, no Storage upload — and the browser
+reported only `TypeError: Failed to fetch`. Two further details worth keeping:
+
+- The derivation must match `^https?`, not `^http`, when converting the origin to a
+  WebSocket scheme. Matching `http` leaves the `s` behind and produces `wsss://`, which
+  breaks Realtime **in production only** — the one environment where it is hardest to spot.
+- Dev builds need `'unsafe-eval'` in `script-src` for Next's HMR. Without it React never
+  hydrates, and the symptom is Playwright tests failing with "element not found" and no
+  mention of CSP anywhere.
+
+See `.plans/2026-08-08-csp-blocks-supabase-connections.md`.
+
+### Anything derived from `resolvedTheme` needs a `mounted` guard
+
+`next-themes` returns `resolvedTheme === undefined` during SSR **and on the first client
+render**. Any markup derived from it therefore differs between the server HTML and the
+first hydration pass, and React logs a hydration mismatch.
+
+`ThemeProvider` sets `defaultTheme="dark"` in `booker` and `vendor`, which makes this
+worse than it looks: a visitor with **no stored preference** resolves to dark on the
+client while the server rendered light. So the mismatch fires for *first-time visitors in
+both colour schemes*, not just for dark-mode users — the failure mode that made
+`booker`'s Settings toggle warn on every fresh visit until 2026-08-10.
+
+The fix is the standard one, and it belongs in the companion hook, never the `.tsx`:
+
+```ts
+const { resolvedTheme, setTheme } = useTheme()
+const [mounted, setMounted] = useState(false)
+useEffect(() => { setMounted(true) }, [])
+const dark = mounted && resolvedTheme === "dark"   // matches the server until mounted
+```
+
+Not every consumer needs it — only those whose **rendered output** depends on the value.
+Measured across `booker` on 2026-08-10, `TopBar` and `Step2Vendor` also read
+`resolvedTheme` but produced no warning; they were deliberately left alone rather than
+"fixed" speculatively. Measure before changing one.
+
+If a third consumer ever needs the guard, promote it into `booker/hooks/useTheme.ts`
+(currently a one-line stub) rather than repeating it a third time.
+
 ### Display order is never database data
 
 A UI array's **index must never be used as a stored value.** The vendor day-of-week

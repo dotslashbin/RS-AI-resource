@@ -70,6 +70,44 @@ needs no seed run.
 So a clean `db push` yields a **fully working schema with an empty dataset**, which
 is the correct outcome for a real environment.
 
+### The one thing an empty environment still needs: a root account
+
+An empty dataset means **no account can log in to Command** — and since
+`20260807000001_command_access_grant_root_only.sql`, only a `root` may grant the
+`command` portal or the `admin`/`root` roles, so the first root cannot be created
+through the app either. Bootstrap it by hand, once per environment:
+
+1. Create the auth user in the Dashboard (Authentication → Users → Add user,
+   *Auto Confirm User*) with the email and password of your choosing.
+2. Run **`backbone/supabase/bootstrap/production-root.sql`** with `v_email` set
+   to that address. It sets the profile active and grants the `command` portal +
+   `root` role.
+
+It is not a migration, it is idempotent, it holds no credentials, and it grants
+the command portal only (unlike the dev seed, which gives root all three).
+Do it before, or immediately after, the first `db push` that includes
+`20260807000001`.
+
+> **There are two bootstrap routes, and they differ. Pick one deliberately.**
+>
+> | | This SQL file | `backbone/scripts/bootstrap-root.mjs` |
+> |---|---|---|
+> | Auth user | you create it by hand in the Dashboard | the script creates it |
+> | Password | **you set one** during creation | **none** — set later via Forgot Password |
+> | Guard against a second root | none | refuses to run if any root exists |
+> | Rollback on partial failure | none | deletes the half-provisioned auth user |
+> | Needs the service_role key | no | yes, passed as an env var |
+>
+> **The script was used for production on 2026-08-10** (see
+> `supabase-production-setup.md`), so the live root account has **no stored password** —
+> it was set through the recovery flow. That makes the hosted redirect allow-list and
+> custom SMTP hard prerequisites for the script route: with no password, recovery is the
+> only way in, and if either is misconfigured you mint an account nobody can access.
+>
+> The SQL route avoids that dependency by setting a password up front, which makes it the
+> better choice on a project where email is not yet configured. Usage for the script is in
+> `backbone/scripts/README.md`.
+
 **Only in `seed.sql`:** fake vendors, offerings, schedules, 41 bookings, and —
 importantly — **`auth.users` rows with known passwords**.
 

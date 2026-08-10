@@ -34,7 +34,7 @@ Two **independent** email paths, both sending via **Resend**, sharing one verifi
 | Run the function | `supabase functions serve … --env-file … --no-verify-jwt` (terminal open) | deployed (GitHub integration / `supabase functions deploy`) |
 | Function secrets (`RESEND_API_KEY`, `NOTIFICATION_EMAIL_FROM`, `NOTIFICATION_EMAIL_SECRET`, `NOTIFICATION_EMAIL_OVERRIDE_TO`) | `backbone/supabase/functions/send-notification-email/.env` | `supabase secrets set` |
 | Vault secrets (`edge_function_base_url`, `notification_email_secret`) | SQL on local DB; URL = `http://host.docker.internal:54321`; **wiped by `db reset`** | SQL on hosted; URL = `https://<ref>.supabase.co`; persists |
-| Auth (recovery) email delivery | **Mailpit** (`http://127.0.0.1:54324`) — automatic | Resend **SMTP** (dashboard → Auth → SMTP) |
+| Auth (recovery) email delivery | **Mailpit** (`http://127.0.0.1:54324`) — automatic | Resend **SMTP** (dashboard → Authentication → Emails → SMTP Settings) |
 | Project ref | n/a | `backbone/.env` → `SUPABASE_PROJECT_ID` (gitignored) |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | auto-injected by CLI — **never set by hand** | auto-injected by platform |
 
@@ -65,10 +65,12 @@ Prereqs: Docker + Supabase CLI; a Resend account with a domain verified (a temp 
 Keep this terminal open while developing:
 ```bash
 cd backbone
-supabase functions serve send-notification-email \
+supabase functions serve \
   --env-file supabase/functions/send-notification-email/.env \
   --no-verify-jwt
 ```
+> `functions serve` takes **no function name** (verified on CLI 2.113.0) — it serves every
+> function in `supabase/functions/`, and passing a name makes the CLI print its help and exit.
 (Auth/recovery emails need nothing extra locally — GoTrue routes them to Mailpit automatically.)
 
 ---
@@ -109,7 +111,22 @@ Executed via the cutover checklist `.plans/2026-06-26-email-hosted-cutover.md`:
    select vault.create_secret('https://<PROJECT_REF>.supabase.co','edge_function_base_url','prod');   -- bare URL, from Settings→API
    select vault.create_secret('<same as NOTIFICATION_EMAIL_SECRET>','notification_email_secret','prod');
    ```
-7. **Auth (recovery) SMTP** — dashboard → Project Settings → Auth → SMTP: host `smtp.resend.com`, port `587`, user `resend`, password = Resend API key, sender `no-reply@ezzy.ph`, name `Ezzy`. Raise the auth-email rate limit if needed.
+7. **Auth (recovery) SMTP** — dashboard → **Authentication → Emails → SMTP Settings**
+   (`/auth/smtp`). Host `smtp.resend.com`, port `587`, user `resend`, password = Resend
+   API key, sender `no-reply@ezzy.ph`, name `Ezzy`. Configured on production
+   `pdkejyjidrfxksaczvfy` on 2026-08-10 and confirmed working by a real recovery.
+
+   > **This page moved.** It was under Project Settings → Auth. The rate limit moved too
+   > and is now its own page, **Authentication → Rate Limits** (`/auth/rate-limits`) —
+   > raise "emails sent per hour" there, not on the SMTP page.
+   >
+   > **Without custom SMTP configured, hosted recovery mail effectively does not work:**
+   > Supabase's built-in mailer is limited to a couple of messages an hour and, on newer
+   > projects, only delivers to addresses belonging to the Supabase org. The failure is
+   > silent — the request succeeds and no mail arrives.
+   >
+   > Note the **"Minimum interval per user"** field (set to 60s): a retry inside that
+   > window is rejected without feedback. Wait the minute before concluding it is broken.
 8. **URL config** (for recovery redirects) — dashboard → Auth → URL Configuration: Site URL + add each deployed app URL to the redirect allow-list. *(Pending real app URLs — the deployed apps must also point `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` at this project.)*
 
 ---

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-18
 **App / scope:** `./command` + `./backbone` (RLS migration). Cross-cutting approval gate: schema/RLS change **and** a security change — both require explicit go-ahead per AGENTS.md.
-**Status:** DRAFT — investigation complete; **PINNED / not scheduled**. No code to be written until the user unpins and approves.
+**Status:** ⏸ **SUPERSEDED (2026-08-07)** by `.plans/2026-08-07-command-root-only-command-access.md`, which resolves this plan's D1–D4, corrects its B1 (see the amendment banner below), and is now the execution document. Unpinned; kept as the record of where the tiering approach originated. Do not execute from this file.
 
 > **Goal:** today any active command `admin` can fully CRUD *any* user, including other admins and `root`. Restrict it so that **only `root` may create, update, or delete users who are (or would become) `admin`/`root`.** Ordinary `admin`s keep full CRUD over `member`-level users only.
 
@@ -41,6 +41,8 @@ Every user-management gate keys on the **caller's** role being `admin` OR `root`
 ---
 
 ## BLOCKERS (must all ship together — a gap in any layer defeats the goal)
+
+> ⚠️ **AMENDMENT REQUIRED before executing B1 (added 2026-08-07).** The drafted change narrows the `using` clause of the `user_portals` and `user_roles` policies, both of which are declared **`FOR ALL`** — whose `using` also governs `SELECT`. Doing this as written would break the Command Users page for non-root admins: portal chips vanish and `getUsers` (`command/services/users.service.ts:6-22`) falls back to `role: "member"`, displaying **root and every admin as "Member"**. Fix: split each into a broad `FOR SELECT` policy (unchanged read) plus restrictive `FOR INSERT`/`FOR UPDATE`/`FOR DELETE` policies. Full write-up: `.plans/2026-08-07-command-root-only-command-access.md` §C7.
 
 ### B1 — RLS: gate writes on the *target's* privilege, not just the actor's  ⬜ TODO
 **Files:** new migration in `backbone/supabase/migrations/` (e.g. `20260718000001_user_admin_tiering.sql`).

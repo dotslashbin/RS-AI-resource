@@ -107,7 +107,7 @@ Adding the Vault secrets is **necessary but not sufficient**. Every one of these
 ### Level 1 — the function in isolation (easiest; do this first)
 Proves the function + Resend + templates + logging work, with **no trigger and no Vault**:
 ```bash
-supabase functions serve send-notification-email \
+supabase functions serve \
   --env-file supabase/functions/send-notification-email/.env
 
 curl -i -X POST http://127.0.0.1:54321/functions/v1/send-notification-email \

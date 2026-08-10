@@ -31,10 +31,13 @@ File: `backbone/supabase/functions/send-notification-email/.env` (gitignored).
 ## 3. Serve the function (keep this terminal open)
 ```bash
 cd backbone
-supabase functions serve send-notification-email \
+supabase functions serve \
   --env-file supabase/functions/send-notification-email/.env \
   --no-verify-jwt
 ```
+> `functions serve` takes **no function name** (verified on CLI 2.113.0) — it serves every
+> function in `supabase/functions/`, and passing a name makes the CLI print its help and exit.
+> `send-push-notification` is served too; it simply ignores the env vars it does not use.
 
 ## 4. Smoke test — the function alone (from the host shell)
 ```bash

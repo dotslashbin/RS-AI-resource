@@ -16,8 +16,8 @@ Plans of record: `.plans/2026-07-03-vendor-kyc-storage.md` (main),
 A prospective vendor completes a multi-step registration form, then a KYC stage
 (applicant type → documents → ID + selfie). **No account or vendor record exists
 until the whole thing is submitted** — the form fields live in browser
-`localStorage` and the files are held in memory, and a single server route
-atomically creates everything at the end. Command admins then review the document
+`localStorage` and the files are held in memory, and the final submit atomically
+creates everything at the end. Command admins then review the document
 packet (approve/reject with notes) inside the existing vendor view; a rejected
 vendor revises and resubmits. Files live in a **private** `vendor-kyc` Storage
 bucket; access is enforced by RLS at both the table and Storage layers.
@@ -35,10 +35,18 @@ usual "create the account, then upload" pattern (uploads need an authenticated
   `localStorage` as the vendor progresses, so the form resumes on return.
 - **Document upload + ID/selfie capture are the final steps**, done immediately
   before submit — nothing file-related is persisted between sessions.
-- The final **Submit** posts the form + files to **one server route**
-  (`vendor/app/api/auth/register/route.ts`, service role) that atomically
-  creates the account + vendor + KYC header, uploads the files, and inserts the
-  document rows — with **rollback** on any failure — then clears the draft.
+- The final **Submit** is **three hops** (2026-08-08; it used to be one multipart
+  POST, which Vercel's 4.5 MB request-body cap made unusable in production):
+  1. `POST /api/auth/register/prepare` — validates everything, mints a signed
+     upload URL per file under `pending/{submissionId}/`. Creates nothing.
+  2. the browser uploads **directly to Storage** with those tokens.
+  3. `POST /api/auth/register` (service role) — a few KB of JSON; atomically
+     creates the account + vendor + KYC header, **moves** the staged objects to
+     `{vendorId}/`, and inserts the document rows — with **rollback** on any
+     failure — then the client clears the draft.
+
+  Shared validation lives in `vendor/lib/registration.ts`; both routes call it, so
+  they cannot drift. Step 3 re-validates in full — a caller can skip step 1.
 
 Trade-off: resume is device/browser-bound (a different device or cleared cache =
 start over). Cross-device resume was explicitly not worth the extra machinery.

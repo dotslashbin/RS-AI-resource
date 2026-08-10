@@ -37,8 +37,47 @@ Password recovery is implemented end-to-end in all three portals. The flow:
 2. The browser client (`lib/supabase/client.ts`) uses `flowType: "implicit"` — the recovery link returns the token in the URL hash rather than a PKCE `?code=` needing a same-origin `code_verifier`, which suits these client-rendered SPAs.
 3. Recovery is detected via a module-load `PASSWORD_RECOVERY` listener exposed as `isRecoveryDetected()`. `useAppShell` reads it and sets a `recoveryMode`; `AppShell` then renders `LoginPage` in a `"reset"` view (set-new-password form).
 4. **The portal access gate is skipped during recovery.** The normal mount check (`verify*Access` → `signOut()` for users lacking that portal) would otherwise destroy the recovery session before the password is updated. During recovery the gate early-returns so the recovery session survives until `updatePassword(newPassword)` succeeds; portal access is still enforced at the next login.
+5. The user leaves the reset view by setting a password, or via **"Back to Sign In"** (`handleCancelReset`), which clears the latch below, signs out and reloads to a clean origin.
 
 Recovery (auth) emails are separate from notification emails — they are sent by Supabase Auth (GoTrue), delivered via Resend SMTP when hosted and via Supabase's local mailer (Mailpit) in local dev. They do **not** go through the `send-notification-email` Edge Function.
+
+#### Two non-obvious things about the URL fragment
+
+Both were production bugs on 2026-08-10. Both are easy to reintroduce by "simplifying" `lib/supabase/client.ts`, so the reasoning is recorded here.
+
+**The fragment does not survive a refresh, and only when the token is *valid*.** `auth-js` clears it (`GoTrueClient.js` — `window.location.hash = ''`) on the line *after* `_getUser(access_token)` succeeds. An invalid token throws before that and leaves the fragment in place. So a good recovery link creates a session and erases the only evidence of *why* the session exists; on reload `isRecoveryDetected()` was false, `PASSWORD_RECOVERY` did not re-fire (it fires while processing a recovery URL, never when restoring a session from storage), and the app auto-logged the user straight in with **no password ever set**. That matters because Command creates every user without one (`command/app/api/users/route.ts`), making recovery their only onboarding path.
+
+> **Fix:** the flag is mirrored into `sessionStorage` under `rs.recovery`, so recovery mode survives a reload. `clearRecovery()` discharges it on a successful `updatePassword()` and on "Back to Sign In". `sessionStorage`, not `localStorage`, so an abandoned recovery dies with the tab instead of wedging a later visit. Storage access is `try`/`catch`-wrapped — privacy modes degrade to the old behaviour rather than throwing.
+>
+> Rejected alternative: reading `amr` from the JWT. GoTrue files recovery and magic-link under the same OTP method, and `amr` describes how the session *began* — it does not change once the password is set, so it would trap the user on the reset form forever.
+
+**A rejected link carries `error=…` and NOT `type=recovery`.** Verified against live GoTrue:
+
+```
+#error=access_denied&error_code=otp_expired
+&error_description=Email+link+is+invalid+or+has+expired
+```
+
+Nothing matched that shape, so every expired, reused or malformed link dropped the user on an ordinary login page with no banner, no toast and no console line — an invisible dead end.
+
+> **Fix:** `lib/authHashError.ts` (present in all three portals) parses the fragment with `URLSearchParams` — `error_description` encodes spaces as `+`, which naive splitting mangles — maps `otp_expired` to actionable copy, and falls back to the provider's `error_description` verbatim so an unmapped code is still shown rather than swallowed. `client.ts` reads it at module load (same reason as the latch: `detectSessionInUrl` clears the hash before React mounts), rewrites the URL via `history.replaceState`, and exposes `getAuthUrlError()`, which seeds `loginError` in each `useLoginPage.ts`. Unit-tested in `vendor/lib/authHashError.test.ts`, including a regression that a **success** fragment is not misread as an error.
+
+### Changing a password while signed in
+
+Since 2026-08-10 every portal also exposes a self-service password change, so a user who skipped the recovery step is not dependent on another email:
+
+| Portal | Where | Component |
+|---|---|---|
+| `command` | Settings → **Password** tab | `components/settings/SecuritySettingsPage/` |
+| `vendor` | Settings → Password card | `components/settings/SecurityCard/` |
+| `booker` | Settings → Password card | `components/settings/SecurityCard/` |
+
+All three share the same hook logic (8-character minimum, mirroring the recovery form; mismatch warned only once the confirm field has content) and call the existing `updatePassword()` in `auth.service.ts`.
+
+Two deliberate choices:
+
+- **No sign-out on success.** The recovery form signs out because there the session exists solely to set a password; here the user is mid-task and Supabase keeps the session valid across `updateUser({ password })`.
+- **No current-password re-authentication.** Standard practice, skipped on purpose: every Command-created account has *no* password, so the prompt would lock out exactly the people the feature exists for. The session remains the auth boundary, consistent with the recovery form. Revisit if step-up auth is ever introduced.
 
 ---
 
@@ -54,18 +93,51 @@ created until the entire KYC flow is submitted** (D-7 = D). The multi-step form
 fields live in browser `localStorage` and the documents are held in memory; only
 the final submit creates anything. Abandoning KYC leaves nothing behind.
 
-The final submit calls the server-side Route Handler `POST /api/auth/register`
-(multipart: fields + applicant type + document files). Using the service-role
-admin client, it **atomically** (rolling back on any failure):
+The final submit is **three hops, not one** (2026-08-08 — the packet used to post
+as a single multipart body, and Vercel's 4.5 MB serverless request-body cap made
+registration impossible in production):
+
+1. `POST /api/auth/register/prepare` — validates every field and the file
+   manifest, then mints one signed upload URL per file under a staging prefix
+   `pending/{submissionId}/`. **Creates nothing.**
+2. The browser uploads each file **directly to Storage** with those tokens,
+   bypassing the Route Handler body limit entirely.
+3. `POST /api/auth/register` — a few KB of JSON. Re-validates everything (it may
+   not assume step 1 ran), then creates the records and **moves** the staged
+   objects to `{vendorId}/…`.
+
+> ⚠️ **Why the files cannot be uploaded straight to their final path.** The
+> bucket's policies key on `(storage.foldername(name))[1]::uuid = vendor id`
+> (`20260706000002`). At upload time the vendor row does not exist yet, so there
+> is no legal path to sign — hence the staging prefix and the later move.
+
+Using the service-role admin client, step 3 **atomically** (rolling back on any
+failure):
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
 2. Immediately set the user's profile to `status_id = active`
 3. Grant `vendor` portal access (`user_portals` row)
 4. Create the vendor record with `status_id = pending_activation`
 5. Link the user as `vendor-admin` in `vendor_members`
-6. Create the `vendor_kyc` header (`status = submitted`) + upload the files to the
-   `vendor-kyc` bucket + insert a `vendor_kyc_documents` row per file
-7. Notify Command (`vendor_pending_approval` + `new_user_registration`)
+6. Create the `vendor_kyc` header (`status = submitted`) + **move** each staged
+   object from `pending/{submissionId}/` to `{vendorId}/` + insert a
+   `vendor_kyc_documents` row per file
+7. Notify Command (`vendor_pending_approval` + `new_user_registration`) **and the
+   vendor** (`vendor_registration_received` — a plain acknowledgement, no link)
+
+> **What "atomic" does and does not cover now.** No auth user, vendor, KYC header
+> or document row exists unless step 3 succeeds — unchanged. What *can* survive a
+> failure is orphaned bytes under `pending/`, so rollback sweeps that prefix and
+> the success path clears any file uploaded but never claimed. An abandoned
+> `prepare` leaves the same litter and wants a periodic sweep of anything older
+> than a day — **not yet built**.
+>
+> **Where the upload limits are actually enforced.** The browser uploads with a
+> signed token, so the sizes it declared at `prepare` are unverified claims.
+> Per-file size (10 MB) and MIME are enforced by the **bucket**
+> (`20260706000002`), which a signed upload cannot bypass. The per-submission
+> **total** has no bucket equivalent, so step 3 re-derives it from the real Storage
+> listing before creating anything.
 
 **Result:** The user is immediately active and can log in, but until Command
 approves and activates the vendor they see the KYC status surface
@@ -133,12 +205,14 @@ profiles row: status = active (Command admin sets this explicitly)
     │
     ▼
 Command admin grants portal access (user_portals row)
-    │
+    │   (vendor / booker — the command portal is root-only)
     ▼
 User can now log in
     │
     ▼ (optional — for elevated access)
-Command admin assigns role (user_roles row)
+Command admin assigns role (user_roles row)  — member only
+    OR
+Root assigns admin / root, or grants the command portal
     OR
 Vendor admin grants vendor membership (vendor_members row)
 ```
@@ -148,7 +222,7 @@ Vendor admin grants vendor membership (vendor_members row)
 Each portal has a service function that re-checks access from the client side on session restore:
 
 - `booker.service.ts` → `verifyBookerAccess()`: checks `status = active` + `user_portals` (booker) + `user_roles` (member). Returns `{ allowed, reason }` where reason can be `"no_access"`, `"suspended"`, or `"pending"`.
-- `command.service.ts` → `verifyCommandAccess()`: checks active + command portal + admin or root role.
+- `command.service.ts` → `verifyCommandAccess()`: checks active + command portal + admin or root role. Also returns `isRoot`, which drives **UI gating only** — Command hides the `admin`/`root` role options, the `command` portal toggle, and the edit/suspend/delete actions on privileged rows from non-root callers. That is an affordance, not a boundary: the Users page writes to Supabase directly from the browser, so RLS and the `/api/users` route are what actually enforce the rules.
 
 These are in addition to RLS — they drive the login gate UI (showing appropriate error states). They do not replace RLS.
 
@@ -182,6 +256,37 @@ Roles are rows in the `roles` table (seeded, not user-editable):
 | 4 | `vendor-admin` | Per-vendor | `vendor_members` |
 
 **Platform-wide roles** (`user_roles`): Apply across the entire system. `root` is a superuser that can delete bookings and perform other destructive operations. `admin` can manage users and vendors. `member` is the standard role — all bookers and basic vendor staff hold this role.
+
+**`admin` and `root` are not interchangeable for user management.** Since
+`20260807000001_command_access_grant_root_only.sql`, granting or revoking
+**Command access is root-only**. Concretely, a non-root `admin` cannot:
+
+- assign the `admin` or `root` role to anyone, including themselves;
+- grant or revoke the `command` portal on any user;
+- edit, suspend, or delete a user who already holds `admin` or `root`.
+
+An `admin` keeps full CRUD over `member`-level users and over anyone's `vendor`
+and `booker` portals, and still reads every user (see the read/write split
+below). Existing non-root admins keep their own Command access — the restriction
+governs who may *grant* access, never who currently holds it.
+
+Two consequences worth knowing:
+
+- **Containing a compromised admin now requires root.** The restriction is
+  symmetric, so one admin can no longer suspend or de-role another. This is
+  deliberate — it also stops an attacker holding one admin account from locking
+  out the others — but it makes a reachable root part of incident response.
+- **There is no cap on the number of roots.** More than one `root` is supported
+  and is the recommended break-glass; only an existing root can create another.
+
+**The root account cannot be removed through the app.** Three guards cover it,
+none of which is a dedicated "protect root" check: `DELETE /api/users` rejects
+self-delete, it rejects a non-root caller deleting a privileged target, and RLS
+blocks an admin from suspending or de-roling a root. A last-root count check was
+considered and rejected as unreachable — if "never zero roots" is ever needed as
+a hard invariant, it belongs in a DB trigger or partial index on `user_roles`,
+which would also cover the service-role and dashboard paths a route check cannot
+see.
 
 **Vendor-scoped roles** (`vendor_members`): `vendor-admin` grants administrative access to a specific vendor's data. A user can be `vendor-admin` of multiple vendors (one `vendor_members` row per vendor). The `vendor_members.role_id` is constrained to `member` (3) or `vendor-admin` (4) — platform roles belong in `user_roles`.
 
@@ -233,6 +338,22 @@ returns boolean language sql security definer set search_path = public as $$
   )
 $$;
 ```
+
+### `public.is_privileged_user(p_user_id uuid) → boolean`
+Returns `true` if the **given** user (not the caller) holds `admin` or `root` in `user_roles`. Added by `20260807000001_command_access_grant_root_only.sql`. Every other helper answers "what may the caller do?"; this one answers "how protected is the target?", which is what makes admin-manages-admin expressible in a policy.
+
+```sql
+create or replace function public.is_privileged_user(p_user_id uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (
+    select 1 from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where ur.user_id = p_user_id and r.name in ('admin', 'root')
+  )
+$$;
+```
+
+`SECURITY DEFINER` is required, not stylistic: the `user_roles` policies call it while reading `user_roles`, and it would otherwise recurse.
 
 ### `public.is_vendor_member(p_vendor_id uuid) → boolean`
 Returns `true` if the calling user has any membership row in `vendor_members` for the given vendor.
@@ -287,6 +408,48 @@ using (
   and (public.has_role('admin') or public.has_role('root'))
 )
 ```
+
+### Privilege-tiered write pattern (`profiles`, `user_portals`, `user_roles`)
+These three tables gate writes on the **target's** privilege as well as the
+caller's. `profiles`, `user_portals` and `user_roles` are the only tables using
+this shape:
+
+```sql
+-- Writes: root unrestricted; admin only on non-privileged targets
+using (
+  public.is_portal_member('command')
+  and (
+    public.has_role('root')
+    or (public.has_role('admin') and not public.is_privileged_user(user_id))
+  )
+)
+```
+
+The `user_roles` insert/update `with check` adds a second, independent clause —
+`role_id not in (select id from public.roles where name in ('admin','root'))` —
+which is the actual escalation guard. It is evaluated on the literal row being
+written and does not depend on whether `is_privileged_user()` can see that row
+within the same statement. **Do not remove it as redundant.** The `user_portals`
+policies likewise add `portal_id <> (select id from public.portals where name = 'command')`.
+
+> ⚠️ **Reads and writes must be split.** `user_portals` and `user_roles`
+> originally used a single `FOR ALL` policy, whose `USING` clause governs
+> `SELECT` too. Narrowing it in place would have broken the Command Users page:
+> portal chips disappear and `command/services/users.service.ts` falls back to
+> `role: "member"`, displaying root and every admin as **Member**. Each table
+> therefore has a broad `FOR SELECT` policy plus separate restricted
+> `INSERT`/`UPDATE`/`DELETE` policies. Any future attempt to restrict writes on
+> a `FOR ALL` table must split it the same way first.
+
+### Where RLS is not enough: service-role routes
+`command/app/api/users/route.ts` creates and deletes users with the
+**service-role client, which bypasses every policy above**. The tiering is
+therefore duplicated in the route: `verifyCaller()` reports whether the caller is
+root, `POST` rejects a privileged role or the `command` portal from a non-root
+caller, and `DELETE` rejects privileged targets. Without this, an admin could
+create a `root` account on an email they control and password-reset into it.
+**Any new service-role write path over these tables must re-implement the same
+checks** — RLS will not do it for you.
 
 ### Public lookup table pattern
 ```sql
@@ -343,7 +506,8 @@ If a new portal or role is ever needed:
 
 ## Future Considerations
 
-- **Self-service registration:** Implemented for bookers (immediate activation) and vendor operators (vendor pending activation). Command portal users still require manual creation by a Command admin.
+- **Self-service registration:** Implemented for bookers (immediate activation) and vendor operators (vendor pending activation). Command portal users still require manual creation — **by root**, since the change above.
+- **Production bootstrap:** `seed.sql` is local-only and must never run in production, and `db push` does not run seeds — so a hosted environment gets a working schema with no way to log in to Command. Use **`backbone/supabase/bootstrap/production-root.sql`**: create the auth user in the Dashboard with your chosen email and password (step 1), then run that file to set the profile active and grant the `command` portal + `root` role (step 2). It is idempotent, contains no credentials, and grants the command portal only. Because only root can mint privileged users, losing that account means no account can grant Command access again through the app — provision a reachable standby root (repeat both steps with a second email) or document a service-role break-glass. See also `.plans/2026-08-07-command-root-only-command-access.md` §5.
 - **SSO / OAuth:** Supabase Auth supports OAuth providers (Google, Facebook). If added, the `handle_new_user` trigger still fires and the portal-granting flow remains unchanged.
 - **Vendor-level roles beyond admin:** If vendors need staff-level portal access (view their own schedule, check in bookers), a new role `vendor-staff` can be added to `roles` and `vendor_members`, with targeted RLS policies.
 - **Role expiry:** `user_portals.granted_at` and `vendor_members.granted_at` record when access was granted but there is no expiry mechanism. Adding a `revoked_at` column and incorporating it into RLS policies would support time-limited access.

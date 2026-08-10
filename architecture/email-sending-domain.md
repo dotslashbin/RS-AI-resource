@@ -35,7 +35,7 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
    ```
    (Secrets apply to new invocations after deploy.)
 6. **Update password-recovery SMTP sender** (only if recovery email is configured):
-   - Hosted: Supabase Dashboard → Project Settings → Auth → SMTP → change the **sender email** to `no-reply@NEW` (host/user/pass stay the same — still `smtp.resend.com` / `resend` / your Resend API key).
+   - Hosted: Supabase Dashboard → **Authentication → Emails → SMTP Settings** (`/auth/smtp`; it used to live under Project Settings → Auth and moved) → change the **sender email** to `no-reply@NEW` (host/user/pass stay the same — still `smtp.resend.com` / `resend` / your Resend API key).
    - Local: nothing to change. `[auth.email.smtp]` is **commented out** in `backbone/supabase/config.toml`; local recovery mail is served by the enabled `[inbucket]` block (port 54324), so **all** local mail lands in the Inbucket/local mailbox regardless of sender or domain. The local sender/domain can't be changed this way.
 7. **Send a test** — trigger one notification (and one password reset, if configured) and confirm it arrives from `NEW` and isn't flagged as spam.
 8. **Retire `OLD`** in Resend once you've confirmed `NEW` works (and remove `OLD`'s DNS records if you no longer want it sending).

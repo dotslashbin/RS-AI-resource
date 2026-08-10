@@ -42,7 +42,8 @@ A 6-step guided flow:
 
 #### Settings Page
 - Display name, email, and phone (read-only) — name/email from the Supabase Auth session, phone from `profiles.phone` (via `useSettingsPage`)
-- Appearance / dark-mode toggle
+- Appearance / dark-mode toggle. **The toggle needs a `mounted` guard** — `resolvedTheme` is `undefined` during SSR, and `ThemeProvider` sets `defaultTheme="dark"` (`app/layout.tsx`), so a first-time visitor resolved to dark on the client while the server had rendered the knob "off". That mismatched on hydration for every such visitor, in both colour schemes, until the guard was added on 2026-08-10. Theme state lives in `useSettingsPage`, not the `.tsx`.
+- **Password card** (2026-08-10, `components/settings/SecurityCard/`) — change your own password; see `auth-and-roles.md` → "Changing a password while signed in"
 - Logout
 
 #### Navigation
@@ -189,6 +190,11 @@ Payment history and payout accounting for the vendor's own bookings, read from `
 - Display and edit: vendor name, address (Province/City/Barangay pickers, Address Line 1, ZIP Code), phone, email, operating hours, year established, accreditation/license number
 - Save changes writes to `vendors` table
 
+#### Settings Page
+- Appearance / dark-mode toggle
+- **Password card** (2026-08-10, `components/settings/SecurityCard/`) — change your own password; see `auth-and-roles.md` → "Changing a password while signed in"
+- Styled with Tailwind utilities on the `sp-*` tokens; this page has no CSS module, so a new card follows the same idiom rather than introducing one
+
 #### Layout
 - Sidebar with vendor name (fetched from DB for logged-in user's vendor)
 - Light/dark theme toggle
@@ -276,6 +282,8 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 - List of all profiles across all portals, fetched from `profiles` + `user_portals` + `user_roles`
 - **Refresh button** in the toolbar re-fetches the list in place (no page reload) — pairs with the live `new_user_registration`/`vendor_pending_approval` notifications, since the table itself is not Realtime-subscribed.
 - Create user: `POST /api/users` server route (uses `auth.admin.createUser` via service role key; `handle_new_user` trigger creates the profile row, then portals and role are inserted). The route is **caller-gated** — verifies the requester is an active command admin/root server-side before any service-role action.
+  **Created accounts have no password and no email is sent** — `createUser` is called without one, and nothing notifies the new user. Their only way in is "Forgot Password" on whichever portal they were granted. The UI says so explicitly since 2026-08-10: a note in the create modal, and a success toast repeating it. The action was relabelled **"Add User" / "Create User"** at the same time — it previously read "Invite User", promising an email the product never sent.
+  Sending that email is *not* implemented and is blocked on a real gap: the route grants any portal, but Command holds no configuration describing the vendor or booker origins, so it cannot address a set-password link to the portal a new user actually belongs to.
 - Edit user: updates `profiles`, reconciles `user_portals` and `user_roles` client-side (RLS permits command admins)
 - Delete user: `DELETE /api/users?id=<uuid>` server route (uses `auth.admin.deleteUser`; cascades to profile, portals, roles). Same caller-gate; also blocks self-deletion.
 - Toggle status: flips `profiles.status_id` between active and suspended
@@ -299,13 +307,15 @@ Platform-wide oversight: activate user accounts, approve vendors, manage portal 
 - Optimistic updates on all mutations; snapshot restore + toast on failure
 
 #### Settings Page (fully wired)
-Accessible via the Sidebar's Settings button; two tabs (`SettingsPage` owns tab state, each tab is its own component):
+Accessible via the Sidebar's Settings button; **four tabs** (`SettingsPage` owns tab state, each tab is its own component under `components/settings/<Name>/` with a `.tsx` + hook + `.module.css`). *(This line previously said "two tabs" while listing three — corrected 2026-08-10.)*
 
 - **Notification Types tab** — table of all 7 notification types with label, description, target portal, and an on/off toggle. Toggle updates `notification_type_settings.is_enabled` — disabling a type suppresses all future notifications of that type platform-wide (does not delete existing rows).
 - **Divisions tab** (2026-07) — full CRUD over the `divisions` lookup table: add a division (name → slug auto-derived, kebab-case), inline-rename, and toggle active/disabled. This is the first true add/edit/disable lookup-table admin UI in command (Notification Types only ever toggles pre-seeded rows). Disabling a division hides it from new vendor selection without touching existing vendor associations; hard delete isn't exposed in the UI (the DB FK is `ON DELETE RESTRICT` while any vendor references it).
 - **Platform Fee tab** (2026-07) — sets `platform_fee_settings.fee_percent`, the global commission taken from every booking payment (0–100, 2 dp; applies to all vendors, no per-vendor rate). Shows a live money-split preview ("On a ₱1,000 booking the platform keeps ₱120 and the vendor receives ₱880") so an abstract percentage reads as money and a transposed entry is obvious before saving, plus who last changed it and when. Save is gated on a genuine change — an equivalent value (`12` vs `12.00`) does not enable it. The tab states prominently that **changes affect future payments only**: each transaction permanently records the rate in force when it was paid, so vendors' existing payout history never moves (see `schema.md` → `booking_transactions`).
 
-Both tabs are reachable by anyone who reaches the command portal at all — access control is enforced at the command login gate (`admin`/`root` only) and by RLS on the underlying tables, not by a separate per-page role check.
+- **Password tab** (2026-08-10, `components/settings/SecuritySettingsPage/`) — change your own password. Not an admin tool: it acts on the signed-in user only, never on another account. See `auth-and-roles.md` → "Changing a password while signed in".
+
+All four tabs are reachable by anyone who reaches the command portal at all — access control is enforced at the command login gate (`admin`/`root` only) and by RLS on the underlying tables, not by a separate per-page role check.
 
 #### Transactions Page (mock)
 - Full transaction table with search, filter panel, sorting, and pagination
