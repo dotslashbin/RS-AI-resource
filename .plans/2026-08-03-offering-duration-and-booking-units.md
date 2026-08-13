@@ -3,8 +3,11 @@
 **Date:** 2026-08-03
 **App / scope:** `backbone/` (schema), `vendor/` (offering + schedule forms), `booker/` (wizard steps 1/3/5/6), `ezzy-vendor-mobile/` (display only)
 **Status:** ✅ **COMPLETE (2026-08-04)**, with one shortfall found later — all 6 stages,
-all 9 blockers, and 15 of 17 important items. Two were out of scope and carried forward
-(I14, I15's `command` arm).
+all 9 blockers, and 15 of 17 important items. Two were out of scope and carried forward:
+**I14 has since been ✅ fixed (2026-08-11)**; **I15's `command` arm is the only thing still
+open** here, and is also tracked as F15 of
+`.plans/2026-08-11-crossapp-unbounded-query-truncation.md`. Nothing else in this plan
+needs revisiting.
 
 ⚠️ **Amended 2026-08-07:** a documentation audit found the **booker's date-granular render
 arm was never built**, so a `day`/`week`/`month` offering cannot be booked at all. It is
@@ -1068,6 +1071,15 @@ two-mode form. Noted on I11.
 ---
 
 ### I15 — Playwright harness pointed at `127.0.0.1`, so React never hydrated  ✅ DONE in `vendor` + `booker` (2026-08-04) · ⬜ TODO in `command`
+
+⚠️ **The `command` half was independently rediscovered on 2026-08-11** while
+verifying the cross-app pagination work, and cost time before anyone realised it
+was already documented here. `command/playwright.config.ts:18` still has
+`baseURL: "http://127.0.0.1:3100"`; the page loads but renders nothing and the HMR
+websocket fails. `http://localhost:3100` works. Recorded there as **F15** of
+`.plans/2026-08-11-crossapp-unbounded-query-truncation.md`. It was worked around
+per-test rather than fixed, so **this item is still genuinely open** — and now has
+a second witness.
 **File:** `vendor/playwright.config.ts:19,26` (fixed) · `booker/playwright.config.ts:18,25` · `command/playwright.config.ts:18,25` (both still affected)
 
 **Found during Stage 1 (2026-08-03), pre-existing.** The first run of I13's tests failed
@@ -1106,7 +1118,7 @@ worthless. Worth folding into whatever next touches that app.
 
 ---
 
-### I14 — `npm run lint` is broken repo-wide in `vendor`  ⬜ TODO
+### I14 — `npm run lint` is broken repo-wide in `vendor`  ✅ DONE (2026-08-11)
 **File:** `vendor/eslint.config.mjs` (via `@eslint/eslintrc` config-array-factory)
 
 **Found during Stage 0 (2026-08-03), pre-existing — not caused by this plan.** Both
@@ -1123,9 +1135,22 @@ Converting circular structure to JSON
 Confirmed structural rather than code-related: `npx eslint lib/utils.ts` — a file this
 plan never touches — fails identically.
 
-**Consequence for this plan:** lint is **not available as a verification tool** for any
+**Consequence for this plan:** lint was **not available as a verification tool** for any
 stage. `tsc --noEmit` and `npm run build` both work and are what every ✅ here rests on;
 no item should claim a lint check until this is fixed.
+
+✅ **FIXED 2026-08-11** — root cause was exactly as diagnosed here (structural, in
+config loading). `eslint-config-next` 16 ships **flat** config, but
+`eslint.config.mjs` wrapped it in `FlatCompat`, the eslintrc→flat bridge. That
+validated a flat array against the legacy schema and failed; ESLint then crashed
+*formatting* the error via `JSON.stringify(error.data)`, which contains
+eslint-plugin-react's circular rule graph — hence the misleading
+"Converting circular structure to JSON" with a stack that never named a config file.
+Fixed by importing the flat configs directly. `booker` was fixed the same way;
+`command` needed the **opposite** treatment (it is on eslint-config-next **15**,
+which is eslintrc-style, so FlatCompat is correct there) and only lacked an
+`ignores` block. All three now run: vendor 36, booker 24, command 27 pre-existing
+problems. **Lint is available as a verification tool again.**
 
 **Fix approach:** Out of scope for this plan — it is a toolchain defect, not a duration
 one. Recorded so no later stage claims a lint pass it cannot have run. Worth its own

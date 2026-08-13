@@ -2367,7 +2367,11 @@ The two landmines the plan called out are both closed: **undo emits nothing**, a
 
 ---
 
-### I24 — Production cutover: seeding, and what must never reach a live DB  ⬜ TODO
+### I24 — Production cutover: seeding, and what must never reach a live DB  ⏸ PARKED (2026-08-12)
+**Why parked:** this is a step to take *at* production setup, not work left undone —
+the plan itself says "do this at production setup, not before". Re-marked from ⬜ TODO
+so it stops reading as an unfinished item under a COMPLETE plan.
+**Unblocks when:** a production database is first stood up.
 **Files:** none — process. **Do this at production setup, not before.**
 *(Raised 2026-08-01 while confirming what `db reset` runs.)*
 

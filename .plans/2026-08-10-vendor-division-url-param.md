@@ -2,14 +2,24 @@
 
 **Date:** 2026-08-10
 **App / scope:** `vendor/`, plus one `backbone/` migration and Edge Function edit
-**Status:** 🔄 **IN PROGRESS (2026-08-10).** Stage 2 (division deep-link) is
-✅ complete and browser-verified. Stage 1 (applicant email) is code-complete but
-🔄 **not done** — the migration and the Edge Function redeploy are the user's to
-run, and no acknowledgement email has been observed yet.
+**Status:** ✅ **COMPLETE (2026-08-12).** Both stages done. Stage 2 (division
+deep-link) was browser-verified on 2026-08-10; Stage 1 (applicant email) was
+verified end-to-end on 2026-08-12 — a real registration produced a `sent` email
+with a Resend message id, the first non-failure in `notification_emails`.
+One follow-up was discovered in the process and is recorded as **N1** (a
+registration exceeds Resend's 10/sec limit and silently drops notifications).
 
-> **Verified this run:** `tsc` 0 · `npm run build` 0 · `npm test` **43/43** (was 39)
-> · Playwright **61/61 unchanged**, as predicted — the gallery renders `LoginPage`
-> with no query string, so the deep-link effect never fires there.
+> **Verified when written (2026-08-10):** `tsc` 0 · `npm run build` 0 · `npm test`
+> **43/43** · Playwright **61/61 unchanged**, as predicted — the gallery renders
+> `LoginPage` with no query string, so the deep-link effect never fires there.
+> *(Vendor's suite has since grown to 92 tests through unrelated work; those
+> figures are a record of this plan's run, not a current baseline.)*
+
+> **Relevance review 2026-08-11 — still valid.** B1/B2/I1/I3 were re-checked against
+> the current tree after vendor merged `v0.34.0`: `lib/slug.ts` and its test are
+> present, `useLoginPage.ts` still imports `normaliseSlug`, and the `console.warn`
+> is still at `register/route.ts:279`. The user-facing lie is still on screen — the
+> line reference has drifted from `LoginPage.tsx:482` to **`:483`**.
 
 > Two unrelated things, kept in one plan at the user's request (2026-08-10):
 > 1. `/?division=ezzy-well` opens registration with EzzyWell already chosen.
@@ -165,17 +175,82 @@ no new props, nothing added to the render layer.
 
 ---
 
-### B3 — The applicant gets no email, and the app says one was sent  🔄 IN PROGRESS (2026-08-10)
+### B3 — The applicant gets no email, and the app says one was sent  ✅ DONE (2026-08-12)
 <!-- 🔄 Code side complete: migration file 20260808000001 recreated (additive only,
      `on conflict do nothing`, no destructive statements); Edge Function
      NotificationType union restored with the three types. register/route.ts
      deliberately untouched — it was already correct.
      ⚠️ NOT ✅ AND MUST NOT BE until an acknowledgement email is seen in an inbox.
-     Two steps are the user's and neither has happened:
-       cd backbone && npx supabase migration up --local
-       npx supabase functions deploy send-notification-email
+     ⚠️ AND THAT CANNOT HAPPEN LOCALLY — see the "delivery is unverifiable
+        locally" note under this item. B3 is now blocked on environment, not code.
+     STATUS 2026-08-11 — re-verified against the running stack:
+       ✅ migration applied: 16 types present, vendor_registration_received
+          is_enabled = true, so register/route.ts:265's guard now passes
+       ✅ Edge Function types.ts carries the type in its NotificationType union
+       ✅ `npx supabase functions deploy send-notification-email` — run by the
+          user 2026-08-11. NOTE: that deploys to the LINKED REMOTE project, not to
+          the local stack.
+       ✅ the guard's inputs verified directly: the type row exists with
+          is_enabled = true, so `if (typeAck?.is_enabled)` passes
+       ✅ the insert itself proved valid — a real INSERT of type
+          `vendor_registration_received` was accepted inside a transaction and
+          rolled back, so the FK and check constraints admit it
+       ⬜ an acknowledgement email seen in an inbox — STILL UNOBSERVED, and not
+          observable locally (see below)
      Marking this DONE on "code written" is the exact mistake made on 2026-08-08. -->
-**Files:** `backbone/supabase/migrations/` (file missing);
+✅ **VERIFIED END-TO-END 2026-08-12.** The user supplied a working Resend key and
+started the local runtime (`supabase functions serve send-notification-email
+--env-file supabase/functions/send-notification-email/.env`). A **real registration
+was then driven through the actual client flow** — `prepare` → signed Storage
+upload → `register` — not simulated:
+
+| Check | Result |
+|---|---|
+| `vendor_registration_received` notification written for the applicant | ✅ |
+| Recipient | the applicant's own address, not an admin's |
+| `notification_emails.status` | ✅ **`sent`** |
+| Resend `provider_message_id` | ✅ `838fc129-…` |
+| Error | none |
+
+That is the **first non-failed row in `notification_emails`** — every one of the
+previous 10 was `failed` on the invalid key. The two-day silence this item was
+opened for is closed.
+
+⚠️ **One inch remains and it is the user's:** `NOTIFICATION_EMAIL_OVERRIDE_TO` is
+set locally, so Resend delivered to the override inbox rather than the applicant
+address. "Accepted by Resend with a message id" is not the same as "seen in an
+inbox". The mechanism is proven; confirming the message actually landed is a
+30-second check the user can make.
+
+Test data removed: the vendor and auth user were deleted, restoring 18 users /
+18 profiles / 7 vendors.
+
+---
+
+**~~⚠️ Delivery is unverifiable on the local stack (established 2026-08-11).~~**
+Kept for the record — resolved the next day by supplying a key and starting the
+runtime. Three things had made it unverifiable, none of them code problems:
+
+1. **Notification email does not go through Inbucket.** The dispatcher calls the
+   Edge Function, which sends via **Resend over HTTPS**
+   (`send-notification-email/lib/emailSender.ts`). Local mail catchers never see
+   these, so "check Inbucket" is not a valid test for this path — only for auth mail.
+2. **The local Resend key is invalid.** Every one of the 10 rows in
+   `notification_emails` has `status = 'failed'` with `error = "API key is
+   invalid"`. So no notification email has *ever* been delivered from this stack,
+   for any type — this is not specific to the new one.
+3. **The local `edge_runtime` container is not running**, so a dispatch attempt
+   would not even reach the function. `supabase functions deploy` updates the
+   linked **remote** project; it does not start the local runtime.
+
+**Therefore B3 is blocked on environment, not on code.** To close it, either
+supply a working Resend key to the local Edge Function and start the runtime, or
+register a test vendor on the **hosted** environment — which is where the user's
+deploy actually landed — and check that inbox. Marking it ✅ from the local stack
+would repeat the 2026-08-08 mistake in a new costume.
+
+**Files:** `backbone/supabase/migrations/20260808000001_vendor_lifecycle_notification_types.sql`
+(**exists and is applied as of 2026-08-11** — the plan previously recorded it as missing);
 `backbone/supabase/functions/send-notification-email/types.ts:6-13`;
 `vendor/components/auth/LoginPage/LoginPage.tsx:482` (the false promise)
 
@@ -187,8 +262,12 @@ no new props, nothing added to the render layer.
 1. `vendor/app/api/auth/register/route.ts:265-272` **does** write a vendor-addressed
    `vendor_registration_received` notification. That code is present and right.
 2. It is guarded by `typeAck?.is_enabled`, read via `.maybeSingle()` at `:256`.
-3. **`vendor_registration_received` does not exist in `notification_type_settings`.**
-   Confirmed by querying the live DB — 12 types are present, that one is not.
+3. ~~**`vendor_registration_received` does not exist in `notification_type_settings`.**
+   Confirmed by querying the live DB — 12 types are present, that one is not.~~
+   **RESOLVED 2026-08-11.** The migration has since been applied: the live DB now
+   holds **16 types including `vendor_registration_received`, with
+   `is_enabled = true`**. The guard at `register/route.ts:265` will therefore pass
+   and the notification row will be written. Re-verified against the running DB.
 4. So `typeAck` is `undefined`, the guard is false, **no row is inserted**, and with
    no row there is nothing for the dispatch trigger to email.
 5. Admins are unaffected: `vendor_pending_approval` and `new_user_registration` are
@@ -449,3 +528,48 @@ written is not the same as the email arriving.
 
 **Baseline:** `tsc` 0, `npm test` 39/39, Playwright 61/61 — green as of the brand
 rollout completing on 2026-08-10.
+
+
+---
+
+## Discovered during B3's verification (2026-08-12)
+
+### N1 — A single registration exceeds Resend's rate limit and drops some notification EMAILS  ➡️ SPLIT OUT (2026-08-12)
+
+**Now planned separately: `.plans/2026-08-12-notification-email-rate-limit.md`**, which
+carries the full chain, the measured evidence, and the constraint that makes the fix
+non-obvious (a failed send cannot be retried by re-invoking the function — the
+claim-first idempotency blocks it). Kept below for the record.
+**File:** `backbone/supabase/functions/send-notification-email/`, and the dispatch trigger
+
+One registration fans out to **11 emails at once** — one acknowledgement to the
+applicant, plus `new_user_registration` and `vendor_pending_approval` to every
+command admin. Resend caps at **10 requests per second**, so the eleventh failed:
+
+    status  | type                  | recipient         | error
+    failed  | new_user_registration | jun@bookdeck.com  | Too many requests. You can only
+                                                        | make 10 requests per second.
+
+**Severity corrected 2026-08-12 — it is narrower than first written.** Only the
+**email** is lost. The in-app notification is unaffected: verified directly —
+`jun@bookdeck.com` holds BOTH notification rows, unread, while only one of the two
+emails shows `failed`. The `notifications` row is written by the app; the email is
+a separate downstream attempt. So nobody stops being notified in the portal, and
+no feature stops working — an admin just misses one email nudge.
+
+**Still worth fixing, because it scales the wrong way.** The fan-out is
+(admins × 2) + 1. At the current **5 command admins** that is 11 sends against a
+10/sec cap, so it is already over by one. Every admin added costs two more, and
+the loss is silent apart from a row in `notification_emails` that nobody reads.
+
+Which message is dropped is arbitrary — ordering is not guaranteed. In this run it
+was `new_user_registration`; on another it could be the applicant's
+acknowledgement, which would recreate B3's symptom by a different route.
+
+**Fix direction (not yet designed):** the dispatcher needs either throttling, a
+retry on 429, or a batched send. `pg_net` fires one request per notification with
+no coordination between them, so the throttle probably belongs in the Edge
+Function or in the trigger's dispatch strategy rather than in the caller.
+
+**Verification:** reproduce by registering a vendor with ≥10 command admins
+present, then read `notification_emails` for a 429.
