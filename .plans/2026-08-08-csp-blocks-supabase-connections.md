@@ -2,12 +2,19 @@
 
 **Date:** 2026-08-08
 **App / scope:** `vendor/next.config.ts`, `command/next.config.ts`
-**Status:** 🔄 **IN PROGRESS — B1 ✅ and I3 ✅, both verified against a live
+**Status:** ✅ **COMPLETE (2026-08-14) — B1 ✅, I1 ✅, I2 ✅, I3 ✅. Verified against a live
 browser.** Both portals sign in again, and the visual suite is deterministic across
-dates (61/61 on two consecutive runs, with the real date now two days past the
-baseline). Two follow-ups remain: **I1** (no smoke test can catch a backend
-outage — this is the gap that let B1 reach the user) and **I2** (booker, when it
-gets a CSP). No decisions open.
+dates (61/61 when I3 closed; **74/74** on 2026-08-14 after the dashboard-range plan
+and the I1 smoke test were added). No decisions open.
+
+**I1 closed 2026-08-14** — `vendor/visual-tests/smoke.spec.ts`, forced-failure
+verified by reproducing B1 rather than assumed. See the item for the two things the
+original fix approach got wrong.
+
+⏸ **`command` has no equivalent smoke test.** It has no `visual-tests/` directory
+and no Playwright setup at all, so this would mean standing the runner up there from
+scratch. Its CSP carries the same risk as vendor's did. Recorded rather than done;
+unblocks whenever `command` gains a test harness.
 
 > A regression introduced by **A-B7** in
 > `.plans/2026-08-07-vendor-signup-production-preparations.md` (security headers,
@@ -184,7 +191,7 @@ it warns.
 
 ## IMPORTANT
 
-### I1 — The visual harness cannot catch a backend outage  ⬜ TODO
+### I1 — The visual harness cannot catch a backend outage  ✅ DONE (2026-08-14)
 **Files:** `vendor/app/ui-gallery/page.tsx`; `vendor/visual-tests/pilot.spec.ts`
 
 This is *why the bug reached you*. `/ui-gallery` exists to render components in
@@ -203,6 +210,34 @@ It needs no database — a *blocked* request and a *refused* one look different,
 only the first is a CSP problem.
 
 **Component separation:** test-only, no components involved.
+
+**✅ Executed 2026-08-14** — `vendor/visual-tests/smoke.spec.ts`. Separate file, not
+a separate testDir: `playwright.config.ts` points testDir at this folder, so the
+folder name is now slightly wrong and that is cheaper than reconfiguring the runner.
+
+**Two things the fix approach above got wrong, both found by measurement:**
+
+1. **Loading `/` is not enough.** With no stored session the login screen makes
+   **zero** Supabase requests, so every assertion held while proving nothing. The
+   test now submits deliberately invalid credentials, which drives the app's own
+   supabase-js instance at `/auth/v1/token`. It needs no seeded user and must never
+   succeed — a 400 is a completed round trip, which is what "the browser was allowed
+   to talk to Supabase" means.
+
+2. **`requestfailed` never fires for a CSP block.** Reproducing B1 (connect-src
+   without the Supabase origin) showed the browser fires
+   `securitypolicyviolation` **only** — no `requestfailed`, and no `request` at
+   all, because a blocked request is never issued. The original ordering therefore
+   reported "this test proved nothing about connectivity" for the exact regression
+   it exists to catch: a true failure with a misleading cause. The precise signal
+   is now asserted first, and a vacuity guard runs last so a refactor that stops
+   the sign-in path calling Supabase fails loudly rather than passing quietly.
+
+**Forced-failure verified, not assumed.** With `connect-src 'self'` the test fails
+with `Content-Security-Policy violations reported by the browser` and prints
+`connect-src blocked http://127.0.0.1:54321/auth/v1/token?grant_type=password`.
+`next.config.ts` was restored and confirmed byte-identical to HEAD; the full suite
+is **74 passed**.
 
 ### I3 — Four snapshots embed "today" and therefore rot every day  ✅ DONE (2026-08-10)
 

@@ -2,7 +2,9 @@
 
 **Date:** 2026-08-11
 **App / scope:** `ezzy-vendor-mobile/` only. **Not** a cross-app change — see F7.
-**Status:** DRAFT — awaiting execution approval
+**Status:** IN PROGRESS — **Stage 1 (B1 + I1 + I2) code complete 2026-08-14**,
+machine-verified, **live and device verification outstanding**. Stage 2 (B2,
+contacts) not started.
 
 > Two queries in the mobile vendor app are unbounded and silently capped at 1000
 > rows by PostgREST. One of them is the monthly revenue figure. Fix both, using
@@ -65,7 +67,7 @@ web app would be an approval gate — F7 establishes that this does not.
 
 ## BLOCKERS
 
-### B1 — Monthly revenue is silently understated  ⬜ TODO
+### B1 — Monthly revenue is silently understated  🔄 CODE COMPLETE (2026-08-14) — machine-verified, live check outstanding
 **File:** `src/services/dashboard.service.ts:60-70`
 
 The dashboard's revenue figure sums an unbounded select. Past 1000 transactions in
@@ -85,6 +87,46 @@ the revenue window genuinely needs a different bound from the transactions list,
 say why in the code. Two unexplained ceilings in one app is how they drift.
 
 **Verification:** live, against >1000 seeded transactions in one month.
+
+**⚠️ Coupling added 2026-08-14 — this item now blocks another plan.**
+`.plans/2026-08-14-mobile-vendor-dashboard-range-and-drilldown.md` adds a selectable
+period to the dashboard, including 3- and 12-month windows over **this same query**,
+which multiplies the row count and widens the understatement. Its **D5** resolved
+that this B1 ships **first, as its own change**, and it sits as Stage 0 of that
+plan's execution order. So: do not let that plan start ahead of this item, and when
+fixing B1, expect the caller signature to gain a `DateWindow` shortly afterwards —
+keep the bound and the `complete` flag independent of the window's size.
+
+**🔄 CODE COMPLETE (2026-08-14).** `dashboard.service.ts` `getMonthlyRevenue` now
+requests `count: "exact"`, orders `created_at desc` (so the bound is deterministic
+rather than whatever PostgREST returned) and applies
+`.range(0, TOTALS_MAX_ROWS - 1)`; it returns `complete: totalCount <=
+TOTALS_MAX_ROWS` alongside `total` and `available`. `DashboardStats` gained
+`revenueComplete`.
+
+Two things done differently from the fix approach above, both narrowing the change
+rather than widening it:
+
+1. **The payable reduction was deleted, not bounded.** `getMonthlyRevenue` held its
+   own copy of the `payout_status ?? "held"` + `isPayable` rule — a second home for
+   the app's highest-consequence arithmetic. It now calls `sumTransactionTotals`
+   and takes `.payout`, which is the same figure and is already unit-tested. Cost:
+   the select carries `amount_paid` and `platform_fee_amount` too (two numerics per
+   row, ≤2000 rows). `RevenueRow` and the now-unused `isPayable` / `PayoutStatus`
+   imports went with it.
+2. **`TOTALS_MAX_ROWS` was exported from `transactions.service.ts` rather than
+   duplicated** — the "reuse the existing constant" instruction taken literally.
+   Import direction is `dashboard.service → transactions.service →
+   {bookings.service (type-only), transactionTotals}`; **no cycle**, verified by
+   grep.
+
+The `error` path still returns `available: false`, now with `complete: true`, so an
+unreadable ledger shows one honest state ("unavailable") instead of stacking a
+"partial" warning on top of it.
+
+**Verified (machine):** `tsc --noEmit` clean; `npm test` 95/95 pass; `expo lint`
+clean. **NOT verified:** the live >1000-row check below — it needs seeded data and
+has not been run.
 
 ---
 
@@ -118,7 +160,7 @@ where names must still render on page 1.
 
 ## IMPORTANT
 
-### I1 — Surface the revenue figure's completeness  ⬜ TODO
+### I1 — Surface the revenue figure's completeness  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
 **File:** dashboard revenue card
 
 B1's `complete` flag needs somewhere to go, or it is a flag nobody reads. The
@@ -136,9 +178,31 @@ file, extend it rather than adding a second.
 backgrounded and resumed with stale data, and must remain legible at the largest
 accessibility font — a single-line notice that truncates is worse than none.
 
+**🔄 CODE COMPLETE (2026-08-14).** A wrapping amber notice renders **below the stat
+grid**, not inside the Revenue card: `DashboardView.tsx` (render only, no state
+added) with a new `warning` style in `DashboardView.styles.ts` mirroring
+`TransactionSummaryCards.styles.ts`'s. No `numberOfLines`, per the accessibility
+note above. Copy: *"This month has more payments than can be totalled at once, so
+Revenue covers the most recent ones and the real figure is higher."*
+
+Two judgement calls, recorded because either could be re-litigated:
+- **Below the grid, not in the card.** A two-line warning inside a 2×2 tile either
+  truncates or breaks the row heights that `.plans/2026-07-29-…` D4 fixed.
+- **Gated on `revenueAvailable && !revenueComplete`.** An unreadable ledger already
+  renders "—" and its own sub-label; stacking a partial warning on it reads as two
+  separate faults rather than one.
+- **No row count in the copy** — the transactions warning quotes none either, and a
+  number would either hardcode the ceiling in the view or pull a service constant
+  into the render layer to say something the vendor cannot act on.
+
+**Verified (machine):** `tsc`, `expo lint`, `npm test` all clean. **NOT verified:**
+the notice has never been seen on screen — it needs a forced ceiling, and per the
+nested `AGENTS.md` no machine check in this repo can see a style that silently does
+nothing. The largest-accessibility-font and background/resume checks need a device.
+
 ---
 
-### I2 — Cover the reducers with unit tests  ⬜ TODO
+### I2 — Cover the reducers with unit tests  ✅ DONE (2026-08-14) — satisfied by reuse, no new test written
 **File:** `src/services/*.test.ts`
 
 Unlike `booker` and `command`, this app **can** run unit tests (F11), and
@@ -149,6 +213,18 @@ plain module so it is testable without a Supabase client.
 rather than only live. Do not build a test harness for the *query* — the paging
 and filtering are live-verifiable and mocking Supabase to assert it would test the
 mock.
+
+**✅ DONE (2026-08-14) — the condition never triggered, and that is the good
+outcome.** B1 introduced no new reduction: it **deleted** the duplicate one and
+routed the dashboard through `sumTransactionTotals`, which
+`transactionTotals.test.ts` already covers (95/95 pass). The app now has one tested
+home for the payable rule instead of two untested-and-one-tested copies. Writing a
+second test file for the same arithmetic would have been the wrong response.
+
+The only genuinely new logic is `complete: totalCount <= TOTALS_MAX_ROWS`, which
+lives inside a Supabase-coupled function — testing it would mean mocking the
+client, which this item explicitly rules out. It is on the live-verification list
+instead.
 
 ---
 
@@ -168,7 +244,7 @@ mock.
 
 - **C1 — `getUserVendors` is unbounded** (F5). Filtered to the signed-in user's own memberships, so a handful of rows. Fix it if the file is touched for another reason.
 - **C2 — `ezzy-booker-mobile`** (F8). Nothing to do until it grows a data layer; worth re-checking when it does, since it will most likely copy this app's services.
-- **C3 — the same `TOTALS_MAX_ROWS`-style ceiling appears in two places** after B1. If a third arrives, that is the signal to give the app one named constant rather than three.
+- **C3 — the ceiling.** ✅ **Resolved better than planned (2026-08-14):** there is still exactly **one** `TOTALS_MAX_ROWS`. B1 exported the existing constant from `transactions.service.ts` and imported it rather than declaring a second. The original "if a third arrives" trigger now means: *if a third call site needs it*, move it out of `transactions.service.ts` into a shared module rather than importing a service for a number.
 - **C4 — dashboard parity with web vendor will diverge** — ✅ superseded 2026-08-14 by `.plans/2026-08-14-mobile-vendor-dashboard-range-and-drilldown.md`, which plans the port. ⚠️ **That plan is BLOCKED on B1 above** (its D5): it lets a vendor select a 12-month window over the unbounded `getMonthlyRevenue`, making this truncation worse. Fix B1 first. Original note follows. (noted 2026-08-12). `.plans/2026-08-12-vendor-dashboard-range-and-drilldown.md` gives web vendor an arbitrary date range picker plus clickable drill-down widgets, while this app's `dashboard.service.ts:51` `getMonthlyRevenue(vendorId, from, to)` stays a fixed monthly window with no picker and no navigation. Product-consistency gap only — the repos are independent and services are copied, never imported, so nothing breaks. Fold parity in here if it is wanted, rather than into the web plan.
 
 ---
@@ -178,9 +254,12 @@ mock.
 Cadence is one stage at a time, per `.claude/skills/developerboss/SKILL.md`.
 Committed inside `ezzy-vendor-mobile/`, which is its own git repository.
 
-**Stage 1 — revenue (B1 + I1 + I2).**
+**Stage 1 — revenue (B1 + I1 + I2).** 🔄 Code complete 2026-08-14.
 Self-contained, follows an existing in-app pattern, and carries the money defect.
-No hook restructuring, so it can ship on its own.
+No hook restructuring, so it can ship on its own. Files touched:
+`src/services/dashboard.service.ts`, `src/services/transactions.service.ts` (one
+`export`), `src/components/dashboard/DashboardView/DashboardView.tsx` and
+`.styles.ts`. Not committed.
 
 **Stage 2 — contacts (B2).**
 Larger and riskier: it changes how `useBookingsQuery` composes its queries. Second
