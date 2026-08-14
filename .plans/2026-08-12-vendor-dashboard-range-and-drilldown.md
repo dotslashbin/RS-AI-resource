@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-12
 **App / scope:** `vendor/` only. No backbone migration, no command, no booker, no mobile.
-**Status:** DRAFT — investigation done; all 4 decisions resolved 2026-08-12. Ready to execute, awaiting go on Stage 1.
+**Status:** COMPLETE (2026-08-14). All 8 stages executed and verified; every blocker and important item closed. Two cosmetic items parked (C1, C3) and one deferred question recorded (`getBookings` range). Nothing outstanding blocks use.
 
 > Give the dashboard one calendar-based date range, and make every widget a
 > doorway into the page that owns its detail — carrying the range with it.
@@ -141,7 +141,16 @@ dashboard.
 
 ## BLOCKERS
 
-### B1 — Navigation cannot carry a payload  ⬜ TODO
+### B1 — Navigation cannot carry a payload  ✅ DONE (2026-08-14)
+
+> Implemented in Stage 2. The one-shot mechanism landed **simpler than planned**:
+> no sequence counter and no consume-callback are needed, because the shell swaps
+> page components on navigation, so every arrival is a fresh mount that can seed
+> its own `useState` directly. `goPage` clears `arrival` whenever it is called
+> without an intent, which is what stops a stale range re-applying on a later
+> visit via the sidebar. Verified by type-check; the live click-through check
+> belongs to Stages 4–6, which are what actually pass an intent.
+
 **File:** `vendor/components/layout/AppShell/useAppShell.ts:375`, `:68`
 
 `goPage(p: PageId)` sets a page and nothing else. Six widgets need to hand the
@@ -174,7 +183,19 @@ click each widget, confirm the destination filter matches the table.
 
 ---
 
-### B2 — Two range selectors must become one without asserting a false equivalence  ⬜ TODO
+### B2 — Two range selectors must become one without asserting a false equivalence  ✅ DONE (2026-08-14)
+
+> Both `FilterTabs` groups replaced by one `DashboardDateRange`. `OpsRange`,
+> `OPS_RANGE_OPTIONS`, `EarningsRange`, `EARNINGS_RANGE_OPTIONS`, `PERIOD_LABEL`
+> and `VS_LABEL` all deleted; wording now derives from the range itself via
+> `rangeLabel` / `vsLabelFor`, the latter branching on the same `isWholeMonth`
+> predicate `previousPeriod` uses so the label cannot claim "vs last month" for a
+> comparison against 17 days. `useFinancialSummary`'s staleness stamp changed from
+> a preset name to the `from`/`to` dates, since an arbitrary range has no name.
+> **The two rationale comments were rewritten, not deleted** — both now state that
+> one control is safe *because* each section names its clock, and that removing
+> the captions reinstates the objection.
+
 **Files:** `vendor/components/dashboard/DashboardPage/useDashboardPage.ts:22-26,32,38-52`;
 `vendor/components/dashboard/FinancialSummary/useFinancialSummary.ts:7-26,56-59,61,69-73,146-147`
 
@@ -204,7 +225,24 @@ Operations and Earnings both move and each states its own clock.
 
 ---
 
-### B3 — Clickable cards must be real buttons  ⬜ TODO
+### B3 — Clickable cards must be real buttons  ✅ DONE (2026-08-14)
+
+> `StatCard.action?: {onClick, label}` added; the root renders `<button type="button">`
+> when supplied and an unchanged `<div>` when not. The destination is announced via
+> a `.sr-only` span appended to the card's own text rather than an `aria-label`,
+> which would have *replaced* the figure it describes.
+>
+> ⚠️ **Regression found and fixed during this stage:** a `<button>` vertically
+> centres its content through an anonymous internal box, and the grid stretches
+> these cards to a common height — so Gross Income, whose sub-label is one line
+> while its neighbours wrap to two, rendered **8.2px lower** than the rest of its
+> row. `display: block` does NOT remove that box; an explicit
+> `flex flex-col justify-start` does. Measured before (36 vs 27.8) and after
+> (all seven cards at 27.8 label / 63 value). The class carries a warning comment.
+>
+> Verified live: 6 buttons present with correct destinations, Today's Schedule
+> still a `<div>`, all 6 keyboard-focusable, and Enter **and** Space each fire —
+> 12 activations from 6 buttons.
 **File:** `vendor/components/ui/StatCard/StatCard.tsx:35-56`
 
 `StatCard`'s root is a `<div>`. An `onClick` on a `<div>` is invisible to the
@@ -239,7 +277,22 @@ name states the destination.
 
 ---
 
-### B4 — Bookings has nowhere to put the arriving range  ⬜ TODO
+### B4 — Bookings has nowhere to put the arriving range  ✅ DONE (2026-08-14)
+
+> `useBookings(bookings, arrival?)` now holds `dateRange: PhDateRange | null`
+> (null = every date, this page's normal state) and `bFilter`, **both seeded from
+> the arrival intent via lazy `useState` initialisers** — the whole one-shot
+> mechanism, since navigation remounts the page. One predicate added to the
+> existing `filtBkgs` memo, filtering `bookedDate`: the same clock Operations
+> counts on, so a range carried from Completed selects exactly what it counted.
+> `badgeFor`'s counts stay on the **unfiltered** array, now with a comment saying
+> why.
+>
+> **Verified end-to-end against local Supabase** (signed in as `marco@bookdeck.com`,
+> TINDAHAN VENDOR): dashboard set to "This year" (2026-01-01 → 2026-12-31) with
+> Completed = 11 → clicking it landed on Bookings with the identical range, the
+> "Done" tab active, and **"11 records"** — widget count and destination row count
+> matching exactly.
 **Files:** `vendor/components/bookings/BookingsPage/useBookings.ts:45-56`;
 `BookingsPage.tsx:8-16`
 
@@ -265,7 +318,13 @@ confirm the row count matches the widget's number exactly.
 
 ## IMPORTANT
 
-### I1 — The two range clocks must be stated on screen  ⬜ TODO
+### I1 — The two range clocks must be stated on screen  ✅ DONE (2026-08-14)
+
+> Operations renders `Bookings serviced <range>` via a new `opsCaption` from
+> `useDashboardPage`; Earnings prepends `Payments received <range>` to its existing
+> basis caption. The Earnings clock is stated even while loading or after a failed
+> fetch — which dates the figures count by is a property of the section, not of
+> whether a request succeeded. Both confirmed present in the rendered fixture.
 **Files:** `DashboardPage.tsx:36,66`; `useFinancialSummary.ts:132-141`
 
 Covered in the UX section; called out as its own item because it is the single
@@ -280,7 +339,16 @@ pass one.
 
 ---
 
-### I2 — Clearing the dashboard range must reset, not empty  ⬜ TODO
+### I2 — Clearing the dashboard range must reset, not empty  ✅ DONE (2026-08-14)
+
+> **Simpler than planned: there is no separate reset button.** The plan called for
+> a reset control labelled with the default it restores — but "This month" is
+> already one of the five presets and *is* that default, so a second control doing
+> the same thing would only add a way to reach an invalid state. The range type is
+> non-nullable `PhDateRange` throughout, and `rangeWithFrom`/`rangeWithTo` return
+> the original object for an empty value, so the empty state is unreachable rather
+> than merely discouraged. Recorded because the deviation is deliberate.
+
 
 An empty range on the Transactions page means "all time", which is a legitimate
 view there. On the dashboard it is not: an all-time Completed count under a period
@@ -296,7 +364,13 @@ filter over a list, not the basis of a headline figure.
 
 ---
 
-### I3 — Two widgets must NOT carry the range  ⬜ TODO
+### I3 — Two widgets must NOT carry the range  ✅ DONE (2026-08-14)
+
+> Pending Approvals navigates with `{ status: "needs_you" }` and **no range** — the
+> count is unfiltered, so the destination must be too, or the card and the list
+> disagree. Today's Schedule carries nothing (see I6). Both carry a comment at the
+> call site explaining the omission, since "forgot to pass the range" and
+> "deliberately withheld it" look identical in code.
 **File:** `useDashboardPage.ts:54-67`
 
 Pending Approvals and Today's Schedule are period-independent by documented
@@ -310,7 +384,19 @@ reason `PageIntent` is a shape rather than a bare `PhDateRange`.
 
 ---
 
-### I4 — A client-side date filter over a truncated array under-reports silently  ⬜ TODO
+### I4 — A client-side date filter over a truncated array under-reports silently  ✖ ABORTED (2026-08-14) — already handled
+
+> **The finding was wrong.** It claimed "`BookingsPage` currently renders no
+> incompleteness notice". It does not need to: `AppShell.tsx:132-139` already
+> renders `<DataNotice>` **above `pageContent`**, so the notice appears on every
+> page including Bookings. `DataNotice`'s own header comment says exactly this —
+> "Rendered at shell level rather than per page because the bookings array is
+> shell-level state feeding six surfaces… saying it once above the content beats
+> repeating it in six places".
+>
+> Building the planned per-page notice would have produced a **duplicate** notice
+> on Bookings. Nothing to do; the truncation guard the item wanted is already in
+> place and covers the new date filter for free.
 **File:** `useAppShell.ts:58-64,125`; `BookingsPage.tsx`
 
 `bookingsStatus.complete` is already computed and already false past 10,000
@@ -326,7 +412,63 @@ the shell. Small, and it reuses a component that already exists for exactly this
 
 ---
 
-### I5 — `/ui-gallery` fixture and visual baselines  ⬜ TODO
+### I6 — The calendar opens on a hardcoded April 2026  ✅ DONE (2026-08-14, folded in on request)
+**File:** `vendor/components/calendar/CalendarPage/useCalendarPage.ts:9-10`
+
+```ts
+const [calMonth, setCalMonth] = useState(3)      // April, always
+const [calYear,  setCalYear]  = useState(2026)   // 2026, always
+```
+
+Nothing corrects these — there is no effect syncing them to the current date, and
+`today` (`:13`) is used only to highlight a cell, not to choose the month. **The
+calendar therefore always opens on April 2026** regardless of the real date.
+
+**Pre-existing and unrelated to this plan** — found while wiring Stage 4, not
+caused by it. It is recorded here because it *blocks* one widget: "Today's
+Schedule" should drill into the calendar, but doing so today would land a vendor
+four months away from the date the card itself prints. Shipping that is worse than
+leaving the card inert, so the card is **deliberately not clickable** and carries a
+comment pointing here.
+
+**Fixed:** both now derive from `phToday()` via lazy initialisers. The
+today-highlight was ALSO wrong in the same way and had to move with them — it read
+`new Date()` (device-local) while the month became PH-based, so on a timezone
+boundary day the calendar would have opened on a month whose highlighted "today"
+was not in view. `today: Date` was replaced by an `isToday(day)` predicate
+returned from the hook, which also moves that comparison out of the render layer.
+
+**Verified live:** `/ui-gallery?mode=calendar` now reads **"August 2026"** with day
+14 present (was "April 2026"). "Today's Schedule" is consequently now clickable and
+navigates to the calendar.
+
+⚠️ **The `calendar` visual baseline is now stale** and must be regenerated in
+Stage 8 — it was captured showing April 2026.
+
+---
+
+### I5 — `/ui-gallery` fixture and visual baselines  ✅ DONE (2026-08-14)
+
+> Clickable `StatCard` added to the gallery tile. The dashboard fixture became a
+> module-scope `DashboardFixture` component holding **real range state**: it was
+> passing `onRangeChange={noop}`, which silently turned every preset click into a
+> no-op — the interactive assertions could never have failed. Seeded to a fixed
+> range so the screenshot stays deterministic.
+>
+> Three spec tests were **rewritten, not re-baselined**, because they asserted the
+> two-selector design that Stage 3 removed:
+> - `the range selector drives Completed and nothing else` — now drives the single
+>   control, and additionally asserts there is exactly **one** presets group, so a
+>   second selector cannot quietly reappear.
+> - **New** `both widget groups follow the one control, on their own clocks` — the
+>   inverse of the old assertion, plus both clock captions.
+> - `B3 — the dashboard fixture stays offline` — now asserts the Gross card does
+>   **not** contain "Collected" (I7).
+> - `calendar-day` — walks back four months to reach the fixture's April bookings,
+>   since I6 made the calendar open on the current month.
+>
+> **Final state: 73/73 Playwright tests pass on a clean run** (not a `-u` run,
+> which always passes).
 **Files:** `vendor/app/ui-gallery/page.tsx:119-121,324-328`;
 `vendor/visual-tests/pilot.spec.ts:9`
 
@@ -394,6 +536,106 @@ render today's date and are on a frozen clock. Do not re-derive that; it works.
 
   ⚠️ **I4 is therefore mandatory, not optional** — the incompleteness notice is
   what keeps client-side filtering honest past the 10,000-row cap.
+
+---
+
+## IMPORTANT (continued)
+
+### I7 — The drill-down makes two correct-but-different totals one click apart  ✅ DONE (2026-08-14, option (b))
+**Files:** `lib/financials.ts:20-27` (the documented basis difference);
+`components/dashboard/FinancialSummary/FinancialSummary.tsx`
+
+Measured on real data during Stage 6, range 2026-06-01 → 2026-07-31:
+
+| Surface | Figure | Basis |
+|---|---|---|
+| Dashboard "Gross Income" | **₱21,000** | all non-reversed rows — 21 of 25 |
+| Transactions "Collected" | **₱7,000** | payable rows only — 7 of 25 |
+
+**Both are correct.** Reconciled arithmetically: 9×₱1,200 + 12×₱850 = ₱21,000 over
+21 rows, and 3×₱1,200 + 4×₱850 = ₱7,000 over 7. This is exactly the basis
+difference `lib/financials.ts:20-27` already documents, and both surfaces already
+state their basis.
+
+**What changed is the distance.** Before this plan, comparing the two required
+navigating manually. Now a vendor clicks ₱21,000 and lands on ₱7,000 — the
+`financials.ts` warning ("the two screens look like they disagree for no reason")
+becomes a one-click journey rather than a theoretical risk.
+
+**Not a defect in this plan's code** — no figure changed. But the drill-down is
+what makes it prominent, so it belongs here.
+
+**Options:** (a) leave it — both bases are stated, and the Transactions card does
+say "7 of 25 transactions"; (b) make the Gross card's sub-label name its basis more
+loudly ("all payments received, incl. held"); (c) have arrival from an earnings
+widget land Transactions on a matching basis, which is a bigger change and would
+make Transactions behave differently depending on how it was reached — **not
+recommended**.
+
+Recommendation: **(b)** — cheapest, and it fixes the wording rather than the
+numbers.
+
+**Resolved (b), 2026-08-14.** The sharpest part was a word collision, not the
+figures: BOTH screens labelled their headline "Collected" while showing different
+numbers. The dashboard's Gross sub-label is now **"All payments, incl. held"**, so
+the two surfaces no longer share a term. No figure changed, and the reasoning is
+recorded at the call site in `FinancialSummary.tsx` with the measured example.
+
+---
+
+## DEFERRED / COSMETIC
+
+### C3 — The calendar's month arrows have no accessible name  ⏸ PARKED (2026-08-14)
+**File:** `vendor/components/calendar/CalendarPage/CalendarPage.tsx:24,28`
+
+Both are icon-only `<button>`s wrapping a bare `ChevronLeft`/`ChevronRight` with no
+`aria-label` — unnamed to a screen reader, and selectable in tests only by
+position (which `calendar-day` now relies on). Noticed while fixing I6 in the same
+file.
+
+**Not fixed**, deliberately: adding aria-labels is a real improvement but is
+outside this plan's scope, and this session already has a recorded instance of
+exactly that kind of drive-by change being caught and reverted. One-line fix when
+someone is next in this file for its own reasons.
+
+### C4 — Hydration warning in the dashboard fixture  ⏸ PARKED (2026-08-14)
+**File:** dev fixture only — `app/ui-gallery/page.tsx` under `page.clock.setFixedTime`
+
+The visual suite logs "Hydration failed because the server rendered text didn't
+match the client". Cause: Playwright freezes the clock **client-side only**, so the
+server prerenders `todayLabel` with the real date and the client re-renders with
+the frozen one. `todayLabel` is unchanged code, so this is not introduced here —
+but note `rangeLabel`/`presetFor` now read the clock too, which would produce the
+same warning on a month boundary (server in September, client frozen in August).
+
+**Harmless**: dev-only, in a fixture that 404s in production, and React recovers by
+regenerating the tree. All 73 tests pass regardless. Worth knowing before anyone
+chases it as a product bug.
+
+### C1 — Two presets can describe the same window  ⏸ PARKED (2026-08-14, accepted)
+**File:** `vendor/lib/dashboardRange.ts` — `presetFor`
+
+Found while building Stage 1 and confirmed by enumerating a 400-day span: on the
+last day of every 30-day month — **30 Apr, 30 Jun, 30 Sep, 30 Nov** — "This month"
+and "Last 30 days" produce byte-identical ranges. `presetFor` returns the first
+match, so clicking "Last 30 days" lights "This month" on those four days a year.
+
+**Accepted, not fixed.** The window shown is exactly what was asked for; only the
+chip differs. Disambiguating would require storing the selected preset as its own
+state, which is precisely the drift `presetFor` is derived to prevent — a bad
+trade for a cosmetic difference on four days. Documented at the function and
+pinned by a test asserting the array ordering that decides the tie, so reordering
+`DASHBOARD_PRESETS` cannot change it silently.
+
+**Relevant to Stage 3:** if the chips ever gain a "custom" indicator, this is the
+case that makes "no preset is lit" and "two presets match" different states.
+
+### C2 — Module named `parseAppParams`, not `parseRangeParams`  ✅ DONE (2026-08-14)
+
+The plan specified `parseRangeParams` / `serialiseRangeParams`. Implemented as
+`parseAppParams` / `serialiseAppParams` because they also carry `page` and
+`status`, not only the range — the original names would have understated what the
+functions own. Recorded so later stages use the real names.
 
 ---
 
@@ -547,7 +789,7 @@ render/hook split is satisfied — stated, not assumed.
 
 | Component | Change | Separation |
 |-----------|--------|------------|
-| **NEW** `dashboard/DashboardDateRange/DashboardDateRange.tsx` | The shared range control: presets, two native date fields, reset, live label. | **Pure display, `.tsx` only, no hook** — fully controlled, state lives in the shell. Exactly the `TransactionDateRange` precedent (F3). Preset-matching is a pure function imported from `lib/`, not local state. Tailwind `sp-*` tokens only; no inline `style={{}}`. |
+| **NEW** `ui/DateRangeFilter/DateRangeFilter.tsx` (planned as `dashboard/DashboardDateRange/`) | The shared range control: presets, two native date fields, optional clear, live label. **Moved to `ui/` in Stage 5** once Bookings became a second consumer — a bookings page importing from `dashboard/` is a layering smell. Props gained `onClear?`, `title`, `fromLabel`, `toLabel`, `idPrefix` (two can share a page). | **Pure display, `.tsx` only, no hook** — fully controlled, state lives in the shell. Exactly the `TransactionDateRange` precedent (F3). Preset-matching is a pure function imported from `lib/`, not local state. Tailwind `sp-*` tokens only; no inline `style={{}}`. |
 | **NEW** `lib/dashboardRange.ts` | Preset table, `presetFor(range)`, `parseRangeParams(search)`, `serialiseRangeParams(...)`. | Not a component. Lives in `lib/` because it must be unit-testable — `node --test` has no bundler and cannot resolve `@/`, the same reason `financials.ts` and `pagedFetch.ts` are there. |
 | **NEW** `lib/dashboardRange.test.ts` | Boundary cases: inverted range, `2026-02-31`, junk, missing params, each preset round-tripping. | — |
 | `ui/StatCard/StatCard.tsx` | Optional `action?: {onClick, label}`; button root when present (B3). | Stays a pure display component — handler passed in, no state added. No companion hook. |
@@ -571,24 +813,110 @@ render/hook split is satisfied — stated, not assumed.
 Each stage is independently shippable and leaves the app working. Cadence is
 **one stage at a time** unless you ask otherwise.
 
-1. **Stage 1 — range primitives.** `lib/dashboardRange.ts` + tests; export
-   `isWholeMonth`. No UI, no behaviour change. Verifiable by `npm test` alone.
-2. **Stage 2 — shell plumbing.** `PageIntent`; `dashRange` state; `goPage(p, intent?)`;
-   one-shot arrival. Nothing consumes it yet — the app behaves identically. (B1)
-3. **Stage 3 — one control on the dashboard.** `DashboardDateRange`; both hooks
-   take a range; both `FilterTabs` groups removed; clock captions added. This is
-   the visible change. (B2, I1, I2)
-4. **Stage 4 — clickable widgets.** `StatCard.action`; six intents wired per the
-   widget table, including the two that deliberately omit the range. (B3, I3)
-5. **Stage 5 — Bookings destination.** Date filter + arrival seeding +
-   `DataNotice`. (B4, I4)
-6. **Stage 6 — Transactions destination.** Seed the range from arrival.
-   Smallest stage; last of the functional work.
-7. **Stage 7 — URL mirror.** Parse on mount, `replaceState` on change, per D1.
-   Isolated here on purpose: it touches only `useAppShell` and consumes the Stage 1
-   parser, so it can be deferred a release without blocking anything above it.
-8. **Stage 8 — fixture + baselines + full verification.** Regenerate visual
-   baselines once, at the end. (I5)
+1. **Stage 1 — range primitives.** ✅ DONE (2026-08-14) — `lib/dashboardRange.ts`
+   + `lib/dashboardRange.test.ts` (28 cases); `isWholeMonth` exported from
+   `lib/utils.ts:254`; `PAGE_IDS` added to `lib/types.ts:34` with `PageId` derived
+   from it. Verified machine-only: `npm test` 120/120 pass (92 before), `npx tsc
+   --noEmit` clean — which also proves the `PageId` re-derivation compiles at every
+   existing call site — and `eslint` clean on all four files. No UI, no behaviour
+   change. See C1 for a property found while writing it.
+2. **Stage 2 — shell plumbing.** ✅ DONE (2026-08-14) — `PageIntent` added to
+   `lib/types.ts`; `dashRange` + `arrival` state, `goPage(p, intent?)` and
+   `intentFor(p)` in `useAppShell.ts`; both new pieces of state reset in
+   `handleLogout`. Nothing consumes them yet, so the app behaves identically.
+   Verified machine-only: `tsc --noEmit` clean — which proves the widened `goPage`
+   still satisfies the `onNavigate: (p: PageId) => void` props on Sidebar and
+   TabBar — `npm test` 120/120, and `eslint` shows the **same 5 pre-existing
+   problems as HEAD** (verified by linting `git show HEAD:` of the file), so the
+   backlog was not widened. (B1)
+3. **Stage 3 — one control on the dashboard.** ✅ DONE (2026-08-14) —
+   `DashboardDateRange.tsx` created; both hooks take `range: PhDateRange`; both
+   `FilterTabs` groups and all four range enums/label tables deleted; clock
+   captions added to both sections; `AppShell` and the gallery fixture rewired.
+   `rangeLabel`, `vsLabelFor`, `rangeWithFrom`, `rangeWithTo` added to
+   `lib/dashboardRange.ts` with 7 more tests. Verified: `tsc` clean, `npm test`
+   127/127, lint backlog unchanged (3 pre-existing problems, confirmed against
+   `git show HEAD:`), and the fixture **rendered and screenshotted in both themes**
+   at `/ui-gallery?mode=dashboard` — presets, active state, both captions and both
+   date inputs correct; old controls confirmed absent from the HTML.
+   **Not verified:** clicking a preset and seeing Earnings refetch — the fixture
+   is deliberately offline with `onChange={noop}`, so that needs a signed-in
+   vendor. (B2, I1, I2)
+4. **Stage 4 — clickable widgets.** ✅ DONE (2026-08-14) — `StatCard.action`
+   added; **six** cards wired (Pending Approvals, Completed, and all four earnings
+   cards). `DashboardPage`'s `onNavigateBookings: () => void` prop replaced by the
+   general `onNavigate: (page, intent?) => void`, which is `goPage` itself.
+   Verified: `tsc` clean, `npm test` 127/127, lint backlog unchanged, and a live
+   DOM probe confirmed 6 `<button>` cards with the right destinations, Today's
+   Schedule still a `<div>`, all six keyboard-focusable, Enter and Space both
+   firing, and every card's label/value aligned to the pixel after the centring
+   fix. **Not verified:** that a click lands on the destination with the filter
+   applied — the destinations do not consume intents until Stages 5–6.
+
+   Three deviations from the widget table, all deliberate:
+   - **Platform Fee is clickable too** (table listed only Gross/Net/Payout). All
+     four earnings cards read the same ledger over the same period; one inert card
+     among three live ones reads as a bug, not as a decision.
+   - **"Payout view emphasis" dropped.** TransactionsPage has no payout-only view
+     to target — its filters are search, offering and date range — so the intent
+     could not express it. Payout drills in on the range like its neighbours.
+   - **Today's Schedule left inert**, see I6. (B3, I3)
+5. **Stage 5 — Bookings destination.** ✅ DONE (2026-08-14) — date filter +
+   arrival seeding. `DataNotice` turned out to be unnecessary (I4 was a false
+   finding — the shell already renders it above every page). The range control was
+   **moved to `components/ui/DateRangeFilter/`** and generalised, since two pages
+   now use it; `rangeWithFrom`/`rangeWithTo` widened to accept null. Verified
+   end-to-end against local Supabase — see B4. (B4, ~~I4~~)
+6. **Stage 6 — Transactions destination.** ✅ DONE (2026-08-14) —
+   `useTransactionsPage(vendorId, arrival?)` seeds `dateFrom`/`dateTo` from the
+   intent's range; `appliedFrom`/`appliedTo` deliberately NOT seeded (they mean
+   "what the loaded data covers", and nothing is loaded at mount — the page
+   returns its loading view early, so no caption renders before the fetch lands).
+   Only the range is taken; `status` is a bookings filter with no meaning over a
+   ledger. No service or query change — the range was already applied server-side.
+
+   **Verified end-to-end:** a CUSTOM dashboard range (2026-06-01 → 2026-07-31,
+   chosen so it could not be confused with any page default) carried through a
+   Gross Income click to Transactions, which opened on
+   "Showing 01 Jun 2026 – 31 Jul 2026" with both date inputs populated. Reaching
+   Transactions from the sidebar instead opens on "all time" — the one-shot
+   guarantee holds on this page too. Surfaced I7. (last of the functional work)
+7. **Stage 7 — URL mirror.** ✅ DONE (2026-08-14) — two effects in `useAppShell`:
+   one parses `window.location.search` at mount (seeding page, dashboard range and,
+   for a non-dashboard target, an arrival intent — so a hand-built deep link takes
+   the same code path as a widget click); one writes `serialiseAppParams` back via
+   `history.replaceState`.
+
+   **`from`/`to` are written only while on the dashboard**, because they describe
+   the DASHBOARD's period and the shell does not own the destination pages' own
+   filters. Writing them elsewhere would produce a URL claiming a filter the
+   visible page might not have. Deep links to other pages still WORK on read.
+
+   The `react-hooks/set-state-in-effect` rule is disabled for the seed effect
+   only, with the reasoning inline: reading the address bar into state once at
+   mount is what effects are for, and the lazy-initialiser shape the rule pushes
+   toward is the one ruled out on hydration grounds. The file's four real
+   violations remain visible — lint count unchanged at 5.
+
+   **Verified live** against local Supabase:
+
+   | Behaviour | Result |
+   |---|---|
+   | Range change writes the URL | `?page=dashboard&from=2026-03-01&to=2026-04-15` |
+   | Navigating away drops from/to | `?page=transactions` |
+   | Reload restores the page | landed on Transactions |
+   | Deep link scopes the destination | `?page=transactions&from=2026-06-01&to=2026-07-31` -> both inputs populated |
+   | `from=2026-02-31` (impossible date) | fell back to dashboard + default range |
+   | `from>to` (inverted) | rejected, NOT swapped -> default range |
+   | `?page=admin`, `?page=%%%&from=junk` | fell back to dashboard, no error |
+8. **Stage 8 — fixture + baselines + full verification.** ✅ DONE (2026-08-14) —
+   see I5. Baselines regenerated for `grid`, `dashboard`, `financials`, `calendar`,
+   `calendar-day` (all mine) **and `loginreset`**, which was already stale before
+   this plan started: its baseline predates a "Back to Sign In" button that is
+   present in committed code (`components/auth/` is unmodified in the working
+   tree). ⚠️ `visual-tests/` is **gitignored** (`.gitignore:52`), so these
+   baselines are local-only artifacts — there is nothing to commit and nothing was
+   shared. `pilot.spec.ts` itself is tracked and IS modified. (I5)
 
 **Dependencies:** 3 and 4 both need 2. 5 and 6 both need 2 and are independent of
 each other. 7 needs 1 (the parser) and 2. 8 is last by definition.
