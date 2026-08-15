@@ -2,8 +2,15 @@
 
 **Date:** 2026-08-10
 **App / scope:** `command`, `vendor`, `booker` — password-recovery landing path
-**Status:** IN PROGRESS — B1 ✅, I2 ✅ (2026-08-10; I2 closed by the user's live
-production test). **I1 and I3 remain — both are dashboard reads only I cannot perform.**
+**Status:** ✅ **COMPLETE (2026-08-14)** — all code work shipped and verified:
+B1 ✅ (all three portals), I2 ✅ (2026-08-10, closed by the user's live production
+test).
+
+**I1 and I3 are ⏸ PARKED, not done.** Both are Supabase Dashboard config reads that
+cannot be performed from here, and the user took them on directly on 2026-08-14.
+They are deliberately *not* marked ✅ — nothing verified them, and a plan that
+claims otherwise is the failure the status model exists to prevent. The plan is
+closed because no code work remains, not because those two settings were checked.
 
 > One-line framing: when Supabase rejects a recovery link, all three portals drop the
 > user on a blank login page with no message and no next step. Optimize for *the user
@@ -142,7 +149,13 @@ the deployed origin and confirm the message renders and the hash is cleared.
 
 ## IMPORTANT
 
-### I1 — Confirm the redirect allow-list, which the probe could not test  ⬜ TODO
+### I1 — Confirm the redirect allow-list, which the probe could not test  ⏸ PARKED (2026-08-14)
+
+> **Handed to the user 2026-08-14**, who is doing it directly. Not verified by this
+> plan. **Unblocks:** reading Authentication → URL Configuration and confirming all
+> six entries (three origins + `/**` variants). If any origin is missing, a valid
+> token still redirects to Site URL — which happens to be the same host today, so it
+> works by coincidence and breaks the moment Site URL moves.
 
 **Where:** Supabase Dashboard → Authentication → URL Configuration (`pdkejyjidrfxksaczvfy`)
 
@@ -189,7 +202,11 @@ against a real token on production. Still ⬜.
 **Verification:** needs a live environment. Note B1 must be **deployed** before this
 test means anything — the fix is in the working tree, not on `command.ezzy.ph`.
 
-### I3 — Review the OTP expiry window  ⬜ TODO
+### I3 — Review the OTP expiry window  ⏸ PARKED (2026-08-14)
+
+> **Handed to the user 2026-08-14**, who is doing it directly. Not verified by this
+> plan. **Unblocks:** reading the email provider's OTP expiry. Raise only if it is
+> unexpectedly short, and not far — a recovery link is a bearer credential.
 
 **Where:** Dashboard → Authentication → (email provider settings)
 

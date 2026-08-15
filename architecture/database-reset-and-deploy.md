@@ -141,6 +141,62 @@ tracked separately as D3 in `.plans/2026-07-14-app-name-env-var.md`.)
 database that already holds those users fails on a duplicate key — see recovery
 below.
 
+### The hosted-safe alternative: `supabase/demo/`
+
+`seed.sql` answers "give me a whole world from empty". It cannot answer "give me
+enough data to demo on an environment that already has real rows" — it wipes,
+it creates sign-in-able accounts, and it must never touch a hosted project.
+
+`supabase/demo/` is that second answer. Two files, and **neither is a migration
+nor a seed** — they are run by hand, like `bootstrap/production-root.sql`:
+
+| File | Purpose |
+|---|---|
+| `demo-seed.sql` | Attaches a demo dataset to **one existing vendor** |
+| `demo-teardown.sql` | Removes it again, completely |
+
+What makes it safe on a hosted project:
+
+- **Additive and tagged.** Every row it writes carries the id prefix `de300000-`,
+  which is the only thing the teardown matches on. It cannot touch a real booking,
+  payment, offering, staff member or user, because none of them can have that id
+- **One transaction.** Any failure rolls the whole thing back; no half-seeded state
+- **Refuses to double-run.** Aborts with "Demo data is already present — run
+  demo-teardown.sql first" rather than duplicating
+- **Bookers cannot sign in.** They are `auth.users` rows with a deliberately invalid
+  password hash and `@example.invalid` addresses (a reserved TLD, undeliverable) —
+  the opposite of `seed.sql`'s known-password accounts. They exist only to satisfy
+  `bookings.booker_id → profiles → auth.users`
+- **Email is suppressed for the duration.** `notifications_dispatch_email` fires
+  `net.http_post` on every notification INSERT and the booking triggers create
+  notifications, so ~60 bookings would otherwise send **real email to real vendor
+  admins**. The script disables that trigger plus the two booking notify triggers
+  inside the transaction and restores them before commit
+
+Two things to get right before running it:
+
+1. **Set the platform fee first.** `booking_transactions` snapshots
+   `platform_fee_percent` at payment time, so rows written while the rate is 0 show
+   ₱0 commission *permanently* — setting the fee afterwards cannot repair them. Only
+   a teardown and re-seed will
+2. **Set `v_vendor_id`** (one line, near the top) to a vendor you can sign in as. If
+   the id does not exist the script raises and rolls back before writing anything
+
+Bookings are inserted with `is_paid = false` and then flipped in a separate UPDATE,
+because that transition is what fires `bookings_create_transaction` — writing
+`booking_transactions` directly would bypass the fee snapshot the data exists to
+demonstrate. The payout lifecycle is then fixed up in the same way Block 9d does,
+since `bookings_sync_payout_status` is `AFTER UPDATE OF status` and an INSERT never
+fires it.
+
+> **Block 9e in `seed.sql`** exists for a related gap: Block 9d takes payouts as far
+> as `releasable` but never `released`, so a freshly reset local database exercised
+> only three of the four payout states — and `released` is *payable*, so every payout
+> sum and completed-booking count was only ever tested against `releasable`. 9e
+> releases the oldest releasable payout per offering. It is **local-only**, like the
+> rest of `seed.sql`: on a hosted project it would record money as disbursed that
+> never was.
+
 ---
 
 ## Local — the normal loop

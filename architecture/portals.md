@@ -105,16 +105,73 @@ Allow vendor administrators to define their service catalogue, set up schedule a
 #### Registration Flow (KYC-gated)
 Vendor operators self-register via a **6-step** flow on the login screen: business details (including a required **division** pick — see `schema.md`'s `divisions` table) → account setup → applicant type (company/individual) → documents → identity (Valid ID + Selfie with ID via camera) → review. This is a required **KYC** stage and **no account or vendor record is created until it is submitted** — the form fields auto-save to `localStorage` and files are held in memory. The final submit sends multipart to `POST /api/auth/register`, which atomically (rollback on failure) creates and activates the user, grants vendor portal access, creates the vendor (`pending_activation`, with its chosen `division_id`), assigns `vendor-admin`, creates the `vendor_kyc` header, uploads the documents to the private `vendor-kyc` bucket, and notifies Command. After submit the vendor logs in to the KYC status surface (under review / approved-awaiting-activation / rejected → revise & resubmit) until Command reviews and activates. See `vendor-kyc.md`. The vendor's assigned division is shown read-only on the Vendor Profile page — only Command can change it.
 
-#### Overview / Dashboard (fully wired, 2026-07)
-Four KPI cards above the pending-approvals and booking-trends panels.
+#### Overview / Dashboard (fully wired, 2026-08)
+One **Period** control at the top drives two labelled groups — **Operations** and
+**Earnings** — above the pending-approvals and booking-trends panels.
 
-- **Pending Approvals** — bookings awaiting the vendor's decision, from the shell's `bookings`
-- **Today's Schedule** — schedules occurring on the current **Asia/Manila** day. The PH date is used rather than the device's local date, so a vendor travelling abroad still sees their own business day
-- **Completed This Month** — completed bookings whose service date falls in the current PH month. Scoped to the month it names: an all-time count under a "This Month" heading is the same defect as an all-time total under a date range
-- **Monthly Payout** — the current PH month's payout, net of the platform fee, from `booking_transactions` via a narrow `getPayoutForRange()` (not the page's full ledger fetch — the dashboard is the landing page, and pulling every transaction on each login to render one number would slow the app for everyone who never opens Transactions). Uses the same `isPayable()` rule and the same PH day bounds as the Transactions page, so the two screens reconcile
-- The card is named **Payout**, not Revenue, because the figure is net of the fee and counts payable rows only — matching the Transactions page's "Total Payout". Shows `—` rather than `₱ 0` while loading or on error, so a vendor who earned money is never shown a confident zero
+**Period control** (`components/ui/DateRangeFilter`) — presets Today / Last 7 days /
+This month / Last 30 days / This year, plus two date inputs. Defaults to *This month*.
+The range lives in the **shell**, not the page, so it survives navigating away and
+back. The dashboard passes **no `onClear`**: a range is mandatory here, because every
+figure below is a period figure and an all-time count under a period heading is
+meaningless. Bookings passes one, because a list with no date filter is its normal state.
 
-> Until 2026-07 this row carried **hardcoded literals**: a fixed `₱ 4,550` "Monthly Revenue", a `Apr 2026` caption and a `Apr 23` "Today's Schedule" pinned to a date in the past — identical for every vendor on every day. All four cards now read real, date-scoped data.
+> ⚠️ **One control, two clocks.** Operations counts bookings by the day they are
+> booked **for** (`bookings.booked_date`); Earnings counts transactions by the day
+> money was **received** (`booking_transactions.created_at`). The same dates
+> therefore select different rows in each group. Each group states its own clock in
+> its caption — "Bookings serviced …" and "Payments received …" — and that wording
+> is what makes a single shared control honest. Remove the captions and the two
+> groups silently claim to measure the same thing.
+
+**Operations** — three cards. Only one of them follows the Period, deliberately:
+
+- **Pending Approvals** — a *live queue*: everything awaiting a decision, whenever it
+  was requested. Ignores the Period, because hiding a request that falls outside the
+  selected dates would hide work the vendor still has to do. Drills into Bookings on
+  the "Needs you" filter, carrying **no** date range — the count and the destination
+  must agree
+- **Today's Schedule** — schedules occurring on the current **Asia/Manila** day, so a
+  vendor travelling abroad still sees their own business day. Today by definition, so
+  also Period-independent; drills into the Calendar with no range
+- **Completed** — completed bookings whose service date falls in the Period. The one
+  Operations card the control drives, and so the one that carries the range into
+  Bookings ("Done" filter + the same dates already applied)
+
+**Earnings** — four cards from `getFinancialsForRange()` (`FinancialSummary`), all
+drilling into Transactions with the same range:
+
+- **Gross Income** / **Platform Fee** / **Net Income** / **Payout Released**, related
+  by two identities that hold exactly: `gross = platformFee + net` and
+  `net = payout + onHold` (`lib/financials.ts`, unit-tested). Read across, they are a
+  decomposition rather than four unrelated numbers — which is why Platform Fee sits
+  between Gross and Net
+- Each shows a **% change vs the previous period** — the previous *calendar month* for
+  a whole-month range, otherwise the equal-length block before it. No percentage is
+  invented from a zero baseline: `percentChange()` returns null and the card says
+  "no prior data"
+- **Basis is stated, not assumed.** These figures exclude reversed payouts, and Payout
+  counts released + releasable only — a **narrower** basis than the Transactions
+  page's own headline. That is why this card says "Gross Income · All payments, incl.
+  held" while Transactions says "Collected": the same word on two different numbers
+  reads as a bug, two different words do not
+- Shows `—` rather than `₱ 0` while loading or on error, so a vendor who earned money
+  is never shown a confident zero
+
+**Getting Started guide** — no longer a panel on this page. It is a dialog opened from
+the **TopBar**, available on every page (`components/dashboard/GuideModal/`), and
+auto-opens once per browser. See "Getting Started guide" below.
+
+> Until 2026-07 this row carried **hardcoded literals**: a fixed `₱ 4,550` "Monthly
+> Revenue", a `Apr 2026` caption and a `Apr 23` "Today's Schedule" pinned to a date in
+> the past — identical for every vendor on every day. 2026-07 made them real and
+> date-scoped; 2026-08 replaced the fixed "this month" scoping with the shared Period
+> control and split the row into the two labelled groups above. The narrow
+> `getPayoutForRange()` this section used to describe is **gone** — it issued one
+> unbounded select and silently understated payouts past PostgREST's `max_rows`
+> (measured: 19.7% low on a vendor with 1,253 transactions in range). Its replacement
+> `getFinancialsForRange()` pages through `lib/pagedFetch.ts` and reports
+> incompleteness rather than hiding it.
 
 #### Offerings Page (fully wired)
 - List of the vendor's offerings, grouped or filterable by category
@@ -122,7 +179,14 @@ Four KPI cards above the pending-approvals and booking-trends panels.
 - Edit offering
 - Toggle offering active/inactive (`is_active`)
 - Offering category badges (free-text category; colour from a fixed map + neutral fallback)
+- Delete offering, behind an inline confirm on the card. Blocked by the database when schedules reference it (FK `23503`), surfaced as "This offering is used in one or more schedules and cannot be deleted" rather than a raw error
 - **Live booking count per offering (2026-08)** — a filled badge beside the code and category chips, hidden entirely when zero. Counts **live** bookings only: `cancelled` and `refunded` are excluded, using the same predicate as the schedule page's availability, so the two surfaces cannot disagree. Grouped by `offering_id`, never `offeringCode` — the code is vendor-editable, so grouping on it would move history when a vendor renames one. Derived in-memory from the shell's bookings; no extra query
+- **Assigned staff per offering (2026-08)** — a `STAFF` block on the card listing who can deliver it: up to three name chips plus "+N more", **active first**. Non-active staff render muted with their status in text ("Jon Salas · On leave"), never by colour alone, because only *active* staff can be put on a schedule. Renders **nothing** when nobody is assigned — so a slow or failed staff load degrades to silence rather than a false "nobody is assigned". Assignment itself happens from the Staff page (specialties), not here. Derived in-memory from the shell's staff via `lib/offeringStaff.ts`; **no extra query**
+  - ⚠️ Matched on **`offering_id`**, via a `specIds` array carried alongside the existing `specs` (codes) on `Staff`. Code-matching is what `ScheduleFormModal` does and looks like the obvious reuse, but it breaks here: `specs` is captured at shell-fetch time while `handleSave` updates the offerings array locally without refetching staff, so **renaming a code from the Edit button inches away would make every chip vanish** until reload. An id cannot change on rename
+- **Performance modal (2026-08)** — a "Performance" action on each card opens a small lifetime summary for that offering: **Gross income · Net income · Paid bookings · Avg per booking**, all on one basis (every paid, non-reversed transaction), with a caption carrying the completed count, the amount still on hold and any reversed exclusions. All time; no date control — Transactions already offers an offering filter with a range for period analysis
+  - Reads `getOfferingFinancials()` (`services/transactions.service.ts`), which reaches the offering through `bookings!inner(offering_id)`. The **`!inner` is load-bearing**: without it PostgREST filters the embedded object but still returns the parent row, and every offering would show the vendor's entire ledger. Verified against a real database — the same query without it returned 35 rows/₱35,660 for an offering that has 1 row/₱810
+  - Sums are delegated to `summariseFinancials()`, the same unit-tested reducer the dashboard uses — no second copy of the money rules. The "still on hold" figure in the caption is labelled **net**, because `onHold` is after-fee while the headline tile beside it is gross
+  - Five render states, not three: loading, error, **empty** (no payments yet), **reversed-only** (every payment reversed — the offering *has* sold, so "No payments yet" would be false), and ready. The average is only ever computed under `ready`, which is exactly `countedRows > 0`
 
 #### Schedules Page (fully wired)
 - Calendar/list view of active schedules, **week starting Sunday** (2026-08)
@@ -141,16 +205,21 @@ Four KPI cards above the pending-approvals and booking-trends panels.
 > first is plpgsql. `vendor/lib/occurrence.test.ts` is the drift alarm — if it fails,
 > reconcile all four rather than patching whichever side is red.
 
-#### Calendar Page (mock)
+#### Calendar Page (fully wired)
 - Monthly calendar view showing schedule dots and booking indicators
 - Click a day to see schedules and bookings for that day in a side panel
-- Driven by local state from `BOOKINGS` and `SCHEDULES` constants — not wired to DB
+- Reads the shell's real `bookings` and `schedules` (`AppShell` → `<CalendarPage bookings schedules />`); day markers come from `getDayMarkers()`, which derives dot colours from the data rather than a fixed category vocabulary
+- Reached from the sidebar only — absent from `MAIN_TAB_PAGES`, like Transactions and Vendor Profile
 
 #### Staff Page (fully wired)
-- List of the vendor's staff
-- Add/edit staff form: name, email, phone, license number, specialties (offering codes)
-- Validation: name required, email format check
-- `canSave` gate on form — disabled until required fields are valid
+- List of the vendor's staff, with a stat bar counting Active / On Leave / (Inactive, only when non-zero) / Total Clients
+- Add/edit staff form: name, phone, email, experience, specialties (offering codes). **No licence-number field** — an earlier revision of this document listed one; it has never existed in `StaffFormModal`
+- Validation: name required. `canSave` gate on the form — disabled until it is met
+- Status pill on each card **cycles** active → on-leave → inactive on tap, optimistically, reverting with a toast on failure
+- **Status filter (2026-08)** — `All · Active · On Leave · Inactive` via the shared `FilterTabs`, defaulting to **All**, composing with the search box rather than replacing it. All four tabs render at every count, including Inactive at zero: the stat bar hides its Inactive *stat* at zero, which is right for a stat and wrong for a control. No badge counts are passed — `FilterTabs` renders badges in red, which in this app means *work outstanding*, and a red number beside "Active" would read as an alert
+  - A card leaving the list when its status is toggled is **correct**, not a bug: it no longer matches the filter, and the stat bar above updates in the same moment as the feedback
+  - `FilterTabs` gained an optional `label` here, rendering `role="group"` + `aria-label` (the pattern `DateRangeFilter` already used). Without it the tabs are an unnamed run of buttons whose labels collide with the status pill on every card — "Active" matched three controls
+- **Three zero states, never one (2026-08)** — "could not load your staff" / "no staff yet" (offers Add Staff) / "no staff match this filter" (offers Clear filters). A single "no staff found" would state a **falsehood** whenever the fetch failed, which is why `getStaff()` now returns `{ data, error }` instead of swallowing the error and returning `[]`, and the shell carries a `staffError` alongside the array — the same reasoning as `bookingsStatus`. A failed *refresh* after a successful save is treated differently: it keeps the list on screen and raises a toast, because blanking a roster over a refresh failure is worse than showing slightly stale rows
 
 #### Bookings Page (fully wired)
 - Incoming booking list with **six lifecycle filter tabs**, not one tab per status. `BOOKING_FILTERS` (`lib/utils.ts`) groups the nine statuses by what the vendor has to *do*: **All**, **Needs you** (`pending`, `returned`), **Active** (`confirmed`, `fulfilled`, `in_progress`), **Done** (`completed`), **Issues** (`disputed`), **Closed** (`cancelled`, `refunded`). Badge counts on "Needs you" and "Issues"
@@ -178,6 +247,46 @@ Payment history and payout accounting for the vendor's own bookings, read from `
 - **Warnings print too.** The truncated-fetch and failed-booker-lookup notices are rendered into the printed report as well as on screen, as bordered text rather than colour (browsers drop backgrounds). The PDF is the artifact most likely to be filed or reconciled against a bank statement, so it is the worst place to drop a warning that the totals are understated
 - Dates are filtered and displayed as **Asia/Manila** calendar dates (`toPhDate`), with both range bounds inclusive of the whole local day — a raw UTC comparison would file a 07:00 PH payment under the previous day
 - Fee percentages are **not** recomputed at read time; each row shows the rate snapshotted when it was paid (see `schema.md` → `booking_transactions`)
+
+#### Getting Started guide (2026-08)
+A dialog opened from the **TopBar**, so it is reachable from every page rather than
+only the dashboard. Auto-opens **once per browser**, keyed on the same `localStorage`
+flag the old inline panel used — a vendor who already dismissed the panel is not
+onboarded a second time because the guide changed shape.
+
+- **Seven tabs**: Dashboard · Bookings · Offerings · Staff · Schedule · Transactions ·
+  Completing. Order follows the app's own navigation. Approving/rejecting is covered
+  **inside Bookings**, not as its own tab, because that is where the vendor does it
+- Built on **Radix Dialog + Tabs**, not the app's `ModalOverlay` — both packages were
+  already dependencies, and Radix supplies the focus trap, Escape handling, scroll lock
+  and arrow-key tab navigation that `ModalOverlay` lacks. The three form modals still
+  use `ModalOverlay`; converting them is separate work, and a *new* modal should not
+  adopt the weaker primitive to match them. `OfferingPerformanceModal` follows the same
+  reasoning
+- The tab strip **scrolls sideways** rather than wrapping, and carries a right-edge fade
+  mask. At seven tabs it overflows the 560px dialog at every width, and a hard-clipped
+  final tab reads as a rendering fault rather than as "there is more this way". Note
+  that a `toHaveCount(7)` assertion cannot see clipping — this was caught by looking at
+  the screenshot
+- The **Completing** tab's glossary is derived from `lib/bookingActionCopy.ts`, filtered
+  to `stage === "fulfilment"` — never retyped. That table is the single source for the
+  copy telling a vendor *when they get paid*, shared with the action buttons and their
+  "i" popovers. The approval actions live in the same table and must stay filtered out
+  of this tab
+
+> **This is documentation, and it is tested as such.** The version replaced in 2026-08
+> had drifted badly: it described three booking statuses when there are nine in six
+> filter groups, promised "track completion rates over time" (a feature that does not
+> exist), and had no Dashboard or Transactions section at all. `visual-tests/pilot.spec.ts`
+> now asserts specific *claims*, not just structure — the Dashboard panel's two-clocks
+> explanation, the Transactions panel naming the payment-date clock, and Staff carrying
+> its statuses. A stale guide otherwise fails silently in every way a test can see.
+> **Change the guide in the same commit as the UI it describes.**
+>
+> `ezzy-vendor-mobile` keeps its **own** copy (`components/dashboard/GuideCard/guideItems.ts`)
+> and has diverged from this one since the rewrite. Separate repos, different feature
+> surface (no Offerings or Staff screens) — but the two now tell vendors different
+> things about the same product.
 
 > The vendor portal has **no** Wallet page. An earlier revision of this document described one (Balance/Transactions tabs, a `TXNS` constant); no such page, component, or constant exists in the codebase, and this Transactions page is the real home for what that entry described.
 
@@ -218,7 +327,11 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Transactions (payment history, payout totals, filters, print/PDF) | ✅ Supabase-wired — reads `booking_transactions`; browser-verified. Mobile print-to-PDF on real devices still unverified |
-| Calendar (schedules + bookings overlay) | ❌ Mock data |
+| Calendar (schedules + bookings overlay) | ✅ Supabase-wired — reads the shell's bookings and schedules |
+| Offering performance (per-offering income modal) | ✅ Supabase-wired — `getOfferingFinancials()` over `booking_transactions` |
+| Assigned staff shown per offering | ✅ Derived in-memory from the shell's staff — no extra query |
+| Staff status filtering (All / Active / On Leave / Inactive) | ✅ Live |
+| Getting Started guide (7 tabs, TopBar dialog) | ✅ Live — content asserted in `visual-tests/pilot.spec.ts` |
 | Booking status management | ✅ Supabase-wired — approve/reject **and the full vendor side of fulfilment** (hand over, mark as done, got it back, undo, flag) across all nine statuses |
 | Booking document viewing | ❌ Not implemented |
 | Packages | ❌ Mock data |
@@ -226,7 +339,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 ### Known Gaps
 
 - ~~**No schedule capacity tracking.**~~ ~~**Duration is asked for twice and enforced neither time.**~~ **Both resolved 2026-08-04** (`.plans/2026-08-03-offering-duration-and-booking-units.md`). Duration is now a structured quantity + unit on the offering, a schedule is an availability *window*, and the bookable slots are derived by dividing one by the other — enforced in the database, previewed live in the vendor form, and shown to the booker with spaces remaining per slot. Capacity was renamed `capacity_per_slot` (default 1) and now means only "how many bookings may share this slot". See `schema.md` → `offerings` / `schedules` / `bookings`.
-- **Offering deletion is not implemented.** Offerings can only be deactivated (`is_active = false`). Hard delete is restricted (schedules RESTRICT on delete) — would need to deactivate/delete schedules first.
+- ~~**Offering deletion is not implemented.**~~ **Implemented** — the card has a Delete action behind an inline confirm. It is still *restricted* at the database level: schedules RESTRICT on delete, so an offering in use cannot be removed until its schedules are, and the FK violation is surfaced as a plain-language message rather than an error code. Deactivating (`is_active = false`) remains the non-destructive option.
 - **Packages page has no backing table.** If packages (bundles of offerings with a combined price) become a real feature, they need a DB schema.
 - **Mobile print-to-PDF is unverified on real devices.** The Transactions page's print output is machine-verified in headless Chromium (correct dual-render, all filtered rows present, nav hidden, content paginates instead of clipping, valid PDFs at desktop and 390px widths), but an actual "Print → Save as PDF" from Android Chrome and iOS Safari has not been exercised on physical hardware — mobile print sheets vary by OS and browser version. Same class of gap as the PWA items below.
 - **No payout disbursement.** The Transactions page computes and displays what each vendor is owed, but nothing moves money to them; there is no withdrawal or payout run.
@@ -473,4 +586,6 @@ Some features need to be built in multiple portals to be complete end-to-end:
 
 **The mobile client is not a fourth column of this table.** It targets a subset of the vendor portal's jobs on purpose, so a ❌ against it usually means "deliberately out of scope", not "still to build".
 
-Where the two vendor clients *do* overlap, they must agree on the numbers. Both dashboards now compute the same four stats from the database, on the same PH-timezone day and month bounds, and both read the monthly payout through the narrow `getPayoutForRange()` rather than pulling the whole ledger. If a change makes one of them disagree with the other, that is a bug in whichever one moved.
+Where the two vendor clients *do* overlap, they must agree on the numbers — computed from the database on the same PH-timezone day bounds, and on the same payable rule (`payout_status`, never re-derived from the booking's status). If a change makes one of them disagree with the other, that is a bug in whichever one moved.
+
+⚠️ **They have drifted apart in shape, though not yet in arithmetic.** `getPayoutForRange()`, which this paragraph used to name as the shared approach, **no longer exists in either client**: the web dashboard replaced it with the paged `getFinancialsForRange()` + `lib/financials.ts` and now renders a Period control over two labelled groups (see "Overview / Dashboard" above), while `ezzy-vendor-mobile` keeps its own `services/transactionTotals.ts`. Two implementations of one set of money rules is a standing drift risk; the guard is that both read `payout_status` and both exclude reversed payouts. See `.plans/2026-08-14-mobile-vendor-dashboard-range-and-drilldown.md` for bringing the mobile dashboard onto the same period/drill-down model.

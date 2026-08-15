@@ -2,9 +2,13 @@
 
 **Date:** 2026-08-14
 **App / scope:** `ezzy-vendor-mobile/` only. No backbone migration, no web apps.
-**Status:** BLOCKED — investigation done, **all decisions resolved 2026-08-14**
-(D1–D5 plus D6, D7). The §7 gate is cleared; execution is gated only on the D5
-prerequisite (`.plans/2026-08-11-mobile-vendor-unbounded-queries.md` B1 ships first).
+**Status:** IN PROGRESS — all decisions resolved 2026-08-14 (D1–D5 plus D6, D7).
+**Stage 0 code complete** (the D5 prerequisite: its live >1000-row check is still
+outstanding and carried as debt on
+`.plans/2026-08-11-mobile-vendor-unbounded-queries.md`). **Stages 1–3 done
+2026-08-14** (1 and 2 ✅ verified; **3 🔄 code complete, machine-verified only**).
+The dashboard now has a working period control on paper — **nothing has been seen
+on a device**, and that debt now spans three stages. Stage 4 (press targets) next.
 
 > Bring the vendor web dashboard's period filter and clickable widgets to mobile.
 > Optimise for **the mobile app's own idioms** — React Query, expo-router params,
@@ -118,7 +122,7 @@ from inside that folder — it is its own git repository.
 
 ## BLOCKERS
 
-### B1 — `getDashboardStats` cannot be scoped to a period  ⬜ TODO
+### B1 — `getDashboardStats` cannot be scoped to a period  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
 **File:** `src/services/dashboard.service.ts:89-107`
 
 Takes only `vendorId`; the month is resolved *inside* via `phCurrentMonthRange()`.
@@ -149,9 +153,34 @@ data disagree in between.
 **Verification:** machine (type-check) + device — change the period, confirm
 Completed and Revenue move while Pending and Today's do not.
 
+**🔄 CODE COMPLETE (2026-08-14).** `getDashboardStats(vendorId, window)`; the
+window reaches `completed` (`booked_date` bounds) and the revenue query only.
+`pendingApprovals` and `todaysBookings` are untouched, with the reason written on
+the interface as a correctness rule rather than left as a silent omission.
+
+- **Interface renamed as planned:** `completedThisMonth` → `completed`,
+  `monthlyRevenue` → `revenue`, `monthLabel` → `periodLabel` (from
+  `rangeLabel(window)`). The old `toLocaleDateString` month formatter is gone — it
+  could not describe "Today" or a 12-month span. `revenueComplete` from Stage 0
+  carried over unchanged.
+- **The private helper was renamed too:** `getMonthlyRevenue` →
+  `getRevenueForWindow`, and it now takes a `DateWindow`. "Monthly" was wrong on
+  four of the five presets. ⚠️ The truncation plan's B1 refers to it by the old
+  name; that reference is historical.
+- **`periodLabel` ships WITH the numbers** rather than being derived in the view,
+  so a re-render between fetches cannot print one period's label over another
+  period's figures.
+- **Query key:** `["dashboard-stats", vendorId, window.from, window.to]`. ✅
+  **Verified before changing it** that both invalidation sites —
+  `useBookingActions.ts:123` and `useBookingsRealtime.ts:44` — use
+  `invalidateQueries` on the `["dashboard-stats", vendorId]` PREFIX, so they still
+  reach every cached window. No change was needed at either site.
+- **`useDashboardView` holds the window** in `useState` with a lazy initialiser
+  (the eager form would recompute the current month every render and discard it).
+
 ---
 
-### B2 — There is no shared date-range control  ⬜ TODO
+### B2 — There is no shared date-range control  ✅ DONE (2026-08-14) — `lib/dateWindows.ts` + `PeriodFilter` both shipped; unmounted until Stage 3
 **Files:** new `src/components/common/PeriodFilter/`, new `src/lib/dateWindows.ts`;
 prior art `useTransactionsQuery.ts:14-32`, `BookingFilterTabs`
 
@@ -194,6 +223,77 @@ not `contentContainerStyle`. `BookingFilterTabs` already pays this tax — copy 
 **Verification:** machine (`tsc`, `npm test` on `dateWindows.test.ts` covering month
 boundaries, year rollover and `presetForWindow` round-tripping) + device (chip
 heights are not ~400pt).
+
+**✅ `lib/dateWindows.ts` DONE (2026-08-14)** — `tsc` clean, `expo lint` clean,
+`npm test` 126/126 with 31 new cases. Nothing imports it yet, so behaviour is
+unchanged by construction. Exports: `PeriodPreset`, `PERIOD_PRESETS`,
+`DEFAULT_PERIOD_PRESET`, `windowFor`, `defaultWindow`, `presetForWindow`,
+`rangeLabel`, `isDefaultWindowKey`, `parseWindowParam`.
+
+Four things worth carrying forward:
+
+1. **Every function takes an optional `today`.** Not a test seam bolted on: a strip
+   that resolves "today" once and derives all five presets from it cannot mix two
+   calendar days when the call straddles midnight. Production callers take the
+   default.
+2. **Two enabling changes outside the new module, both type/compile-only.**
+   `phCurrentMonthRange(today = phToday())` gained the same optional parameter
+   (`lib/format.ts`; existing callers and `format.test.ts` unaffected), and
+   **`DateWindow` moved from `transactions.service.ts` to `lib/types.ts`** with
+   `useTransactionsQuery` repointed. The move is forced: `lib/` cannot import
+   `services/` without inverting the layer, and in practice a service import drags
+   `lib/supabase/client` into `node --test`, which cannot load it.
+3. **`serialiseWindow` was dropped from the planned API.** A window is already two
+   strings; an identity function would be ceremony. `parseWindowParam` earns its
+   place because params can arrive from a deep link — see B5.
+4. **The old `WINDOW_PRESETS`/`windowFor` in `useTransactionsQuery.ts` still
+   exist** and are still what Transactions uses. Two preset tables coexist until
+   Stage 6 retires the old one. Expected, not drift — but do not "tidy" one of them
+   away early, since the old one is live and the new one is not.
+
+**✅ `PeriodFilter` DONE (2026-08-14)** — `components/common/PeriodFilter/` as
+`.tsx` + `.styles.ts`, **no hook**: fully controlled (`value: DateWindow`,
+`onChange: (next: DateWindow) => void`), no state and no effects, so
+`component-separation` §4's pure-display exemption applies. Rendered nowhere yet.
+
+- **It speaks `DateWindow` in both directions**, never a preset name —
+  `presetForWindow` in, `windowFor` out. That translation is its single
+  responsibility and is what keeps D1(c)'s promise: screens hold only windows, so a
+  custom range later is a new chip here rather than a refactor of three screens. A
+  window matching no preset highlights nothing, which is the honest rendering of a
+  state the type must be able to express.
+- **`today` is resolved once per render** and passed into both helpers. Letting each
+  call `phToday()` independently would let a render that straddles midnight match a
+  chip against one day and emit a window built from the next.
+- **Accessibility:** the strip carries `accessibilityRole="tablist"` and
+  `accessibilityLabel="Period"` — added because D6 stacks it directly beneath the
+  status strip, and without it a screen-reader user meets eleven undifferentiated
+  tabs across the two rows. Chips are `role="tab"` with `accessibilityState`,
+  matching the existing strip.
+- **Touch target:** the chip is sized by padding and lands under 44pt, so the
+  effective target is restored by a `hitSlop` *derived* from `MIN_TOUCH_TARGET`
+  (not a hardcoded number), the same construction the status chips use. Labels are
+  capped at `maxFontSizeMultiplier={1.3}` for the same reason they are there.
+- **The RN horizontal-ScrollView trap is paid:** `flexGrow: 0` on the ScrollView's
+  own `style`, with the reason recorded in the styles file so it is not removed as
+  redundant.
+- **Known duplication, accepted with a trigger:** the chip metrics are copied from
+  `BookingFilterTabs.styles.ts` — see **C1** under DEFERRED / COSMETIC.
+
+**Verified (machine):** `tsc` clean, `expo lint` clean, `npm test` 126/126.
+**NOT verified:** anything visual. The component renders nowhere until Stage 3, and
+`expo export` would not even bundle an unreferenced module, so it proves nothing
+here. Every claim about how it *looks* — chip height, the stacked-strip layout, the
+gradient in both themes, the font-scale cap — is unverified until Stage 3 puts it
+on screen and a device confirms it. This app has shipped four style passes that
+machine checks approved and that did nothing visible.
+
+**Behaviours pinned by the tests, so a later edit has to decide about them rather
+than trip over them:** "7 days" is 7 days *including* today (−6); the month presets
+are inherited verbatim and therefore cover N months *plus a day*; and JavaScript's
+month overflow means 31 May − 3 months is **3 March**, not 28 February. That last
+one always widens a window, never narrows it, so no money goes missing — but it is
+now asserted rather than assumed.
 
 ---
 
@@ -257,9 +357,37 @@ widget's number (this card is one of the two exact-match cases, see D7).
 
 ---
 
+### B5 — Route params are an untrusted surface  ✅ DONE (2026-08-14) — discovered during Stage 1
+**File:** `src/lib/dateWindows.ts` `parseWindowParam`; enforced by Stages 5–6
+
+**Not in the original plan.** Writing Stage 1's tests turned up a real defect in
+the first cut of the param validator: `"2026-13-01"` matches the `YYYY-MM-DD`
+pattern but parses to an **Invalid Date**, whose `toISOString()` **throws**. The
+round-trip check alone therefore crashed instead of rejecting.
+
+That matters because these params reach `useLocalSearchParams`, which means they
+can also arrive **from a deep link** — from outside the app — and this app has **no
+error boundary** (nested `AGENTS.md`: the `NotificationListItem` lookup crash took
+out a whole screen for the same class of reason). A hostile or merely stale link
+would have taken down the destination tab.
+
+**Fixed:** `isRealDate` now guards `Number.isNaN(parsed.getTime())` before the
+round-trip, with a comment marking the guard load-bearing. `parseWindowParam`
+rejects a missing half, a repeated param (expo-router surfaces those as an array),
+a malformed date, an impossible date, and an inverted range — seven test cases.
+
+**Binding on later stages:** Stages 5 and 6 must take every window param through
+`parseWindowParam` and fall back to the default on `null`. Reading `params.from`
+directly, or casting it, reintroduces exactly this.
+
+**Verification:** ✅ machine — `npm test`, 7 cases in `dateWindows.test.ts`; the
+crash was reproduced as a failing test before the fix.
+
+---
+
 ## IMPORTANT
 
-### I1 — Period-bearing card names contradict a selectable period  ⬜ TODO
+### I1 — Period-bearing card names contradict a selectable period  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
 **File:** `src/components/dashboard/DashboardView.tsx:87,96`
 
 "Completed This Month" and "Monthly Revenue" are fixed-period names. With a
@@ -268,6 +396,13 @@ control set to anything else they state a period the number does not cover.
 **Fix approach:** rename to "Completed" and "Revenue"; the sub-label carries the
 period (already does — `stats?.monthLabel`, which becomes a range label). Exactly
 web's I5/I7 fix.
+
+**🔄 CODE COMPLETE (2026-08-14).** Both cards renamed; subs now read
+`stats?.periodLabel`. A third period-bearing string was found and fixed in the same
+pass: Stage 0's truncation warning said *"This **month** has more payments…"*,
+which is the same defect one layer down — it is now "This period". The
+"unavailable" sub-label is unchanged, since it describes the ledger rather than a
+period.
 
 ### I2 — Consuming params on an already-mounted tab  ⬜ TODO
 **Files:** destination screens; `(app)/_layout.tsx`
@@ -285,7 +420,7 @@ subtly wrong.
 tabs away and back, confirm the changed filter survives and the old one does not
 return.
 
-### I3 — Stale-data banner and offline persistence must follow the period  ⬜ TODO
+### I3 — Stale-data banner and offline persistence must follow the period  🔄 CODE COMPLETE (2026-08-14) — offline behaviour unverified
 **Files:** `StaleBanner` usage `DashboardView.tsx:50-54`; `lib/queryClient.ts` `PERSISTED_KEYS`
 
 `dataUpdatedAt` comes from the stats query. Once the key includes the window,
@@ -323,6 +458,23 @@ data. Note it so the miss is not later mistaken for a bug.
 **Verification:** device — airplane mode, cold open, confirm the default period
 restores; then browse three periods, background/foreground, and confirm the
 persisted blob has not grown to hold them (dev-menu AsyncStorage inspection).
+
+**🔄 CODE COMPLETE (2026-08-14).** Both halves:
+
+1. **Banner** — confirmed by reading rather than assumed: `useDashboardView`
+   returns `stats.dataUpdatedAt` straight from the `useQuery` whose key now carries
+   the window, so each period reports its own freshness with no extra wiring. A
+   comment now says so at the return site, because the correctness of this depends
+   on a key two files away.
+2. **Persistence** — `queryClient.ts`'s `shouldDehydrateQuery` gained the
+   `isDefaultWindowKey` gate exactly as drafted. Keys with no window are unaffected
+   (the helper returns `true` for them), so every pre-existing cache persists as
+   before; only non-default windows are now excluded.
+
+✅ The gate's logic is unit-tested (Stage 1, 5 cases including a bookings key with
+a status element and a non-date tail). ⚠️ What is NOT verified is the *effect*: no
+airplane-mode cold open has been run, and no AsyncStorage blob has been inspected.
+That is a device check and it has not happened.
 
 ### I4 — Transactions must move from `WindowPreset` state to `DateWindow` state  ⬜ TODO
 **Files:** `src/hooks/useTransactionsQuery.ts:14-61`;
@@ -447,6 +599,20 @@ ones land with the right chips visibly selected.
 
 ---
 
+## DEFERRED / COSMETIC
+
+- **C1 — the chip metrics now exist twice** (added 2026-08-14, Stage 2).
+  `PeriodFilter.styles.ts` copies `BookingFilterTabs.styles.ts`'s chip padding,
+  radius, label size and hitSlop derivation rather than importing or extracting
+  them. Acceptable because `common/` must not depend on `bookings/`, extracting
+  would mean editing a working component for no behavioural gain, and the two
+  strips are genuinely different components — one carries count badges and bleeds
+  out of a list header, the other does neither. **Mitigation:** the two sit
+  *stacked* on the bookings screen after Stage 5, so any divergence is visible side
+  by side rather than silent. **Trigger to extract:** a third chip strip.
+
+---
+
 ## Couplings
 
 - **Hard, blocking — now an ordering prerequisite.** Mobile **B1** of
@@ -471,8 +637,8 @@ no-inline-styles rule still apply.
 
 | Component | Change | Separation |
 |-----------|--------|------------|
-| **NEW** `common/PeriodFilter/` | The shared period control (B2). `PeriodFilter.tsx` + `PeriodFilter.styles.ts`. | **No hook** — fully controlled (`value: DateWindow`, `onChange`), so it holds no state, effects or handlers of its own; pure display, exactly like `StatCard`. All styling in `makeStyles(tokens)`; no inline `style={{}}`. Reuses `BookingFilterTabs`' chip language. |
-| **NEW** `lib/dateWindows.ts` + `.test.ts` | Preset table, `windowFor`, `presetForWindow`, `rangeLabel`, `isDefaultWindowKey`, param parse/serialise (B2, I3). | Not a component. `lib/` because it must be unit-testable — the app already tests `transactionTotals.ts`, `bookingErrors.ts`, `vendorMapping.ts` there, and nothing in it may import `lib/supabase/client`. |
+| **NEW** `common/PeriodFilter/` ✅ | The shared period control (B2). `PeriodFilter.tsx` + `PeriodFilter.styles.ts`. Shipped 2026-08-14, unmounted. | **No hook** — fully controlled (`value: DateWindow`, `onChange`), so it holds no state, effects or handlers of its own; pure display, exactly like `StatCard`. All styling in `makeStyles(tokens)`; no inline `style={{}}`. Reuses `BookingFilterTabs`' chip language. |
+| **NEW** `lib/dateWindows.ts` + `.test.ts` ✅ | Preset table, `windowFor`, `defaultWindow`, `presetForWindow`, `rangeLabel`, `isDefaultWindowKey`, `parseWindowParam` (B2, B5, I3). Shipped 2026-08-14; no `serialiseWindow` — see B2. | Not a component. `lib/` because it must be unit-testable — the app already tests `transactionTotals.ts`, `bookingErrors.ts`, `vendorMapping.ts` there, and nothing in it may import `lib/supabase/client`. |
 | `dashboard/StatCard/StatCard.tsx` | Optional `onPress` + `accessibilityHint`; `Pressable` root **only** when supplied (B3, D2). Update the `:24-30` comment. | Stays pure display — handler passed in, no state. Pressed style in `StatCard.styles.ts`, not inline. |
 | `dashboard/DashboardView/{useDashboardView,DashboardView}.ts(x)` | Hook holds the `DateWindow` and the four navigation callbacks (I5); view renders `<PeriodFilter />`, passes `onPress` per card, renames the two period-bearing cards (I1). | Hook keeps state + navigation, as it already does for `openBooking`/`openAllBookings`. The `.tsx` gains no `useState`. |
 | `services/dashboard.service.ts` | `getDashboardStats(vendorId, window)`; window applied to Completed + Revenue only (B1). | — |
@@ -494,9 +660,9 @@ range is requested (`.claude/skills/developerboss/SKILL.md`).
 | Stage | Work | Items | Gate to leave |
 |---|---|---|---|
 | **0** 🔄 | Ship `.plans/2026-08-11-mobile-vendor-unbounded-queries.md` **Stage 1** (B1 + I1 + I2 — bound `getMonthlyRevenue`, surface `complete`) as its own change. **Not part of this plan's diff.** **Code complete 2026-08-14, machine-verified; the live >1000-row check has NOT been run.** | that plan's B1, I1, I2 | Its own verification; revenue reports honestly over a 12-month window |
-| **1** | `lib/dateWindows.ts` + `dateWindows.test.ts` — preset table, `windowFor`, `presetForWindow`, `rangeLabel`, `isDefaultWindowKey`, param codec. Pure; nothing imports it yet. | B2 (part) | `npm test` green, `tsc` clean, **zero** behaviour change |
-| **2** | `PeriodFilter` component — `.tsx` + `.styles.ts`, rendered nowhere. | B2 (part) | `tsc` clean; device check only once mounted in Stage 3 |
-| **3** | Dashboard reads the window: `getDashboardStats(vendorId, window)`, query key, `<PeriodFilter />`, card renames, banner + persistence. | B1, I1, I3 | Device: Completed and Revenue move, **Pending and Today's do not** |
+| **1** ✅ | `lib/dateWindows.ts` + `dateWindows.test.ts` — preset table, `windowFor`, `presetForWindow`, `rangeLabel`, `isDefaultWindowKey`, param codec. Pure; nothing imports it yet. **DONE 2026-08-14** — see B2's note. | B2 (part) | ✅ `npm test` 126/126 (31 new), `tsc` clean, `expo lint` clean, **zero** behaviour change |
+| **2** ✅ | `PeriodFilter` component — `.tsx` + `.styles.ts`, rendered nowhere. **DONE 2026-08-14.** | B2 (part) | ✅ `tsc`, `expo lint`, `npm test` clean; **device check deferred to Stage 3**, where it first renders |
+| **3** 🔄 | Dashboard reads the window: `getDashboardStats(vendorId, window)`, query key, `<PeriodFilter />`, card renames, banner + persistence. **Code complete 2026-08-14; machine-verified incl. `expo export`. NOT device-verified.** | B1, I1, I3 | Device: Completed and Revenue move, **Pending and Today's do not** |
 | **4** | Stat cards gain press targets and the four navigation callbacks. | B3, I5 | Device: taps land, TalkBack announces destinations, ≥44×44pt |
 | **5** | Bookings destination: window on `getBookingsPage` + key, second strip, param consume/clear. | B4, I2, D6 | Device: Completed drill-down matches exactly; badges unchanged |
 | **6** | Transactions destination: `DateWindow` state + keys, `<PeriodFilter />` replaces the inline map, param consume/clear. | I4, I2 | Device: the three original presets behave as before |

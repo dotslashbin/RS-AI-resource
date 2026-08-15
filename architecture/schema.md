@@ -358,7 +358,7 @@ Bookable services defined by a vendor. Each vendor defines its own offerings ind
 | `vendor_id` | `uuid` | FK → `vendors` ON DELETE CASCADE |
 | `category` | `text` | **Vendor-defined free text** (e.g. "Rental", "Coaching", "Class"). No lookup table — the distinct values across `offerings.category` drive the UI filters/suggestions. Default `''` |
 | `name` | `text` | Display name, e.g. "1-Hour Court Rental" |
-| `code` | `text` | Short badge, e.g. `RENT`. Max 6 chars, uppercase. Unique per vendor |
+| `code` | `text` | Short badge, e.g. `RENT`. Max 6 chars, uppercase. Unique per vendor. ⚠️ **Vendor-editable — never group or join on it.** Unique-per-vendor makes it *look* like a key, but a rename silently re-attributes anything keyed on it. Use `offerings.id`: the vendor booking counts, the offering performance modal and the assigned-staff list on the offering card all learned this the hard way |
 | `description` | `text` | |
 | `price` | `numeric(10,2)` | Philippine Peso. Non-negative. **Per unit of duration**, not per booking |
 | `duration_minutes` | `integer` | NOT NULL, default `60`, `check (> 0)`. Length of ONE bookable unit, normalised to minutes. The single source of truth for all slot and overlap arithmetic |
