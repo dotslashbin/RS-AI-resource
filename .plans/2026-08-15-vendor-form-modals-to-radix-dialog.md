@@ -736,7 +736,23 @@ now `aria-hidden` before changing any component code.
 
 ---
 
-### I6 — Every `Dialog.Content` needs an accessible name, and a description decision  ⬜ TODO
+### I6 — Every `Dialog.Content` needs an accessible name, and a description decision  ✅ DONE (marker corrected 2026-08-16)
+
+> ⚠️ **This was implemented at the time and never marked.** The fix below is present in
+> all three files — `OfferingFormModal.tsx:67,72`, `ScheduleFormModal.tsx:98,103`,
+> `StaffFormModal.tsx:41,46` — each with `Dialog.Title` for the accessible name and
+> `aria-describedby={undefined}` as the documented opt-out, exactly as prescribed. The
+> stale ⬜ caused it to be reported as outstanding work twice on 2026-08-16.
+>
+> **Verified 2026-08-16, not inferred from reading the code:** every vendor dialog driven
+> from `/ui-gallery` was opened in Chromium with a console listener capturing
+> **warnings as well as errors** — `offeringform`, `scheduleform`, `scheduleformdate`,
+> `staffform`, `guide`, `performance`, `completionmodal`. **7/7 render a dialog and emit
+> zero Radix accessible-name warnings.**
+>
+> Note the verification method is the one the payout plan's I11 introduced: a
+> `pageerror`-only listener could never have caught this, because Radix warns via
+> `console.warn`.
 **Files:** all three conversions
 
 Radix requires `Dialog.Title` (it warns loudly to the console without one) and warns again
