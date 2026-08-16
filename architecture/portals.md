@@ -187,6 +187,10 @@ auto-opens once per browser. See "Getting Started guide" below.
   - Reads `getOfferingFinancials()` (`services/transactions.service.ts`), which reaches the offering through `bookings!inner(offering_id)`. The **`!inner` is load-bearing**: without it PostgREST filters the embedded object but still returns the parent row, and every offering would show the vendor's entire ledger. Verified against a real database — the same query without it returned 35 rows/₱35,660 for an offering that has 1 row/₱810
   - Sums are delegated to `summariseFinancials()`, the same unit-tested reducer the dashboard uses — no second copy of the money rules. The "still on hold" figure in the caption is labelled **net**, because `onHold` is after-fee while the headline tile beside it is gross
   - Five render states, not three: loading, error, **empty** (no payments yet), **reversed-only** (every payment reversed — the offering *has* sold, so "No payments yet" would be false), and ready. The average is only ever computed under `ready`, which is exactly `countedRows > 0`
+- **Post-save schedule prompt (2026-08)** — after an offering saves, a small dialog states *"Offering saved"* and offers the schedule as an optional next step. Shown on create **and** edit; never on a failed save, which is a property of the existing control flow rather than a guard (every failure path in `handleSave` returns before the prompt is set). Dismissing it (`Not now`, Escape, or the overlay) leaves the app in exactly the pre-feature state
+  - **Three actions, not two.** An offering may have many schedules — `schedules.offering_id` has no unique constraint and the schema names no "current" one — so the button is **Set up schedule** (none), **Update schedule** (exactly one), or **View schedules (N)** (several). The label and the destination come from one call to `lib/offeringSchedules.ts`, so a button cannot promise an edit form and deliver a list. With several, the Schedule page is filtered and **no modal opens**: there is no non-arbitrary schedule to pick, and the button says so
+  - "Has a schedule" means has an **active** one — the count comes from the shell's array, which is `is_active = true`. Deliberately different from `countSchedulesForOffering()`, which counts every row because it answers the duration-flip question instead. Both are right for their own caller
+  - Costs **no query**: the shell already holds every active schedule, the same way the booking counts and staff chips above are derived
 
 #### Schedules Page (fully wired)
 - Calendar/list view of active schedules, **week starting Sunday** (2026-08)
@@ -197,6 +201,10 @@ auto-opens once per browser. See "Getting Started guide" below.
 - Filter by offering or staff
 - Edit and delete schedules
 - **Per-slot availability in the day panel (2026-08)** — each derived slot lists as `09:00–10:00 · 2 of 5 left`, or `Full`. Date-granular schedules show a single "This date" row. Occupancy is counted by **overlap**, matching `check_booking_placement()`: a multi-unit booking consumes every slot it covers, and a multi-day booking every date in its span
+- **Arriving from an offering save (2026-08)** — the page accepts a `PageIntent.schedule` handoff (see *Shell navigation* below) and opens on the right thing: the form preselected to that offering in create mode, or in edit mode loaded with its one existing schedule. When the offering has several, the page filters to it and opens nothing
+  - The handoff is applied **inside** the `getOfferings` callback, not before it. Two things depend on that ordering: the offering cannot be preselected until the array containing it exists, and `useScheduleForm`'s seeding effect re-runs whenever `offerings` changes identity — opening the modal first would let the array land mid-edit and reset fields the vendor had typed into. ⚠️ Reordering this to "open, then fetch" reintroduces both
+  - The page filter is seeded **only when the offering has a category**. The offering pills render only while a category is selected, so filtering by an uncategorised offering would leave an active filter with no visible control to clear it
+  - Every lookup degrades rather than throws: an offering missing from the fetch drops the whole handoff, and a `scheduleId` that no longer resolves falls through to create mode — coherent, because the offering genuinely has no active schedule left to edit
 
 > **The occurrence rule lives in four places** — `check_booking_placement()`
 > (`20260803000005`, the authority), `booker/services/schedules.service.ts`,
@@ -257,12 +265,12 @@ onboarded a second time because the guide changed shape.
 - **Seven tabs**: Dashboard · Bookings · Offerings · Staff · Schedule · Transactions ·
   Completing. Order follows the app's own navigation. Approving/rejecting is covered
   **inside Bookings**, not as its own tab, because that is where the vendor does it
-- Built on **Radix Dialog + Tabs**, not the app's `ModalOverlay` — both packages were
-  already dependencies, and Radix supplies the focus trap, Escape handling, scroll lock
-  and arrow-key tab navigation that `ModalOverlay` lacks. The three form modals still
-  use `ModalOverlay`; converting them is separate work, and a *new* modal should not
-  adopt the weaker primitive to match them. `OfferingPerformanceModal` follows the same
-  reasoning
+- Built on **Radix Dialog + Tabs** — both packages were already dependencies, and Radix
+  supplies the focus trap, Escape handling, scroll lock and arrow-key tab navigation that
+  the app's old hand-rolled `ModalOverlay` lacked. This was the first modal to move; the
+  rest followed on 2026-08-15, `ModalOverlay` was deleted, and **every** vendor dialog is
+  now Radix — see `architecture/conventions.md` → Component Conventions for the shape they
+  all share
 - The tab strip **scrolls sideways** rather than wrapping, and carries a right-edge fade
   mask. At seven tabs it overflows the 560px dialog at every width, and a hard-clipped
   final tab reads as a rendering fault rather than as "there is more this way". Note
@@ -309,6 +317,28 @@ onboarded a second time because the guide changed shape.
 - Light/dark theme toggle
 - Multi-vendor support: if a user is `vendor-admin` at multiple vendors, they can switch between them
 
+#### Shell navigation and the page-intent handoff
+**There is no router.** `app/page.tsx` is five lines; `useAppShell` holds a `page: PageId`
+and `AppShell` renders one page from a `switch`. Every navigation therefore **unmounts the
+old page and mounts the new one**, and several features depend on that.
+
+- `goPage(p, intent?)` navigates and stamps an optional **`PageIntent`** with the page it
+  is meant for. `intentFor(p)` returns it only to that page, so a stale arrival cannot
+  leak onto a surface it was not addressed to
+- The intent is **consumed once, at mount** — destination hooks seed their own state from
+  it with a lazy `useState` initialiser (`useBookings`, `useTransactionsPage`) and then own
+  it. It is deliberately not a shared filter store: two pages reading one mutable range
+  would mean clearing a filter on Bookings silently changed Transactions
+- Three carriers today: `range` and `status` (dashboard drill-downs into Bookings and
+  Transactions) and `schedule` (the Offerings → Schedule handoff described above)
+- ⚠️ **`range` and `status` round-trip through the URL; `schedule` deliberately does not.**
+  `serialiseAppParams` writes only `page`/`from`/`to`/`status` and `parseAppParams` accepts
+  only those, so a schedule handoff can be neither bookmarked nor forged — a query
+  parameter that re-opens a modal would re-open it on every load of a saved link
+- The URL is a **mirror of shell state**, written with `replaceState` from an effect, not a
+  source of truth. Adding page keep-alive or component caching to the `switch` would
+  silently break every mount-seeded arrival above
+
 #### Progressive Web App (2026-07, live)
 Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker has the identical setup (see its own Current Features above); Command does not have this (desktop admin tool) — see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
@@ -320,6 +350,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | KYC onboarding (type → docs → ID/selfie) | ✅ Supabase-wired — private `vendor-kyc` bucket; camera capture; `localStorage` draft resume |
 | KYC status surface + revise & resubmit | ✅ Supabase-wired — selective-edit resubmit with Storage cleanup |
 | Offerings CRUD | ✅ Supabase-wired |
+| Offering → Schedule handoff (post-save prompt) | ✅ Live — client-side only, no query; verified in dev 2026-08-15 |
 | Schedules CRUD | ✅ Supabase-wired |
 | Staff CRUD | ✅ Supabase-wired |
 | Vendor profile | ✅ Supabase-wired |
@@ -327,6 +358,8 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Transactions (payment history, payout totals, filters, print/PDF) | ✅ Supabase-wired — reads `booking_transactions`; browser-verified. Mobile print-to-PDF on real devices still unverified |
+| **Account completion** (onboarding modal + header indicator) | ✅ Live 2026-08-15 — one authoritative rule in `lib/accountCompletion.ts`, derived from real data (offering count + payout row), never a stored flag. Modal auto-opens once per browser session per vendor while incomplete; the header indicator reopens it. Browser-verified across all six completion states |
+| **Payout details** (Settings → bank / GCash / Maya) | ✅ Live 2026-08-15 — app-encrypted at rest, masked-only reads, audited changes. ⚠️ **Local only** — the migration has not been pushed to hosted |
 | Calendar (schedules + bookings overlay) | ✅ Supabase-wired — reads the shell's bookings and schedules |
 | Offering performance (per-offering income modal) | ✅ Supabase-wired — `getOfferingFinancials()` over `booking_transactions` |
 | Assigned staff shown per offering | ✅ Derived in-memory from the shell's staff — no extra query |
@@ -343,6 +376,8 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 - **Packages page has no backing table.** If packages (bundles of offerings with a combined price) become a real feature, they need a DB schema.
 - **Mobile print-to-PDF is unverified on real devices.** The Transactions page's print output is machine-verified in headless Chromium (correct dual-render, all filtered rows present, nav hidden, content paginates instead of clipping, valid PDFs at desktop and 390px widths), but an actual "Print → Save as PDF" from Android Chrome and iOS Safari has not been exercised on physical hardware — mobile print sheets vary by OS and browser version. Same class of gap as the PWA items below.
 - **No payout disbursement.** The Transactions page computes and displays what each vendor is owed, but nothing moves money to them; there is no withdrawal or payout run.
+- ~~**Payout destinations are collected but nobody can read them yet.**~~ **Closed 2026-08-16** — Command can now read them (`/api/vendor-payout`), so a manual transfer is possible end to end. What remains: there is still **no payout rail** (nothing moves money automatically), `ezzy-vendor-mobile` has no completion surface (C1), and a changed payout destination raises **no notification** (C3) — the change log and the view log are the compensating controls in its place.
+- ⚠️ **The encryption key now exists in two apps.** `PAYOUT_ENCRYPTION_KEY` must be byte-identical in `vendor` and `command`, or Command decrypts garbage. Two copies is two places to leak it from; that is the accepted cost of there being no shared-secret path between apps.
 - **Paid-then-cancelled money is unreconciled.** A booking paid via PayMongo and then cancelled by the vendor is excluded from payout totals (the vendor didn't deliver), but no refund mechanism exists either, so that amount currently belongs to neither party in the ledger. Fully traceable (a `booking_transactions` row plus a `cancelled` status and a `booking_status_log` entry naming who cancelled), but it needs resolving when refunds or payouts are built — see `.plans/2026-07-25-vendor-transactions-platform-fee.md`.
 - **No photo/logo upload.** Vendor profile has no image support yet.
 - **KYC approval is advisory.** Command can activate a vendor whose KYC is still `submitted`/`rejected` — no hard gate yet (deferred item 8a; see `vendor-kyc.md`).
@@ -450,6 +485,8 @@ All four tabs are reachable by anyone who reaches the command portal at all — 
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | Flag Queue (resolve booking disputes) | ✅ Supabase-wired — `disputes.service.ts` + `resolve_booking_dispute()` |
 | Payouts (release vendor payouts) | ✅ Supabase-wired — `payouts.service.ts` + `release_booking_payouts()` |
+| **Vendor payout destinations** (view + per-field copy) | ✅ Live 2026-08-16 — a payout badge on each vendor card opens `VendorPayoutModal`, which decrypts server-side via `/api/vendor-payout`, shows values **masked until revealed**, and copies each field to the clipboard for a manual bank transfer. **Every decrypt is recorded in `vendor_payout_view_log`, and a read that cannot be audited is refused.** Command's **first Radix dialog** — the app's own `ModalOverlay` has no focus trap, Escape handling or scroll lock, which is not acceptable for a dialog showing bank details |
+| **Vendor account-completion badge** | ✅ Live 2026-08-16 — reads the `vendor_account_completion` view, the single definition shared with the vendor portal. `null` renders as **Unknown**, never as Incomplete |
 | Fulfilment oversight (stale `in_progress`, open flags) | ✅ Supabase-wired — `oversight.service.ts` on the Overview |
 | Platform Fee setting | ✅ Live — global commission %, snapshotted onto each payment; browser-verified end-to-end |
 | KPI widgets | ⚠️ Vendor count live; bookings/revenue seeded |

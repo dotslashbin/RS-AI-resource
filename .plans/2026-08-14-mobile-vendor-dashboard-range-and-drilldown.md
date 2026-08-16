@@ -5,10 +5,12 @@
 **Status:** IN PROGRESS — all decisions resolved 2026-08-14 (D1–D5 plus D6, D7).
 **Stage 0 code complete** (the D5 prerequisite: its live >1000-row check is still
 outstanding and carried as debt on
-`.plans/2026-08-11-mobile-vendor-unbounded-queries.md`). **Stages 1–3 done
-2026-08-14** (1 and 2 ✅ verified; **3 🔄 code complete, machine-verified only**).
-The dashboard now has a working period control on paper — **nothing has been seen
-on a device**, and that debt now spans three stages. Stage 4 (press targets) next.
+`.plans/2026-08-11-mobile-vendor-unbounded-queries.md`). **All code stages (0–6) complete
+2026-08-14**; 1 and 2 ✅, the rest 🔄 code complete and **machine-verified only**.
+The feature is now wired end to end — dashboard → drill-down → filtered
+destination. **Stage 7, the device pass, is the entire remaining scope**, and
+nothing in this plan has been seen on a screen. One new decision was taken during
+execution: **D8** (bookings' default period and its "All dates" chip).
 
 > Bring the vendor web dashboard's period filter and clickable widgets to mobile.
 > Optimise for **the mobile app's own idioms** — React Query, expo-router params,
@@ -297,7 +299,7 @@ now asserted rather than assumed.
 
 ---
 
-### B3 — Stat cards have no press target  ⬜ TODO
+### B3 — Stat cards have no press target  🔄 CODE COMPLETE (2026-08-14) — device + TalkBack check outstanding
 **File:** `src/components/dashboard/StatCard/StatCard.tsx:29-30`
 
 No `Pressable`, no press state, no `accessibilityRole="button"` — by decision
@@ -323,9 +325,32 @@ pressables will swallow taps.
 **Verification:** device — tap each card, and check TalkBack announces the
 destination (Android; iOS/VoiceOver remains unverifiable here per nested `AGENTS.md`).
 
+**🔄 CODE COMPLETE (2026-08-14).** `StatCard` takes optional `onPress` +
+`accessibilityHint`. Without `onPress` it returns the identical `View` with
+`accessibilityRole="summary"` and no press state — the branch is early-return, so
+the non-interactive tile is unchanged rather than merely "looks the same". With
+`onPress` the root is a `Pressable` carrying `accessibilityRole="button"` and a
+`pressed` opacity of 0.75 from `StatCard.styles.ts` (matching `BookingListItem`,
+the app's other pressable card). The `:24-30` comment was rewritten: it now records
+that D4-a's *condition* was met rather than its rule overturned, and that a card
+with nowhere to go still may not look tappable.
+
+- **`accessible` is set explicitly on the Pressable**, which is load-bearing rather
+  than decorative: without it the card's three `Text` nodes are focused
+  individually and the button role and hint — the only things that say what a tap
+  does — sit on a node TalkBack never reaches.
+- **No `hitSlop`**, unlike the filter chips: at `flexBasis: 47%` the card is ~128dp
+  wide and taller still on every supported width, so it clears 44×44pt on its own.
+  Recorded so nobody adds slop "for consistency" and enlarges an already-large
+  target into its neighbour.
+
+**Verified (machine):** `tsc`, `expo lint`, `npm test` 126/126. **NOT verified:**
+that a tap actually lands, the pressed opacity is visible, and TalkBack reads the
+hint. All three need a device.
+
 ---
 
-### B4 — Bookings cannot be filtered by date  ⬜ TODO
+### B4 — Bookings cannot be filtered by date  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
 **Files:** `src/services/bookings.service.ts:110-133`;
 `src/hooks/useBookingsQuery.ts:40-50` (key), `:79+` (hook)
 
@@ -354,6 +379,18 @@ it means the window does **not** narrow monotonically down the pages. Do not
 
 **Verification:** device — drill in from Completed, confirm the list matches the
 widget's number (this card is one of the two exact-match cases, see D7).
+
+**🔄 CODE COMPLETE (2026-08-14).** `getBookingsPage(…, window?)` applies
+`.gte/.lte` on `booked_date`; `useBookingsQuery(vendorId, statuses, window?)`
+threads it; `bookingsQueryKey` **appends** `from`/`to` only when a window exists.
+
+- **The unfiltered key is byte-identical to before**, so no existing cache entry is
+  orphaned and `isDefaultWindowKey` still reads it as "no window" and persists it.
+- ✅ **`countBookingsWithStatuses` was left alone** and now carries a comment
+  saying it must stay that way. Badges count work outstanding; scoping them to a
+  period would hide approvals still waiting on the vendor.
+- The ordering/filter column mismatch (`created_at, id` vs `booked_date`) is
+  recorded in the service so nobody "optimises" it into an early stop.
 
 ---
 
@@ -404,7 +441,7 @@ which is the same defect one layer down — it is now "This period". The
 "unavailable" sub-label is unchanged, since it describes the ledger rather than a
 period.
 
-### I2 — Consuming params on an already-mounted tab  ⬜ TODO
+### I2 — Consuming params on an already-mounted tab  🔄 CODE COMPLETE both screens (2026-08-14) — device check outstanding
 **Files:** destination screens; `(app)/_layout.tsx`
 
 Per F7, tabs stay mounted, so a `useState` initialiser reading params runs **once
@@ -419,6 +456,33 @@ subtly wrong.
 **Verification:** device — drill in, change the filter on the destination, switch
 tabs away and back, confirm the changed filter survives and the old one does not
 return.
+
+**🔄 BOOKINGS DONE (2026-08-14)** in `useBookingsList`. An effect keyed on
+`params.filter / from / to`, with an early return when none are present, applying
+`parseFilterParam` + `parseWindowParam` (B5 — never a cast, because a deep link can
+supply these) and then clearing all three with `router.setParams`.
+
+**The clearing is what makes a REPEAT drill-down work**, which is the part most
+likely to be got wrong: without it the second push of identical params changes no
+value, the effect never re-runs, and the tap silently does nothing.
+
+⚠️ **A lint rule had to be suppressed**, scoped to those two lines:
+`react-hooks/set-state-in-effect`. Only one other suppression exists in this app,
+so the reasoning is recorded inline. The rule targets state *derived* from props;
+this is a one-shot sync from an external navigation event. The alternative —
+making route params the source of truth — would have meant converting the
+**existing, shipped** status filter onto `router.setParams` too, putting a working
+feature on a mechanism never verified on a device here, to satisfy a heuristic.
+Both failure modes the rule guards are closed: the early return and the clear make
+each arrival apply exactly once, so it cannot loop.
+
+**🔄 TRANSACTIONS DONE (2026-08-14)** in `useTransactionsView`, same shape, with
+one deliberate difference: a malformed window leaves the current range in place
+rather than clearing it, because that screen has no "no period" state to fall back
+to (D8 gives one only to bookings). Stage 5 set the pattern and Stage 6 followed it
+rather than inventing a second, as the execution order required.
+
+⚠️ Machine checks cannot see any of this. The whole item is a device check.
 
 ### I3 — Stale-data banner and offline persistence must follow the period  🔄 CODE COMPLETE (2026-08-14) — offline behaviour unverified
 **Files:** `StaleBanner` usage `DashboardView.tsx:50-54`; `lib/queryClient.ts` `PERSISTED_KEYS`
@@ -476,7 +540,7 @@ a status element and a non-date tail). ⚠️ What is NOT verified is the *effec
 airplane-mode cold open has been run, and no AsyncStorage blob has been inspected.
 That is a device check and it has not happened.
 
-### I4 — Transactions must move from `WindowPreset` state to `DateWindow` state  ⬜ TODO
+### I4 — Transactions must move from `WindowPreset` state to `DateWindow` state  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
 **Files:** `src/hooks/useTransactionsQuery.ts:14-61`;
 `src/components/transactions/TransactionsView/{useTransactionsView.ts:13-16,TransactionsView.tsx:10,31}`
 
@@ -501,7 +565,23 @@ after upgrade; no wrong data. Acceptable, but say so rather than discovering it.
 **Verification:** machine (`tsc`) + device — the three original presets still return
 what they did, and the default is still "This month".
 
-### I5 — Drill-down mapping, including the two inexact cards  ⬜ TODO
+**🔄 CODE COMPLETE (2026-08-14).** `useTransactionsQuery(vendorId, window)`; both
+keys carry `from`/`to`. `WindowPreset`, `WINDOW_PRESETS` and the old `windowFor`
+are **deleted** — ✅ grep confirms the only surviving mention is a comment in
+`dateWindows.ts` crediting where the "no all time" refusal came from.
+`useTransactionsView` holds a `DateWindow`, still defaulting to the current month
+because `defaultWindow()` *is* this month, so the screen opens on the range it
+always did.
+
+⚠️ **A visual change to a shipped screen, beyond what I4 described.** The inline
+three-segment control is gone, replaced by the shared chip strip, and its five
+styles were removed with it. Reason: the preset set is now five (D3), and five
+equal-width segments in a fixed-width pill would be unreadably narrow where a strip
+scrolls. The three original presets are all still there and still default. This is
+the one place in the plan where an existing screen *looks* different, so it wants a
+deliberate look on device rather than a glance.
+
+### I5 — Drill-down mapping, including the two inexact cards  🔄 CODE COMPLETE (2026-08-14) — **destinations ignore the params until Stages 5–6**
 **Files:** `useDashboardView.ts` (new callbacks); `app/(app)/bookings/index.tsx`,
 `app/(app)/transactions.tsx` (param consumption, see I2)
 
@@ -525,6 +605,107 @@ a wider list is *explained on screen* rather than looking like a wrong number.
 
 **Verification:** device — the two exact cards match their number; the two inexact
 ones land with the right chips visibly selected.
+
+**🔄 CODE COMPLETE (2026-08-14).** Four `router.push` callbacks in
+`useDashboardView`, alongside the `openBooking`/`openAllBookings` it already held.
+Params are `filter` plus `from`/`to`, the pair `parseWindowParam` validates.
+Pending carries **no** window, for the reason B1 keeps its count unscoped.
+
+✅ `tsc` validates both destination pathnames — typed routes are on
+(`app.json:66-67`), so `/bookings` and `/transactions` are checked. ⚠️ It does
+**not** check param names: the route types use `UnknownInputParams`, so a
+mistyped `fliter` would compile. Stages 5–6 are what turn that into a real check,
+by reading these exact names.
+
+⚠️ **INTERMEDIATE STATE — the whole point of recording it.** The destination
+screens do not read params yet (that is I2, Stages 5–6). So today a tap
+**navigates to the right tab and the period is silently dropped**: Completed lands
+on Bookings with whatever filter that tab last had. Nothing shows wrong data, but a
+build cut between Stage 4 and Stage 5 has cards that look connected and are not.
+Either ship Stages 5–6 alongside this, or expect that gap in testing.
+
+---
+
+### I6 — The getting-started guide contradicts the screens after this plan  🔄 CODE COMPLETE (2026-08-14) — reads correct, device check outstanding
+**Files:** `src/components/dashboard/GuideCard/guideItems.ts:1-11,40-43,57-66`
+
+**Missed during Stages 3–6 and found by the user (2026-08-14), not by me.** The
+guide is static copy that describes the dashboard, bookings and transactions
+screens — all three of which this plan changed — and nothing in Stages 3–6 touched
+it. Two of its claims are now wrong:
+
+| Line | Claim | Why it is now false |
+|---|---|---|
+| `:42` | *"The chips across the top filter by the stage a booking is at"* | There are **two** chip strips on Bookings now (D6). The second filters by date, and the sentence describes neither the split nor the new row. |
+| `:65` | *"The totals at the top match the payout figure on your dashboard"* | Only true when both screens sit on the same period. Before this plan both were always the current month, so it held; now each screen carries its own window. |
+
+Neither is cosmetic: the second is a claim about **money agreeing between two
+screens**, which is exactly the kind of statement a vendor acts on.
+
+Two further gaps, no falsehood involved:
+- **Nothing describes the period control or the drill-down at all** — a feature
+  with no guide coverage on a screen whose guide exists to explain it.
+- `:3` cites `vendor/components/dashboard/GuidePanel/guideItems.ts`, **a path
+  deleted** when web replaced the panel with `GuideModal` (`vendor` commit
+  `fd7a62b`).
+
+**Precedent this violates:** the web's own `guideItems.ts` opens with *"⚠️ THIS IS
+DOCUMENTATION, AND IT IS TESTED AS SUCH … when the UI changes, change this in the
+same commit"*, and web **did** update its guide in the same commit as its dashboard
+work. Mobile did not. The web plan file never mentioned the guide either, which is
+how this was missed on both sides — worth a line in whichever plan next touches
+guide copy.
+
+**Fix approach:** rewrite the three affected `GUIDE_ITEMS` entries and refresh the
+provenance comment. Content only; the mobile guide stays deliberately scoped to
+what the phone does (its header records why it is not a copy of web's).
+**Structural parity — panel vs web's modal-with-tabs — is a separate question and
+is NOT assumed here.**
+
+**Verification:** device — read the guide against the screens it describes, which
+is the only check that catches copy drift.
+
+**🔄 CODE COMPLETE (2026-08-14) — content only, per the user's choice.** The panel
+stays; web's modal-with-tabs was **not** ported.
+
+- **New "This screen" item** covering the period chips, which two cards follow it
+  and which two ignore it, and what tapping a card does — including that Pending
+  Approvals lands on "Needs you", which also holds returns, so the list can be
+  longer than the number tapped (D7 stated honestly rather than left to surprise).
+- **"Bookings and filters" rewritten** into two labelled rows, naming the badge
+  rule (counts everything outstanding regardless of date filter) and the "All
+  dates" default (D8).
+- **The payout claim is now qualified** — "matches the dashboard's Revenue
+  whenever both are set to the same range" — instead of asserting an agreement
+  that only held while both screens were locked to the current month.
+- **Provenance comment fixed** and the file now carries web's own rule: *when the
+  UI changes, change this in the same commit.*
+
+**Applicability audit** (the user's explicit constraint — nothing shown that does
+not apply to this app):
+- ✅ Every remaining item maps to a real mobile screen: Dashboard, Bookings,
+  Bookings detail actions, Transactions, Notifications, Settings.
+- ✅ **Refused two pieces of web copy on accuracy grounds.** Web's Dashboard item
+  sends "Today's Schedule" to a **Calendar this app does not have**, and its
+  Transactions item says the "summary cards recount themselves from whatever the
+  filters leave on screen" — **false here**, where totals come from a separate
+  server query over the period, not from the rows on screen. Neither was ported;
+  the reasoning is in the file header so it is not "fixed" later by someone
+  syncing the two.
+- ✅ Offerings, Staff and Schedule Management remain absent; the footnote still
+  points at the portal for them.
+- ⚠️ **Push guidance kept, with a caveat I could not close.** The Settings row and
+  its enable action exist, and `backbone` now has both
+  `20260728000001_device_push_tokens.sql` and the `send-push-notification`
+  function — but whether the function is deployed and FCM/APNs credentials are
+  configured is not checkable from here, and the nested `AGENTS.md` still lists
+  Ph7 as blocked on exactly that. The guide's tip tells a vendor to turn push on;
+  if delivery is not live, that is advice with no payoff. **Flagged, not changed.**
+
+**Verified (machine):** `tsc`, `expo lint`, `npm test` 126/126. **NOT verified:**
+that the guide reads correctly on screen, and the six items still fit the panel
+without the layout suffering — the item count went from five to six and two items
+gained `actions` glossaries, so it is materially taller.
 
 ---
 
@@ -587,6 +768,20 @@ ones land with the right chips visibly selected.
   the one screen where a drill-down most needs to explain itself, and adds a sheet
   component this screen does not have. Accepted cost: ~44pt more vertical chrome
   above the list.
+
+- **D8 — what is the bookings list's DEFAULT period, and can it be cleared?**
+  → **No period by default, plus an "All dates" chip** (resolved 2026-08-14, during
+  Stage 5; not foreseen when D1–D7 were taken). The bookings tab has never had a
+  date filter, and defaulting it to "this month" would silently hide every older
+  booking from a shipped screen — the exact class of change D3 was chosen to avoid.
+  But a null period must also be *reachable*: I5 pushes "Pending Approvals" with no
+  window at all, so the screen can be put into that state, and without a way back
+  choosing "Today" would be a one-way trip. Hence `PeriodFilter`'s `allowAll` prop,
+  **off by default**: the dashboard and transactions always have a period and their
+  money queries cap at `TOTALS_MAX_ROWS`, so an unbounded window there remains
+  refused (F9). Only the bookings list — server-paged, never totalled — gets the
+  chip. Rejected: defaulting bookings to this month (behaviour change), and
+  clear-by-tapping-the-active-chip (undiscoverable).
 
 - **D7 — how do the two cards that cannot match exactly behave?** → **Navigate
   anyway, document the gap** (resolved 2026-08-14). All four cards drill down;
@@ -663,9 +858,9 @@ range is requested (`.claude/skills/developerboss/SKILL.md`).
 | **1** ✅ | `lib/dateWindows.ts` + `dateWindows.test.ts` — preset table, `windowFor`, `presetForWindow`, `rangeLabel`, `isDefaultWindowKey`, param codec. Pure; nothing imports it yet. **DONE 2026-08-14** — see B2's note. | B2 (part) | ✅ `npm test` 126/126 (31 new), `tsc` clean, `expo lint` clean, **zero** behaviour change |
 | **2** ✅ | `PeriodFilter` component — `.tsx` + `.styles.ts`, rendered nowhere. **DONE 2026-08-14.** | B2 (part) | ✅ `tsc`, `expo lint`, `npm test` clean; **device check deferred to Stage 3**, where it first renders |
 | **3** 🔄 | Dashboard reads the window: `getDashboardStats(vendorId, window)`, query key, `<PeriodFilter />`, card renames, banner + persistence. **Code complete 2026-08-14; machine-verified incl. `expo export`. NOT device-verified.** | B1, I1, I3 | Device: Completed and Revenue move, **Pending and Today's do not** |
-| **4** | Stat cards gain press targets and the four navigation callbacks. | B3, I5 | Device: taps land, TalkBack announces destinations, ≥44×44pt |
-| **5** | Bookings destination: window on `getBookingsPage` + key, second strip, param consume/clear. | B4, I2, D6 | Device: Completed drill-down matches exactly; badges unchanged |
-| **6** | Transactions destination: `DateWindow` state + keys, `<PeriodFilter />` replaces the inline map, param consume/clear. | I4, I2 | Device: the three original presets behave as before |
+| **4** 🔄 | Stat cards gain press targets and the four navigation callbacks. **Code complete 2026-08-14, machine-verified only. ⚠️ Destinations ignore the params until Stage 5–6 — see I5.** | B3, I5 | Device: taps land, TalkBack announces destinations, ≥44×44pt |
+| **5** 🔄 | Bookings destination: window on `getBookingsPage` + key, second strip, param consume/clear. **Code complete 2026-08-14, machine-verified only. Added D8 + `allowAll`.** | B4, I2, D6, D8 | Device: Completed drill-down matches exactly; badges unchanged |
+| **6** 🔄 | Transactions destination: `DateWindow` state + keys, `<PeriodFilter />` replaces the inline map, param consume/clear. **Code complete 2026-08-14, machine-verified incl. `expo export`.** | I4, I2 | Device: the three original presets behave as before |
 | **7** | Full device pass on Android. | — | Every line under Verification |
 
 Stages 1–2 are the **independent safe prefix** — they add unreferenced code and

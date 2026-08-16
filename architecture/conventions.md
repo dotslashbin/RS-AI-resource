@@ -263,6 +263,7 @@ Checks: active session + `user_portals` row for `command` + `user_roles` row for
 | `NEXT_PUBLIC_APP_DOMAIN` | Public (client + server) | App domain; re-exported as `APP_DOMAIN` from each app's `lib/constants.ts` with a placeholder fallback |
 | `NEXT_PUBLIC_APP_URL` | Public (client + server) | Booker payment return URL — base for PayMongo success/cancel redirects |
 | `ALLOW_INDEXING` | **Server only** — deliberately not `NEXT_PUBLIC_` | The single switch letting search engines index a portal. Unset, or anything other than `"1"`, is the fail-closed default: `Disallow: /` plus a `noindex` header. See "Search-engine exposure is off by default" below |
+| `PAYOUT_ENCRYPTION_KEY` | **Server only** — deliberately not `NEXT_PUBLIC_` | AES-256-GCM key (32 random bytes, base64) for vendor payout destinations. Read **lazily inside** `vendor/lib/payout/crypto.server.ts`, never at module scope — a module-level read makes `next build` fail wherever the variable is unset. ⚠️ **Losing it makes every stored payout destination permanently unreadable**; there is no recovery path. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in all three portals (uniform since 2026-07; command's badge is styled with Tailwind arbitrary-value classes rather than a CSS Module, unlike the rest of its CSS-Modules-first codebase — a deliberate exception for parity with booker/vendor) |
 
 Each portal has its own `.env.local`. All three point to the same Supabase project URL and keys.
@@ -277,11 +278,39 @@ Each portal has its own `.env.local`. All three point to the same Supabase proje
 - Do not use `any` — use `unknown` with a type narrowing assertion where the DB returns untyped data (`as unknown as DbRow[]`)
 - Type DB response shapes with private `interface DbRow` in the service file, map to clean types before returning
 
-### Unit tests in the web apps (`vendor`, 2026-08)
+### `*.server.ts` — modules that must never reach the browser (2026-08)
 
-`vendor` now carries the same zero-dependency runner the mobile app uses:
-`npm test` → `node --test --experimental-strip-types "lib/**/*.test.ts"`. No
-framework, no new dependency. `booker` and `command` have none yet.
+First use: `vendor/lib/payout/crypto.server.ts` and `authz.server.ts`. A module that
+reads a server-only secret carries the `.server.ts` suffix **and** a module-top guard:
+
+```ts
+if (typeof window !== "undefined") {
+  throw new Error("… was imported into client code — it must stay server-only")
+}
+```
+
+Three layers, no new dependency: the suffix signals intent to a reader, the guard turns
+a bundling mistake into a loud failure instead of a silent key leak, and the variable
+being un-prefixed keeps Next from inlining it into the client bundle. The `server-only`
+npm package would be the idiomatic first layer, but adding a dependency is an AGENTS.md
+approval gate and the guard is equivalent at this scale — revisit if a second such
+module appears.
+
+**Verify it, don't assume it:** after `npm run build`, `grep -rl <VAR> .next/static/`
+must return nothing, and so must a grep for the key's actual value across all of
+`.next/`.
+
+### Unit tests in the web apps (`vendor`, `command`, 2026-08)
+
+`vendor` and — since 2026-08-16 — `command` carry the same zero-dependency runner the
+mobile app uses: `npm test` → `node --test --experimental-strip-types "lib/**/*.test.ts"`.
+No framework, no new dependency. **`booker` has none yet.**
+
+`command`'s suite exists for one specific reason worth knowing: the payout blob format
+is duplicated between `vendor/lib/payout/` and `command/lib/payout/` (no shared-code
+path), and the ported tests are what pin the two together. They prove each app is
+self-consistent; only a cross-app run — save in vendor, read through Command's route —
+proves the two agree.
 
 **The same rule applies as on mobile: pure logic that needs a test lives in its own
 module.** `node --test` has no bundler, so a test can only load files that resolve
@@ -460,6 +489,12 @@ value on the item rather than relying on position.
 - **shadcn/ui components** are added via `npx shadcn@latest add <component>` — never hand-edited. They live in `components/ui/`.
 - **Naming:** Component files use `PascalCase.tsx`. Hook files use `camelCase.ts`. Service files use `camelCase.service.ts`.
 - **Co-location:** A component that owns a hook lives in the same folder: `ComponentName/ComponentName.tsx` + `ComponentName/useComponentName.ts`.
+- **Modals use Radix Dialog — always (vendor).** Every dialog in the app is `@radix-ui/react-dialog`; there is no hand-rolled alternative left to reach for. The old `components/ui/ModalOverlay` was deleted on 2026-08-15 once the last consumer was converted (`.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md`) — it was a bare backdrop with no focus trap, no Escape handling and no scroll lock, and a hand-written `role="dialog"` has the same gaps. The shape:
+  - `Dialog.Root` with a **constant** `open`, and the **parent conditionally renders the modal**. Do not switch to an always-mounted `<Dialog.Root open={flag}>`: form state then survives close, and the next "New …" opens pre-filled with the last edit. That failure reads as a form bug, not a modal one.
+  - `Dialog.Title` supplies the accessible name (it renders an `<h2>`; Tailwind preflight makes it visually identical to the `<span>`/`<p>` it replaces). Use `Dialog.Description` only where real subtitle copy already exists — otherwise `aria-describedby={undefined}`, Radix's documented opt-out, rather than inventing text to silence the warning.
+  - `onInteractOutside={e => e.preventDefault()}` on **forms**, so a mis-aimed backdrop click cannot discard half-filled work. Skip it on full-bleed surfaces, where there is no outside.
+  - Keep the `sp-card` shell so dialogs stay one visual family.
+  - ⚠️ This version of Radix does **not** emit `aria-modal`; it marks everything outside the dialog `aria-hidden` via `hideOthers()`. Assert on that, never on `aria-modal`.
 - **Separation of concerns (mandatory):** Every component with state, effects, or handlers gets a companion `useComponentName.ts` hook. The `.tsx` is a pure render layer — no `useState`/`useEffect`, no business logic, and no static inline `style={{}}`. Non-trivial styling goes in Tailwind utilities/tokens or a co-located `ComponentName.module.css`; only genuinely dynamic, one-off values (e.g. a width computed from state) may stay inline. A pure display component (no state/effects/handlers, no non-trivial styling) is the only exception and may have just the `.tsx`. See `.claude/skills/component-separation/SKILL.md`.
 
 ---

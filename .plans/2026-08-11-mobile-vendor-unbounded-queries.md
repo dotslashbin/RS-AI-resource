@@ -2,9 +2,10 @@
 
 **Date:** 2026-08-11
 **App / scope:** `ezzy-vendor-mobile/` only. **Not** a cross-app change — see F7.
-**Status:** IN PROGRESS — **Stage 1 (B1 + I1 + I2) code complete 2026-08-14**,
-machine-verified, **live and device verification outstanding**. Stage 2 (B2,
-contacts) not started.
+**Status:** IN PROGRESS — **all stages code complete**: Stage 1 (B1 + I1 + I2)
+2026-08-14, Stage 2 (B2, contacts) 2026-08-15. Both machine-verified only.
+**Stage 3 — live verification against seeded data — is the entire remaining
+scope**, and neither defect's fix has been observed working.
 
 > Two queries in the mobile vendor app are unbounded and silently capped at 1000
 > rows by PostgREST. One of them is the monthly revenue figure. Fix both, using
@@ -130,7 +131,7 @@ has not been run.
 
 ---
 
-### B2 — Booker contacts are capped at 1000 distinct bookers  ⬜ TODO
+### B2 — Booker contacts are capped at 1000 distinct bookers  🔄 CODE COMPLETE (2026-08-15) — live check outstanding
 **File:** `src/services/bookings.service.ts:91-100`, `src/hooks/useBookingsQuery.ts:61`
 
 A bare `.rpc()` with no paging (F6). Past 1000 distinct customers the merge map is
@@ -155,6 +156,40 @@ of the service rather than something the hook threads through.
 
 **Verification:** live, against >1000 distinct bookers; plus the ordinary case,
 where names must still render on page 1.
+
+**🔄 CODE COMPLETE (2026-08-15).** `getBookerContacts(vendorId)` →
+**`getBookerContactsFor(vendorId, bookerIds)`**, filtered server-side with
+`.in("booker_id", …)`. Each page resolves contacts for its own ≤20 bookers inside
+`getBookingsPage` / `getTransactionsPage`, and `getBookingById` resolves its single
+one. **The cap is now unreachable by construction** rather than raised — it does
+not matter how many customers a vendor has.
+
+Everything D1 predicted came true, including the restructuring it warned about:
+
+- **`useBookerContacts` and `contactsQueryKey` are deleted.** There is no shared
+  map left to cache, so the `enabled: contacts.isSuccess` gates on three hooks went
+  with them, as did the two-query error/loading merging in `useBookingsQuery` and
+  `useBookingDetail`.
+- **Failure handling preserved on BOTH screens, asymmetrically and on purpose.**
+  `getBookingsPage` lets a contacts error **throw** — that screen has always
+  treated it as a load failure, because a list of anonymous rows reads as corrupt
+  data. `getTransactionsPage` **catches** it and returns `contactsFailed` on the
+  page — there the money is still right, and the existing notice degrades search
+  rather than breaking the ledger. `useTransactionsQuery` now derives that flag as
+  "any loaded page failed".
+
+**✅ An unexpected simplification, and worth recording as the fix paying for
+itself:** `useBookingsRealtime`'s **I4 INSERT special case is gone**. It invalidated
+the contacts cache first and the list second, with a `.finally`, because the list
+closed over a shared map and a new booker would otherwise paint a blank name. With
+per-page resolution a refetched page always includes its own bookers, so the
+ordering, the race and the special case all disappear — one invalidation for every
+event type.
+
+**Verified (machine):** `tsc`, `expo lint`, `npm test` 141/141, `expo export`
+bundles. **NOT verified:** the live >1000-booker case, the ordinary case (names on
+page 1), and the per-page RPC's real cost while scrolling — all need a device and
+seeded data.
 
 ---
 

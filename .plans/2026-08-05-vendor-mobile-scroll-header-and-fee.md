@@ -184,7 +184,7 @@ making the search field unusable.
 
 ---
 
-### B2 — Show-guide is a text button in the dashboard body; move it to the header as an icon  ⬜ TODO
+### B2 — Show-guide is a text button in the dashboard body; move it to the header as an icon  ✅ DONE via another plan (2026-08-15) · **D4 ✖ ABORTED — dashboard-only chosen instead**
 
 **Files:**
 - `src/components/dashboard/GuideCard/GuideCard.tsx:36-49` — the current in-body "Show guide" pressable
@@ -227,6 +227,48 @@ indicator — the label carries it.
 
 **Verification:** device. Toggle from Transactions, confirm it lands on Dashboard
 with the card open; toggle from Dashboard, confirm no navigation.
+
+---
+
+> ⚠️ **BUILT ON 2026-08-15 UNDER ANOTHER PLAN, TO A DIFFERENT DESIGN.**
+>
+> `.plans/2026-08-15-vendor-mobile-dashboard-parity-guide-and-insets.md` Stage 2
+> (its I3/I5) implemented this feature. **This item was not consulted while that
+> plan was written** — it should have been, and the miss is recorded here rather
+> than quietly reconciled.
+>
+> **What matches this item exactly:** `Compass` glyph, 44pt target,
+> `accessibilityRole="button"`, labels tracking state, `accessibilityState={{
+> expanded }}`, the in-body "Show guide" row removed, the card keeping its own
+> Hide.
+>
+> **What CONTRADICTS this item's D4:**
+>
+> | This item (D4, approved 2026-08-06) | What was built (2026-08-15 D5) |
+> |---|---|
+> | Icon on **all five tab screens** | **Dashboard only** |
+> | State in a **`GuideProvider`** mounted in `(app)/_layout.tsx` | State in the **dashboard route file** |
+> | Tapping from another tab navigates to Dashboard and shows the card | No cross-tab behaviour — unreachable by construction |
+>
+> Neither design is wrong; they answer "how far does the guide reach" differently,
+> and **the 2026-08-15 plan resolved it without knowing this decision existed.**
+> The route-level state is sufficient for dashboard-only and insufficient for the
+> five-tab version — the provider is genuinely required there, exactly as this item
+> argues.
+>
+> **✅ RESOLVED (2026-08-15) — the user chose to KEEP DASHBOARD-ONLY.**
+>
+> So **this item is DONE** as far as it will be taken, and **its D4 is ✖ ABORTED**:
+> the icon does NOT go on all five tabs, the state does NOT move to a
+> `GuideProvider`, and the navigate-to-Dashboard show path is not built. The
+> 2026-08-15 D5 stands as the live decision.
+>
+> What that costs, stated so it is not rediscovered as a bug: a vendor sitting on
+> Bookings or Transactions has no guide affordance in the header. They reach it by
+> going to Dashboard, which is also where the guide's content is aimed. The
+> five-tab version remains a strict superset if it is ever wanted — the built
+> pieces (`GuideAction`, the removed in-body row, the lifted state) all survive
+> that change.
 
 ---
 

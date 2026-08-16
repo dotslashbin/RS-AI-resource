@@ -551,3 +551,51 @@ Icons and splash are **baked into the binary at build time**. They will not appe
 a Metro reload, and a preview build will not show them until it is rebuilt. Any
 device verification above needs a fresh EAS build first
 (`ezzy-vendor-mobile/EAS-SETUP.md` §5).
+
+---
+
+## Follow-up — B10: the splash logo was clipped into a circle (2026-08-14)
+
+**Reported by the user after seeing it on device.** Status: 🔄 CODE COMPLETE,
+needs a fresh build to verify (see "Rebuild required" above — this cannot be
+checked on a Metro reload).
+
+**Cause — the OS, not the asset.** `splash-mark.png` was written tight-cropped, so
+its left and right extremes reached the edge of the drawable. On Android 12+ the
+splash icon is applied as `windowSplashScreenAnimatedIcon`
+(`expo-splash-screen/plugin/build/withAndroidSplashStyles.js:44-45`) and **the
+platform masks that drawable to a circle**. No
+`windowSplashScreenIconBackgroundColor` is set, so it is the 288dp-canvas case
+where only the inner two thirds survives. The sides of the mark were cut off,
+which reads as "the logo is in a circle". There is no Expo flag to disable the
+mask — it belongs to the OS.
+
+**Fix.** `scripts/generate-brand-assets.js` now writes the splash as a **square
+1024px canvas** with the mark inscribed in the safe circle **by its diagonal** (a
+rectangle only fits a circle when its corners do): 526px wide, 51.4% of the
+canvas. `app.json` `imageWidth` 180 → **288**, because that value now sizes the
+padded CANVAS rather than the mark — leaving it at 180 would have shrunk the
+visible logo to ~92dp. The two numbers are coupled and the generator says so.
+
+**New assertion**, the one that would have caught this before it shipped: the
+script now fails if the splash is not square, or if any visible pixel falls
+outside the mask radius. Current margin: furthest pixel 324.0px of 341.5px
+allowed. The equivalent launcher check for the adaptive icon already existed —
+the splash simply never had one.
+
+**Also added:** `assets/brand/mark-white.png` — white, tight-cropped, **no**
+padding, for in-app use (`components/common/BrandMark`). Kept separate from the
+icon and splash assets on purpose: those two are padded for two *different* masks,
+so reusing either as an in-app logo would draw a small mark in a large empty box,
+and would silently resize whenever its mask padding was retuned.
+
+✅ **Regeneration is deterministic — `icon-ios.png`, `icon-android-foreground.png`
+and `icon-android-monochrome.png` came back byte-identical** (`git diff --stat`
+shows only `splash-mark.png` changed). Nothing already submitted to a store moved.
+
+**Verified (machine):** generator assertions pass, `expo export --platform
+android` succeeds, `tsc` / `expo lint` / `npm test` clean.
+**NOT verified:** the splash itself. It is baked in at build time, so this needs a
+fresh EAS build and a cold start on a real Android 12+ device. iOS unverifiable as
+ever — note that the padding also makes the iOS splash mark ~148pt where it was
+180pt, since that platform never masked anything.

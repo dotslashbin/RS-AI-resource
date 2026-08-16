@@ -211,10 +211,36 @@ Types are hand-written interfaces (this repo does not use `supabase gen types`).
   inline styles or Tailwind arbitrary values. The `.tsx` files reference
   `styles.x` and hold no inline `style={{}}`.
 - **Hook/render separation** throughout: `useCamera` owns the MediaStream
-  lifecycle (starts/stops tracks, captures a frame, always cleans up on unmount);
-  `useIdentityStep` owns step state + object-URL lifecycle; `CameraCapture` /
-  `IdentityStep` are pure render. `IdentityStep`'s footer is optional so it embeds
-  in both the stepper (onboarding) and the resubmit surface.
+  lifecycle (opens the camera on mount, stops tracks, captures a frame, releases
+  everything on teardown); `useIdentityStep` owns step state + object-URL
+  lifecycle; `CameraCapture` / `IdentityStep` are pure render.
+  `IdentityStep`'s footer is optional so it embeds in both the stepper
+  (onboarding) and the resubmit surface.
+  - ⚠️ Both halves of that sentence were **aspirational until 2026-08-15** — the
+    doc described the intent, not the code. `CameraCapture` held a `useEffect`
+    calling `start()`, so it was not a pure render layer, and `useCamera` could
+    not always clean up (see below). Both were corrected in
+    `.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md` (I10, B5). Kept as a
+    note because a convention doc asserting something the code does not do is
+    worse than no note at all.
+- **The camera is released by a run token, not just by a ref** (2026-08-15, B5).
+  `start()` awaits `getUserMedia`, and the stream it returns is only stored if the
+  run that requested it is still the current one. A stream that arrives after a
+  teardown — or after a later `start()` superseded it — **stops itself on arrival**,
+  because nothing else holds a reference to it and a `MediaStream` is not released
+  by garbage collection. Before this, such a stream stayed live until the page
+  reloaded, which a vendor sees as the camera indicator staying on after they
+  finish KYC. `start` and `stop` are one effect for the same reason: two effects
+  would let a `facingMode` change start a second camera without stopping the first.
+  Regression tests: `visual-tests/pilot.spec.ts` → "KYC camera stream lifecycle".
+- **`CameraCapture` is a Radix Dialog** (2026-08-15, B6), not the hand-rolled
+  `<div role="dialog" aria-modal="true">` it used to be — it gains the focus trap,
+  Escape handling and scroll lock that a hand-rolled dialog lacks, in line with
+  `conventions.md` → Component Conventions. It keeps its CSS-Module full-bleed
+  `.overlay` and needs no `Dialog.Overlay` (already opaque and full-screen) and no
+  outside-click guard (nothing is outside it). ⚠️ Do not add `forceMount` or an
+  open/close animation that remounts the content: the `<video>` holds a live
+  `srcObject`, and remounting silently drops the stream.
 - **One reusable `CameraCapture`** for both captures — overlay guide
   (`id` | `face-and-id`) and `facingMode` (`environment` | `user`) are props
   (OCP/DRY), not duplicated components.

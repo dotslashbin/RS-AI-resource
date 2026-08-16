@@ -69,6 +69,8 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260803000003_booking_units.sql` | `bookings` gains `start_time`, `end_time`, `end_date`, `quantity` — the bookable unit that never existed. Backfills from each booking's schedule. Widens `bookings_no_duplicate` to a unique **index** including `coalesce(start_time,'00:00')`, so a booker may hold several slots on one date |
 | `20260803000004_booking_derive_price_and_span.sql` | `check_booking_consistency()` now **derives** `price_paid` (`offering.price * quantity`) and the booking's span, and pins them plus `quantity` against UPDATE. Closes a hole where the client wrote `price_paid` and the PayMongo route then trusted it |
 | `20260803000005_booking_slot_and_capacity.sql` | `check_booking_placement()` replaces `check_booking_capacity()`: slot-boundary legality, window fit, **recurrence validity in the DB** (previously app-layer only), per-covered-slot capacity, and same-booker overlap. Renamed so it sorts **after** `bookings_check_consistency` — BEFORE triggers fire alphabetically and this one reads the span that one computes |
+| `20260816000001_command_payout_access.sql` | Command admin/root SELECT policies on both payout tables (no write policy — staff must not edit a destination) + `vendor_payout_view_log` (append-only record of **who decrypted a destination and when**, storing no payout data) + the `vendor_account_completion` **view**, which becomes the single definition of a complete vendor account for both the vendor portal and Command. ⚠️ The view is `security_invoker = on` **and** carries an explicit authorisation `where` clause: without the latter a booker (who may read active vendors, `20260515000001`) would get a row per vendor reading `is_account_complete = false` — a *wrong* answer rather than a hidden one |
+| `20260815000001_vendor_payout_methods.sql` | `vendor_payout_methods` (one row per vendor — where they are paid; sensitive fields held as **app-encrypted ciphertext the database cannot read**, beside a masked `display` JSONB) + `vendor_payout_method_log` (immutable, masked-only change audit). Vendor-admin SELECT only; **no `authenticated` write path** — writes go through the vendor app's service-role route, which holds the encryption key. **No Command policy yet**, so nothing can read a destination back: see `.plans/2026-08-15-vendor-account-completion-and-payout-details.md` (C2) |
 
 ---
 
@@ -320,6 +322,90 @@ Two BEFORE UPDATE triggers on `vendors` gate status changes before this log is w
 - Command admins/root can SELECT all rows
 - Vendor admins can SELECT rows for their own vendor (`has_vendor_role`)
 - INSERT policy is `with check (false)` — no direct inserts; trigger-only writes (executed via `SECURITY DEFINER`). No UPDATE/DELETE policies
+
+---
+
+### `vendor_payout_methods`
+Where a vendor receives payouts. **One row per vendor** — `vendor_id` is the PK, so switching Bank → GCash → Maya *replaces* the row rather than adding one. That is what makes "which destination is current?" unrepresentable rather than a rule to enforce.
+
+⚠️ **There is no payout rail in this system.** `release_booking_payouts()` records a disbursement made elsewhere, and PayMongo is wired for collection only. These rows are read by **a human at Ezzy making a manual InstaPay/PESONet transfer** — which is why there is no provider recipient token here.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `vendor_id` | `uuid` | **PK**, FK → `vendors` ON DELETE CASCADE. One destination per vendor |
+| `method_type` | `text` | NOT NULL. CHECK in (`bank`, `gcash`, `maya`). Adding a method means a value here plus a validation schema in `vendor/lib/payout/schema.ts` — **never a new column** |
+| `schema_version` | `smallint` | NOT NULL, default `1`. Version of the `details` shape for this `method_type`. A client finding a version above the one it knows must treat the row as read-only rather than guess |
+| `status` | `text` | NOT NULL, default `'active'`. CHECK in (`active`, `disabled`). Only `active` counts toward account completion; flipping it withdraws a method without destroying the vendor's details |
+| `details_enc` | `text` | NOT NULL. **AES-256-GCM ciphertext**, `v1.<iv>.<tag>.<ciphertext>` base64. The key (`PAYOUT_ENCRYPTION_KEY`) is server-only and **not stored in this database** — Postgres cannot read this column and neither can any RLS-bound client. ⚠️ Losing that key makes every row permanently unreadable |
+| `display` | `jsonb` | NOT NULL. **Masked, already-safe values only** — `{ label, masked }`, e.g. `{"label":"BDO Unibank","masked":"••••••••7890"}`. Computed server-side at write time; the only payout data any browser receives. A CHECK constrains it to exactly those two string keys |
+| `created_by` / `updated_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
+| `created_at` / `updated_at` | `timestamptz` | Default `now()`; `updated_at` bumped by `set_vendor_payout_methods_updated_at` |
+
+**RLS:**
+- Vendor admins can SELECT their own row (`is_active()` **and** `has_vendor_role(vendor_id,'vendor-admin')` — both, because `has_vendor_role()` does not check the caller's own status and `vendor_members`' own-row SELECT policy carries no `is_active()`)
+- **No INSERT/UPDATE/DELETE policy or grant for `authenticated`, deliberately.** Encryption happens server-side, so a browser cannot produce a valid `details_enc`. Writes go exclusively through `vendor/app/api/payout-method/route.ts` under `service_role` — the same trigger/definer-only pattern as `booking_transactions` and `notifications`
+- **No Command policy yet.** Command holds no decryption key, so a read policy would grant sight of ciphertext and nothing else. ⚠️ Consequence: vendors can *save* a destination and **nobody can read one** — nothing is payable until that work lands (plan C2)
+- The read policy does **not** require the *vendor* to be active, while the write route does. Asymmetric on purpose: a suspended vendor reading their own masked destination is harmless; changing where money goes is not
+
+---
+
+### `vendor_payout_method_log`
+Immutable record of every payout-destination change. Mirrors `vendor_status_log`. **Masked values only — never ciphertext, never plaintext**: a second copy of the secret defeats the point of encrypting the first, and a log is the copy most likely to be exported or retained after the row it describes is gone.
+
+Exists because there is **no re-authentication gate** on changing a payout destination (a deliberate v1 decision) — this is the compensating control that makes an unauthorised change reviewable after the fact.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `vendor_id` | `uuid` | FK → `vendors` ON DELETE CASCADE |
+| `changed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL — the record survives the person |
+| `from_type` / `from_display` | `text` / `jsonb` | Nullable. NULL = the vendor's **first** destination |
+| `to_type` / `to_display` | `text` / `jsonb` | Nullable. NULL = the destination was **removed**. `to_type` is deliberately *not* CHECK-constrained, unlike `vendor_payout_methods.method_type`: a historical row must stay writable for a method type since withdrawn from the live enumeration |
+| `changed_at` | `timestamptz` | Default `now()` |
+
+Two CHECKs: at least one side must be non-NULL (a row with both NULL records nothing), and both `display` columns follow the same masked two-key shape as the live table, NULL permitted.
+
+Index: `vendor_payout_method_log_vendor_idx on (vendor_id, changed_at desc)` — every read is "this vendor's changes, newest first".
+
+**RLS:** vendor admins SELECT their own rows. Grants are `select` for `authenticated`, `select, insert` for `service_role` — **no UPDATE or DELETE for anyone**, because append-only is the point.
+
+---
+
+### `vendor_payout_view_log`
+Every decrypt of a payout destination by Command staff. **Append-only**; stores **no payout data at all** — not even the mask. What was seen already lives in `vendor_payout_methods`; duplicating it would make the audit trail a second place to leak from.
+
+Exists because Command can now read bank details (`20260816000001`). Reading is the more sensitive event: it is what an insider needs, and it otherwise leaves no trace.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `vendor_id` | `uuid` | FK → `vendors` ON DELETE CASCADE |
+| `viewed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL — deleting a *person* must not erase what they looked at |
+| `viewed_at` | `timestamptz` | Default `now()` |
+
+Two indexes, because it answers two questions: `(vendor_id, viewed_at desc)` "who touched vendor X", and `(viewed_by, viewed_at desc)` "what has this admin been looking at" — the second is the insider-risk query and is useless without its own index.
+
+**RLS:** Command admin/root SELECT only. **Deliberately no vendor-side read policy** — a vendor seeing which named staff member opened their record is a different feature with its own privacy questions. Grants: `authenticated` SELECT, `service_role` SELECT+INSERT — **no UPDATE or DELETE for anyone**.
+
+**Written by** `command/app/api/vendor-payout/route.ts`, **before** the plaintext is returned. A read that cannot be audited is refused (503) — an audit control a failing insert can skip is not a control.
+
+---
+
+### `vendor_account_completion` (view)
+**THE** definition of a complete vendor account: at least one offering (any status) **AND** an active payout method. Read by both the vendor portal and Command; **do not re-derive this rule in application code**. It replaced a TypeScript `deriveCompletion()` in the vendor app on 2026-08-16 precisely so a second copy could not exist.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `vendor_id` | `uuid` | |
+| `has_offering` | `boolean` | `exists` over `offerings` — **any status** |
+| `has_payout_details` | `boolean` | `exists` over `vendor_payout_methods` where `status = 'active'` |
+| `is_account_complete` | `boolean` | Both of the above |
+
+⚠️ **Two things are load-bearing.** `security_invoker = on`, without which the view runs as its owner and bypasses RLS on the underlying tables. And an explicit authorisation `where` clause restricting rows to a Command admin/root or the vendor's own admin — without it a booker gets a **wrong** answer rather than no answer. Together they mean the view returns **a correct answer or no row**.
+
+⚠️ **Cannot be embedded** in a `vendors` select — PostgREST infers embeds from foreign keys and a view has none. Read it as a separate bulk query.
+
+**Grants:** `authenticated` SELECT. ⚠️ `service_role` has **no** SELECT (an oversight in `20260816000001` — see the plan's G24); harmless today because every reader is `authenticated`, but a server-side reader would fail.
 
 ---
 
@@ -924,6 +1010,9 @@ Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own 
 | `vendors` → `booking_transactions` | RESTRICT |
 | `vendors` → `vendor_kyc` | CASCADE |
 | `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
+| `vendors` → `vendor_payout_methods`, `vendor_payout_method_log` | CASCADE — the only path that hard-deletes a vendor is the registration rollback, which runs before any payout row can exist |
+| `vendor_payout_methods.created_by` / `.updated_by` → `profiles` | SET NULL |
+| `vendor_payout_method_log.changed_by` → `profiles` | SET NULL |
 | Staff → schedules | SET NULL |
 | Profile → offerings, schedules, staff | SET NULL (created_by) |
 | `bookings.cancelled_by` → `profiles` | SET NULL |
