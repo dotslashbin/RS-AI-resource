@@ -18,8 +18,13 @@
 ## Where this came from
 
 The payout plan shipped in two phases: vendors save an encrypted payout destination, and
-Command staff read it to make a **manual bank transfer**. Four things were named and
-deferred along the way, one was fixed in passing, and one belongs to another plan.
+Command staff read it to make a **manual bank transfer**. It is **complete and on
+staging** as of 2026-08-16.
+
+Five items were deferred along the way, from two different sources: **D1–D3 the user
+deferred explicitly**, and **D4–D5 I deferred mid-execution as out of scope**. The
+distinction matters — the first three are product decisions to revisit when the business
+wants them, the last two are engineering debt I chose not to pay at the time.
 
 ⚠️ **The load-bearing context, in one paragraph.** There is **no payout rail**. PayMongo
 is wired for collection only; `release_booking_payouts()` *records* a disbursement made
@@ -220,6 +225,6 @@ already chosen:
 ## Related
 
 - `.plans/2026-08-15-vendor-account-completion-and-payout-details.md` — the completed plan these came from (C1, C3, and the in-flight notes)
-- `.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md` — **I6 is still ⬜**: three vendor form modals lack a `Dialog.Title`, so Radix warns on open. Not listed above because it belongs to that plan, but it is the nearest open work
+- `.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md` — **I6 turned out to be already done** (marker corrected 2026-08-16; verified 7/7 vendor dialogs emit zero Radix accessible-name warnings). Its **I2** (native date/time pickers vs. the outside-click guard) and **I3** (`window.confirm` from inside an open dialog) remain ⬜ — the nearest open work to this plan, though unrelated to payouts
 - `architecture/portals.md` — the "no payout rail" and paid-then-cancelled gaps
 - `architecture/schema.md` — `vendor_payout_methods`, the two log tables, and the completion view

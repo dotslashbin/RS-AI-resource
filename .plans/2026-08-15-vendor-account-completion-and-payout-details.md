@@ -2,15 +2,27 @@
 
 **Date:** 2026-08-15
 **App / scope:** `vendor/` (web portal) + `backbone/supabase/migrations/` (two new tables)
-**Status:** ✅ **COMPLETE (2026-08-16)** — Phase 1 (stages 1–7), Phase 2 (stages 7.5–10)
-and the follow-ups (G17, G24, I12) all executed and verified on local. Migrations applied
-by the user and the app tested by hand. **Not yet pushed to hosted** — the user is doing
-that separately, and until then none of this exists anywhere but local.
-Deferred/parked work moved to `.plans/2026-08-16-payout-deferred-followups.md`.
-⏸ **Not on hosted:** `supabase db push` is deliberately held by the user until they have
-tested the feature end to end. Until it runs, none of this works anywhere but local.
-⏸ Three couplings remain out of scope by decision — **C2 is the one that matters**: Ezzy
-staff still cannot read a payout destination, so nothing is payable yet.
+**Status:** ✅ **COMPLETE — SHIPPED TO STAGING (2026-08-16)**
+
+Phase 1 (stages 1–7), Phase 2 (stages 7.5–10) and the follow-ups (G17, G24, I12) are all
+executed and verified. All three migrations — `20260815000001`, `20260816000001`,
+`20260816000002` — were applied by the user to **local and staging**
+(`fbxbwnfeimzhgxpshdpa`), and the app was tested by hand.
+
+⚠️ **Not on PRODUCTION** (`pdkejyjidrfxksaczvfy`, commented out in `backbone/.env`). When
+it goes there it needs, in order: the three migrations pushed, then its **own**
+`PAYOUT_ENCRYPTION_KEY` generated and set in **both** Vercel projects (vendor and
+command) — byte-identical to each other, and deliberately different from staging's.
+⚠️ Set the key **before** any vendor saves a destination: changing it afterwards orphans
+every stored row, with no recovery path.
+
+Deferred and parked work lives in `.plans/2026-08-16-payout-deferred-followups.md`.
+
+> **Superseded status lines**, kept rather than deleted so the record reads honestly:
+> this plan spent most of its life saying *"not on hosted — `db push` is deliberately
+> held"* and *"C2 is the one that matters: staff still cannot read a payout destination,
+> so nothing is payable yet."* **Both were resolved on 2026-08-16** — C2 shipped as
+> Phase 2, and the migrations are on staging.
 
 > A newly registered vendor should be able to see, at a glance, what still stands
 > between them and a working, payable account. Two requirements, one authoritative
@@ -1242,7 +1254,7 @@ regardless of any override.
 | # | Stage | Items | Depends on | Gate |
 |---|---|---|---|---|
 | **1** ✅ | **Pure logic — the safe prefix** — **DONE 2026-08-15** | **B3** (validation schemas, `PH_BANKS`, PH mobile normalisation, masking) + **B5**'s pure `deriveCompletion` + their `npm test` suites from **I5** | nothing | — |
-| **2** ✅ | **Schema** — applied to **local** 2026-08-15, RLS verified | **B1** (both tables, RLS, grants, CHECK, audit log) + the `schema.md` half of **I6** | 1 (the shapes are settled first) | ✅ done locally · ⏸ **`db push` to hosted deliberately held by the user until end-to-end testing** |
+| **2** ✅ | **Schema** — applied to local 2026-08-15 (RLS verified), and to **staging** 2026-08-16 | **B1** (both tables, RLS, grants, CHECK, audit log) + the `schema.md` half of **I6** | 1 (the shapes are settled first) | ✅ done locally · ⏸ **`db push` to hosted deliberately held by the user until end-to-end testing** |
 | **3** ✅ | **Crypto + write API** — **DONE 2026-08-15**, 39/39 e2e | **B2** (`crypto.server.ts`) → **B4** (`PUT`/`DELETE`, `authz.server.ts`) → **I4** (`payout.service.ts`) | 1, 2 | ✅ `PAYOUT_ENCRYPTION_KEY` generated and set in `vendor/.env.local` |
 | **4** ✅ | **Completion plumbing** — **DONE 2026-08-15**, 11/11 e2e | **B5**'s service → **B6** (hook, context, provider placement, `useGuideModal` suppression, `handleLogout` cleanup) | 2, 3 | — |
 | **5** ✅ | **Payout UI** — **DONE 2026-08-15**, 22/22 browser e2e | **B8** (card + hook + the two pure children) + **I2** (mount in Settings) | 3, 4 | — |
@@ -1460,8 +1472,9 @@ the decrypted details; no telemetry; the response is the only place plaintext ap
 ⚠️ **Must satisfy the accessible-name convention on day one** — see **I11**.
 `Dialog.Title` supplies the name; use `aria-describedby={undefined}` (Radix's documented
 opt-out) rather than inventing subtitle copy to silence a warning. This is not optional
-polish: `.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md` → **I6** is still ⬜ TODO
-with three vendor modals lacking it, and shipping B11 without it makes this the fourth.
+polish: `.plans/2026-08-15-vendor-form-modals-to-radix-dialog.md` → **I6** covers the same
+requirement for the three vendor form modals. (That item was found already implemented and
+its marker corrected to ✅ on 2026-08-16 — the code was right, the plan was stale.)
 
 **Built on Radix Dialog, deliberately deviating from command's local pattern.** Command
 still uses `components/ui/ModalOverlay`, which is a **bare backdrop with no focus trap,

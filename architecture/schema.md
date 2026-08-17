@@ -69,8 +69,9 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260803000003_booking_units.sql` | `bookings` gains `start_time`, `end_time`, `end_date`, `quantity` — the bookable unit that never existed. Backfills from each booking's schedule. Widens `bookings_no_duplicate` to a unique **index** including `coalesce(start_time,'00:00')`, so a booker may hold several slots on one date |
 | `20260803000004_booking_derive_price_and_span.sql` | `check_booking_consistency()` now **derives** `price_paid` (`offering.price * quantity`) and the booking's span, and pins them plus `quantity` against UPDATE. Closes a hole where the client wrote `price_paid` and the PayMongo route then trusted it |
 | `20260803000005_booking_slot_and_capacity.sql` | `check_booking_placement()` replaces `check_booking_capacity()`: slot-boundary legality, window fit, **recurrence validity in the DB** (previously app-layer only), per-covered-slot capacity, and same-booker overlap. Renamed so it sorts **after** `bookings_check_consistency` — BEFORE triggers fire alphabetically and this one reads the span that one computes |
+| `20260816000002_completion_view_service_role_grant.sql` | Corrective: grants `service_role` SELECT on `vendor_account_completion`, which `20260816000001` omitted. Not a live bug at the time (every reader was `authenticated`), but the first server-side reader would have failed |
 | `20260816000001_command_payout_access.sql` | Command admin/root SELECT policies on both payout tables (no write policy — staff must not edit a destination) + `vendor_payout_view_log` (append-only record of **who decrypted a destination and when**, storing no payout data) + the `vendor_account_completion` **view**, which becomes the single definition of a complete vendor account for both the vendor portal and Command. ⚠️ The view is `security_invoker = on` **and** carries an explicit authorisation `where` clause: without the latter a booker (who may read active vendors, `20260515000001`) would get a row per vendor reading `is_account_complete = false` — a *wrong* answer rather than a hidden one |
-| `20260815000001_vendor_payout_methods.sql` | `vendor_payout_methods` (one row per vendor — where they are paid; sensitive fields held as **app-encrypted ciphertext the database cannot read**, beside a masked `display` JSONB) + `vendor_payout_method_log` (immutable, masked-only change audit). Vendor-admin SELECT only; **no `authenticated` write path** — writes go through the vendor app's service-role route, which holds the encryption key. **No Command policy yet**, so nothing can read a destination back: see `.plans/2026-08-15-vendor-account-completion-and-payout-details.md` (C2) |
+| `20260815000001_vendor_payout_methods.sql` | `vendor_payout_methods` (one row per vendor — where they are paid; sensitive fields held as **app-encrypted ciphertext the database cannot read**, beside a masked `display` JSONB) + `vendor_payout_method_log` (immutable, masked-only change audit). Vendor-admin SELECT only; **no `authenticated` write path** — writes go through the vendor app's service-role route, which holds the encryption key. Command access was deliberately omitted here and added by `20260816000001` once Command had a key |
 
 ---
 
@@ -344,7 +345,7 @@ Where a vendor receives payouts. **One row per vendor** — `vendor_id` is the P
 **RLS:**
 - Vendor admins can SELECT their own row (`is_active()` **and** `has_vendor_role(vendor_id,'vendor-admin')` — both, because `has_vendor_role()` does not check the caller's own status and `vendor_members`' own-row SELECT policy carries no `is_active()`)
 - **No INSERT/UPDATE/DELETE policy or grant for `authenticated`, deliberately.** Encryption happens server-side, so a browser cannot produce a valid `details_enc`. Writes go exclusively through `vendor/app/api/payout-method/route.ts` under `service_role` — the same trigger/definer-only pattern as `booking_transactions` and `notifications`
-- **No Command policy yet.** Command holds no decryption key, so a read policy would grant sight of ciphertext and nothing else. ⚠️ Consequence: vendors can *save* a destination and **nobody can read one** — nothing is payable until that work lands (plan C2)
+- **Command admins/root can SELECT every row** (added by `20260816000001`; `20260815000001` deliberately created no Command policy while Command still held no key). They read it through `command/app/api/vendor-payout/route.ts`, which decrypts server-side and **records the access in `vendor_payout_view_log`** — a read that cannot be audited is refused. There is **no Command write policy**: staff must not be able to edit where a vendor's money goes
 - The read policy does **not** require the *vendor* to be active, while the write route does. Asymmetric on purpose: a suspended vendor reading their own masked destination is harmless; changing where money goes is not
 
 ---
@@ -405,7 +406,7 @@ Two indexes, because it answers two questions: `(vendor_id, viewed_at desc)` "wh
 
 ⚠️ **Cannot be embedded** in a `vendors` select — PostgREST infers embeds from foreign keys and a view has none. Read it as a separate bulk query.
 
-**Grants:** `authenticated` SELECT. ⚠️ `service_role` has **no** SELECT (an oversight in `20260816000001` — see the plan's G24); harmless today because every reader is `authenticated`, but a server-side reader would fail.
+**Grants:** `authenticated` SELECT, and `service_role` SELECT (added by `20260816000002` — `20260816000001` omitted it, so a server-side reader would have hit `permission denied for view`). No write privileges for anyone: it is a view.
 
 ---
 

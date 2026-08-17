@@ -359,7 +359,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install and iOS KYC-camera-from-installed-PWA still need physical-hardware verification |
 | Transactions (payment history, payout totals, filters, print/PDF) | ✅ Supabase-wired — reads `booking_transactions`; browser-verified. Mobile print-to-PDF on real devices still unverified |
 | **Account completion** (onboarding modal + header indicator) | ✅ Live 2026-08-15 — one authoritative rule in `lib/accountCompletion.ts`, derived from real data (offering count + payout row), never a stored flag. Modal auto-opens once per browser session per vendor while incomplete; the header indicator reopens it. Browser-verified across all six completion states |
-| **Payout details** (Settings → bank / GCash / Maya) | ✅ Live 2026-08-15 — app-encrypted at rest, masked-only reads, audited changes. ⚠️ **Local only** — the migration has not been pushed to hosted |
+| **Payout details** (Settings → bank / GCash / Maya) | ✅ Live 2026-08-15 — app-encrypted at rest, masked-only reads, audited changes. **On staging** since 2026-08-16; ⚠️ **not yet on production** — `backbone/.env` carries both project refs and the CLI is linked to staging |
 | Calendar (schedules + bookings overlay) | ✅ Supabase-wired — reads the shell's bookings and schedules |
 | Offering performance (per-offering income modal) | ✅ Supabase-wired — `getOfferingFinancials()` over `booking_transactions` |
 | Assigned staff shown per offering | ✅ Derived in-memory from the shell's staff — no extra query |
