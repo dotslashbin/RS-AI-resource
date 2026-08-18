@@ -86,11 +86,17 @@ All three portals **and the mobile clients** connect to the same Supabase projec
 |---|---|---|
 | `command.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
 | `vendor.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
-| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` | ⚠️ deliberate — booker is not launched; repoint at production when it is |
+| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` | ⚠️ deliberate — booker is not launched; repoint at production when it is. **Consequence (2026-08-17):** production Command leaves `PORTAL_URL_BOOKER` blank, so booker-only users get no set-password email — a production-minted token cannot validate against staging. When repointing, do it in this order: repoint booker **first**, confirm, *then* set the variable. See `auth-and-roles.md` → "How a Command-created user gets a password" |
 | `staging-command.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-vendor.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-booker.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | local dev | local stack on `127.0.0.1:54321` | `supabase start` in `backbone/` |
+
+> **Auth SMTP is configured per project, by hand, in the dashboard** — it is in no
+> migration and no repo file. Production has Resend (`no-reply@ezzy.ph`); **staging was
+> found without it on 2026-08-18**, which makes every password-reset and Command-created
+> set-password email fail there with *"Error sending recovery email"* while production
+> works. See `auth-and-roles.md` → Password recovery.
 
 Setting up production is documented in `supabase-production-setup.md`.
 
@@ -185,7 +191,7 @@ None of the web stack above applies to the mobile clients. There is no Next.js, 
 | Session storage | `expo-secure-store` behind a **chunking adapter** | The OS keystore caps values near 2 KB on iOS; a Supabase session exceeds it |
 | Icons | `lucide-react-native` | Same icon set as the web, different package |
 | Lists | `@shopify/flash-list` | |
-| Auth flow | `flowType: "pkce"` | Deliberately diverges from the web portals' implicit flow — a mobile client cannot hold a secret |
+| Auth flow | `flowType: "pkce"` | A mobile client cannot hold a secret. ⚠️ This is **not** a divergence from the web portals: they pass `flowType: "implicit"` but `@supabase/ssr` overrides it to `pkce`, so every client in the platform is PKCE. See `auth-and-roles.md` → "Two link shapes". |
 | Push | `expo-notifications` + Expo Push API | Needs a **development or production build and a physical device** — removed from Expo Go at SDK 53. See `schema.md`'s `device_push_tokens` |
 | Build / distribution | EAS Build | See `ezzy-vendor-mobile/EAS-SETUP.md` |
 | Tests | `node --test` with `--experimental-strip-types` | No test framework dependency. Pure logic is extracted into importable modules so tests never load the RN runtime |

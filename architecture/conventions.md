@@ -218,7 +218,11 @@ This is the only file that ever calls `createClient().auth.*`. Do not scatter au
 
 `resetPassword(email, redirectTo?)` forwards `redirectTo` (the app origin) so the recovery link returns to the app, and `updatePassword(newPassword)` sets the new password once recovery is detected. See `auth-and-roles.md` for the password-recovery flow.
 
-**Browser client flow type.** The browser client (`lib/supabase/client.ts` in each portal) is created with `{ auth: { flowType: "implicit" } }`. These are pure client-rendered SPAs, so implicit flow is appropriate: password recovery returns the token in the URL hash rather than a PKCE `?code=` that would need a same-origin `code_verifier`, which makes the recovery flow reliable. The same file exposes `isRecoveryDetected()` (latched from a module-load `PASSWORD_RECOVERY` listener) that the app shell reads on mount.
+**Browser client flow type.** The browser client (`lib/supabase/client.ts` in each portal) passes `{ auth: { flowType: "implicit" } }` — **and it has never taken effect.** `@supabase/ssr`'s `createBrowserClient` hardcodes `flowType: "pkce"` *after* spreading the caller's `auth` options, so the value is silently discarded. **The web portals are PKCE.**
+
+This paragraph previously claimed the opposite, and that false claim survived long enough to cost several production failures in August 2026 — Forgot Password worked only because the same client both requested and consumed the link, which hid the truth. A link requested by the *server* arrives implicit and auth-js refuses it. The option is left in the code so that removing it stays a deliberate act; do not "restore" implicit by editing that line. Full account: `architecture/auth-and-roles.md` → "Two link shapes, and why only one of them used to work".
+
+The same file exposes `isRecoveryDetected()` (latched from a module-load `PASSWORD_RECOVERY` listener), `recoverySessionReady()` and `isRecoveryResolving()`, which the app shell reads on mount.
 
 ---
 

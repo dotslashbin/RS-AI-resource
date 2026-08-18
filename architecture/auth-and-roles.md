@@ -34,18 +34,74 @@ A second trigger (`handle_user_email_update`) keeps `profiles.email` in sync if 
 Password recovery is implemented end-to-end in all three portals. The flow:
 
 1. From the login screen the user requests a reset; the portal calls `resetPassword(email, redirectTo)` (in `auth.service.ts`), passing the app origin as `redirectTo` so the recovery link returns to the app.
-2. The browser client (`lib/supabase/client.ts`) uses `flowType: "implicit"` — the recovery link returns the token in the URL hash rather than a PKCE `?code=` needing a same-origin `code_verifier`, which suits these client-rendered SPAs.
-3. Recovery is detected via a module-load `PASSWORD_RECOVERY` listener exposed as `isRecoveryDetected()`. `useAppShell` reads it and sets a `recoveryMode`; `AppShell` then renders `LoginPage` in a `"reset"` view (set-new-password form).
+2. **The browser client is PKCE, not implicit — despite what `lib/supabase/client.ts` appears to say.** It passes `flowType: "implicit"`, and `@supabase/ssr`'s `createBrowserClient` **discards it**: the option is set *after* the caller's `auth` options are spread (`createBrowserClient.js` — `...options?.auth` then `flowType: "pkce"`). This file used to claim the opposite, and that false claim cost several production failures in August 2026. See "Two link shapes" below — the distinction is load-bearing.
+3. Recovery is detected via a module-load `PASSWORD_RECOVERY` listener exposed as `isRecoveryDetected()`. `useAppShell` waits for `recoverySessionReady()` and then sets `recoveryMode`; `AppShell` renders `LoginPage` in a `"reset"` view (set-new-password form) — **keyed**, so switching views remounts it.
 4. **The portal access gate is skipped during recovery.** The normal mount check (`verify*Access` → `signOut()` for users lacking that portal) would otherwise destroy the recovery session before the password is updated. During recovery the gate early-returns so the recovery session survives until `updatePassword(newPassword)` succeeds; portal access is still enforced at the next login.
 5. The user leaves the reset view by setting a password, or via **"Back to Sign In"** (`handleCancelReset`), which clears the latch below, signs out and reloads to a clean origin.
 
 Recovery (auth) emails are separate from notification emails — they are sent by Supabase Auth (GoTrue), delivered via Resend SMTP when hosted and via Supabase's local mailer (Mailpit) in local dev. They do **not** go through the `send-notification-email` Edge Function.
 
+> ⚠️ **Auth SMTP is per-project dashboard configuration and is in no migration, no
+> `config.toml`, and no repo file** — `[auth.email.smtp]` is commented out and
+> `config push` must never be run. A hosted project without it falls back to Supabase's
+> built-in mailer, which delivers **only to project team members** and returns
+> *"Error sending recovery email"* for anyone else. **Production has it configured
+> (Resend, `no-reply@ezzy.ph`); staging did not**, which is why every auth email failed
+> there on 2026-08-18 while production was fine. Configure it per project at
+> Authentication → Emails → SMTP Settings. Note there is **no** non-prod override for auth
+> email — `NOTIFICATION_EMAIL_OVERRIDE_TO` covers only the notification Edge Function — so
+> once staging SMTP is on, staging password resets reach real inboxes. Use test addresses.
+
+#### Two link shapes, and why only one of them used to work
+
+**There are two kinds of recovery link, decided by whichever client *requested* it.**
+
+| Requested by | Link shape | Consumed how |
+|---|---|---|
+| The **browser** (Forgot Password) | `?code=…`, **no fragment** | PKCE client stores a `code-verifier` locally, exchanges the code. Request and consumption are the same client, so it matches. |
+| The **server** (Command creating a user) | `#access_token=…&type=recovery` | The admin client is plain `@supabase/supabase-js`, sends no `code_challenge`, so GoTrue emails an *implicit* link. |
+
+`resetPasswordForEmail` only attaches a `code_challenge` when the requesting client is
+PKCE (`auth-js` — `if (this.flowType === 'pkce')`). So when Command began mailing
+set-password links from the server (2026-08-17), the browser received an **implicit**
+link — and auth-js refused it outright:
+
+```
+GoTrueClient._getSessionFromURL
+  case 'implicit':
+    if (this.flowType === 'pkce') throw AuthPKCEGrantCodeExchangeError
+```
+
+No session was created, yet the set-password form still rendered (it was gated on a bare
+string match for `type=recovery` in the fragment), so submitting produced
+**`Auth session missing!`**.
+
+**The fix, in all three portals** (`lib/supabase/client.ts`, kept byte-identical):
+`readHashTokens()` pulls the pair out of the fragment and `client.auth.setSession()`
+establishes the session auth-js declined to — `setSession` is flow-agnostic, so this works
+under PKCE. A `?code=` link puts nothing in the fragment, so the path is **inert for
+Forgot Password**. `recoverySessionReady()` exposes when that has settled; a rejected token
+routes into the existing `authHashError` path (see below) rather than a second one.
+
+**And one more, subtler failure it exposed** (`useAppShell` + `AppShell`): `LoginPage`
+seeds its view from `initialView` via `useState` — **first mount only** — and both shell
+branches render it at the same position, so React *updates* rather than remounts. Making
+`recoveryMode` asynchronous meant the component mounted as `"login"` before the session
+arrived, and the later `initialView="reset"` was silently ignored. Fixed by gating the
+render on `recoveryResolving` until the fragment is consumed, **plus a `key` on every
+`LoginPage` branch** so a view switch always remounts. The `key` also removes a
+pre-existing race in the *PKCE* path, which had the same latent bug and only worked
+because the code exchange usually beat the component mount.
+
+> **Do not "simplify" any of this.** Every clause above is load-bearing and each one
+> corresponds to a production failure: `.plans/2026-08-17-command-new-user-password-onboarding.md`
+> B3 (the mismatch), B4 (dead form), B5 (the view latch), B6 (the vendor/booker review).
+
 #### Two non-obvious things about the URL fragment
 
 Both were production bugs on 2026-08-10. Both are easy to reintroduce by "simplifying" `lib/supabase/client.ts`, so the reasoning is recorded here.
 
-**The fragment does not survive a refresh, and only when the token is *valid*.** `auth-js` clears it (`GoTrueClient.js` — `window.location.hash = ''`) on the line *after* `_getUser(access_token)` succeeds. An invalid token throws before that and leaves the fragment in place. So a good recovery link creates a session and erases the only evidence of *why* the session exists; on reload `isRecoveryDetected()` was false, `PASSWORD_RECOVERY` did not re-fire (it fires while processing a recovery URL, never when restoring a session from storage), and the app auto-logged the user straight in with **no password ever set**. That matters because Command creates every user without one (`command/app/api/users/route.ts`), making recovery their only onboarding path.
+**The fragment does not survive a refresh, and only when the token is *valid*.** `auth-js` clears it (`GoTrueClient.js` — `window.location.hash = ''`) on the line *after* `_getUser(access_token)` succeeds. An invalid token throws before that and leaves the fragment in place. So a good recovery link creates a session and erases the only evidence of *why* the session exists; on reload `isRecoveryDetected()` was false, `PASSWORD_RECOVERY` did not re-fire (it fires while processing a recovery URL, never when restoring a session from storage), and the app auto-logged the user straight in with **no password ever set**. That matters because Command creates every user without one (`command/app/api/users/route.ts`), making recovery their only onboarding path — and since 2026-08-17 Command *starts* that recovery itself on creation, so this is the path every new user actually walks (see "How a Command-created user gets a password" below).
 
 > **Fix:** the flag is mirrored into `sessionStorage` under `rs.recovery`, so recovery mode survives a reload. `clearRecovery()` discharges it on a successful `updatePassword()` and on "Back to Sign In". `sessionStorage`, not `localStorage`, so an abandoned recovery dies with the tab instead of wedging a later visit. Storage access is `try`/`catch`-wrapped — privacy modes degrade to the old behaviour rather than throwing.
 >
@@ -72,12 +128,40 @@ Since 2026-08-10 every portal also exposes a self-service password change, so a 
 | `vendor` | Settings → Password card | `components/settings/SecurityCard/` |
 | `booker` | Settings → Password card | `components/settings/SecurityCard/` |
 
-All three share the same hook logic (8-character minimum, mirroring the recovery form; mismatch warned only once the confirm field has content) and call the existing `updatePassword()` in `auth.service.ts`.
+All three share the same hook logic (8-character minimum, mirroring the recovery form; mismatch warned only once the confirm field has content) and call the existing `updatePassword()` in `auth.service.ts`. In `command` that minimum is no longer a literal — it lives in `command/lib/password.ts` as `MIN_PASSWORD_LENGTH`, shared by the recovery form, this settings form and the root set-password route (2026-08-17).
 
 Two deliberate choices:
 
 - **No sign-out on success.** The recovery form signs out because there the session exists solely to set a password; here the user is mid-task and Supabase keeps the session valid across `updateUser({ password })`.
 - **No current-password re-authentication.** Standard practice, skipped on purpose: every Command-created account has *no* password, so the prompt would lock out exactly the people the feature exists for. The session remains the auth boundary, consistent with the recovery form. Revisit if step-up auth is ever introduced.
+
+### How a Command-created user gets a password
+
+Command creates accounts with **no password** (`auth.admin.createUser` is called without one). Until 2026-08-17 it also sent nothing — the GoTrue admin *create* endpoint has no mail path — so the account existed and nobody was ever told. There are now three ways a password gets set, in the order you should reach for them. See `.plans/2026-08-17-command-new-user-password-onboarding.md`.
+
+| # | Path | Who triggers it | When to use |
+|---|---|---|---|
+| 1 | **Automatic on creation** — the create route calls `resetPasswordForEmail` after the grant writes | anyone who can add a user | the default; nothing to do |
+| 2 | **Send set-password link** — button in the user detail modal | root only | the mail was lost or expired, or the account predates 2026-08-17 |
+| 3 | **Set password** — root types one directly (`auth.admin.updateUserById`) | root only | **the normal path for a new Command admin** (see below); also break-glass when the person cannot receive mail |
+
+**Provisioning a Command admin: use path 3, not path 1.** Creating an `admin`/`root` user
+or granting the `command` portal is already root-only (`command/app/api/users/route.ts`),
+so whoever creates the account can set its password on the spot. That path touches no
+email, no GoTrue link, no redirect and no URL fragment — it cannot fail the way a mailed
+link can. Path 1 exists for **vendor and booker** users, who are not in the room and need
+a self-service link. Two things that are **not** acceptable substitutes: a fixed default
+password (identical on every account, and discoverable from the repo), and emailing the
+password (permanent and plaintext, where a link would have expired).
+
+Three things about this that are easy to get wrong:
+
+- **It sends a `recovery` link, not an `invite` link.** All three portals latch recovery on the literal string `type=recovery` (`lib/supabase/client.ts`, byte-identical across command/vendor/booker), so reusing recovery means the receiving portal needs **no new code**. `inviteUserByEmail` emits `type=invite` and would require changing all three. This is why the receiving apps were untouched by that work.
+- **The link must be aimed at the user's own portal**, resolved by `command/lib/portalOrigins.server.ts` from `PORTAL_URL_COMMAND` / `PORTAL_URL_VENDOR` / `PORTAL_URL_BOOKER` (server-only, per-environment), priority `command` > `vendor` > `booker`. Sending a vendor to Command would let them set a password and then be told they have no access.
+  📌 **The values for every environment — production, staging and local — live in `command/README.md` → "Environment variables" → "The `PORTAL_URL_*` trio".** That table is the reference to check when setting these up; this document deliberately does not duplicate it.
+- **An unset or blank variable means "do not send", and that is deliberate.** Production leaves `PORTAL_URL_BOOKER` blank because `booker.ezzy.ph` still points at the *staging* Supabase project (see `overview.md`), so a production-minted token cannot validate there. A blank value and a *malformed* value are reported differently on purpose — the first is an expected opt-out, the second is a deployment fault.
+
+Path 3 sends no email by design; the operator passes the password on out of band. There is no "must change password" flag in GoTrue, so it is a genuine break-glass rather than a routine onboarding step.
 
 ---
 
