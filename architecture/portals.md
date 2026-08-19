@@ -51,6 +51,21 @@ A 6-step guided flow:
 - Sidebar with Settings (hamburger toggle)
 - Light/dark theme toggle
 
+#### Legal & policy links (2026-08-19)
+Policy text is **not** in this repo — the apps link out to the canonical pages on
+`ezzy.ph` (Terms of Use, Privacy Policy, Acceptable Use, Cookie Policy, Refund &
+Cancellation, About). One copy for Legal to edit, no redeploy, no drift between
+portals. URLs live in `lib/legal.ts` per app (copied, not shared). Two surfaces:
+a link row at the foot of the login screen, and an "About & Legal" popover at the
+bottom of the sidebar, above the account block — which is also the mobile drawer,
+so the tab bar is untouched. See `.plans/2026-08-19-legal-links-and-consent.md`.
+
+Signup additionally **gates on agreeing** to the Terms, Privacy Policy and
+Acceptable Use Policy: a required checkbox in the register view, re-checked by
+`app/api/register/route.ts`, which creates no account without it and records one
+row per document in `legal_acceptances`. Booking checkout (Step 6) carries a
+Refund & Cancellation Policy **notice**, deliberately not a second checkbox.
+
 #### Progressive Web App (2026-07, live)
 Installable to a home screen on Android and iOS. `app/manifest.ts` declares name/icons/`display: "standalone"`; the same hand-rolled service worker pattern as vendor (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets, with cross-origin requests (Supabase, Realtime, PayMongo) explicitly never intercepted or cached. A dismissible "Install App" banner (`components/layout/InstallPrompt`) offers a real one-tap install on Android/Chromium, instructions-only on iOS Safari, or a "reopen in Safari" message on other iOS browsers. **Known gap specific to booker:** the Step 6 PayMongo redirect leaves the app's origin — in standalone mode, the return trip from PayMongo's hosted checkout page is not guaranteed to land back inside the installed app window (may open in a browser tab instead); the booking record and webhook `is_paid` flag remain authoritative regardless, so this is a cosmetic risk, not a data-integrity one, but it has not yet been live-tested on real devices. See `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
@@ -317,6 +332,22 @@ onboarded a second time because the guide changed shape.
 - Light/dark theme toggle
 - Multi-vendor support: if a user is `vendor-admin` at multiple vendors, they can switch between them
 
+#### Legal & policy links (2026-08-19)
+Policy text is **not** in this repo — the apps link out to the canonical pages on
+`ezzy.ph` (Terms of Use, Privacy Policy, Acceptable Use, Cookie Policy, Refund &
+Cancellation, About). One copy for Legal to edit, no redeploy, no drift between
+portals. URLs live in `lib/legal.ts` per app (copied, not shared). Two surfaces:
+a link row at the foot of the login screen, and an "About & Legal" popover at the
+bottom of the sidebar, above the account block — which is also the mobile drawer,
+so the tab bar is untouched. See `.plans/2026-08-19-legal-links-and-consent.md`.
+
+Registration **gates on agreeing** at step 6 ("Review & submit") — the vendor set
+adds the Refund & Cancellation Policy, since vendors are the party those
+obligations bind. Re-checked by `app/api/auth/register/route.ts` before the
+account is created. Consent is held in `useLoginPage` state and deliberately
+**never written to the KYC draft**: a registration resumed days later must not
+restore a pre-ticked box.
+
 #### Shell navigation and the page-intent handoff
 **There is no router.** `app/page.tsx` is five lines; `useAppShell` holds a `page: PageId`
 and `AppShell` renders one page from a `switch`. Every navigation therefore **unmounts the
@@ -340,7 +371,7 @@ old page and mounts the new one**, and several features depend on that.
   silently break every mount-seeded arrival above
 
 #### Progressive Web App (2026-07, live)
-Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker has the identical setup (see its own Current Features above); Command does not have this (desktop admin tool) — see `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
+Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker has the identical setup (see its own Current Features above). **Command gained the same setup on 2026-08-18** (`.plans/2026-08-18-command-vendor-nav-branding-responsive.md` B5) — it was previously excluded as a desktop admin tool. See also `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
 ### What Is Live vs. Mock
 
@@ -409,6 +440,50 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's nativ
 Platform-wide oversight: activate user accounts, approve vendors, manage portal access, and monitor platform activity.
 
 ### Current Features
+
+#### Branding, PWA and navigation (2026-08-18)
+Command adopted vendor's approved Ezzy identity and its PWA setup on the same day; see
+`.plans/2026-08-18-command-vendor-nav-branding-responsive.md`.
+
+#### Legal & policy links (2026-08-19)
+Policy text is **not** in this repo — the apps link out to the canonical pages on
+`ezzy.ph` (Terms of Use, Privacy Policy, Acceptable Use, Cookie Policy, Refund &
+Cancellation, About). One copy for Legal to edit, no redeploy, no drift between
+portals. URLs live in `lib/legal.ts` per app (copied, not shared). Two surfaces:
+a link row at the foot of the login screen, and an "About & Legal" popover at the
+bottom of the sidebar, above the account block — which is also the mobile drawer,
+so the tab bar is untouched. See `.plans/2026-08-19-legal-links-and-consent.md`.
+
+**No consent gate here, by design:** Command has no self-registration — its users
+are provisioned by admins — so there is no flow for a checkbox to attach to. Links
+only.
+
+- **Brand assets are copies of vendor's, not originals.** `app/favicon.ico` (previously
+  still the Next.js scaffold default), `app/icon.svg`, `app/apple-icon.png`,
+  `public/icons/*` and `components/ui/BrandLogo` are byte-identical to vendor's. The
+  single source of truth stays `vendor/brand/*.svg` + `vendor/scripts/generate-brand-assets.mjs`;
+  the generator is deliberately **not** duplicated here (it needs `playwright` + `sharp`
+  to regenerate assets that change approximately never). ⚠️ Editing `BrandLogo.tsx`
+  locally silently forks the brand — see `command/README.md`.
+- **Installable PWA** — `app/manifest.ts`, `public/sw.js`, `public/offline.html`,
+  `components/layout/InstallPrompt`, registered from `useAppShell`. Same worker as
+  vendor and booker: network-first on navigations (so stale admin HTML is never
+  served), cross-origin requests to Supabase never intercepted. ⚠️ **A registered
+  service worker outlives the code that registered it** — reverting these files does
+  not unregister it from browsers that already have it.
+- **Persistent Home control** in `AppHeader`, with a chevron trail (`[home] › Section`)
+  that renders only when away from Overview. Vendor has the identical control in its
+  `TopBar`, where the gap was sharper: four sidebar-only pages render no tab strip at
+  all, so the hamburger was the only route home.
+- **Browser Back now steps back through visited pages** in both Command and vendor,
+  instead of exiting the app. This closes the loss recorded at
+  `.plans/2026-08-12-vendor-dashboard-range-and-drilldown.md:715`. One history entry
+  per page navigation; **filter/date changes still use `replaceState` and add none**,
+  which is the constraint that plan's D1 exists to protect. Command's entries are
+  URL-less (`pushState({ page })`), so unlike vendor it still cannot deep-link and a
+  mid-stack reload returns to Overview.
+  ⚠️ Machine-checked only — the back-button behaviour has **not** been exercised in a
+  signed-in session, because neither app has a harness that can reach one.
 
 #### Overview / Dashboard
 - KPI widgets: active vendor count (live from `vendors`), total bookings, platform revenue, held wallet funds (latter three are seeded)
@@ -618,7 +693,7 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Platform fee configuration | — | Read-only (shown per transaction) | ✅ Live — sets the global rate |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |
-| Installable PWA | ✅ Live (real-device verification pending, incl. PayMongo round-trip) | ✅ Live (real-device verification pending) | — Not planned |
+| Installable PWA | ✅ Live (real-device verification pending, incl. PayMongo round-trip) | ✅ Live (real-device verification pending) | ✅ Live since 2026-08-18 (real-device install pending) |
 | Native mobile client | ❌ Scaffold only (`ezzy-booker-mobile`) | ✅ Ph0–Ph6 live on Android (`ezzy-vendor-mobile`) | — Not planned (desktop admin tool) |
 
 **The mobile client is not a fourth column of this table.** It targets a subset of the vendor portal's jobs on purpose, so a ❌ against it usually means "deliberately out of scope", not "still to build".

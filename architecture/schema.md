@@ -70,6 +70,8 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260803000004_booking_derive_price_and_span.sql` | `check_booking_consistency()` now **derives** `price_paid` (`offering.price * quantity`) and the booking's span, and pins them plus `quantity` against UPDATE. Closes a hole where the client wrote `price_paid` and the PayMongo route then trusted it |
 | `20260803000005_booking_slot_and_capacity.sql` | `check_booking_placement()` replaces `check_booking_capacity()`: slot-boundary legality, window fit, **recurrence validity in the DB** (previously app-layer only), per-covered-slot capacity, and same-booker overlap. Renamed so it sorts **after** `bookings_check_consistency` — BEFORE triggers fire alphabetically and this one reads the span that one computes |
 | `20260816000002_completion_view_service_role_grant.sql` | Corrective: grants `service_role` SELECT on `vendor_account_completion`, which `20260816000001` omitted. Not a live bug at the time (every reader was `authenticated`), but the first server-side reader would have failed |
+| `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
+| `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260816000001_command_payout_access.sql` | Command admin/root SELECT policies on both payout tables (no write policy — staff must not edit a destination) + `vendor_payout_view_log` (append-only record of **who decrypted a destination and when**, storing no payout data) + the `vendor_account_completion` **view**, which becomes the single definition of a complete vendor account for both the vendor portal and Command. ⚠️ The view is `security_invoker = on` **and** carries an explicit authorisation `where` clause: without the latter a booker (who may read active vendors, `20260515000001`) would get a row per vendor reading `is_account_complete = false` — a *wrong* answer rather than a hidden one |
 | `20260815000001_vendor_payout_methods.sql` | `vendor_payout_methods` (one row per vendor — where they are paid; sensitive fields held as **app-encrypted ciphertext the database cannot read**, beside a masked `display` JSONB) + `vendor_payout_method_log` (immutable, masked-only change audit). Vendor-admin SELECT only; **no `authenticated` write path** — writes go through the vendor app's service-role route, which holds the encryption key. Command access was deliberately omitted here and added by `20260816000001` once Command had a key |
 
@@ -974,6 +976,53 @@ One row per uploaded KYC file (file bytes live in the `vendor-kyc` Storage bucke
 | `uploaded_at` | `timestamptz` | Default `now()` |
 
 Write-once (replace = delete + insert). **RLS:** vendor admins SELECT their own docs and may INSERT/DELETE **only while the header is `rejected`** (the resubmit window); Command admins/root SELECT all. No UPDATE. Deleting a doc during resubmit also removes its Storage object (app-level cleanup in `resubmitKyc`) — a `db reset` alone would orphan the blobs.
+
+### `legal_acceptances`
+
+Append-only proof that a user agreed to Ezzy's policies. Written **only** by the two
+service-role registration routes (`booker/app/api/register`,
+`vendor/app/api/auth/register`); nothing else writes here and nothing ever updates or
+deletes.
+
+**One row per document agreed to** — 3 for a booker signup (`terms`, `privacy`,
+`acceptable`), 4 for a vendor registration (plus `refunds`) — rather than one row per
+signup, so a policy set that changes shape over time stays legible.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `user_id` | `uuid` | FK → `auth.users(id)` **ON DELETE SET NULL** — not CASCADE; see below |
+| `email` | `text` | Snapshot at acceptance. Once `user_id` is nulled this is the only route back to the record |
+| `source` | `text` | CHECK `booker_signup` \| `vendor_registration` |
+| `document_key` | `text` | CHECK `terms` \| `privacy` \| `acceptable` \| `refunds` \| `cookies` |
+| `document_ver` | `text` | `LEGAL_VERSION` **as reported by the client** — what the user was actually shown, which a client on a cached bundle may lag |
+| `document_url` | `text` | Resolved server-side from the app's own link table, never from the request |
+| `accepted_at` | `timestamptz` | Default `now()` |
+| `ip_address` | `inet` | Nullable; parsed with `node:net`'s `isIP` so a malformed header cannot fail a registration |
+| `user_agent` | `text` | Nullable, capped at 512 chars |
+
+**Why `ON DELETE SET NULL`:** deleting an account must not destroy the evidence that
+its owner accepted the terms — that is precisely when the record matters. This is a
+retained personal-data record after deletion and is justified under the PH Data
+Privacy Act as necessary to establish or defend a legal claim.
+
+**RLS:** a user SELECTs their own rows; Command admin/root SELECT all (via
+`is_privileged_user`). **No INSERT/UPDATE/DELETE policy exists for `authenticated`
+at all** — append-only is enforced by the absence of both policy and privilege, not
+by convention.
+
+**Grants:** `authenticated` SELECT; `service_role` SELECT + INSERT (and deliberately
+*not* UPDATE/DELETE); `anon` nothing.
+
+**Ordering constraint in the writers:** both routes insert these rows **last**, after
+every step that could still roll back. Because `user_id` is nulled rather than
+cascaded, a row written earlier would survive a failed registration's rollback as a
+null-user row claiming someone consented — so the ordering makes orphans impossible
+instead of leaving a cleanup path to chase them.
+
+Nothing reads this table yet; the proof-lookup screen in Command is deferred.
+
+---
 
 ---
 

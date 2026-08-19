@@ -90,6 +90,28 @@ sign-in; the left info panel / mobile toggle behaviour is unchanged):
   (a cross-session resume lands at step 2 to re-enter the password, which is
   never persisted).
 
+### Policy consent at step 6 (2026-08-19)
+
+Step 6 carries a required agreement checkbox covering the Terms of Use, Privacy
+Policy, Acceptable Use Policy and Refund & Cancellation Policy — the last of these
+because the vendor is the party a cancellation obligation binds.
+
+Three things about it are load-bearing:
+
+- **The server re-checks it.** `app/api/auth/register/route.ts` rejects a missing or
+  false flag before `createUser`. The checkbox only disables a button; it stops
+  nobody posting to the route directly.
+- **It is never persisted to the KYC draft.** Consent lives in `useLoginPage` state
+  alongside the password, for the same reason: a draft resumed days later that
+  restores a pre-ticked box is not consent.
+- **It is recorded, not just enforced.** Four rows land in `legal_acceptances` (one
+  per document), written **last** in the route — after every step that could still
+  roll back. See `schema.md` for why the ordering matters.
+
+The **resubmit** path (`KycStatusPage` → `resubmitKyc`) deliberately has **no**
+second gate: that vendor already has an account and already accepted at
+registration.
+
 ### What the atomic submit route does
 
 `POST /api/auth/register` (multipart: fields + `kycType` + `docLabels` JSON +
