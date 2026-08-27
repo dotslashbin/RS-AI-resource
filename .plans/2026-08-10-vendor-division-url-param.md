@@ -9,6 +9,28 @@ with a Resend message id, the first non-failure in `notification_emails`.
 One follow-up was discovered in the process and is recorded as **N1** (a
 registration exceeds Resend's 10/sec limit and silently drops notifications).
 
+> ⚠️ **REGRESSED 2026-08-14, RESTORED 2026-08-25 — read this before trusting the
+> verification above.** Stage 2's browser verification on 2026-08-10 was genuine, but
+> the ground moved four days later: `fe91929` ("Add dashboard date range and widget
+> drill-down") added a URL-mirror effect in `useAppShell.ts` that rebuilds the query
+> string from `serialiseAppParams` — page/from/to/status only — and `replaceState`s it
+> during AppShell's first commit. That silently ate `?division=` for eleven days, and
+> the whole suite stayed green throughout, because `lib/slug.test.ts` only covers the
+> matcher and `/ui-gallery` renders `LoginPage` outside `AppShell`.
+>
+> The read has since moved to module load (`vendor/lib/divisionDeepLink.ts`), and the
+> ⚠️ note in **B2** below — "Why `window.location.search` and not `useSearchParams()`" —
+> is now **out of date in its mechanism**: the parameter is no longer read inside the
+> divisions effect at all. Its *reasoning* about `useSearchParams()` still holds and
+> was carried across.
+>
+> Two latent bugs this plan shipped were also found and fixed then: the view-hijack
+> (`setLoginView("register")` ignored `initialView`) and, once the read became sticky,
+> re-application on every LoginPage remount.
+>
+> See **`.plans/2026-08-25-vendor-division-deeplink-regression.md`** for the full
+> trace, the fix, and the regression test that now guards it.
+
 > **Verified when written (2026-08-10):** `tsc` 0 · `npm run build` 0 · `npm test`
 > **43/43** · Playwright **61/61 unchanged**, as predicted — the gallery renders
 > `LoginPage` with no query string, so the deep-link effect never fires there.

@@ -2,7 +2,14 @@
 
 **Date:** 2026-08-02
 **App / scope:** `command/`, `booker/`, `vendor/` (the three Next.js web apps)
-**Status:** IN PROGRESS — B1 + B2 done and verified locally (2026-08-02); I1 and I2 outstanding
+**Status:** COMPLETE (closed 2026-08-21)
+
+> **Closure note (2026-08-21).** B1 and B2 were verified live on all six deployed hosts —
+> see `.plans/2026-08-21-web-apps-seo-indexing-audit.md` §1a. **I2 was already done** and
+> this status line was simply never updated: the subsection it specified exists at
+> `architecture/conventions.md` → "Search-engine exposure is off by default". **I1 is
+> superseded** — carried forward as I5 of the 2026-08-21 plan, where the alias half is
+> resolved and the `site:` half is tracked as blocked on Search Console access.
 
 > Keep all three web portals out of search engine indexes by default, in every
 > environment, with a single fail-closed opt-in flag for the day a portal
@@ -21,7 +28,14 @@ for `command`, `booker`, `vendor`, in staging and production.
 
 **Out of scope, explicitly:**
 - The two Expo apps (`ezzy-booker-mobile`, `ezzy-vendor-mobile`) — no crawlable surface.
-- The marketing site in `website/` — it *should* be indexable; untouched here.
+- ~~The marketing site in `website/` — it *should* be indexable; untouched here.~~
+  ⚠️ **CORRECTED 2026-08-21: this was wrong.** `website/` is **gitignored**
+  (`.gitignore:3`), tracked by zero files, titled *"RS Road Safety I.T. Services –
+  DriveBook Platform"*, and links out to `booking.co99.win` / `school.co99.win` — a
+  different brand on different infrastructure. It is not the marketing site and is not
+  deployed. The real public surface is the **WordPress estate**: `ezzy.ph` plus
+  `care.`, `court.` and `drive.ezzy.ph`, each serving its own robots.txt (allow-all),
+  a Yoast `sitemap_index.xml`, and per-page `<link rel="canonical">`. Verified live.
 - Any access gate (password / SSO / basic auth) — declined, see Decisions.
 - Staging's Supabase project wiring and staging auth email deliverability — see
   "Adjacent risks", flagged but not fixed by this plan.
@@ -164,9 +178,14 @@ metadata route, not a render layer; there is no state, no effect, no styling.
 
 ## IMPORTANT
 
-### I1 — Existing index coverage is unknown and unmeasured ⬜ TODO
+### I1 — Existing index coverage is unknown and unmeasured ⏸ PARKED — superseded 2026-08-21
 
 **File:** n/a — live environment
+
+> ⏸ **PARKED (2026-08-21) — superseded, not abandoned.** Carried forward verbatim as I5
+> of `.plans/2026-08-21-web-apps-seo-indexing-audit.md`. **Unblock condition:** access to
+> Google/Bing `site:` results or Search Console for the six hosts. Work continues there;
+> do not execute from here.
 
 Adding `noindex` prevents *future* indexing but does not retract what is already
 in the index; Google drops a URL only after re-crawling it. If the staging domain
@@ -183,9 +202,15 @@ only carries placeholder fallbacks (`booker/lib/constants.ts:49`,
 `vendor/lib/constants.ts:20`, `command/lib/constants.ts:104`) which are dev
 defaults, not real deployed hosts.
 
-### I2 — The indexing contract is undocumented ⬜ TODO
+### I2 — The indexing contract is undocumented ✅ DONE (shipped before 2026-08-21; recorded 2026-08-21)
 
 **File:** `architecture/conventions.md` (near the Vercel deployment note at :482)
+
+> ✅ **DONE.** The subsection exists as specified — `architecture/conventions.md` →
+> "Search-engine exposure is off by default" — with the two-layer table, the
+> server-only-not-`NEXT_PUBLIC_` rationale, and the ⚠️ note that the variable is inert if
+> the deployed build predates the guard. It shipped without this item being ticked, which
+> is why the plan's status line still claimed it was outstanding.
 
 Once B1/B2 land, "these apps are noindex" becomes an invariant that a future
 change could silently break — someone adds a marketing route to booker and

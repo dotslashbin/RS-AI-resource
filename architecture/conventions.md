@@ -265,7 +265,8 @@ Checks: active session + `user_portals` row for `command` + `user_roles` row for
 | `SUPABASE_SERVICE_ROLE_KEY` | Server only | Bypasses RLS — never expose to client |
 | `NEXT_PUBLIC_APP_NAME` | Public (client + server) | App display name; re-exported as `APP_NAME` from each app's `lib/constants.ts` with a placeholder fallback. Also read server-side in booker's `create-session/route.ts` |
 | `NEXT_PUBLIC_APP_DOMAIN` | Public (client + server) | App domain; re-exported as `APP_DOMAIN` from each app's `lib/constants.ts` with a placeholder fallback |
-| `NEXT_PUBLIC_APP_URL` | Public (client + server) | Booker payment return URL — base for PayMongo success/cancel redirects |
+| `NEXT_PUBLIC_APP_URL` | Public (client + server) | Two consumers. (1) Booker payment return URL — base for PayMongo success/cancel redirects. (2) Since 2026-08-21, the highest-precedence input to `lib/siteUrl.ts` → `resolveSiteUrl()`, which supplies `metadata.metadataBase` for Open Graph URLs in **all three** portals. Optional on `command`/`vendor` (they fall through to `VERCEL_PROJECT_PRODUCTION_URL`); if you do set it there, it wins. Must be scheme + host — any path is discarded, because `metadataBase` would otherwise treat it as a prefix for every relative asset URL |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Vercel system var — set by the platform, not by us | Fallback input to `resolveSiteUrl()`. The per-**project** production domain, so the staging Vercel project resolves to the staging host and production to production. ⚠️ Not `VERCEL_URL`, which is the unique per-**deployment** hostname and would make production advertise a random `*.vercel.app`. A Vercel build with neither this nor `NEXT_PUBLIC_APP_URL` **fails loudly** rather than publishing `localhost` in every link preview |
 | `ALLOW_INDEXING` | **Server only** — deliberately not `NEXT_PUBLIC_` | The single switch letting search engines index a portal. Unset, or anything other than `"1"`, is the fail-closed default: `Disallow: /` plus a `noindex` header. See "Search-engine exposure is off by default" below |
 | `PAYOUT_ENCRYPTION_KEY` | **Server only** — deliberately not `NEXT_PUBLIC_` | AES-256-GCM key (32 random bytes, base64) for vendor payout destinations. Read **lazily inside** `vendor/lib/payout/crypto.server.ts`, never at module scope — a module-level read makes `next build` fail wherever the variable is unset. ⚠️ **Losing it makes every stored payout destination permanently unreadable**; there is no recovery path. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. ⚠️ **One key per Supabase project, shared by the two apps that read it** — `vendor` and `command` must hold the **byte-identical** value for a given database, while local / staging / production each get their **own** key. Set it in **Vercel** project settings (one per portal, and mind the Production/Preview/Development scoping), **never in Supabase** — storing it there would hand a database dump both the ciphertext and the means to read it, which is the entire threat this design exists to remove |
 | `NEXT_PUBLIC_APP_VERSION` | Public (client + server) | Injected via `next.config.ts` from `package.json` version; read by `components/dev/DevVersionBadge.tsx`. Present in all three portals (uniform since 2026-07; command's badge is styled with Tailwind arbitrary-value classes rather than a CSS Module, unlike the rest of its CSS-Modules-first codebase — a deliberate exception for parity with booker/vendor) |
@@ -349,8 +350,8 @@ npx playwright test --update-snapshots
 
 | App | `/ui-gallery` | `playwright.config.ts` | `visual-tests/` |
 |---|---|---|---|
-| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs + committed baselines |
-| `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs + committed baselines |
+| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs **+ committed baselines** (82 PNGs, since 2026-08-26) |
+| `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs **+ committed baselines** (55 PNGs, since 2026-08-26) |
 | `command` | ✅ | ⚠️ port 3100 — **collides with `vendor`** — and still `127.0.0.1` | ❌ **none** — the harness is wired up but nothing tests it |
 
 Two things about this setup are load-bearing:
@@ -366,6 +367,50 @@ Two things about this setup are load-bearing:
 - **`toHaveScreenshot: { maxDiffPixels: 0 }`** — baselines are exact, with animations
   disabled and the caret hidden. A diff is a real change; regenerate deliberately with
   `--update-snapshots` and read the diff before committing it.
+- **Baselines ARE committed, in both `vendor` and `booker`** (since 2026-08-26). They
+  were gitignored until then, in both apps, while `.gitignore`'s own comment and this
+  table both claimed the opposite. Two consequences worth keeping in mind: a
+  `--update-snapshots` is now a **reviewable, revertible diff** rather than a silent
+  local overwrite; and the PNGs are **platform-locked** — the filenames say
+  `*-chromium-linux.png`, so they only reproduce on this OS and font stack. CI must pin
+  a matching container or the whole suite fails wholesale.
+- **What happens with a missing baseline** (measured 2026-08-26, after an earlier claim
+  here got it backwards): `toHaveScreenshot` **fails** — *"A snapshot doesn't exist at
+  …, writing actual."* — but **writes the file while failing**. So a single clean CI
+  checkout fails honestly (neither app sets `retries`), while the *next* run in the same
+  workspace passes, comparing the code against a baseline generated from itself. The
+  silent-green case needs a cached workspace, `retries` > 0, or someone running it twice
+  locally. The plainer reason baselines are committed: without them a fresh checkout has
+  nothing to compare against at all.
+- ⚠️ **Read the summary line, never a piped tail.** `npx playwright test 2>&1 | tail -25`
+  is how a **43-failure** run was misread as "115 passed" on 2026-08-25: `tail` cut off
+  the `43 failed` line, leaving Playwright's *failure list* — bare test names — which
+  reads exactly like a list of passes. Worse, **a pipeline's exit status is `tail`'s, so
+  it is always 0**, and the "exit code 0" was quoted as proof. Run it unpiped, or via a
+  script that propagates the exit code, and read the `N failed` line.
+- **Next's dev overlay must be suppressed two ways, in every app with visual tests.**
+  It renders into `<nextjs-portal>`, a **shadow-root host**, so `mask` cannot reach it
+  and `devIndicators: false` alone does not remove it — the element still paints, in the
+  bottom-**left** of every fullPage capture, appearing and disappearing with compile
+  state. Both halves are required: `playwright-screenshot.css` (wired up via
+  `expect.toHaveScreenshot.stylePath`) hides the host, and `PW_TEST=1` on the
+  `webServer` command switches `devIndicators` off in `next.config.ts`. ⚠️ `booker` had
+  **neither** until 2026-08-26 — its specs masked the version badge at bottom-*right*,
+  so that corner was covered and this one never was, and **all 55** of its screenshot
+  baselines were failing on it. Do not add a visual suite to an app without both.
+- **`expect.timeout` is 15s, not Playwright's 5s default**, in both apps. That is the
+  *stability* budget — `toHaveScreenshot` re-shoots until two consecutive frames match
+  before it compares at all. Modal overlays use `backdrop-blur`, and `backdrop-filter`
+  is GPU-composited and not bit-identical frame to frame in headless Chromium, so at
+  `maxDiffPixels: 0` a hair's difference reads as *"Failed to take two consecutive
+  stable screenshots"*. It must live on `expect`, not inside `toHaveScreenshot`, which
+  rejects a `timeout` key (TS2769).
+- ⚠️ **A version badge will break any unmasked screenshot on every release.**
+  `DevVersionBadge` renders `v{NEXT_PUBLIC_APP_VERSION}` in a `fixed bottom-4 right-4`
+  pill, so any `toHaveScreenshot` without `mask: badgeMask(page)` fails by ~9–14 pixels
+  in the bottom-right corner each time the version changes. Three call sites had drifted
+  without it and cost 24 failing tests. **Every `toHaveScreenshot` in `pilot.spec.ts`
+  must carry the mask** — grep for one without it before adding a new snapshot test.
 
 ### Search-engine exposure is off by default
 
@@ -401,18 +446,70 @@ launch and the customer-facing portal is never indexed at all. See
 > that Next adds `noindex` to *every* 404 response automatically, so checking a missing
 > path proves nothing — test the homepage.
 
-**Security headers are not the same thing, and `booker` still lacks them.** `vendor` and
-`command` each send a full set (CSP, `X-Frame-Options`, `X-Content-Type-Options`,
-`Referrer-Policy`, `Permissions-Policy`); `booker/next.config.ts` sets **only**
-`X-Robots-Tag`. It was excluded when those headers shipped, on the assumption booker was
-not deploying — an assumption that stopped being true. Tracked as the booker arm of
-`LR-B7` in `.plans/2026-08-02-web-apps-production-launch-readiness.md`.
+### Open Graph metadata is per-deployment, and is not an indexing change
 
-When that arm is picked up, `connect-src` must be **derived** from
-`NEXT_PUBLIC_SUPABASE_URL`, never copied as a wildcard — copying is precisely what broke
-sign-in on the other two portals (see below). booker additionally needs the Leaflet tile
-host and `api.paymongo.com`; it is the only app with maps or a browser-side payment
-provider.
+All three portals emit `openGraph` + `twitter` tags from their root `layout.tsx`
+(2026-08-21). This is for **link previews** — a portal URL pasted into Messenger, Viber
+or WhatsApp — and changes nothing about indexing: the portals remain `noindex`, and
+`robots.txt` and `X-Robots-Tag` are untouched.
+
+The absolute base for those URLs comes from `lib/siteUrl.ts` → `resolveSiteUrl()`,
+duplicated per app. Precedence: `NEXT_PUBLIC_APP_URL` → `VERCEL_PROJECT_PRODUCTION_URL`
+→ `http://localhost:3000`. Three rules are load-bearing:
+
+- ⚠️ **Never derive it from `NEXT_PUBLIC_APP_DOMAIN`.** That is a *branding* string
+  rendered under the login form; setting all three portals to a prettier `ezzy.ph` is a
+  legitimate copy change that would silently make every portal advertise the wrong
+  origin. It also has a placeholder fallback, so unset yields a confident URL for a
+  domain that does not exist.
+- ⚠️ **`VERCEL_PROJECT_PRODUCTION_URL`, never `VERCEL_URL`.** The former is the
+  per-*project* production domain, so the staging project resolves to the staging host;
+  the latter is the unique per-*deployment* hostname and would make production advertise
+  a random `*.vercel.app`.
+- ⚠️ **No `alternates.canonical` and no `openGraph.url`.** A canonical is a claim about
+  which URL should rank and these portals claim none. Their absence is also what makes it
+  structurally impossible for staging to emit a production URL.
+
+A Vercel build with no resolvable site URL **fails** rather than publishing `localhost`;
+so does a Vercel build with `NEXT_PUBLIC_APP_NAME` unset, which would otherwise ship the
+dev placeholder brand name. Both guards are gated on `VERCEL`, not `NODE_ENV`, so a local
+`npm run build` still works offline. `command/lib/siteUrl.test.ts` and
+`vendor/lib/siteUrl.test.ts` pin every branch.
+
+**Security headers are not the same thing.** All three portals now send the full set
+(CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`,
+`Permissions-Policy`). `booker` was the last to get them — it had been excluded on the
+assumption it was not deploying, an assumption that stopped being true — and they landed
+2026-08-21 via `.plans/2026-08-21-web-apps-seo-indexing-audit.md` I2, closing the booker
+arm of `B7` in `.plans/2026-08-02-web-apps-production-launch-readiness.md`.
+
+Two of booker's directives differ from `vendor`/`command`, and **both were wrong in an
+earlier version of this note**. Recorded precisely, because each was a silent breakage:
+
+- **The map tile host is CARTO, not OpenStreetMap.**
+  `https://*.basemaps.cartocdn.com`, read from
+  `components/booking/MapWidget/useMapWidget.ts:25-26` (`{s}` expands to a/b/c/d). It
+  belongs in **`img-src`**, not `connect-src` — Leaflet fetches tiles as `<img>`. The
+  guessed `tile.openstreetmap.org` blocks every tile and leaves a blank grey square with
+  no error naming the map; `booker/visual-tests/csp.spec.ts` exists to catch exactly that
+  and was verified to fail against the wrong host.
+- **`geolocation=(self)`, NOT `geolocation=()`.** `booker/hooks/useGeolocation.ts:15`
+  calls `navigator.geolocation.getCurrentPosition` from booking step 2. Copying vendor's
+  `geolocation=()` leaves the map rendering while the "You are here" marker never
+  appears — no console error worth the name.
+
+⚠️ **booker does NOT need `api.paymongo.com`, and an earlier version of this note wrongly
+said it did**, calling booker "the only app with … a browser-side payment provider". It
+has none. The PayMongo call is made **server-side** in
+`booker/app/api/payment/create-session/route.ts:47` with the secret key; the browser only
+performs a top-level navigation (`window.location.href = checkout_url`,
+`components/booking/BookingWizard/useBookingWizard.ts:216`), which is governed by neither
+`connect-src` nor `form-action`. Adding the origin would be harmless but would
+misdescribe the payment flow in the file people trust for exactly this.
+
+In every portal, `connect-src` must be **derived** from `NEXT_PUBLIC_SUPABASE_URL`, never
+copied as a wildcard — copying is precisely what broke sign-in on the other two portals
+(see below).
 
 ### CSP `connect-src` must be derived, never hardcoded
 
@@ -483,6 +580,41 @@ export const WEEKDAYS: { label: string; dbDow: number }[] = [
 Read `dbDow` for anything that touches data; reorder the array freely for display.
 Generalise the habit: when a list is both rendered and persisted, carry the stored
 value on the item rather than relying on position.
+
+### The shell owns the query string — read arrivals at module load (`vendor`, 2026-08)
+
+In `vendor`, **`useAppShell` owns `window.location.search` and rewrites it from
+scratch.** Its URL-mirror effect builds a fresh query string with
+`serialiseAppParams` — which emits only `page`, `from`, `to`, `status` — and
+`replaceState`s the result. Every other parameter is **discarded, not merged**.
+
+Two consequences, both learned the expensive way:
+
+1. **That rewrite happens before `LoginPage` exists.** `useAppShell()` is called
+   above every early return in `AppShell.tsx`, so the mirror effect fires during the
+   first commit — while `isCheckingAuth` is still `true` and the shell is rendering
+   `null`. By the time any login/registration component mounts, the URL is already
+   clean.
+2. **So an arrival parameter cannot be read in a component, at any point.** Not in an
+   effect, not in a `useState` initialiser, and least of all inside a `.then()` after
+   a fetch. It must be captured at **module load**, guarded with
+   `typeof window === "undefined"` for prerender, and exposed through a getter.
+
+Two modules already do this, and a third case should follow them rather than invent a
+mechanism: `lib/supabase/client.ts` (`authUrlError`, for the auth error hash) and
+`lib/divisionDeepLink.ts` (`?division=`, for the registration deep link). Both carry
+a comment naming the hazard; keep that habit, because the failure is invisible —
+the parameter simply appears to have never been passed.
+
+If an arrival parameter is a **one-shot instruction** (do this once on landing), make
+it one-shot explicitly. A value read from the URL dies when the URL is rewritten; a
+value held in a module lives until the tab reloads, so it will re-apply on every
+later remount. `divisionDeepLink.ts` splits `peek` from `consume` for exactly this
+reason — sign-out is a soft state reset with no page reload, so the login surface
+remounts inside the same page load.
+
+Recorded from `.plans/2026-08-25-vendor-division-deeplink-regression.md`, where an
+in-effect read silently lost `?division=` for eleven days behind a green suite.
 
 ---
 

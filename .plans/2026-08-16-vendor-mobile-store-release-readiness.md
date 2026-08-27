@@ -6,7 +6,19 @@
 each need their own plan and their own approval gate.
 **Status:** **IN PROGRESS** — all 5 decisions resolved 2026-08-16.
 **Stage 1 ✅ COMPLETE (2026-08-16)** — I4, I9, I10 executed and machine-verified.
-Stages 2–8 ⬜ TODO. Next up: **Stage 2 (X1, `backbone`)** — needs approval, and it gates Stage 3.
+**Stage 2 ✅ COMPLETE (2026-08-20)** — X1 executed in `backbone` and statically verified.
+**Stage 3 🔄 PARTIAL** — the FCM half of step 4 landed (`google-services.json` + wiring);
+migration / function / Vault secret remain unverified.
+
+> ⚠️ **SUPERSEDED IN PART (2026-08-21).** A re-audit on 2026-08-21 established what actually
+> landed 08-16 → 08-21 and re-scoped the remainder:
+> **`.plans/2026-08-21-vendor-mobile-release-gap-closure.md`**. Two entries below are now out
+> of date and are corrected there: **B1's external half is DONE** — the privacy policy is live
+> at `https://ezzy.ph/privacy-policy/` (this plan's claim that the vendor product has no
+> privacy route no longer holds; the policies live on `ezzy.ph`, not in the Next.js app) — and
+> **B2's external half is confirmed NOT done** (no deletion URL exists; three candidates 404).
+> This plan remains authoritative for *requirements*; the gap-closure plan is authoritative for
+> *what is left*.
 
 > One-line framing: establish exactly what stops `ezzy-vendor-mobile` from being submitted
 > to and approved by the Apple App Store and Google Play **today**, measured against the
@@ -118,7 +130,7 @@ in its own right and must not be folded into this plan's execution.
 | I1 | Android target API 36 (from 2026-08-31) | ➖ | ✅ | targetSdk **36**, compileSdk 36, minSdk 24 — SDK 57 default, verified in the gradle plugin | None. Re-verify on the real merged manifest of the release AAB | Configuration | P1 (verify) |
 | I2 | Apple Xcode 26 / iOS 26 SDK (from 2026-04-28) | ⏸ | ➖ | SDK 57 requires Xcode 26.4+; `eas.json` pins **no `image`** | **⏸ PARKED with iOS (D4).** When it unparks: confirm the EAS default is Xcode 26.x, or pin `"image": "latest"` | Configuration | ⏸ |
 | I3 | **Push notifications end-to-end** | ⏸ (APNs half) | ❌ | Client **complete**; migration **written, unapplied**; Edge Function **written + unit-tested, undeployed**; FCM v1 key **not uploaded** | **In v1.0 scope (D2).** Apply migration → deploy function → Vault secret → FCM v1 → device test. **No mobile code.** Blocked on X1 | Backend | **P1** |
-| X1 | `demo-seed.sql` leaves the push trigger armed | ➖ | ❌ | `demo/demo-seed.sql:67` disables the email dispatcher **by name**; the push trigger would survive and fire real dispatch per seeded notification | Mirror `seed.sql`'s `disable trigger user`. **Prerequisite of both I3 and B4** | Backend | **P1** |
+| X1 | `demo-seed.sql` leaves the push trigger armed | ➖ | ✅ | **✅ DONE (2026-08-20)** — `demo/demo-seed.sql` now disables/enables notification `trigger user`, not the email dispatcher by name. Statically verified; live DB seed check still owed before Stage 3 production promotion | None | Backend | ✅ |
 | ~~I11~~ | ~~Push copy for a push-less v1.0~~ | ➖ | ➖ | **✖ ABORTED (2026-08-16)** — D2 reversed, so there is no push-less build to write copy for | None | Code | ✖ |
 | I4 | Error boundary | ✅ | ✅ | **✅ DONE (2026-08-16)** — `AppErrorBoundary/` + `ErrorBoundary` export at `_layout.tsx:37`. Machine-verified; **catching a real crash still needs a device** | Device check in §7 | Code | ✅ |
 | I5 | Dependency patch drift | ⚠️ | ⚠️ | 10 packages behind the SDK-57 patch line (`expo`, `expo-router`, `expo-notifications`, …) | `npx expo install --check` before the release build — approval gate | Code | P1 |
@@ -127,7 +139,7 @@ in its own right and must not be folded into this plan's execution.
 | I8 | Version strategy | ⚠️ | ⚠️ | `0.8.0`; `appVersionSource: "remote"` + `autoIncrement: true` on production ✅ | Bump to `1.0.0` for the first submission | Configuration | P2 |
 | I9 | Template assets still in `assets/images/` | ➖ | ➖ | **✅ DONE (2026-08-16)** — all 15 removed via `git rm`; `assets/` is now `brand/` only | None | Code | ✅ |
 | I10 | No CI | ⚠️ | ⚠️ | **✅ DONE (2026-08-16)** — `.github/workflows/checks.yml`: tsc + lint + tests on Node 22, PR/push to develop/master. **Never yet run on GitHub** | Confirm green on the first PR | Code | ✅ |
-| — | Bundle ID / package | ✅ | ✅ | `com.ezzy.vendormobile` on both; no template/temp identifier | None | Configuration | — |
+| — | Bundle ID / package | ✅ | ✅ | `ph.ezzy.vendormobile` on both; no template/temp identifier | None | Configuration | — |
 | — | Android App Bundle | ➖ | ✅ | `production.android.buildType: "app-bundle"` (`eas.json`) | None | Configuration | — |
 | — | Signing | 🌐 | 🌐 | EAS-managed credentials; **no keystore, `.p8`, `.p12` or `.mobileprovision` in the repo or its history** (verified via `git ls-files` + `git log --all`); `.gitignore:19-23` blocks them | External verification in the EAS/Play/ASC consoles | Security | — |
 | — | Secrets hygiene | ✅ | ✅ | `.env` untracked, never committed; no `service_role`, JWT, or PEM material in tracked files | None | Security | — |
@@ -468,7 +480,7 @@ If an explicit off-by-default posture is ever wanted for booker, it belongs in t
 booker-mobile plan at the point tokens start being written — not as a pre-emptive manual step
 here.
 
-### X1 — Applying the push migration silently breaks `demo-seed.sql`  ⬜ TODO — `backbone` — **now on the critical path**
+### X1 — Applying the push migration silently breaks `demo-seed.sql`  ✅ DONE (2026-08-20) — `backbone`
 **File:** `backbone/supabase/demo/demo-seed.sql:67` and `:381`
 
 `seed.sql` is safe: line 713 uses `alter table public.notifications disable trigger user`,
@@ -491,6 +503,13 @@ notifications. Whichever of the two lands first, the other is affected.
 **Fix approach:** mirror `seed.sql` — `disable trigger user` / `enable trigger user` — so any
 future dispatcher is covered without another edit. **`backbone` work, out of this plan's
 implementation scope; recorded as a prerequisite of both I3 and B4.**
+
+**Executed 2026-08-20:** changed `demo-seed.sql` to disable and re-enable
+`public.notifications trigger user`, and updated the adjacent comment to name both email and
+push dispatch. **Verified (machine/static):** `git diff --check` clean; `rg` shows exactly two
+notification trigger toggles and both use `trigger user`; `rg` shows no remaining
+`notifications_dispatch_*` trigger toggle in `demo-seed.sql`. **Not run here:** the live DB
+reset check with the push migration applied; keep that as a Stage 3 staging pre-check.
 
 **Is a blanket `disable trigger user` safe here? Verified yes (2026-08-16).**
 The obvious objection to widening the disable is that it might suppress something the seed
@@ -1000,8 +1019,8 @@ Ordered by risk and dependency — not by item number.
 | Stage | What | Repo | Gate | Blocked by |
 |---|---|---|---|---|
 | ~~**1**~~ | I4 · I9 · I10 | `ezzy-vendor-mobile` | — | **✅ DONE 2026-08-16** |
-| **2** | X1 | `backbone` | approval | — |
-| **3** | I3 deploy: migration → function → Vault → FCM v1 | `backbone` + EAS | **approval** | Stage 2 |
+| ~~**2**~~ | X1 | `backbone` | approval | **✅ DONE 2026-08-20** |
+| **3** | I3 deploy: migration → function → Vault → FCM v1 | `backbone` + EAS | **approval** | Stage 2 ✅ |
 | **4** | I3 verify: push on a physical Android device | device | — | Stage 3 |
 | **5** | B1a · B2a · B4 | `vendor` + prod data | own plans | Stage 2 (for B4) |
 | **6** | B1b + B2b + B3 — coupled | `ezzy-vendor-mobile` | — | Stage 5 |
@@ -1017,11 +1036,12 @@ the error boundary (§7), and the CI workflow has not yet run on GitHub.
 **One correction fed back into the plan:** I4's originally specified `makeStyles(tokens)`
 approach was unbuildable and would have crashed the boundary — see I4 for why.
 
-**Stage 2 — X1, and it must precede Stage 3.**
-Fix `demo/demo-seed.sql:67,381` to `disable trigger user` / `enable trigger user`, mirroring
-`seed.sql:713`. **Small, but ordering-critical:** applying the push migration first would arm a
-trigger the demo seed does not disable, and B4's seeded demo account is exactly the workload
-that would fire it. `backbone` approval gate.
+**~~Stage 2 — X1, and it must precede Stage 3.~~ ✅ COMPLETE (2026-08-20)**
+Changed `backbone/supabase/demo/demo-seed.sql` to `disable trigger user` / `enable trigger user`,
+mirroring `seed.sql:713`. Static verification: `git diff --check` clean; exactly two
+notification trigger toggles remain and both use `trigger user`; no dispatcher-specific
+notification trigger toggle remains. **Live DB reset with the push migration applied was not
+run here** and remains a Stage 3 staging pre-check.
 
 **Stage 3 — deploy push. `backbone` + EAS, no mobile code. Approval gate.**
 In this order, and the order is load-bearing:
@@ -1089,7 +1109,7 @@ that defence considerably, which is a side benefit of D2's reversal, not its rea
 | I1 target API 36 | `aapt2 dump badging` / bundletool on the release **AAB** | ⚠️ needs the built artefact |
 | I2 Xcode 26 | EAS build log image line on the first production iOS build | ⏸ parked with iOS |
 | Permissions (§3) | Merged `AndroidManifest.xml` extracted from the release AAB | ⚠️ needs the built artefact |
-| X1 | Run `demo-seed.sql` against a local reset with the push migration applied; confirm no `net.http_post` fires | ⚠️ needs a live DB |
+| X1 | Static check complete 2026-08-20 (`git diff --check`, trigger-toggle grep). Before production promotion, run `demo-seed.sql` against a local/staging reset with the push migration applied and confirm no `net.http_post` fires | ⚠️ live DB check still owed |
 | I3 push | Token row appears in `device_push_tokens` · background notification delivered · tap routes correctly · sign-out deletes the row · kill switch silences delivery | ⚠️ needs a **physical Android device** — Expo Go cannot do push |
 | Privacy manifest | No ITMS privacy warning on the first App Store Connect upload | ⏸ parked with iOS |
 | B1 / B2 links | Tap each row in a **production** build and confirm the page loads | ⚠️ needs a device + deployed web |

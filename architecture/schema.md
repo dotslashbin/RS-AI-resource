@@ -72,6 +72,8 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260816000002_completion_view_service_role_grant.sql` | Corrective: grants `service_role` SELECT on `vendor_account_completion`, which `20260816000001` omitted. Not a live bug at the time (every reader was `authenticated`), but the first server-side reader would have failed |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
+| `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
+| `20260821000002_account_deletion_notification_types.sql` | Four `notification_type_settings` rows for the closure flow. ⚠️ `account_deletion_completed` is dispatched **before** the account is deleted — `notifications` cascades from `profiles`, and the Edge Function resolves the recipient from `profiles`/`auth.users`, so the reverse order sends nothing and reports no error. Needs the `NotificationType` union updated **and the function redeployed** |
 | `20260816000001_command_payout_access.sql` | Command admin/root SELECT policies on both payout tables (no write policy — staff must not edit a destination) + `vendor_payout_view_log` (append-only record of **who decrypted a destination and when**, storing no payout data) + the `vendor_account_completion` **view**, which becomes the single definition of a complete vendor account for both the vendor portal and Command. ⚠️ The view is `security_invoker = on` **and** carries an explicit authorisation `where` clause: without the latter a booker (who may read active vendors, `20260515000001`) would get a row per vendor reading `is_account_complete = false` — a *wrong* answer rather than a hidden one |
 | `20260815000001_vendor_payout_methods.sql` | `vendor_payout_methods` (one row per vendor — where they are paid; sensitive fields held as **app-encrypted ciphertext the database cannot read**, beside a masked `display` JSONB) + `vendor_payout_method_log` (immutable, masked-only change audit). Vendor-admin SELECT only; **no `authenticated` write path** — writes go through the vendor app's service-role route, which holds the encryption key. Command access was deliberately omitted here and added by `20260816000001` once Command had a key |
 
@@ -225,12 +227,12 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `province` | `text NOT NULL DEFAULT ''` | Province display name — PSGC reference data, strict pick. Paired with `province_code`. Includes 3 synthetic pseudo-provinces (`NCR`/"Metro Manila", `ISABELA-CITY`, `COTABATO-CITY`) for the 19 PSGC cities that have no real province |
 | `province_code` | `text NOT NULL DEFAULT ''` | PSGC province code (or synthetic pseudo-province code) — authoritative for cascading lookups and edit-time dropdown resolution |
 | `zip_code` | `text NOT NULL DEFAULT ''` | Postal/ZIP code — free text, 4 digits typical for PH addresses |
-| `phone` | `text` | |
-| `email` | `text` | |
+| `phone` | `text NOT NULL DEFAULT ''` | ⚠️ **NOT NULL** — this row said plain `text` until 2026-08-21, and it has been `not null default ''` since `20260504000002_schema.sql:66`. Writing `null` here raises |
+| `email` | `text NOT NULL DEFAULT ''` | ⚠️ **NOT NULL** — same correction, `:67` |
 | `tagline` | `text NOT NULL DEFAULT ''` | Short one-line vendor tagline (vendor portal) |
 | `description` | `text NOT NULL DEFAULT ''` | Longer vendor description (vendor portal) |
 | `website` | `text NOT NULL DEFAULT ''` | Vendor website URL (vendor portal) |
-| `operating_hours` | `text` | Free-text, e.g. "Mon–Sat 8AM–5PM" |
+| `operating_hours` | `text NOT NULL DEFAULT ''` | Free-text, e.g. "Mon–Sat 8AM–5PM". ⚠️ **NOT NULL** — same correction as `phone`/`email`, `:68` |
 | `branch` | `text` | Optional display label for a single campus, e.g. `"Main Branch"`. `NULL` means no branch distinction. |
 | `region` | `text NOT NULL DEFAULT ''` | Geographic coverage area. Entered by Command admins; not collected during self-registration. |
 | `branches` | `smallint NOT NULL DEFAULT 1` | Count of branches. Managed by Command portal only; defaults to `1` for self-registered vendors. |
@@ -240,6 +242,14 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `updated_at` | `timestamptz` | Auto-updated by trigger |
 
 > Vendors default to `pending_activation`. Command admins activate them after review. Only active vendors are visible in the booker booking flow.
+
+> **Correction, 2026-08-21.** `phone`, `email` and `operating_hours` were documented above as
+> nullable and are not — all three are `not null default ''` in `20260504000002_schema.sql:66-68`
+> and always have been. The divergence was found when the account-closure scrub
+> (`command/lib/accountDeletion/execute.server.ts`) set them to `null` and would have raised a
+> NOT NULL violation **after** deleting the vendor's KYC documents — a half-executed closure.
+> `accreditation_no` genuinely is nullable. Anything writing to `vendors` should check the
+> migration, not this table, until the whole table has been re-verified against the database.
 
 #### Two write paths to `vendors`
 
@@ -280,7 +290,7 @@ Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyF
 |--------|------|-------|
 | `id` | `smallint` | PK, identity |
 | `name` | `text` | Unique, e.g. `"EzzyDrive"` |
-| `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation; treated as immutable afterward (referenced by future filter URLs) though not DB-enforced immutable |
+| `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation; treated as immutable afterward though **not** DB-enforced immutable. ⚠️ The "future filter URLs" this column was reserved for **now exist** (2026-08): it is the public handle in the vendor registration deep link `/?division=<slug>` (see `portals.md`), so renaming a slug silently breaks every campaign link already in circulation — and the break is invisible, looking identical to a mistyped link. Matching is normalised (case- and punctuation-insensitive), so a rename that only changes case or hyphens is safe; any other edit is not. Lookup key only — it resolves to `id`, which is what is stored and validated |
 | `sort_order` | `smallint` | Default `0`. Display order |
 | `is_active` | `boolean` | Default `true`. Soft-disable — hides from new vendor selection (app-layer filter, not RLS) without breaking existing `vendors.division_id` references |
 | `created_at` | `timestamptz` | |
@@ -823,6 +833,10 @@ Platform-wide on/off controls per notification type. Seeded in migration; manage
 | `payment_confirmed` | vendor | PayMongo webhook confirms payment |
 | `vendor_pending_approval` | command | Vendor self-registers |
 | `new_user_registration` | command | Any user self-registers (source: `booker` or `vendor_admin` in `data`) |
+| `account_deletion_requested` | vendor | A vendor-admin requests account closure |
+| `account_deletion_completed` | vendor | A closure has been executed. **Written before the account is deleted** — see `account_deletion_requests` |
+| `account_deletion_rejected` | vendor | Command cannot action a closure request |
+| `account_deletion_pending_review` | command | A vendor requests account closure |
 
 **RLS:** All authenticated users can SELECT (needed by triggers and the app layer's `is_enabled` check). Only `admin` / `root` roles can UPDATE. No app-layer INSERT or DELETE.
 
@@ -1024,6 +1038,77 @@ Nothing reads this table yet; the proof-lookup screen in Command is deferred.
 
 ---
 
+### `account_deletion_requests`
+
+A vendor's request to close their account, and the record of what Ezzy did about it.
+Written **only** by service-role routes (the vendor portal creates and cancels; Command
+executes and rejects); nothing else writes here and rows are resolved, never deleted.
+
+Plan of record: `.plans/2026-08-21-vendor-account-deletion.md`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `requested_by` | `uuid` | FK → `profiles` **ON DELETE SET NULL** — not CASCADE; see below |
+| `requester_email` | `text` | Snapshot at request time. Once `requested_by` is nulled this is the only route back to the person |
+| `requester_name` | `text NOT NULL DEFAULT ''` | Snapshot |
+| `vendor_id` | `uuid` | FK → `vendors` **ON DELETE SET NULL**. Nullable because the zero-history case really is hard-deleted |
+| `vendor_name` | `text NOT NULL DEFAULT ''` | Snapshot, for the same reason |
+| `scope` | `text` | CHECK `vendor_and_user` \| `vendor_only` \| `user_only`. What the vendor asked to close |
+| `reason` | `text NOT NULL DEFAULT ''` | Optional free text from the vendor |
+| `status` | `text` | CHECK `pending` \| `cancelled` \| `completed` \| `rejected` \| `failed`. Default `pending` |
+| `blockers` | `jsonb NOT NULL DEFAULT '{}'` | Eligibility as computed **at request time**. Advisory only — the execution route re-computes before acting |
+| `scheduled_for` | `timestamptz` | `created_at` + the 7-day grace window. Advisory; Command executes manually and no cron reads it |
+| `reviewed_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The Command admin who executed or rejected |
+| `review_notes` | `text NOT NULL DEFAULT ''` | Command's note, surfaced to the vendor on a rejection |
+| `completed_at` | `timestamptz` | Nullable until executed |
+| `created_at` / `updated_at` | `timestamptz` | `updated_at` maintained by `set_updated_at()` |
+
+**Indexes:** `account_deletion_requests_one_open_idx` — a **partial** unique index on
+`(vendor_id) where status = 'pending'`, so a vendor has at most one live request but may
+request again after cancelling. Mirrors `booking_disputes_one_active_idx`. Plus a partial
+`account_deletion_requests_pending_idx on (created_at) where status = 'pending'` powering
+Command's queue oldest-first, and plain indexes on `vendor_id` and `requested_by`.
+
+**Why `ON DELETE SET NULL` on both actor columns:** this row must survive the deletion it
+records. A closure whose evidence disappears along with the account is no evidence at all.
+Identical reasoning, and identical shape, to `legal_acceptances.user_id`.
+
+⚠️ **`requested_by` is also load-bearing for the vendor portal's own UI.** After a
+`vendor_only` closure the user keeps their login but loses the `vendor` portal grant and
+their `vendor_members` row — so the vendor-scoped policy below can no longer see this row.
+The `requested_by` policy is what keeps it readable, and that is what lets the portal say
+*"closed at your request"* instead of the generic *"no vendor access — contact support"*.
+
+⚠️ **`reviewed_by` is the only record of who executed a closure.** The obvious audit trail
+is unavailable: `log_vendor_status_change()` writes `changed_by` from `auth.uid()`, and the
+execution route runs as **service role**, whose `auth.uid()` is NULL — so the
+`vendor_status_log` row attributes the suspension to nobody, and a NULL there already means
+"the profile was later deleted" too, making it ambiguous as a signal. Any Command admin may
+execute a closure, so this column carries the whole accountability story.
+
+**Why a request table rather than an immediate delete:** `bookings.vendor_id` and
+`booking_transactions.vendor_id` are both `ON DELETE RESTRICT`, so a single booking of any
+status — `cancelled` included — makes `delete from vendors` raise permanently. Closure is
+therefore *scrub the business record, destroy the personal data*, retaining the financial
+rows under BIR record-keeping and the DPA's legal-claims ground. A true row delete is
+possible only for a vendor that never traded.
+
+**RLS — SELECT only:** the requester reads their own rows (`requested_by = auth.uid()`,
+deliberately not vendor-scoped, per the note above); vendor admins read their vendor's,
+gated `is_active() and has_vendor_role(...)` — without `is_active()` a **suspended**
+vendor-admin would keep reading them; Command admins/root read all. **No
+INSERT/UPDATE/DELETE policy exists for `authenticated` at all** — creation snapshots an
+email and computes eligibility server-side, and execution is destructive, so both are
+service-role route work.
+
+**Grants:** `authenticated` SELECT; `service_role` full DML — granted **explicitly**,
+because `20260620000001`'s `on all tables` grant binds only tables that existed when it ran
+and no default-privilege rule covers new ones (the gap behind `20260816000002` and
+`20260819000002`). `anon` nothing.
+
+---
+
 ---
 
 ## Storage buckets
@@ -1061,6 +1146,8 @@ Nothing reads this table yet; the proof-lookup screen in Command is deferred.
 | `vendors` → `vendor_kyc` | CASCADE |
 | `vendor_kyc` → `vendor_kyc_documents` | CASCADE |
 | `vendors` → `vendor_payout_methods`, `vendor_payout_method_log` | CASCADE — the only path that hard-deletes a vendor is the registration rollback, which runs before any payout row can exist |
+| `profiles` → `account_deletion_requests.requested_by` / `.reviewed_by` | SET NULL — the record must outlive the account it describes |
+| `vendors` → `account_deletion_requests.vendor_id` | SET NULL — same reason; `vendor_name` is snapshotted beside it |
 | `vendor_payout_methods.created_by` / `.updated_by` → `profiles` | SET NULL |
 | `vendor_payout_method_log.changed_by` → `profiles` | SET NULL |
 | Staff → schedules | SET NULL |
