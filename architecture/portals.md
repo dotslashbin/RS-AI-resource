@@ -375,6 +375,36 @@ old page and mounts the new one**, and several features depend on that.
 #### Progressive Web App (2026-07, live)
 Installable to a home screen on Android and iOS. `app/manifest.ts` (Next's native metadata route) declares name/icons/`display: "standalone"`; a hand-rolled service worker (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets — cross-origin requests (Supabase, Realtime) are explicitly never intercepted or cached, so bookings/KYC data is never shown stale. A dismissible "Install App" banner (`components/layout/InstallPrompt`) surfaces the option in-app: a real one-tap install on Android/Chromium via `beforeinstallprompt`; instructions-only on iOS Safari (`beforeinstallprompt` has no iOS equivalent — Apple has never implemented it) or a "reopen in Safari" message on other iOS browsers. Dismissal persists via `localStorage`; the banner hides automatically once installed. Booker has the identical setup (see its own Current Features above). **Command gained the same setup on 2026-08-18** (`.plans/2026-08-18-command-vendor-nav-branding-responsive.md` B5) — it was previously excluded as a desktop admin tool. See also `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
+#### Kiosk Mode (`/kiosk`) — added 2026-08-29
+
+A customer-facing surface inside the vendor app, for a tablet at the front desk: a
+walk-in picks an offering, a time, gives their details, accepts any documents (signing
+where required) and pays, without staff involvement. Started from the sidebar's **Kiosk
+Mode** item.
+
+**It is a separate route, not a page of the shell, and that is structural.** `AppShell`
+renders Sidebar/TopBar/TabBar around every `PageId`, so a kiosk expressed as a page would
+keep the admin surface *mounted* behind it, one state bug from visible. `app/kiosk/` is a
+sibling route that imports no admin component at all. The sidebar entry is a **link**, not
+a `PageId` — `PAGE_IDS` is deliberately untouched.
+
+**Kiosk Mode persists.** A flag in `localStorage` survives reloads, and `AppShell`
+redirects `/` → `/kiosk` while it is set, reading it synchronously so no admin chrome
+paints first. Without that, `manifest.ts`'s `start_url: "/"` means a tablet reboot or a
+PWA relaunch opens the **vendor dashboard** on a device pointed at a customer. Only a
+password-confirmed exit clears the flag; a session ending does not.
+
+> ⚠️ **The kiosk hides the portal; it does not lock the device.** A web page cannot stop
+> someone typing a URL, and the PayMongo step sends the browser to another origin anyway.
+> **Vendors must enable iPadOS Guided Access, Android screen pinning, or Chrome's
+> `--kiosk`** — the launcher and the exit dialog both say so, and no wording anywhere
+> should imply the app is a boundary.
+
+Related limits worth knowing: a customer who abandons at PayMongo leaves the tablet on a
+third-party page that no app-level timer can reclaim (the device kiosk browser's own
+idle-return setting is the answer); and a kiosk customer cannot raise a dispute until
+they claim the account created for them, since `disputed` requires `v_booker`.
+
 ### What Is Live vs. Mock
 
 | Feature | Status |

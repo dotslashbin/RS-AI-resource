@@ -4,17 +4,126 @@
 **App / scope:** `vendor/` (primary), `backbone/supabase/migrations/` (schema + storage).
 **Cross-app read-only reference:** `booker/` — its wizard, slot service and payment
 routes are the source material being adapted, not imported.
-**Status:** IN PROGRESS — Stage 0 migrations **written, not applied** (2026-08-26). The user applies migrations; nothing in this plan has touched a database.
+**Status:** IN PROGRESS — **Stage 0 schema is APPLIED AND VERIFIED ON LOCAL
+(2026-08-29); staging and production are still pending (B17).** Re-baselined, migrations
+re-cut, and syntax + behaviour checked against local (all four applied in one transaction and rolled back;
+11 behavioural assertions passed; one false claim found and corrected — F18). `backbone`
+`feature/kiosk` is rebased onto `develop` (0 behind, 1 ahead); the four Stage 0
+migrations are re-cut at `20260829…`, sorting after the applied `20260828…` work. They
+are **written and verified but NOT applied** — the user applies and commits.
+Originally re-baselined 2026-08-29 against three plans that shipped
+ahead of this one. Stage 0 migrations exist on `backbone` `feature/kiosk` but are
+**unapplied, mis-numbered and written against a schema that has since changed** — see
+"Re-baseline" below. The user applies migrations; nothing here has touched a database.
 
-> A customer-facing kiosk surface inside the vendor portal that lets a walk-in book
-> and pay for themselves at a front desk, plus the offering-attachment system
-> (documents, waivers, agreements, signatures) the kiosk gates on before payment.
-> Theme to optimise: **reuse the existing booking rules rather than re-deriving
-> them** — every place this plan duplicates logic, it says so and says why.
+---
 
-> **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
-> **Numbering legend:** B# = Blocker, I# = Important, D# = Decision; numbers are
-> plan-local — qualify cross-plan refs by app (e.g. "booker I1").
+## ⚠️ UPSTREAM CHANGE — read before resuming
+*(added 2026-08-28; extended 2026-08-29 with the two truncation plans, the branch state
+and the re-verified citations. **One section, not two** — a 2026-08-29 pass began writing
+a second "re-baseline" section covering the same ground and it was folded in here
+instead, because two accounts of the same upstream change is how the wrong one gets
+followed.)*
+
+Three plans completed while this one was parked. All three were read and their claims
+re-verified against the repo before anything below was written.
+
+| Plan | Status | Impact here |
+|---|---|---|
+| `2026-08-27-overnight-schedule-windows.md` | ✅ COMPLETE, **applied to local, staging and production** | **Large** — the whole of this section |
+| `2026-08-11-crossapp-unbounded-query-truncation.md` | ✅ COMPLETE | Paging is now mandatory for list queries — see "Paging" below |
+| `2026-08-11-mobile-vendor-unbounded-queries.md` | ✅ COMPLETE 2026-08-27 | **None.** Expo-only; this plan touches no mobile app. Recorded so the "checked and irrelevant" conclusion is not re-derived later |
+
+`.plans/2026-08-27-overnight-schedule-windows.md` changed the availability model this
+plan builds on. That plan is COMPLETE; its migrations are applied to local, staging and
+production, and both app builds are deployed.
+
+**What changed, in one line:** a schedule's window is now a **start plus a LENGTH**
+(`window_minutes`), not a start and an end. `schedules.end_time` **no longer exists**.
+
+### What this plan must adjust
+
+| Where | Was | Now |
+|---|---|---|
+| **I1** (`kiosk.service.ts`, line ~1116) | port `getSlotOccupancy`, `remainingForSlot`, `spanAvailable`, `resolveScheduleForTime` from the booker | Still the right four — but port the **current** booker versions. `getSlotOccupancy` now queries a **two-day** span and keys occupancy by epoch instants; `remainingForSlot` and `spanAvailable` take an extra `occurrenceDate` argument |
+| **I1**'s "adapt to vendor's `Schedule` shape (`date`/`time`/`end`/…)" (line ~1122) | `end` was the stored window end | `end` is now **derived for display only**. Use `windowMinutes`. Doing arithmetic with `end` is the bug the refactor removed — for an overnight window it reads *earlier* than `time` |
+| **I1**'s slot division | `slotsInWindow(start, end, dur)` | `deriveSlots(start, windowMinutes, dur)` and `fitsInWindow(...)` in `vendor/lib/slots.ts`. The old pair still exists and delegates, but takes an end and cannot express overnight |
+| **F6** | "vendor already has the substrate" | **More true than before.** `vendor/lib/` now also has `scheduleConflicts.ts` (duplicate/overlap detection) and `scheduleWindow.ts` (`formatScheduleWhen`, `formatWindow`) — use them rather than formatting inline |
+| **F1** | `bookings_no_duplicate` on `(booker_id, schedule_id, booked_date, coalesce(start_time,'00:00'))` | **Unchanged** — verified during the refactor. The walk-in finding still stands exactly as written |
+| **F7** | "vendor lacks occupancy" | Still true; nothing in the refactor added occupancy to vendor |
+
+### Two new facts the kiosk must respect
+
+1. **`booked_date` is the date a booking STARTS, not the date its schedule's window
+   opened.** They coincide for same-day windows. For a Friday 23:00–01:00 window they do
+   not: the `00:00` slot is stored as **Saturday**. The occurrence is derived by
+   `check_booking_placement()`. If the kiosk builds a booking row by hand, this is the rule
+   to follow.
+2. **A window may run past midnight, and may be exactly 24 hours.** Any kiosk slot grid
+   must handle a slot list that wraps (`23:00`, `00:00`, `01:00`) rather than assuming
+   ascending clock times within one day.
+
+### Migration numbering
+
+This plan's four migrations are `20260826*` and are **still unapplied**. The refactor's are
+`20260828000001-3` and **are applied everywhere**. Renumber the kiosk ones to a later
+timestamp before pushing, or they will be older than the latest applied version on every
+environment.
+
+### The duplication count changed
+
+I1 says it creates "a **fifth** copy of the availability rule". Still accurate — but the
+occurrence rule's canonical statement now lives in `vendor/lib/occurrence.ts`'s header,
+which records the `booked_date` vs occurrence distinction (`lib/occurrence.ts:26-36`).
+Mirror that note in `kiosk.service.ts` rather than restating it differently.
+
+### Paging is now mandatory (added 2026-08-29)
+
+`2026-08-11-crossapp-unbounded-query-truncation.md` closed the unbounded-select defect
+class across `booker` and `command`, after the same bug was measured in `vendor` at a
+**19.7% payout understatement** (`vendor/lib/pagedFetch.ts:1-19`). Every list query this
+plan adds must use `pagedFetch` — specifically `getSlotOccupancy` (I1) and
+`getKioskOfferings` (B3). An unbounded occupancy query silently truncates at 1000 and
+**under-counts**, so the kiosk would offer slots the placement trigger then refuses.
+Re-opening that defect class in new code would be the worst possible place to do it.
+
+### Citations re-verified 2026-08-29
+
+- **F1's conclusion holds; its citation moved.** The same-booker overlap guard was
+  rewritten onto timestamps and now also spans `booked_date ± 1` (a span can cross
+  midnight). It lives at **`20260828000001_schedule_window_minutes_expand.sql:384-394`**,
+  not `20260803000005:156-166`. `bookings_no_duplicate` is untouched, as the table above
+  says. The walk-in finding — and D1, which rests entirely on it — stands.
+- **F18 — the append-only claim was too strong, and the syntax check caught it.**
+  Measured on local 2026-08-29 after applying all four in a transaction:
+  `booking_acknowledgements` grants come out `authenticated | SELECT` and
+  **`service_role | SELECT,INSERT,UPDATE,DELETE,TRUNCATE,…`**. `20260620000001:29-30`
+  revokes default privileges from `anon` and `authenticated` but **not** from
+  `service_role`, and the platform's default ACL for postgres-owned tables is
+  `service_role=arwdDxtm`. So the migration's `grant select, insert … to service_role`
+  neither adds nor restricts anything, and B7's *"no UPDATE and no DELETE for anyone —
+  withholding the privilege is the enforcement"* was **false for service_role**.
+  ✅ **Closed by D17 (2026-08-29):** an explicit
+  `revoke update, delete, truncate on public.booking_acknowledgements from service_role`
+  now makes the claim true rather than aspirational. **A grant is additive and cannot
+  take away what the default ACL already gave** — the revoke is the only thing that
+  can. Re-verified by acting *as* `service_role` on local: INSERT succeeds (the kiosk
+  route still works), UPDATE and DELETE both fail with `insufficient_privilege`, and
+  `offering_attachments` is untouched, still fully writable — the revoke did not leak
+  onto the table that is deliberately not append-only.
+  ⚠️ Side observation, not acted on: this also puts `20260819000002`'s premise in doubt
+  — it added a corrective grant on the belief that new tables inherit nothing for
+  `service_role`. On this database they inherit everything. Harmless either way, but
+  worth a look before the next table is added.
+- **B10's base is still current.** `validate_booking_status_transition()` is still last
+  defined in `20260801000002` on `develop`; nothing re-created it. The reproduced body
+  and its two-line diff remain correct — but **re-extract from the rebased branch** and
+  re-run the diff gate there, since the guarantee is "exactly two lines against the
+  definition in the branch we are merging into".
+- **B9's assumptions re-checked.** Booking `UPDATE`s across all four apps are still only
+  `vendor/services/bookings.service.ts:154,215` plus the narrow reject write, and no new
+  `BEFORE UPDATE` trigger was added to `bookings`, so `bookings_pin_origin`'s ordering
+  note still holds.
 
 ---
 
@@ -59,7 +168,7 @@ Findings that the plan depends on. Each was read in the file cited, not recalled
 
 | # | Finding | Evidence |
 |---|---|---|
-| F1 | **A shared "walk-in" profile per vendor is structurally impossible.** Two walk-ins taking the same slot collide on a unique index; two taking overlapping spans are refused by the placement trigger. Neither is capacity-aware — a capacity-5 schedule still refuses the second walk-in. | `20260803000003_booking_units.sql:80` (`bookings_no_duplicate` on `(booker_id, schedule_id, booked_date, coalesce(start_time,'00:00'))`); `20260803000005_booking_slot_and_capacity.sql:156-166` and `:191-199` (*"You already have a booking that overlaps this time"*) |
+| F1 | **A shared "walk-in" profile per vendor is structurally impossible.** Two walk-ins taking the same slot collide on a unique index; two taking overlapping spans are refused by the placement trigger. Neither is capacity-aware — a capacity-5 schedule still refuses the second walk-in. **Re-verified 2026-08-29 against `develop`: the conclusion holds, the citation moved.** The overlap guard was rewritten onto timestamps by the overnight work (it now also spans `booked_date ± 1`, because a span can cross midnight), and the unique index is untouched. | `20260803000003_booking_units.sql:80` (`bookings_no_duplicate`, unchanged); **`20260828000001_schedule_window_minutes_expand.sql:384-394`** (*"You already have a booking that overlaps this time"* — was `20260803000005:156-166`) |
 | F2 | **Every booking needs a real auth identity.** `bookings.booker_id` is `not null references public.profiles(id)`, and `profiles.id` is 1:1 with `auth.users`. | `20260507000004_bookings.sql:21`; `architecture/schema.md` → `profiles` |
 | F3 | **The vendor's own session cannot insert the booking.** The INSERT policy is `booker_id = auth.uid() and is_active()` — a vendor-admin inserting on a customer's behalf fails RLS. Kiosk booking creation must be service-role. | `20260507000004_bookings.sql`, policy *"bookers can insert bookings"* |
 | F4 | **The PayMongo webhook already covers kiosk payments — do not duplicate it.** It is keyed purely on `metadata.booking_id`, verifies the HMAC, and writes with service role. It carries no booker-scoping and no app-scoping, so a Checkout Session created from vendor on the same PayMongo account settles correctly against the same endpoint. | `booker/app/api/payment/webhook/route.ts:31-56` |
@@ -71,6 +180,10 @@ Findings that the plan depends on. Each was read in the file cited, not recalled
 | F10 | **New tables inherit no `service_role` privileges.** `20260620000001`'s grant is `ON ALL TABLES`, which binds only tables existing at the time, and sets no default privileges. This gap has shipped as a live bug **twice**. Every table in B7 must grant `service_role` explicitly. | `20260819000002_legal_acceptances_service_role_grant.sql` (corrective); `20260816000002` (first occurrence) |
 | F11 | **Vendor is a single-route SPA.** `app/page.tsx` renders `<AppShell/>`; navigation is `page` state over `PAGE_IDS`, with `?page=` parsed from the URL. There is no route nesting to inherit chrome from. Drives D5. | `vendor/app/page.tsx`; `vendor/lib/types.ts:45-51`; `components/layout/AppShell/AppShell.tsx` |
 | F12 | **The vendor visual suite is green and safe to extend.** 157 passed / 0 failed as of 2026-08-26. New kiosk baselines land on a stable base — unlike booker, whose suite is still broken and is explicitly not touched here. | `.plans/2026-08-25-vendor-visual-baseline-instability.md` (COMPLETE) |
+| F14 | **A schedule's window is a LENGTH now, not an end time.** `schedules.end_time` is dropped; `window_minutes` replaces it. `slotsInWindow(start, end, duration)` survives only as an interim shim — **`deriveSlots(start, windowMinutes, duration)` is "the one that survives"**, and it is already present in `vendor/lib/slots.ts`. This *shrinks* I1: vendor gained slot-derivation helpers while this plan was parked. | `20260828000001:…` (`window_minutes` column); `vendor/lib/slots.ts:99-141` |
+| F15 | **Overnight windows are real, and `booked_date` is the date a booking STARTS.** The midnight guard this plan quoted as a standing invariant was deliberately removed. Consequence the overnight plan settles explicitly: *"the 00:00 slot of a Friday 23:00–01:00 window is stored as SATURDAY 00:00."* A kiosk that defaults to "today" and labels chips Today/Tomorrow can therefore write a booking dated tomorrow while saying Today. Drives B16. | `20260828000001:215-232` |
+| F16 | **Unbounded list queries are now a closed defect class, and this plan must not re-open it.** `lib/pagedFetch.ts` exists for exactly this, with a measured 19.7% payout understatement in its header as the reason. Any kiosk query returning a list must use it. | `vendor/lib/pagedFetch.ts:1-19` |
+| F17 | **`validate_booking_status_transition()` is still last defined in `20260801000002` on `develop`** — nothing re-created it. B10's reproduced body is therefore still the correct base, and its two-line diff still applies. Re-verified 2026-08-29. | `git grep` over `develop -- supabase/migrations` |
 | F13 | **Precedents to copy, not invent.** Private bucket + `(storage.foldername(name))[1]::uuid` + `has_vendor_role` object policies; append-only evidence table with snapshotted columns and no INSERT policy for `authenticated`; atomic service-role create-with-rollback route. | `20260706000002_vendor_kyc_storage.sql`; `20260819000001_legal_acceptances.sql`; `vendor/app/api/auth/register/route.ts` |
 
 ### Claims checked and corrected
@@ -216,6 +329,42 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
   whether a known URL resolves. I2 must therefore keep the photo picker and the
   document picker as separate surfaces, so a waiver cannot be dropped into the public
   bucket by accident.
+- **D16 — Stage 0 migrations are re-cut at `20260829…`** ✅ **DONE (2026-08-29)** —
+  executed after the rebase; the four files now sort after `20260828000003`. (Decided
+  2026-08-29, my call — it is forced, not a preference.) The four files on `feature/kiosk` are numbered
+  `20260826…`, which sorts **before** the `20260828…` overnight migrations already
+  applied to local, staging and production. Applying them as-numbered would insert
+  history behind the current head. The SQL bodies are unaffected by the renumber; two
+  of them are affected by the schema change, which is a separate matter (B16, I1).
+- **D15 — kiosk work stays on `feature/kiosk` in each repo, brought up to date by
+  REBASING onto `develop`** (resolved 2026-08-29; method revised from "merge" to
+  "rebase" the same day, on the user's instruction — they run all git operations
+  themselves). Keeps all three repos on one branch name and keeps four unapplied
+  migrations off the shared `develop`. Rebase over merge gives a linear history with
+  the kiosk commits sitting on top of the overnight work, which is what makes the
+  `20260829…` renumbering (D16) obviously correct rather than merely chosen.
+  ⚠️ **Claude does not run git commands in this repo** — commits are GPG-signed and
+  signing needs the user's passphrase (a `git merge` attempt on 2026-08-29 died at
+  `gpg: signing failed: Operation cancelled`). Git steps are handed over as commands.
+- **D18 — the schema deploy is split: staging early, production last**
+  (resolved 2026-08-29). B17a runs at **Stage 3b**, right after the attachment editor;
+  B17b runs at **Stage 7**. Staging and production were one item until this was
+  challenged, and treating them as one decision forfeited the only environment whose job
+  is rehearsal: twelve *needs live env* rows — including **B4**, which puts F4's
+  "no second webhook" under test — would all have come due after the feature was built
+  on top of them.
+  **Accepted cost:** the migrations stop being editable at Stage 3b rather than Stage 7
+  (see B17a). Judged worth it because by then real code has exercised every table and
+  constraint, so a further schema edit is unlikely, whereas an environment difference is
+  exactly what F18 showed to be likely.
+- **D17 — `booking_acknowledgements` is append-only structurally, not by convention**
+  (resolved 2026-08-29). Adds one line to B7's migration:
+  `revoke update, delete, truncate … from service_role`. Chosen over documenting the
+  gap because an evidence table whose guarantee rests on "the only writer happens to
+  behave" is not an evidence table. Scoped to **this table only** — an
+  `alter default privileges` revoke would change every future table in the schema,
+  which is a schema-wide policy call and not this migration's to make.
+  Nothing legitimate loses a capability: the kiosk route only INSERTs, verified live.
 - **D11 — The attachment model is two kinds and one lever** (resolved 2026-08-26).
   `kind in ('photo','document')`, and **`requires_agreement` is dropped entirely**.
   Every document must be accepted before payment — that is the product rule, not a
@@ -279,9 +428,52 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
 
 ---
 
+### Branch state — ✅ resolved 2026-08-29
+
+All three repos now sit on `feature/kiosk` on top of `develop`. `backbone` was rebased
+by the user after the check below; re-verified afterwards as **0 behind, 1 ahead**
+(`11b4e16 Initial kiosk migrations`), with all three `20260828…` migrations present in
+the tree. The blocking untracked snippet was removed by the user.
+
+<details><summary>The state that prompted the rebase (kept for the record)</summary>
+
+### ~~Branch state — verified 2026-08-29, and `backbone` is the outstanding one~~
+
+Checked per repo rather than assumed, because the rebase landed unevenly:
+
+| Repo | `feature/kiosk` vs `develop` | State |
+|---|---|---|
+| `vendor` | 0 behind, 1 ahead (`466cdda`) | ✅ **rebased** — the `lib/legal.ts` widening sits on top of the overnight work |
+| `command` | 0 behind, 0 ahead | ✅ in sync, nothing kiosk-specific yet |
+| **`backbone`** | **4 behind**, 1 ahead (`055d185`) | ❌ **NOT rebased** — still lacks all three `20260828…` overnight migrations |
+
+⚠️ **`backbone` is the one that matters for Stage 0**, and it is also the one blocked:
+its working tree is checked out on `master`, and `git checkout feature/kiosk` **aborts**
+because an untracked `supabase/snippets/Untitled query 756.sql` would be overwritten.
+That file is **byte-identical** to the copy tracked on `feature/kiosk` (verified by
+`diff`), so nothing is at risk — but the directory is `root:root 755`, so it cannot be
+moved without `sudo`. Commands for the user are in "Git handover" below.
+
+**No `origin/feature/kiosk` exists in any repo** — these branches are local only, so
+nothing needs pushing before this can proceed.
+
+</details>
+
+---
+
 ## BLOCKERS
 
-### B1 — Kiosk booking creation must be an atomic service-role route  ⬜ TODO
+### B1 — Kiosk booking creation must be an atomic service-role route  ✅ DONE (2026-08-29)
+> `app/api/kiosk/booking/route.ts`. Guard verified live (401/403/400). Sends no
+> `price_paid`, `end_time` or `fulfilment_pattern` — all trigger-derived. Sets
+> `booked_via: 'kiosk'`. Uses `slotDate()` for `booked_date`, so a post-midnight slot is
+> filed under the day it starts. Signature uploads **before** the acknowledgement insert,
+> per the corrected order; rollback deletes the booking and sweeps the object.
+> **Beyond what the item asked:** acknowledgement titles/versions/kinds are snapshotted
+> from the DATABASE, not from the request body — a tampered client must not be able to
+> record consent to a document that was never shown, on the one table that exists to be
+> evidence. The route also refuses to proceed unless every active document is ticked.
+> ⚠️ Happy path unrun — needs a signed-in session (Stage 4).
 **Files (new):** `vendor/app/api/kiosk/booking/route.ts`
 **Pattern to follow:** `vendor/app/api/auth/register/route.ts` (atomic create + rollback)
 
@@ -294,9 +486,27 @@ POST and arbitrary booking creation.
 caller holds `vendor-admin` on the `vendor_id` being booked (service-role query
 against `vendor_members` + `roles`) → 403 otherwise. Never trust a `vendorId` from
 the body without that check. The route then performs, in order: resolve-or-create the
-customer (B2) → insert the booking → insert acknowledgement rows (B7) → upload the
-signature (B8). Roll back created rows on any later failure, and mirror the register
-route's `maxDuration` bump since this is several round trips.
+customer (B2) → insert the booking → **upload the signature (B8) → insert the
+acknowledgement rows complete (B7)**. Roll back created rows and uploaded objects on any
+later failure, and mirror the register route's `maxDuration` bump since this is several
+round trips.
+
+⚠️ **That order is load-bearing, and it is the REVERSE of what this item said until
+2026-08-29.** It previously read *"insert acknowledgement rows → upload the signature"*,
+which **cannot work** after D17: the signature path is
+`{vendor_id}/{booking_id}/{ack_id}.png`, so writing it meant inserting the row, learning
+its id, uploading, then **UPDATE**ing the row to set `signature_path` — and D17 revoked
+UPDATE on `booking_acknowledgements` from `service_role` to make the table append-only.
+The route would have failed on its last step with `permission denied`, in production,
+only for offerings that require a signature.
+
+**The fix costs nothing:** generate the acknowledgement's UUID in the route
+(`crypto.randomUUID()`) *before* touching the database, upload the signature to the path
+built from it, then INSERT the row **once**, complete, with `id` and `signature_path`
+already set. One insert, no update, and the row is never briefly wrong.
+⚠️ Rollback must now also sweep the uploaded object — an upload that succeeds before a
+failed insert leaves bytes with no row pointing at them. `sweepStaging` in
+`app/api/auth/register/route.ts` is the existing precedent for exactly this.
 
 **Sets the origin marker.** The insert carries `booked_via: 'kiosk'` (B9). This is
 the *only* place it is ever written — B9's pin makes every later write raise — so a
@@ -314,16 +524,27 @@ in the route would create a second source of truth for money — the exact defec
 
 ---
 
-### B2 — Customer provisioning, and the consent record it obliges  ⬜ TODO
+### B2 — Customer provisioning, and the consent record it obliges  ✅ DONE (2026-08-29)
+> `lib/kioskCustomer.ts`. Mirrors `booker/app/api/register/route.ts`: profile + `active`
+> status + `booker` portal + `member` role + consent, with `auth.admin.deleteUser` rollback
+> at every step. Consent written LAST, so no path records consent for an account that
+> does not exist. The lookup race is handled by catching the duplicate and re-running the
+> lookup. ⚠️ Unrun against a live create.
 **Files (new):** `vendor/lib/kioskCustomer.ts` (server-only helper, called by B1)
 **Coupled to:** B7's migration (F9) — **must ship in the same batch**
 
 D1 creates an auth account for someone who did not sign up. Two failure modes to get
 right:
 
-1. **Lookup must precede create.** A returning customer must resolve to their
-   existing `booker_id`, or F1's unique index turns a legitimate second visit into a
-   spurious `23505`. Look up by email; create only on miss.
+1. **Lookup must precede create — and the lookup is a race.** A returning customer must
+   resolve to their existing `booker_id`, or F1's unique index turns a legitimate second
+   visit into a spurious `23505`. Look up by email; create only on miss.
+   ⚠️ **Two tablets is not hypothetical, and neither is a double-tap.** Two concurrent
+   requests can both miss the lookup and both call `createUser`; the loser gets a
+   duplicate-email error from GoTrue mid-booking, in front of a customer. Handle it the
+   way the booking service already handles `23505`: catch the duplicate, re-run the
+   lookup, proceed with the row that won. Do **not** pre-check harder — the gap between
+   check and insert *is* the bug, and no amount of checking closes it.
 2. **Consent is not optional.** Creating an account without recording what the person
    agreed to is exactly the gap `legal_acceptances` exists to close. Per F9 the
    table's CHECK constraint and `lib/legal.ts:99`'s union both reject a kiosk value
@@ -377,7 +598,12 @@ already points a blocked registrant at the right next step. Recorded in assumpti
 
 ---
 
-### B3 — Kiosk offering eligibility  ⬜ TODO
+### B3 — Kiosk offering eligibility  ✅ DONE (2026-08-29)
+> `lib/kioskEligibility.ts` (8 tests) + `getKioskOfferings` in `services/kiosk.service.ts`,
+> paged. **Deviation, deliberate:** the rule lives in a tested pure function rather than
+> only in the query, because B13's launcher must tell the vendor *how many* offerings are
+> excluded and *why* — which a query that filtered them out cannot answer. One rule, so
+> the grid and the launcher cannot disagree.
 **Files:** `vendor/services/kiosk.service.ts` (new)
 
 Per D7 a date-granular offering cannot be completed by the booker either, so the
@@ -389,13 +615,22 @@ is one refactor away from selling something the flow cannot finish.
 
 **Fix approach.** `getKioskOfferings(vendorId)` selects active offerings joined to
 active schedules, restricted to time-granular `duration_unit` (`minute`/`hour`).
+**Paged via `lib/pagedFetch.ts` (F16)** — a vendor past 1000 offering/schedule rows
+would otherwise get a silently short list, and the kiosk would simply not show
+offerings that exist.
 **Both `session` and `custody` patterns are eligible.** If the vendor has offerings
 that are excluded, say so in the vendor-facing kiosk launcher — silence would read as
 a bug.
 
 ---
 
-### B4 — Vendor-side `create-session`, with a different caller check  ⬜ TODO
+### B4 — Vendor-side `create-session`, with a different caller check  ✅ DONE (2026-08-29)
+> `app/api/kiosk/payment/create-session/route.ts`. Amount from `booking.price_paid`,
+> never the body; `metadata.booking_id` set so the **existing booker webhook** settles it;
+> success/cancel return to `/kiosk`. Rejects non-kiosk bookings. No webhook added here,
+> per F4. Ordering defect found and fixed live — see B20.
+> ⚠️ The PayMongo call itself is **unreachable and unverified** until
+> `PAYMONGO_SECRET_KEY` is added to this app.
 **Files (new):** `vendor/app/api/kiosk/payment/create-session/route.ts`
 **Reference (do not edit):** `booker/app/api/payment/create-session/route.ts`
 
@@ -416,7 +651,12 @@ secret in a second environment is a credential with no purpose.
 
 ---
 
-### B5 — Containment: an admin session on a customer-facing device  ⬜ TODO
+### B5 — Containment: an admin session on a customer-facing device  ✅ DONE (2026-08-29)
+> `app/kiosk/layout.tsx` imports no admin component — the portal is **not mounted**, not
+> merely hidden. Exit is a visible-but-understated "Staff exit" behind password re-auth,
+> and the dialog states plainly that this hides the portal without locking the device,
+> naming Guided Access / screen pinning. The layout pins `maximumScale: 1` so a stray
+> pinch cannot leave a shared tablet broken.
 **Files:** `vendor/app/kiosk/layout.tsx`, `components/kiosk/KioskExitDialog/`
 
 The kiosk runs under a live `vendor-admin` session. A customer who types `/` in the
@@ -445,7 +685,19 @@ the UI.
 
 ---
 
-### B6 — Reset, abandonment, and the capacity a dead booking holds  ⬜ TODO
+### B6 — Reset, abandonment, and the capacity a dead booking holds  ✅ DONE (2026-08-29)
+> (1) and (2) landed in 4a. **(3) is satisfied**: `useKioskCheckout` creates the booking
+> row only when the customer taps Pay, so everything before that is local state and an
+> abandoned flow leaves no `pending` row holding a slot. **(4) stays documented-only and
+> that is the honest outcome** — a web page cannot reclaim a browser that has navigated
+> to another origin, so the mitigations are the front desk noticing and the device kiosk
+> browser's own idle-return setting, both named in B17a's copy.
+> **(1) PII and (2) idle reset done** in `useKioskShell`: a 90s timer bumps `resetKey`,
+> and flow state lives in components keyed by it, so a reset unmounts them and the
+> customer's details go with them. Nothing is written to storage, so there is nothing to
+> clear. `setIdleSuspended` exists for the confirmation screen, which must not time out
+> mid-read. ⏸ **(3) unpaid-pending capacity and (4) the PayMongo off-app park** belong
+> with the payment step — Stage 4b.
 **Files:** `components/kiosk/KioskShell/useKioskShell.ts`
 
 Three distinct problems that a single "reset" hand-wave would miss:
@@ -483,7 +735,13 @@ DEFERRED with its unblock condition.
 ---
 
 ### B7 — Attachment schema  🔄 IN PROGRESS
-> ✅ Approved 2026-08-26. Migration **written**: `20260826000001_offering_attachments.sql`.
+> ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000001_offering_attachments.sql`.
+> ⚠️ **Renumbered 2026-08-29 (D16).** The file on `feature/kiosk` is `20260826000001`,
+> which sorts **before** the `20260828…` overnight migrations that are already applied
+> to production. An unapplied migration that sorts before applied ones is a landmine:
+> the CLI's ordering and the `schema_migrations` history disagree from that point on.
+> Re-cut at `20260829…`; the SQL body is unaffected.
+>
 > Not applied — awaiting the user. Stays 🔄 until it is applied and the RLS/grant
 > checks in Verification actually run.
 >
@@ -494,7 +752,7 @@ DEFERRED with its unblock condition.
 > public `offering-photos`, everything else → private `offering-attachments`); there
 > is no bucket column, so that rule lives in exactly two places, this migration's
 > comment and the service that resolves a URL.
-**File:** `backbone/supabase/migrations/20260826000001_offering_attachments.sql`
+**File:** `backbone/supabase/migrations/20260829000001_offering_attachments.sql`
 
 Per AGENTS.md and §8 the exact change is written here and the migration file is
 **not created** until the user says go. Per the repo's standing rule the user
@@ -678,7 +936,7 @@ alter table public.legal_acceptances
 ---
 
 ### B8 — Attachment + signature storage  🔄 IN PROGRESS
-> ✅ Approved 2026-08-26. Migration **written**: `20260826000002_attachment_storage.sql`.
+> ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000002_attachment_storage.sql`.
 > Not applied. One addition beyond the drafted SQL: an `update` policy for vendor
 > admins on `offering-attachments`, since replacing a file is an UPDATE on the
 > object, not only an INSERT — the draft would have blocked re-uploads.
@@ -688,7 +946,7 @@ alter table public.legal_acceptances
 > (it goes through the public object endpoint); the `select` policy that is there
 > exists so the management UI can `list()` a folder, which goes through RLS even on a
 > public bucket.
-**File:** `backbone/supabase/migrations/20260826000002_attachment_storage.sql`
+**File:** `backbone/supabase/migrations/20260829000002_attachment_storage.sql`
 **Pattern:** `20260706000002_vendor_kyc_storage.sql` (F13)
 
 Two buckets, not one. Vendor documents and customer signatures have different
@@ -753,9 +1011,9 @@ customer's signature. Recorded in DEFERRED.
 ---
 
 ### B9 — `booked_via` origin marker, pinned against UPDATE  🔄 IN PROGRESS
-> ✅ Approved 2026-08-26. Migration **written**: `20260826000003_booking_origin.sql`.
+> ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000003_booking_origin.sql`.
 > Not applied.
-**File:** `backbone/supabase/migrations/20260826000003_booking_origin.sql`
+**File:** `backbone/supabase/migrations/20260829000003_booking_origin.sql`
 **Coupled to:** B10 — **must ship in the same batch, B9 first.**
 
 D2(A) needs the database to know a booking came from the kiosk. **The pin is the
@@ -835,7 +1093,7 @@ next person will reasonably ask.
 ---
 
 ### B10 — Let the customer close a kiosk booking at the desk  🔄 IN PROGRESS
-> ✅ Approved 2026-08-26. Migration **written**: `20260826000004_kiosk_customer_close_out.sql`
+> ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000004_kiosk_customer_close_out.sql`
 > (named for what it does — it covers both patterns, not custody alone).
 >
 > **The diff gate this item demanded was run, and passed.** The function body was
@@ -848,8 +1106,21 @@ next person will reasonably ask.
 > were asserted still present after patching. Placement confirmed by eye:
 > `returned → completed` at the bottom is untouched.
 >
+> ✅ **Diff gate RE-RUN against the rebased tree (2026-08-29) and PASSED:** body
+> re-extracted from `20260801000002` *in the rebased working tree* — not carried over
+> from the pre-rebase branch — 90 lines in, 90 out, **exactly 2 lines differ**
+> (`fulfilled→completed` at :46, `in_progress→returned` at :53), and both
+> `new.status_changed_at := now();` and the `v_third_party` block asserted present.
+>
+> ⚠️ **Re-verified 2026-08-29 (F17):** `validate_booking_status_transition()` is still
+> last defined in `20260801000002` on `develop` — nothing re-created it — so the
+> reproduced body and its two-line diff remain correct. **Re-extract from `develop`
+> rather than reusing the file on `feature/kiosk`**, and re-run the diff gate: the
+> guarantee is "exactly two lines against the definition actually in the branch we are
+> merging into", and that is only true if it is re-derived there.
+>
 > Not applied. Stays 🔄 until the live-DB checks in Verification run.
-**File:** `backbone/supabase/migrations/20260826000004_kiosk_customer_close_out.sql`
+**File:** `backbone/supabase/migrations/20260829000004_kiosk_customer_close_out.sql`
 **Coupled to:** B9 — the marker is meaningless without the rule, and the rule is unsafe
 without the pin. **Same batch, B9 first.**
 
@@ -925,7 +1196,39 @@ transcription, not mechanics — hence the diff requirement above.
 
 ---
 
-### B11 — Kiosk close-out flow (D2's "C" button, both patterns)  ⬜ TODO
+### B11 — Kiosk close-out flow (D2's "C" button, both patterns)  ✅ DONE (2026-08-29)
+> `app/api/kiosk/close-out/route.ts` (identifier lookup), `.../confirm/route.ts` (the
+> transition), and `components/kiosk/KioskCloseOut/{tsx,hook,css}` behind the home
+> screen's "Finish a booking".
+> **The target status is derived from the row in BOTH places** — the hook picks the
+> label, the server picks the transition — so a client that named its own target could
+> not move a custody booking straight to `completed`, skipping the vendor's "Got it
+> back" and releasing the payout with nobody confirming the asset came back.
+> Lookup is scoped to `booked_via = 'kiosk'` and `status in (in_progress, fulfilled)`,
+> matched on booking id prefix, exact email, or phone **suffix** (digits only, so
+> "+63 917…" and "0917…" compare equal). A blank or <4-character identifier is refused
+> rather than matching everything.
+> **Verified live:** unauthenticated → **401** on both routes (auth precedes the
+> identifier check — B20's lesson applied, not re-learned); missing vendor → **403**;
+> `/kiosk` still **200**; zero compile failures. `tsc` 0, 341/341 tests, **0 lint
+> violations** across `components/kiosk` and `app/api/kiosk`.
+> ⚠️ **No booking has actually been closed** — that needs a signed-in session and a
+> kiosk booking in `in_progress` or `fulfilled`.
+
+> **Two deviations from this item as written, both recorded rather than silent:**
+>
+> 1. **Copy is NOT reused from `lib/bookingActionCopy.ts`.** That table holds the
+>    *vendor's* labels for these same transitions ("Got it back"), is consumed by the
+>    dashboard guide and the mobile app, and is scoped to vendor actions — adding
+>    customer-facing keys would let kiosk wording leak into the vendor glossary. The two
+>    customer strings ("I've returned it", "Yes, all done") live in the kiosk hook,
+>    sourced from `architecture/booking-flow.md`'s fulfilment table.
+> 2. **D8's fixed audit note is not set.** `app.status_change_note` is transaction-local
+>    and supabase-js cannot issue `SET LOCAL` alongside an update; it would need a
+>    SECURITY DEFINER RPC, which is a migration, and the schema locked when staging
+>    received it (B17a). Only legibility is lost: `booking_status_log` still records the
+>    actor and transition, and `booked_via` records the origin — which is exactly the
+>    reasoning D8 used to reject a mandatory typed reason in the first place.
 **Files (new):** `vendor/app/api/kiosk/close-out/route.ts`,
 `components/kiosk/KioskCloseOut/{KioskCloseOut.tsx, useKioskCloseOut.ts, KioskCloseOut.module.css}`
 
@@ -972,7 +1275,11 @@ convention, not an enforcement**; the database cannot tell the difference.
 
 ---
 
-### B12 — Step 5 and 6 gate on the FLAGS, never on "has attachments"  ⬜ TODO
+### B12 — Step 5 and 6 gate on the FLAGS, never on "has attachments"  ✅ DONE (2026-08-29)
+> `lib/kioskSteps.ts` + 16 tests. The predicate filters on `kind === "document"`, so a
+> photos-only offering provably gets no agreements step — asserted directly. Signature
+> can never appear without agreements before it, because both derive from the same
+> filtered set. Tests cover the truth table, inactive attachments and clamping.
 **Files:** `components/kiosk/KioskShell/useKioskShell.ts`, `services/kiosk.service.ts`
 
 The two conditional steps must be computed from the attachment **flags**:
@@ -1010,7 +1317,12 @@ two phrasings in the plan is how the wrong one gets implemented.
 
 ---
 
-### B13 — The kiosk launcher (the feature's only entry point)  ⬜ TODO
+### B13 — The kiosk launcher (the feature's only entry point)  ✅ DONE (2026-08-29)
+> Sidebar item + `KioskLauncherDialog`. The item is a **button that opens the dialog and
+> routes to `/kiosk`** — never a `PageId`, with the reason written at the call site so
+> nobody later "tidies" it into `PAGE_IDS` and puts the admin chrome back around the
+> kiosk. The dialog names how many offerings are sellable and why the rest are not (B3),
+> carries B5's device warning, and disables Start when nothing is sellable.
 **Files:** `components/layout/Sidebar/Sidebar.tsx` (modified),
 `components/kiosk/KioskLauncherDialog/{KioskLauncherDialog.tsx, useKioskLauncherDialog.ts, KioskLauncherDialog.module.css}` (new)
 
@@ -1037,7 +1349,12 @@ handler. The sidebar change is one item in an existing list — no new hook.
 
 ---
 
-### B14 — Kiosk Mode must survive a reload, and a relaunch  ⬜ TODO
+### B14 — Kiosk Mode must survive a reload, and a relaunch  ✅ DONE (2026-08-29)
+> `lib/kioskMode.ts` (storage-error tolerant), the `AppShell` redirect read
+> **synchronously in a lazy initialiser** so no admin chrome paints first, and a
+> `shortcuts` entry with `start_url` left at `"/"` per D14. Only the password-confirmed
+> exit clears the flag. ⚠️ Verified by code path and type-check; **the reboot/relaunch
+> case needs a real device** and has not been run.
 **Files:** `components/kiosk/KioskShell/useKioskShell.ts`,
 `components/layout/AppShell/useAppShell.ts`, `app/manifest.ts`
 
@@ -1070,7 +1387,14 @@ act does" — the actual boundary is still the device lockdown in B5.
 
 ---
 
-### B15 — The kiosk requires a live vendor-admin session, always  ⬜ TODO
+### B15 — The kiosk requires a live vendor-admin session, always  ✅ DONE (2026-08-29)
+> `useKioskShell` checks on mount and subscribes to `onAuthStateChange`, against the
+> **pinned** vendor via a new `verifyVendorAdminFor(user, vendorId)`. That function had
+> to be added: `verifyVendorAccess` returns `activeRows[0]`, which for a multi-vendor
+> admin is the wrong vendor — signing in as an admin of another vendor would have
+> silently re-pointed the kiosk. On loss: a neutral *"Temporarily unavailable"* panel
+> with a **Staff sign-in button, never an auto-rendered password field**.
+> ⚠️ Not exercised live — needs a real session to revoke.
 **Files:** `components/kiosk/KioskShell/useKioskShell.ts`,
 `components/kiosk/KioskSignedOut/{KioskSignedOut.tsx, useKioskSignedOut.ts, KioskSignedOut.module.css}`
 **Supersedes:** I9 (promoted 2026-08-26)
@@ -1110,18 +1434,479 @@ handler. Its `.tsx` renders the panel and wires what the hook returns.
 
 ---
 
+### B16 — The kiosk must handle windows that cross midnight  ✅ DONE (2026-08-29)
+> Slots carry their **own** date, from `slotDate()` — never recomputed from the clock.
+> A slot starting after midnight renders a day marker ("Sat 30"), the list sorts by
+> real time rather than clock time (so 00:00 does not jump above the 23:00 that
+> precedes it), and both the payment summary and the confirmation show the slot's own
+> date, not the chip the customer tapped. The route derives `booked_date` server-side
+> from the same rule, so the client cannot file a booking a day early.
+> ⚠️ Verified by construction and by Stage 1's tests; **no overnight booking has been
+> made**.
+**Files:** `components/kiosk/KioskSlotPicker/*`, `components/kiosk/KioskOfferingGrid/*`,
+`services/kiosk.service.ts`
+**New 2026-08-29** — created by the overnight-schedule work (F15), which shipped after
+this plan was written and is live in production.
+
+This plan was drafted when a schedule window provably could not cross midnight, and it
+quoted that as a standing invariant. **It no longer holds.** Two consequences, and the
+second is a correctness bug rather than a rendering one:
+
+1. **Slots can run past midnight.** A 23:00–01:00 window with a 1-hour offering yields
+   starts at 23:00 and 00:00. The picker must render those as a legible span
+   (*"11:00 PM – 12:00 AM"*, *"12:00 AM – 1:00 AM"*) rather than producing an inverted
+   or empty range. `deriveSlots` already returns them correctly (I1) — this is the
+   render layer keeping up.
+2. **⚠️ The date label can lie.** `bookings.booked_date` is *the date the booking
+   **starts***, settled explicitly at `20260828000001:215-232`: the 00:00 slot of a
+   **Friday** 23:00–01:00 window is stored as **SATURDAY** 00:00. The kiosk defaults to
+   today and labels its chips *Today / Tomorrow* (screen 2 of the preview). A customer
+   at 23:50 on Friday who taps the 00:00 slot under a chip reading **Today** creates a
+   booking dated **Saturday**. They will arrive on the wrong day, and the vendor's
+   bookings list will agree with the database rather than with what the customer was
+   shown.
+
+**Fix approach.** Derive each slot's own start date rather than assuming the selected
+date, and label any slot whose start date differs from the selected chip — *"12:00 AM
+Sat 30"* — so the day is stated wherever it changes. The confirmation screen and the
+booking summary must show the same resolved date, since that is the customer's receipt.
+
+**Use the helpers that already exist.** `vendor/lib/scheduleWindow.ts` provides
+`crossesMidnight(start, windowMinutes)` — the exact predicate this item needs — plus
+`formatWindow` and `formatScheduleWhen` for the labels. The slot list itself may wrap
+(`23:00`, `00:00`, `01:00`), so **do not sort slot starts as clock times** and do not
+assume the list ascends within one day; `deriveSlots` already returns them in true
+order. A window may also be exactly 24 hours.
+
+**Do not "fix" this by refusing post-midnight slots.** Overnight availability is a
+feature that shipped deliberately for vendors open past midnight, and a kiosk at a
+24-hour venue is exactly where it matters.
+
+---
+
+### B17a — Push the Stage 0 schema to STAGING  ✅ DONE (2026-08-29)
+> Pushed by the user. **Independently verified:** `supabase migration list --linked`
+> reports `local == remote` for all four `20260829000001-4`, and for every one of the
+> 72 migrations — no drift, no gaps. The user ran the grant re-check and it passed.
+> Environment audit at the same time found two things — see B22.
+**Files:** none — this is a deploy, not a code change
+**Runs at Stage 3b**, immediately after the attachment editor (I2) — split from B17b
+on 2026-08-29 (D18). Production is a separate item deliberately.
+**Found 2026-08-29:** the plan tracked *authoring* the migrations and *applying them
+locally*, and then simply stopped. Nothing in it carried them to the environments the
+feature actually runs in. Every later stage silently assumes the schema is there.
+
+**Deferring is safe here, and that is a property of these particular migrations, not a
+general rule.** All four are **additive and backward-compatible with the app builds
+currently deployed**: two new tables nothing reads yet; a new column with a default that
+no existing writer names; a widened CHECK whose new value set is a strict superset; and
+a function replacement that only *widens* permission, gated on `booked_via = 'kiosk'`
+— and every existing row is `'booker'`, so its behaviour is byte-identical for them.
+Nothing in production changes the moment these land. That is why they can wait, and why
+there is no expand/contract sequencing to respect (unlike `20260828000001-2`, which had
+to split precisely because it dropped a column live apps still named).
+
+**The editability window, and where it now closes.** Because they are applied to local
+only, these migrations are **still editable**: a schema flaw found in Stages 1–3 is fixed
+by editing the file and replaying, not by stacking a corrective migration on a mistake.
+⚠️ **That window closes when B17a runs**, not at the end — `architecture/conventions.md`'s
+"never edit an applied migration" rule binds from the moment staging has them. That is
+the price of the split (D18), paid knowingly: by Stage 3b the routes and the editor have
+exercised every table and constraint with real code, so the odds of still needing a
+schema edit are low, while the odds of an environment difference are exactly what staging
+exists to measure.
+
+⚠️ **The trap that comes with it.** Editing a migration that is *already applied to
+local* and then running `npx supabase migration up --local` **does nothing** — the
+version is already in `schema_migrations`, so the CLI skips it and reports success. The
+edit silently never runs. After editing any `20260829…` file, replay from scratch:
+
+```bash
+cd backbone
+npx supabase db reset          # migrations from empty, then seed.sql
+```
+
+This is the one case where `db reset` is the right local tool — not for applying new
+migrations (that is `migration up`, which exercises backfills against real rows), but
+for re-running a version the database already thinks it has.
+
+**Fix approach.** Per `architecture/database-reset-and-deploy.md`:
+
+```bash
+cd backbone
+npx supabase db push --linked --dry-run   # what would apply
+npx supabase db push --linked             # apply
+```
+
+⚠️ **`db push` only — never `db reset`, never `--include-seed`** on a hosted
+environment; the doc is unambiguous and reset would destroy data. Staging first, then
+production.
+
+⚠️ **Re-check the grants after each push.** F18's finding came from a *platform-provided*
+default ACL, and the doc's own "why 'it worked locally' predicts nothing about hosted"
+section lists four divergences that have each bitten this project. Run:
+
+```sql
+select grantee, string_agg(privilege_type, ',' order by privilege_type)
+  from information_schema.role_table_grants
+ where table_name = 'booking_acknowledgements' group by 1;
+```
+
+Expect `authenticated => SELECT` and `service_role => INSERT,REFERENCES,SELECT,TRIGGER`.
+If `service_role` comes back with UPDATE or DELETE, D17's revoke did not take on that
+environment and the append-only guarantee is absent where it matters most.
+
+**What this unblocks — CORRECTED 2026-08-29, after checking what is actually runnable.**
+
+⚠️ **The original claim on this item was too strong, and it was mine.** When D18 split
+the deploy, I argued the staging push should come early so that **B4** — F4's
+"no second webhook" under test — would be proven before Stages 4–6 were built on it.
+Checking the repo rather than the plan: that is **not deliverable at this point**.
+
+- `PAYMONGO_SECRET_KEY` and `NEXT_PUBLIC_APP_URL` are **absent from `vendor/.env.local`**
+  (verified), so B4's route returns before it ever calls PayMongo.
+- There is **no `/kiosk` route yet** — it is Stage 4 — so nothing can drive a booking
+  through B1, which every downstream row needs to have happened first.
+
+**Runnable the moment the schema lands on staging (schema-level, no app needed):**
+- the grant re-check below — the F18 divergence, the single most valuable thing here;
+- D10's bucket visibility: an `offering-photos` object resolves over the public endpoint
+  without a token, an `offering-attachments` object does not;
+- that all four migrations apply cleanly to a hosted database at all, which local
+  cannot prove (see the doc's "why 'it worked locally' predicts nothing about hosted").
+
+**NOT runnable until Stage 4 exists and the env vars are set** — B4's PayMongo round
+trip, R1's account claim, B1's single-insert and orphan-sweep rows, B2's race. These
+move to a second pass after Stage 4, tracked here rather than quietly dropped.
+
+**The item still belongs here.** Proving the migrations apply to a hosted environment,
+and that the revoke survives it, is worth doing before three more stages are built —
+it just proves less than I first claimed:
+
+- **B4** — sandbox card → `is_paid` flips true **via the booker webhook, unmodified**.
+  This is F4 (*"no second webhook"*) under test. If it fails, a foundational decision was
+  wrong, and every stage after this one assumed it.
+- **The grant re-check** — whether D17's revoke actually took on hosted. F18 proved this
+  class of thing differs by environment.
+- **R1** — whether a kiosk-created customer can genuinely claim their account. That is
+  D1's entire premise.
+- Plus B1's two (single complete insert, orphan sweep), B2's race, and D10's bucket
+  visibility checks.
+
+**Coupling:** must land before any app build that reads the new tables is deployed to
+staging.
+
+---
+
+### B17b — Push the Stage 0 schema to PRODUCTION  ⬜ TODO
+**Files:** none — this is a deploy, not a code change
+**Runs LAST — Stage 7**, after every stage is complete and B17a's live checks have
+passed on staging.
+
+Same command, same grant re-check, different environment and a different risk posture:
+
+```bash
+cd backbone
+npx supabase db push --linked --dry-run
+npx supabase db push --linked
+```
+
+⚠️ **`db push` only — never `db reset`, never `--include-seed`.** The repo doc is
+unambiguous: *"Production only ever receives `db push`."*
+
+⚠️ **Do not pair this with the app deploy in one sitting.** Push the schema, re-run the
+grant query, confirm it reads `authenticated => SELECT` and
+`service_role => INSERT,REFERENCES,SELECT,TRIGGER`, and only then deploy the app builds.
+The schema is inert without them, so there is no window where production is half-broken —
+which is precisely what makes taking it in two steps free.
+
+**Nothing should be surprising by this point.** Every live-environment row in this plan
+was already run on staging at B17a. If something differs here that did not differ there,
+that is a finding about the environments, not about this feature — and worth writing
+down.
+
+---
+
+### B19 — `availabilityForDay` under-counts post-midnight slots  ✅ DONE (2026-08-29)
+> Fixed in Stage 1 by counting **epoch instants** instead of clock minutes, and by
+> dropping the `bookedDate === dateStr` filter entirely rather than widening it — real
+> instants make a date filter unnecessary for correctness.
+> **Verified the honest way:** the three new overnight tests were run against the
+> *pre-fix* implementation and **failed 3/27**; against the fix they pass **27/27**.
+> A new test that merely passes proves nothing, so this was checked both ways.
+> Full suite 317/317, `tsc --noEmit` clean, `eslint` clean on the changed files.
+**File:** `vendor/lib/slotAvailability.ts:59,69-72`
+**Found 2026-08-29 during Stage 1's "locate before building" step. Pre-existing — not
+introduced by this plan.** It also **falsifies F7**, which said vendor had no occupancy
+logic: `lib/slotAvailability.ts` has done overlap-counted availability since the schedule
+refactor, and the 2026-08-28 upstream note repeated F7's claim without re-checking it.
+
+**The defect.** `availabilityForDay` selects the bookings it counts with:
+
+```ts
+const onDate = mine.filter(b => b.bookedDate === dateStr && b.startTime && b.endTime)
+```
+
+and then compares by minutes-from-midnight. For a window that crosses midnight this is
+wrong in a specific, silent way: `deriveSlots("23:00", 120, 60)` yields starts
+`23:00` **and** `00:00`, but a booking of that `00:00` slot is stored with
+`booked_date` = **the next day** (`20260828000001:215-232` — `booked_date` is the date a
+booking *starts*). The `=== dateStr` filter drops it, so **every post-midnight slot of an
+overnight window reads as fully free**, however many bookings it holds.
+
+This is the exact failure booker's `getSlotOccupancy` documents and defends against:
+*"Querying a single date would miss exactly the post-midnight bookings, and every one of
+those slots would read as free."* Vendor never got the same treatment.
+
+**Blast radius today is narrow:** one caller,
+`components/schedule/DayDetailPanel/useDayDetailPanel.ts:42`, so it misinforms the
+vendor's day panel ("N left") rather than moving money. The database still refuses the
+overbooking. **It is untested** — `lib/slotAvailability.test.ts` covers a 09:00/180-minute
+window and a date-granular schedule, and no overnight case at all.
+
+**Why it matters to this plan.** The kiosk asks the same question this function answers.
+Two implementations of "how much of this slot is left" in one app — one correct, one
+subtly wrong — would disagree on screen: the day panel showing *2 left* while the kiosk
+shows *1 left* for the same slot. See the open decision.
+
+**Fix approach.** Count by **epoch instants over a two-day window**, as booker does:
+include bookings whose `bookedDate` is the date *or the day after*, build each booking's
+真 start/end instants (`end_time` may be `"24:00"`, so add minutes rather than parsing),
+and overlap-compare those. Keep `availabilityForDay`'s signature and its existing tests
+green; add overnight cases.
+
+### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ⬜ TODO
+**File:** `vendor/.env.local`
+**Found 2026-08-29 during the pre-Stage-4 environment audit.** B4 states plainly that
+this key **must not** be added to this app, and the only occurrence of the name in
+`vendor/` source is that very comment — no code reads it.
+
+**Why it was excluded, restated:** per F4 the booker webhook already settles kiosk
+sessions, because it keys on `metadata.booking_id` and carries no app-scoping. A second
+registered endpoint would race the first on the same `is_paid` transition for no gain.
+So there is no vendor webhook, and therefore no consumer for the secret.
+
+**The cost of leaving it:** an unused credential in a second environment is a second
+place it can leak from, with zero benefit — and a future reader will reasonably infer
+from its presence that a vendor webhook exists or is intended, which is the opposite of
+the decision on record.
+
+**Fix approach.** Remove the line from `vendor/.env.local`, and from the vendor entry in
+whatever hosting environment it was also added to. Keep `PAYMONGO_SECRET_KEY` — that one
+is required and correctly present.
+
+---
+
+### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ⬜ TODO
+**File:** deployment configuration (not in the repo)
+**Found 2026-08-29.** Locally it reads `http://localhost:3000`, which is right for local
+and matches vendor's default dev port. But B4 builds PayMongo's `success_url` and
+`cancel_url` from it, so on any hosted environment it must be that environment's own
+URL. If staging inherits the local value or leaves it unset, a customer who pays is
+redirected to **localhost** and never returns to the kiosk — with the booking paid and
+the tablet stranded on a dead page.
+
+⚠️ **Cannot be verified from this repo.** Hosted env vars live in the deployment
+platform, not in `.env.local`. Confirm on staging (and later production) that both
+`PAYMONGO_SECRET_KEY` and `NEXT_PUBLIC_APP_URL` are set, before the first payment test.
+
+⚠️ **Local gotcha, same root cause:** run the dev server on a non-default port and the
+post-payment redirect still goes to `:3000`. Either use the default port for payment
+testing or set the variable to match.
+
+---
+
+### B26 — Two sidebar baselines need accepting  ⬜ TODO (user's call)
+**Files:** `visual-tests/pilot.spec.ts-snapshots/sidebar-light-*.png`, `sidebar-dark-*.png`
+**Found by running the visual suite in Stage 6.**
+
+**Confirmed result: `2 failed, 159 passed (8.5m)` of 161.** The only two failures are
+`ui-gallery sidebar-light` and `sidebar-dark`, which fail because B13 added the **Kiosk
+Mode** item to the sidebar. Every other baseline is green — the kiosk work touched no
+existing rendered surface apart from that one item.
+
+⚠️ **The shell wrapper reported `exited with code 0`.** That was the exit status of the
+compound command, not of Playwright — read from the wrapper it would have looked like a
+clean run. This is exactly the failure the repo's own convention warns about: take the
+result from the `N failed / N passed` summary line in a redirected log, never from a
+pipeline's exit code. The diff was inspected rather than assumed: **exactly one change,
+the new item, in its intended position below Calendar — nothing else moved.** That is a
+baseline to accept, not a bug to fix.
+
+**Deliberately not accepted by Claude.** I7's reasoning applies here too: a baseline
+freezes whatever renders as "expected", and nobody has looked at the new sidebar item on
+a real screen. Reviewing a diff is not the same as approving a design. The suite staying
+red is the honest state until someone decides they like it.
+
+```bash
+cd vendor
+npx playwright test --update-snapshots -g "sidebar"
+```
+
+⚠️ Read the result from a redirected log — piping through `tail` hides the failure count
+and the exit code.
+
+**Unrelated, and pre-existing:** the run also logs *"Hydration failed"* from
+`LoginPage`'s password input (`caret-color: transparent`). Nothing to do with this plan —
+that surface was never touched — but it is noise in every run and worth its own look.
+
+---
+
+### B25 — Phone matching failed on the local Philippine format  ✅ DONE (2026-08-29)
+**File:** `lib/kioskCloseOut.ts`
+**Found by a test written in Stage 6, against code shipped in Stage 5.**
+
+The close-out lookup matched phone numbers by suffix in either direction. That is wrong
+for the two ways a Philippine mobile is written: `0917 555 0142` locally and
+`+63 917 555 0142` internationally. **The leading `0` replaces the `63`**, so neither
+digit string is a suffix of the other even though they are the same number.
+
+**The consequence would have been silent and infuriating:** a customer who gave one form
+at booking and typed the other at the kiosk would be told their booking does not exist,
+and would have to find staff — the exact errand the close-out flow removes.
+
+**Fix:** compare the last **ten** digits when both strings have at least ten, which is
+the significant part of a mobile number once trunk prefixes and country codes are
+stripped; fall back to suffix matching for shorter entries, so someone typing only the
+last few digits off a receipt still matches. No country is hard-coded.
+
+**Why it was caught:** the matcher was extracted from the route into `lib/` purely so it
+*could* be tested, and the first realistic fixture broke it. It would not have been
+caught by type-checking, by lint, or by any smoke test that does not use two formats of
+the same number.
+
+---
+
+### B24 — `react-hooks/refs` taints a hook's whole return object  ✅ DONE (2026-08-29)
+**File:** `components/kiosk/KioskSignaturePad/KioskSignaturePad.tsx`
+**Found by lint in Stage 4b, after three wrong diagnoses — recorded so the next person
+does not repeat them.** Every property access on the signature hook's result
+(`p.onPointerDown`, `p.clear`, `p.hasInk` …) raised *"Cannot access refs during
+render"* — seven errors from one cause.
+
+What did **not** fix it: returning a callback ref instead of the ref object; hoisting
+the handlers into `useCallback` and memoising the return; removing the `useRef`
+entirely. The rule was tainting **property access on the returned object**, not the ref.
+
+**The fix is to destructure at the call site** —
+`const { setCanvas, onPointerDown, … } = useKioskSignaturePad(onChange)` — which breaks
+the chain the rule follows.
+
+⚠️ **Relevant to every other hook in this plan.** `useKioskBooking`, `useKioskShell` and
+the rest return objects read as `k.foo` and are **not** flagged, so the taint is
+specific to hooks the rule considers ref-bearing. If a future hook here grows a ref and
+starts throwing this error in bulk, destructure rather than restructuring the hook —
+that is the thing that actually works.
+
+**Kept from the wrong turns anyway:** the canvas now lives in state via a callback ref
+(the sizing effect has something real to depend on), and the stroke-in-progress flag is
+gone in favour of `hasPointerCapture` — one fact, one source.
+
+---
+
+### B21 — Attachments cannot be created before their offering exists  ✅ DONE (2026-08-29)
+**File:** `components/offerings/OfferingFormModal/OfferingFormModal.tsx`
+**Found while building I2.** `requirements` is a JSONB column on `offerings`, so the
+form saves it atomically with everything else. Attachments are **rows in their own
+table**, FK'd to `offerings(id)` — there is no id to attach them to until the offering
+is saved. Buffering them in state until Save would create a second write path that can
+fail *after* the offering has already been created, leaving the vendor with a saved
+offering and lost attachments and no clear recovery.
+
+**Resolved:** the editor mounts in **edit mode only**; add mode shows a one-line note.
+This is the same shape as schedules, which already prompt after creation
+(`SchedulePromptModal`) rather than being captured inline. Recorded rather than left
+implicit because it is a visible UX consequence of a schema choice, and the obvious
+"just buffer it" alternative looks reasonable until the failure path is drawn.
+
+---
+
+### B20 — Auth must precede the config check on payment routes  ✅ DONE (2026-08-29)
+**File:** `vendor/app/api/kiosk/payment/create-session/route.ts`
+**Found by probing the running route in Stage 2, not by reading it.** The first live
+request — an unauthenticated POST — came back
+`500 {"error":"Payment not configured"}`, because the `PAYMONGO_SECRET_KEY` check ran
+before `requireVendorAdmin`. Two problems: an anonymous caller learns the server's
+configuration state, and the guard could not be demonstrated at all because the request
+never reached it.
+
+**Inherited, not invented.** `booker/app/api/payment/create-session/route.ts` tests the
+key first too. The kiosk route was written as a deliberate fork of it and copied the
+ordering along with everything else.
+
+**Fixed:** authorise first, then check config, then read the booking. The caller now
+names the `vendorId` rather than having it read from the booking row — membership can
+then be checked with **no database read**, which also removes a booking-existence
+oracle: an unauthorised caller cannot learn whether a booking id is real. The booking's
+own `vendor_id` is still compared afterwards, so naming a vendor you administer does not
+let you pay for someone else's booking.
+**Verified live:** the same request now returns `401 {"error":"Not signed in."}`;
+`{}` still returns 400.
+
+⚠️ **Booker has the same ordering and was NOT changed** — it is a different app and
+outside this plan's approved scope (AGENTS.md cross-app gate). Worth its own small fix.
+
+---
+
 ## IMPORTANT
 
-### I1 — Port occupancy and span checking into vendor  ⬜ TODO
+### I1 — Port occupancy and span checking into vendor  ✅ DONE (2026-08-29)
+> **Delivered as three things, not the four functions this item first named** — because
+> B19 showed vendor already had the counting. `lib/slotAvailability.ts` gained
+> instant-based counting (B19), `slotInstant`, `slotDate`, `SlotBooking` and
+> `spanAvailable`; `services/kiosk.service.ts` is a thin paged fetch and nothing else.
+> `remainingForSlot` was **not** ported — `availabilityForDay` already returns
+> `remaining` per slot, and a second spelling of it is the duplication this item warns
+> about. `resolveScheduleForTime` is **not needed yet**: it resolves a picked time back
+> to a schedule for the booking write, which is Stage 2's job (B1) and belongs with the
+> code that writes the row.
+> 17 new tests (317 total, 0 fail). Verification detail under Stage 1 in Execution order.
 **Files:** `vendor/services/kiosk.service.ts` (new), reusing `vendor/lib/slots.ts` + `lib/occurrence.ts`
-**Reference:** `booker/services/schedules.service.ts:163-247`
+**Reference:** `booker/services/schedules.service.ts`
 
-Per F6/F7, occurrence and slot division already exist in vendor; the four missing
-pieces are `getSlotOccupancy`, `remainingForSlot`, `spanAvailable`,
-`resolveScheduleForTime`. Adapt them to vendor's `Schedule` shape (`date`/`time`/
-`end`/`days`/`repeat`/`max`) rather than booker's `BookerSchedule` — a
-field-for-field copy will not compile, and forcing booker's type into vendor would
-duplicate a type the app already has.
+**Re-scoped 2026-08-29 — this item got SMALLER.** The overnight work added
+`deriveSlots`, `spanFitsWindow`, `fitsInWindow`, `windowEnd` and `windowLength` to
+**both** apps' `lib/slots.ts`, so vendor already holds more of the arithmetic than when
+this item was written. Per F6/F7/F14 the remaining gaps are `getSlotOccupancy`,
+`remainingForSlot`, `spanAvailable` and `resolveScheduleForTime`. Adapt them to
+vendor's `Schedule` shape rather than booker's `BookerSchedule` — a field-for-field
+copy will not compile, and forcing booker's type into vendor would duplicate a type the
+app already has.
+
+⚠️ **Build on `deriveSlots(start, windowMinutes, duration)`, never `slotsInWindow`.**
+`lib/slots.ts:112-116` says plainly which is which: `slotsInWindow` is *"the interim
+`end_time`-shaped caller, kept working until the readers move over"*, and `deriveSlots`
+is *"THE ONE THAT SURVIVES … because a length has no midnight to cross."* New code
+written against the shim would be born deprecated **and** unable to express an
+overnight window — the exact bug the overnight plan just closed.
+
+✅ **Done — see the completion note at the head of this item.** The analysis below is
+kept as the record of how the scope was reached.
+
+⚠️ **Re-scoped again 2026-08-29 by B19.** F7 ("vendor lacks occupancy") is **false** —
+`lib/slotAvailability.ts` already counts overlap per slot. What vendor lacks is (a) a
+*fetching* layer, because the kiosk route has no `AppShell` bookings array to read from,
+and (b) correct handling of post-midnight bookings. How much of I1 remains depends on
+B19's open decision.
+
+⚠️ **Port the CURRENT booker versions — their signatures changed.** Verified
+2026-08-29 in `booker/services/schedules.service.ts`:
+`remainingForSlot(slot, occupancy, occurrenceDate)` and
+`spanAvailable(slot, quantity, slots, occupancy, occurrenceDate)` both take an extra
+**`occurrenceDate`**, and `getSlotOccupancy` now queries a **two-day span** keyed by
+epoch instants — because a slot's instant is `occurrenceDate + start_time`, and for an
+overnight window that lands on the following date. Porting the pre-refactor versions
+would compile and be wrong only after midnight, which is the worst failure shape.
+
+⚠️ **`getSlotOccupancy` must page (F16).** It selects booking rows for a date range; an
+unbounded select silently truncates at 1000 and would under-count occupancy, offering
+slots the trigger then refuses. Use `lib/pagedFetch.ts`, the same helper the
+cross-app truncation plan standardised on.
+
+**Reuse, do not re-derive:** `vendor/lib/scheduleWindow.ts` already provides
+`crossesMidnight`, `formatWindow`, `formatWindowLength` and `formatScheduleWhen`, and
+`lib/scheduleConflicts.ts` covers duplicate/overlap detection. Formatting a window
+inline in the kiosk would be a sixth copy of logic that now has one home.
 
 **`spanAvailable` must check every covered slot, not just the first.** The trigger
 takes the worst-case slot (`20260803000005:126-151`); a UI checking only the start
@@ -1137,7 +1922,23 @@ offering slots the DB rejects.
 
 ---
 
-### I2 — Attachment management UI in the offering form  ⬜ TODO
+### I2 — Attachment management UI in the offering form  ✅ DONE (2026-08-29)
+> `components/offerings/OfferingAttachmentsEditor/{.tsx, use*.ts, .module.css}` (the
+> full render/hook/style trio), `services/offeringAttachments.service.ts`,
+> `lib/types.ts` (`OfferingAttachment`, `AttachmentKind`, `AttachmentSummary`), and the
+> D13 badges on `OfferingCard` fed by `getAttachmentSummaries` from `useOfferingsPage`.
+> Photos capped at 3 with an "N of 3 used" counter; documents carry one switch,
+> **Requires signature**; the cover photo is first by `sortOrder`, reordered with the
+> arrows on each tile.
+> **Constraint discovered while building — recorded because it shapes the UX:**
+> attachments are rows FK'd to `offerings(id)`, not a JSONB column like `requirements`,
+> so they cannot exist before the offering does. The editor therefore renders in **edit
+> mode only**; add mode shows *"Save the offering first, then add photos and documents
+> to it."* This matches how schedules already behave (`SchedulePromptModal`), and it
+> avoids a second write path that can fail after the offering has been created.
+> Verified: `tsc --noEmit` **exit 0**, `eslint` **0 violations on every new file**,
+> `npm test` **325/325**. ⚠️ **No browser check** — not rendered, not clicked, no upload
+> performed. Storage RLS on the two buckets is unexercised.
 **Files (new):** `components/offerings/OfferingAttachmentsEditor/{OfferingAttachmentsEditor.tsx, useOfferingAttachmentsEditor.ts, OfferingAttachmentsEditor.module.css}`
 **Modified:** `components/offerings/OfferingFormModal/{OfferingFormModal.tsx, useOfferingForm.ts}`
 
@@ -1158,6 +1959,15 @@ the existing dashboard, not the kiosk**; the kiosk only ever reads what is set h
   switch: every document must be accepted (D11), stated once in the section copy
   rather than repeated as a control per row.
 - **Attachments are optional** and the empty state must say so, not sit blank.
+
+**Types are hand-written in this repo — no generation step will do it for you.**
+AGENTS.md makes updating the relevant interface an invariant after any schema change,
+and this plan added two tables and a column. Owed: `OfferingAttachment`
+(`id`, `offeringId`, `kind: 'photo' | 'document'`, `title`, `storagePath`, `body`,
+`version`, `requiresSignature`, `sortOrder`, `isActive`) in `vendor/lib/types.ts`,
+`BookingAcknowledgement` alongside it, and `booked_via` on vendor's `Booking` (already
+noted under B9). Only `vendor` needs them — booker, command and the mobile apps read
+none of this yet.
 
 **Also modified: `components/offerings/OfferingCard/OfferingCard.tsx`** (D13) — each
 card shows its cover photo, document count and a signature flag, or *"None — customers
@@ -1182,7 +1992,13 @@ been acknowledged.
 
 ---
 
-### I3 — Kiosk surface and its components  ⬜ TODO
+### I3 — Kiosk surface and its components  ✅ DONE (2026-08-29)
+> `KioskShell` (4a) plus the flow in `components/kiosk/KioskBooking/`: one stateful
+> orchestrator (`useKioskBooking`), a separate `useKioskCheckout` for the two writes,
+> and seven pure step renderers sharing one `.module.css`. `KioskHome` is folded into
+> the shell rather than made its own component — it is two buttons and no state.
+> Step order is data-driven from `lib/kioskSteps.ts`; no component decides its own
+> place in the flow.
 **Files (new):** `vendor/app/kiosk/{layout.tsx, page.tsx}`, `components/kiosk/…`
 
 Per D5 a sibling route with its own layout. Components, each with the render/hook/
@@ -1205,7 +2021,13 @@ style split unless marked pure display:
 
 ---
 
-### I4 — Responsive, touch-first kiosk design  ⬜ TODO
+### I4 — Responsive, touch-first kiosk design  ✅ DONE (2026-08-29)
+> All controls ≥44px, `clamp()` type so one build reads correctly on a 7" tablet and a
+> desk monitor, theme tokens throughout (no fixed colours), `100dvh` so browser chrome
+> cannot crop the action bar, a 640px breakpoint, and `maximumScale: 1` in the kiosk
+> layout so a stray pinch cannot leave a shared tablet broken. Offering tiles reserve
+> the photo box whether or not a photo exists, so a mixed grid does not reflow as
+> images land. ⚠️ **Not visually reviewed** — no browser, no device.
 **Files:** the `.module.css` files from I3
 
 Apply `.claude/skills/ux-design/SKILL.md` before building. Non-negotiables for a
@@ -1223,7 +2045,15 @@ way, or a grid of mixed tiles reflows as images land.
 
 ---
 
-### I5 — Signature capture  ⬜ TODO
+### I5 — Signature capture  ✅ DONE (2026-08-29)
+> `KioskSignaturePad` — canvas + Pointer Events, no dependency (D6). Handles device
+> pixel ratio (a blurry signature reads as a broken app), `touch-action: none` so the
+> first stroke draws instead of scrolling, and `setPointerCapture` so a finger leaving
+> the canvas keeps drawing.
+> **Two things the linter forced, both improvements:** the canvas is held in state via a
+> callback ref rather than a `useRef`, and the "is a stroke in progress" flag is gone —
+> `hasPointerCapture` already answers that, so the flag was a second copy of the same
+> fact that could drift. See B24.
 **Files (new):** `components/kiosk/KioskSignaturePad/*`
 
 Per D6, `<canvas>` + Pointer Events (`pointerdown`/`move`/`up`, with
@@ -1237,7 +2067,24 @@ button, and refusing to advance while the canvas is empty.
 
 ---
 
-### I6 — Vendor notified of their own kiosk booking  ⬜ TODO
+### ~~I6 — Vendor notified of their own kiosk booking~~  ✖ ABORTED (2026-08-29)
+**Decided against making any change, and this reverses the recommendation this item
+carried.** The item said to keep `payment_confirmed` and suppress the redundant
+`booking_created`, on the grounds that the vendor "just watched the booking happen".
+
+Assessed now that the flow exists: **that premise is wrong, and it is wrong precisely
+because this is a kiosk.** A kiosk is the self-service case — a customer books
+unattended while the vendor is elsewhere in the building. "A booking just happened" is
+then not noise, it is the only thing telling them. Suppressing it would remove the
+signal exactly where it is most useful.
+
+Also weighed: suppression would need `create or replace function
+public.notify_on_new_booking()` — a migration, and the schema locked when staging
+received it (B17a). Paying a corrective migration to delete a useful notification is the
+wrong trade twice over.
+
+**Revisit if** a real vendor reports the bell filling up at high kiosk volume. The fix
+then is a client-side filter or a per-type preference, not a trigger change.
 **Files:** `vendor/app/api/kiosk/booking/route.ts`, webhook behaviour (read-only)
 
 A kiosk booking fires the same notification path as a booker-originated one, so the
@@ -1253,7 +2100,33 @@ only the redundant `booking_created`. Deliberately not decided before B1 exists.
 
 ---
 
-### I7 — Tests and visual baselines  ⬜ TODO
+### I7 — Tests and visual baselines  🔄 IN PROGRESS (2026-08-29)
+> **Tests: done.** 13 new in `lib/kioskCloseOut.test.ts`, bringing the suite to **354**.
+> The identifier matcher was **extracted from the close-out route into `lib/` to make it
+> testable** — and the tests immediately earned it (see B25).
+> Cumulative across the plan: `kioskSteps` 16, `kioskEligibility` 8, `slotAvailability`
+> +17, `kioskCloseOut` 13.
+>
+> **UI-gallery fixtures: done, for what can honestly be fixtured.** Three added —
+> `kioskexit`, `kiosklauncher`, `kiosksignature`. `KioskShell` is deliberately absent:
+> it gates on the kiosk flag and a live session, so it renders null in a gallery and
+> would baseline an empty page. The step components take a whole flow-state object; a
+> fixture big enough to render them would be more fiction than fixture.
+>
+> ⏸ **Visual baselines: deliberately NOT generated, and this is the substantive call.**
+> A baseline freezes whatever renders as "expected". **No human has looked at the kiosk
+> yet** — generating snapshots now would lock in unreviewed output and convert any
+> layout mistake from a bug into a passing test. The gallery fixtures exist precisely so
+> the surfaces *can* be reviewed first.
+> **Unblocks when** someone has actually looked at `/ui-gallery?mode=kioskexit`,
+> `kiosklauncher` and `kiosksignature` and is happy with them; then
+> `npm run test:visual:update` for those three.
+> ⚠️ When that run happens: **never pipe it through `tail`** — that hides both the
+> failure count and the exit code. Read the summary from a redirected log.
+>
+> **⚠️ Two EXISTING baselines now fail, and they are B26 — a deliberate change, not a
+> regression.** Confirmed run: **2 failed, 159 passed of 161**; both failures are the
+> sidebar. They must be accepted before the suite is green again.
 **Files:** `vendor/lib/*.test.ts`, `vendor/visual-tests/`, `vendor/app/ui-gallery/`
 
 Per F12 the vendor suite is green (157/0), so new baselines land on a stable base.
@@ -1273,7 +2146,18 @@ nicety. Kept here per the status model; the specification lives at B15.
 
 ---
 
-### I8 — Kiosk offline behaviour  ⬜ TODO
+### I8 — Kiosk offline behaviour  ✅ DONE (2026-08-29)
+> `useKioskShell` gains an `offline` gate from `navigator.onLine` plus online/offline
+> listeners, and the shell renders the neutral panel with connection-specific copy.
+> **Chosen over branching `offline.html`**, as this item recommended: the service worker
+> only helps on a *navigation*, so a connection lost mid-flow would leave the kiosk
+> looking fine until a fetch failed silently.
+> Two judgement calls worth recording: `online` is initialised **optimistically**,
+> because `navigator.onLine` is false-negative-prone and a kiosk that refuses to start
+> on a bad reading is worse than one that tries and fails; and the **Staff sign-in**
+> button becomes **Staff exit** while offline, because authenticating needs the network
+> that is missing — the button could only fail. Exit stays available either way, since
+> staff must always be able to reclaim the tablet.
 **Files:** `vendor/public/offline.html` (existing), `components/kiosk/KioskShell/`
 
 `public/sw.js` is network-first for navigations and falls back to `offline.html`, so a
@@ -1347,24 +2231,69 @@ clearly, not about queuing bookings.
 Ordered by dependency and risk, not by numbering. **Cadence is one stage at a time**
 per `.claude/skills/developerboss/SKILL.md` unless you say otherwise.
 
-**Stage 0 — approval gate (nothing else can start).**  🔄 **Migrations written
-2026-08-26; not applied. Remaining in this stage: the `vendor/lib/legal.ts` `source`
-union must gain `"kiosk_booking"` — B2 fails at runtime without it.**
-B7 and B8 (attachment schema + storage) **and B9 + B10** (booking-origin marker + the
-widened custody rule). On approval I write the four migration files; **you apply
-them**. `lib/legal.ts`'s `source` union widens in the same batch (F9's coupling — B2
-fails at runtime without it).
-⚠️ B9 and B10 ship together, **B9 first**: the marker without the rule does nothing,
-and the rule without the pin is a hole. B10 is the riskiest change in this plan — see
-its one-line-diff requirement before applying.
+**Stage 0 — schema.**  ✅ **COMPLETE ON LOCAL (2026-08-29).** B7, B8, B9, B10 are
+written, re-cut at `20260829000001-4` (D16), and **applied to the local database**:
+`schema_migrations` carries all four, both tables and `bookings.booked_via` exist, three
+buckets exist, and D17's revoke held through a real apply. Verified by 15 assertions
+across two transaction runs — constraints, defaults, the pin trigger, the widened consent
+CHECK, the transition function's two kiosk clauses, grants, and the revoke tested by
+acting *as* `service_role`.
+`vendor/lib/legal.ts`'s `source` union gained `"kiosk_booking"` (F9's coupling) and
+type-checks clean.
+⚠️ **Hosted environments have none of this** — that is Stage 7 (B17), deliberately last.
+⚠️ **The files remain editable until Stage 7 runs.** If a later stage exposes a schema
+flaw, fix the migration and `npx supabase db reset` rather than stacking a corrective
+one — but see B17 for why `migration up` will silently no-op on an edited file.
+
+**Stage 1 — occupancy and span.**  ✅ **COMPLETE (2026-08-29).**
+Delivered: `lib/slotAvailability.ts` (B19 fix + `slotInstant`, `slotDate`, `SlotBooking`,
+`spanAvailable`), `lib/slotAvailability.test.ts` (+17 tests), `services/kiosk.service.ts`
+(paged two-day fetch). Machine-verified: `npm test` **317/317**, `npx tsc --noEmit`
+**exit 0**, `npx eslint` **clean on all three files** (the repo's 35 pre-existing lint
+problems are in other files and were not touched). The B19 fix was additionally proven
+by reverting it and confirming the new tests fail 3/27.
+⚠️ Nothing here is wired to a UI or a route — that is by design, and it means none of it
+has run against a browser or a live query yet. The `getSlotBookings` query shape is
+**unverified at runtime**; its first real exercise is Stage 2.
+
+<details><summary>Original scope statement (superseded)</summary>
 
 **Stage 1 — safe now, independent of everything above.**
 I1 (occupancy/span port + its tests). Touches no schema, ships behind no UI, and is
 the substrate B3 and I3 both consume. This is the whole safe prefix — the rest
 depends on Stage 0.
 
+</details>
+
+**Stage 2 — server routes.**  ✅ **COMPLETE (2026-08-29).**
+Delivered: `lib/kioskAuth.ts` (the single caller guard), `lib/kioskCustomer.ts` (B2),
+`lib/kioskEligibility.ts` + tests (B3's rule, 8 tests), `services/kiosk.service.ts`
+gained `getKioskOfferings` (B3), `app/api/kiosk/booking/route.ts` (B1),
+`app/api/kiosk/payment/create-session/route.ts` (B4).
+Machine-verified: `npm test` **325/325**, `tsc --noEmit` **exit 0**, `eslint` **exit 0**
+on all new files. **Live-verified** against a dev server + local Supabase: B1
+unauthenticated → **401**, no vendor → **403**, malformed body → **400**; B4
+unauthenticated → **401** (after B20), missing id → **400**.
+⚠️ **The happy path has NOT been run** — no booking has been created through this route,
+because that needs a signed-in vendor-admin session and a kiosk UI to drive it. Stage 4
+is its first real exercise. B4's PayMongo call is unreachable until `PAYMONGO_SECRET_KEY`
+exists in this app (Stage 3b/7).
+
+<details><summary>Original scope statement (superseded)</summary>
+
 **Stage 2 — server routes.** B1 → B2 → B4, in that order (B2 is called by B1; B4
 needs a booking to exist to be testable). B3's service lands with B1.
+
+</details>
+
+**Stage 3 — vendor-side attachment management.**  ✅ **COMPLETE (2026-08-29).**
+I2 delivered — see the item for what shipped and the create-mode constraint found while
+building it. Machine-verified: `tsc` exit 0, `eslint` 0 violations on all new files,
+325/325 tests. ⚠️ **Entirely unexercised in a browser**: no photo uploaded, no document
+created, no storage policy hit. That is Stage 3b/4's job and is the main reason the
+staging push comes next.
+
+<details><summary>Original scope statement (superseded)</summary>
 
 **Stage 3 — vendor-side attachment management.** I2. **Moved ahead of the kiosk UI
 2026-08-26, on review.** It was Stage 5 on the grounds of being independent, which is
@@ -1373,7 +2302,43 @@ waiver or a photo on an offering is hand-written SQL, so Stage 4's conditional s
 and photo tiles would have nothing real to render. Building the producer before the
 consumer costs nothing and removes a fixture-by-SQL step from every screen after it.
 
+</details>
+
+**Stage 3b — push the schema to STAGING (B17a).**  ✅ **COMPLETE (2026-08-29)** —
+pushed and verified `local == remote` for all four; grants re-check passed. Environment
+audit raised B22 and B23.
+<details><summary>What the stage was</summary>
+ `db push --linked`, then the two
+checks that are actually runnable now: the grant re-check (F18's divergence) and D10's
+bucket visibility. ⚠️ **Corrected 2026-08-29:** B4's PayMongo row and the other
+app-level rows are **not** runnable here — no `/kiosk` route exists yet and the PayMongo
+env vars are unset. They run in a second staging pass after Stage 4.
+⚠️ The migrations lock here: from this point a schema change costs a corrective
+migration, not an edit.
+</details>
+
+**Stage 4 — kiosk UI.**  🔄 **SPLIT 2026-08-29 — 4a complete, 4b remaining.** The stage
+as scoped was roughly four times any previous one, so it was split at the seam between
+the safety envelope and the booking flow.
+**4a ✅ done:** the kiosk exists, is reachable, contained, persistent and guarded —
+B12, B5, B6(1,2), B13, B14, B15, plus the route, shell and home screen.
+**4b ✅ done (2026-08-29):** the flow — offering grid, slot picker with B16's overnight
+labelling and day markers, customer form, agreements, signature (I5), payment,
+confirmation, and I4 polish across them. B6(3) is satisfied by creating the booking at
+the last possible moment, in `useKioskCheckout`; B6(4) remains documented-only, because
+no web page can reclaim a browser that has navigated to PayMongo.
+Machine-verified: `npm test` **341/341**, `tsc --noEmit` **exit 0**, and whole-app
+`eslint` **35 problems — identical to the pre-existing baseline**, so four stages added
+zero net lint debt. Live: `/`, `/kiosk` and `/kiosk?payment=success` all **HTTP 200**
+with **zero compile failures**.
+⚠️ **Nothing has been driven by a human.** No booking has been made, no signature drawn,
+no payment started, no photo rendered from the public bucket.
+
+<details><summary>Original scope statement</summary>
+
 **Stage 4 — kiosk UI.** I3 + I4 together (layout and styling are one pass), then I5.
+**B16 lands with the slot picker** — overnight rendering and the start-date label are
+part of building it, not a pass afterwards.
 **B12 lands with I3** — it is the step machine the shell owns, and its truth table is
 the first test to write, before any step component exists. B5 and B6 land here too,
 with the shell that owns them, as do **B14** (the mode flag and the `/` redirect) and
@@ -1383,21 +2348,93 @@ everything before it reachable, and its dialog needs B3's exclusion count and B5
 warning copy to already exist.
 B5 and B6 land with the shell that owns them.
 
+**Stage 5 — close-out.**  ✅ **COMPLETE (2026-08-29)** — B11 delivered; see the item for
+the two recorded deviations and what remains unverified.
+
+<details><summary>Original scope statement</summary>
+
 **Stage 5 — close-out.** B11 (both patterns), once Stage 4's kiosk shell exists to host it and
 Stage 0's B9/B10 are applied. Verifiable end to end only when both are true: the
 transition raises until the migrations land.
 
+</details>
+
+**Stage 6 — sweep.**  ✅ **COMPLETE (2026-08-29)**, with two items honestly short of
+done: **I7 is 🔄** (tests and gallery fixtures delivered; visual baselines deliberately
+not generated — see the item) and **I6 is ✖ ABORTED** after assessment reversed its own
+recommendation. **B25** and **B26** were found during the sweep.
+Docs updated: `architecture/schema.md` (four migration rows, `bookings.booked_via`, and
+full sections for both new tables including why a grant alone did not make
+`booking_acknowledgements` append-only), `architecture/booking-flow.md` (kiosk as a
+second booking origin, the close-out path, overnight `booked_date`), and
+`architecture/portals.md` (the kiosk surface, why it is a route rather than a page, mode
+persistence, and the device-lockdown requirement).
+
+<details><summary>Original scope statement</summary>
+
 **Stage 6 — sweep.** I6, I7, I8, and the doc updates: `architecture/portals.md` (the
 kiosk surface + B5's device-lockdown requirement), `architecture/schema.md` (both new
-tables), `architecture/booking-flow.md` (kiosk as a second origin for bookings, and the
+tables **and `bookings.booked_via`**, including that its pin trigger makes it
+insert-only, and D17's revoke — a reader who sees the grant line alone would conclude
+the wrong thing), `architecture/booking-flow.md` (kiosk as a second origin for bookings, and the
 kiosk close-out path — its fulfilment section currently states the vendor cannot make
 either the `in_progress → returned` or the `fulfilled → completed` move, which B10
 makes conditionally untrue for `booked_via = 'kiosk'` rows).
+
+</details>
+
+**Stage 7 — production (B17b).** `db push` to production, re-check the grants, **then**
+the app builds — in that order, not the same sitting. Deliberately last, and deliberately
+unsurprising: every live-environment row was already run on staging at Stage 3b.
+**No app build reading the new tables may reach production until this completes.**
 
 **Coupled batches that must not be split:** B7 + B8 + the `lib/legal.ts` union
 (Stage 0). **B9 + B10** — the marker and the rule are one change in two files, and
 shipping B10 without B9's pin is a security hole, not a partial feature. B1 + B2 (a
 booking without its consent record is the gap B2 exists to close).
+
+---
+
+
+## Git handover (the user runs these; Claude does not)
+
+Commits here are GPG-signed, so every git step below needs the user's passphrase.
+Two things to do, in order.
+
+### 1. Unblock the `backbone` checkout — one root-owned file
+
+`git checkout feature/kiosk` aborts on an untracked `supabase/snippets/Untitled query
+756.sql`. It is **byte-identical** to the copy tracked on the branch (verified with
+`diff`), so deleting it loses nothing — the checkout restores the same bytes. It needs
+`sudo` only because the directory is `root:root`.
+
+```bash
+cd ~/RS/backbone
+sudo rm "supabase/snippets/Untitled query 756.sql"
+# optional, stops this recurring: chown the directory back to yourself
+sudo chown -R "$USER:$USER" supabase/snippets
+```
+
+### 2. Rebase `backbone`'s `feature/kiosk` onto `develop`
+
+`vendor` is already done; `command` has nothing to rebase. Only `backbone` is behind.
+
+```bash
+cd ~/RS/backbone
+git checkout feature/kiosk
+git rebase develop            # replays 055d185 on top of the 20260828 migrations
+git log --oneline -3          # expect: kiosk commit, then 20260828 work beneath it
+```
+
+**Expected after:** `git rev-list --left-right --count develop...feature/kiosk` prints
+`0	1` — nothing behind, one kiosk commit ahead. Conflicts are unlikely: `055d185`
+adds four new files and touches nothing the overnight work changed.
+
+### 3. Then tell Claude to re-cut the migrations
+
+Only after step 2. The re-cut deletes the four `20260826…` files and writes them as
+`20260829…` (D16), and re-extracts B10's function body from the now-current tree
+(F17). Claude writes the files; the user commits and applies them.
 
 ---
 
@@ -1442,6 +2479,14 @@ booking without its consent record is the gap B2 exists to close).
 | **B12** | Inactive attachments are excluded: an offering whose only waiver is `is_active = false` goes Details → Payment | **machine (test)** |
 | **D10** | An `offering-photos` object resolves over the public endpoint with no token; an `offering-attachments` object does **not** | **needs live DB** |
 | **D10** | A vendor-admin of vendor A cannot write into vendor B's photo folder | **needs live DB** |
+| **B16** | A 23:00–01:00 window with a 1-hour offering renders two slots, the second labelled with its own (next) date — not an inverted or empty range | **machine (test) + browser** |
+| **B16** | Booking the 00:00 slot writes `booked_date` = the **next** day, and the confirmation screen shows that same date | **needs live DB** |
+| **I1/F16** | `getSlotOccupancy` pages: seed >1000 booking rows for one date and confirm occupancy is complete, not truncated at 1000 | **needs live DB** |
+| **D16** | `supabase migration list` shows the kiosk migrations ordering **after** `20260828000003`, with no gap in applied history | **needs live DB** |
+| **B1** | A signature-requiring booking writes ONE acknowledgement row with `signature_path` already set — no UPDATE is attempted, and none would succeed (D17) | **needs live DB** |
+| **B1** | An upload that succeeds before a failed insert leaves no orphaned object — rollback sweeps it | **needs live env** |
+| **B2** | Two concurrent kiosk bookings for the same new email produce ONE profile and two bookings, not a duplicate-email error | **needs live DB** |
+| **B17a/B17b** | After **each** `db push` — staging at Stage 3b, production at Stage 7 — `role_table_grants` for `booking_acknowledgements` reads `authenticated => SELECT`, `service_role => INSERT,REFERENCES,SELECT,TRIGGER`. A difference between the two environments is itself a finding | **needs live DB** |
 | **regression** | Existing vendor flows unchanged end to end: booking approve/reject, fulfilment actions, offering create/edit, KYC upload, vendor registration | **browser + existing visual suite** |
 | **regression** | `npm run test:visual` in `vendor/` still **157 passed / 0 failed** for pre-existing baselines, with kiosk baselines added on top | **machine** |
 | **regression** | Booker and command untouched — `git status` shows no files changed outside `vendor/` and `backbone/` | **machine (git)** |

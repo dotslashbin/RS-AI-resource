@@ -4,10 +4,13 @@
 **App / scope:** `command/`, `vendor/` only. No backend, no schema, no `ezzy-*-mobile`, no `booker`.
 **Status:** COMPLETE (2026-08-18) — all six stages executed; every decision D1–D10
 resolved. Every BLOCKER and IMPORTANT item is ✅.
-⚠️ Two things are deliberately NOT closed and are not defects of this plan: **B8's
-browser-Back behaviour is machine-checked but never exercised in a signed-in session**
-(no harness exists for it), and **C5–C8 are open follow-ups**, of which C8 (12
-pre-existing payout baseline failures) predates this work.
+**Closed out 2026-08-18.** C1–C8 are all ⏸ PARKED with reasons and unblock conditions —
+deliberately **not** marked ✅ DONE, because none of them was actually fixed and a
+DONE that was never executed is the precise failure the status model exists to prevent.
+⚠️ Two caveats survive this plan and are not defects of it: **B8's browser-Back
+behaviour is machine-checked but was never exercised in a signed-in session** (no
+harness can reach one), and **C8's 12 payout baseline failures predate this work** and
+keep the vendor visual suite red.
 
 > Three independent workstreams: (1) a persistent Home affordance in both portals,
 > (2) Command adopts Vendor's already-approved Ezzy brand assets, (3) Vendor's
@@ -854,14 +857,20 @@ abstraction nothing else needs.
 
 ## DEFERRED / COSMETIC
 
-### C1 — Global content padding is `p-5` at every width
+### C1 — Global content padding is `p-5` at every width  ⏸ PARKED (2026-08-18)
+**Why parked:** out of proportion — it touches every vendor screen and invalidates every
+baseline for a benefit B6 already delivered on Bookings. **Unblocks if:** a width test
+fails after B6, which none now does.
 `vendor/AppShell.tsx` uses `flex-1 p-5 overflow-y-auto`, costing 40px of a 320px
 screen on every screen. `p-4 sm:p-5` would buy 8px back everywhere.
 **Not doing it:** it touches every Vendor screen and invalidates every visual
 baseline, for a benefit the B6 fix already delivers on Bookings. Out of proportion to
 the ask. Revisit only if a width test still fails after B6.
 
-### C3 — Back does not close an open mobile sidebar first
+### C3 — Back does not close an open mobile sidebar first  ⏸ PARKED (2026-08-18)
+**Why parked:** needs a second history layer on top of B8's for a drawer that `goPage`
+already closes on every navigation. **Unblocks if:** testing shows people actually
+reach for Back to dismiss the drawer.
 A common mobile pattern: with the drawer open, Back closes the drawer rather than
 navigating. **Not doing it** — it needs its own history entry pushed on drawer open
 and popped on close, layered on top of B8's per-page entries, and `goPage` already
@@ -869,7 +878,10 @@ closes the sidebar on every navigation so the drawer never survives a Back anywa
 Adding history depth for a drawer is the over-engineering this plan is otherwise
 avoiding. Reopen only if testing shows people actually reach for it.
 
-### C4 — Command still has no URL mirror, so a mid-stack reload drops to Overview
+### C4 — Command still has no URL mirror, so a mid-stack reload drops to Overview  ⏸ PARKED (2026-08-18)
+**Why parked:** the accepted consequence of D10(a), and not a regression — Command had
+no refresh-survival before either. **Unblocks if:** it starts to bite; D10(b) (port
+vendor's `?page=` mirror) is the documented upgrade path.
 Under D10(a) Command's history entries carry no URL, so it cannot deep-link, and
 `event.state` does not survive a refresh — reloading on a nested page returns to
 Overview and discards the back-stack. Vendor does not have this problem because its
@@ -901,7 +913,12 @@ moving below it.
 confirmation is the last place to let the question become unreadable.
 **Verified:** reported at 236 > 214 before, absent after.
 
-### C8 — 12 payout visual baselines fail, pre-existing  ⬜ TODO
+### C8 — 12 payout visual baselines fail, pre-existing  ⏸ PARKED (2026-08-18)
+**Why parked:** predates this plan — proven by stashing every change in Stage 6 and
+reproducing the identical 12-pixel diff. Not this plan's to fix.
+⚠️ **Consequence:** the vendor visual suite is red until these are triaged or
+re-baselined, so it cannot serve as a clean gate. **Unblocks if:** someone triages the
+12-pixel signature (it resembles the date-drift class the spec header documents twice).
 `payoutform-*` and `payoutsaved-*` (light and dark) each differ by **12 pixels**
 against their baselines. **Not caused by this plan** — confirmed by stashing every
 change in this stage and re-running, which reproduces the identical 12-pixel diff.
@@ -911,7 +928,10 @@ spec header already documents twice.
 re-baselined. Out of scope here; recorded so a later "the suite is red" is not
 mistaken for this plan's doing.
 
-### C7 — Vendor's `offline.html` still uses the old brand blue  ⬜ TODO
+### C7 — Vendor's `offline.html` still uses the old brand blue  ⏸ PARKED (2026-08-18)
+**Why parked:** D7 authorised only the `sw.js` fix in vendor; this is a different file
+and a visible change, so it needs its own go-ahead. **Unblocks if:** you say go — the
+fix is copying Command's corrected `public/offline.html` back over vendor's.
 **File:** `vendor/public/offline.html`
 Its badge is the letter `V` on `#205cfc` — the **previous** brand blue that
 `vendor/app/manifest.ts:14-16` documents as replaced by `#034bfc`. Command's ported
@@ -922,7 +942,11 @@ different file.
 nothing else. Needs its own go-ahead since it is a vendor visual change outside this
 plan's vendor scope.
 
-### C5 — After logout, the address bar keeps the last page (vendor)  ⬜ TODO
+### C5 — After logout, the address bar keeps the last page (vendor)  ⏸ PARKED (2026-08-18)
+**Why parked:** cosmetic — nothing renders wrongly and nothing is exposed; the query
+string is a reflection, never a source of truth after mount. Fixing it means writing
+the URL on logout, more moving parts than the symptom warrants. **Unblocks if:** the
+stale `?page=` confuses someone in practice.
 Found while implementing B8 (2026-08-18). `popstate` navigates the URL *before* the
 handler runs, and the handler is deliberately inert when signed out — so pressing
 Back on the login screen changes the address bar without changing what is rendered.
@@ -934,7 +958,10 @@ reflection, never a source of truth after mount. Fixing it means writing the URL
 logout, which is more moving parts than the symptom is worth. Recorded so it is a
 known limitation rather than a surprise.
 
-### C6 — `useSidebar` returns unstable callbacks (command)  ⬜ TODO
+### C6 — `useSidebar` returns unstable callbacks (command)  ⏸ PARKED (2026-08-18)
+**Why parked:** a one-line `useCallback` fix, but in a shared hook with other consumers
+— outside this plan's scope. Already worked around in `useAppShell` by capturing the
+raw `setOpen`. **Unblocks if:** anyone is next in that file for its own reasons.
 **File:** `command/components/layout/Sidebar/useSidebar.ts:5-11`
 Every render rebuilds the returned object *and* its `toggle`/`close` arrows, so any
 consumer depending on them re-runs. Caught by `react-hooks/exhaustive-deps` when B8's
@@ -945,7 +972,11 @@ stable, which was **wrong**. Worked around in `useAppShell` by capturing the raw
 shared hook with other consumers, which is outside this plan's scope. One-line fix
 for whoever is next in that file.
 
-### C2 — Command has no visual-regression suite
+### C2 — Command has no visual-regression suite  ⏸ PARKED (2026-08-18)
+**Why parked:** building one is its own piece of work, not a step of this plan.
+**Unblocks if:** someone takes on Command test coverage. Consequence meanwhile: every
+Command change in this plan was verified by build + targeted screenshots, never by a
+suite — do not report otherwise.
 `command/playwright.config.ts` points at `./visual-tests`, which **does not exist**.
 Command's harness is configured but empty. Not created by this plan — flagged so
 "run the visual suite" is not offered as Command verification when it cannot run.

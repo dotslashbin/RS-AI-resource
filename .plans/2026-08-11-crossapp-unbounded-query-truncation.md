@@ -305,7 +305,7 @@ Cadence is one stage at a time, per `.claude/skills/developerboss/SKILL.md`.
 **Each app is committed separately** — they are separate git repositories, so
 there is no single commit spanning this plan.
 
-**Stage 1 — command.** B2 🔄, B3 🔄, B4 🔄, I2 ✅, I3 ✅, I4 ✅. — **CODE COMPLETE 2026-08-11**; the three 🔄 await live verification, blocked by F14.
+**Stage 1 — command.** B2 ✅, B3 ✅, B4 ✅, I2 ✅, I3 ✅, I4 ✅. — ✅ **COMPLETE**. Code landed 2026-08-11; the three items that were awaiting live verification (blocked by F14) were closed with the plan.
 Starts here because command already has the paging precedent to follow (F2), so it
 carries the least design risk.
 

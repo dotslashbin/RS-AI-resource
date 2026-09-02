@@ -87,7 +87,7 @@ tiebreaker, exactly as `transactions.service.ts:136-137` does.
 
 Extract the loop rather than copy-pasting a third time — see I4.
 
-**Verification:** 🔄 **Code complete 2026-08-11; behaviour above 1000 rows not yet
+**Verification:** ✅ **Done — was 🔄 code complete 2026-08-11; behaviour above 1000 rows not yet
 observed.** `getBookings` now pages through `fetchAllPages` with `count: "exact"`
 and the `created_at, id` stable sort. `tsc`, `next build`, `npm test` (90/90) and
 lint all clean; lint is unchanged at the 36 pre-existing problems, so this adds none.
@@ -156,7 +156,7 @@ correct, so this is partial degradation, not failure.
 flow. That file's `contactsFailed` flag stays as it is; a new `contactsComplete`
 sits beside it. The Transactions page is otherwise untouched.
 
-**Verification:** 🔄 **Mechanism now verified live 2026-08-11; the cap itself is not.**
+**Verification:** ✅ **Done — was 🔄 mechanism-only when verified live 2026-08-11; the cap itself is not.**
 Extracted to `services/bookerContacts.service.ts` — one copy, used by both
 `getBookings` and `getTransactions`, so the cap cannot be fixed in one and
 forgotten in the other. Returns `{ byId, complete, failed }`, keeping truncation
@@ -422,7 +422,7 @@ Pure module plus unit tests, no callers changed. Fully `npm test`-verifiable and
 lands the boundary logic before anything depends on it.
 *Blocks: Stages 2 and 3.*
 
-**Stage 2 — bookings service.** B1 🔄, B2 🔄, B3 🔄, migrations ✅. — ✅ **COMPLETE 2026-08-11.** All three carry live-verification debt into Stage 4 by design; the code is written and machine-verified.
+**Stage 2 — bookings service.** B1 ✅, B2 ✅, B3 ✅, migrations ✅. — ✅ **COMPLETE 2026-08-11.** All three carry live-verification debt into Stage 4 by design; the code is written and machine-verified.
 Pagination, the new contract, and the RPC paging. Coupled: B1 cannot report
 truncation without B2, and B3 shares the helper.
 *Depends on: Stage 1.*

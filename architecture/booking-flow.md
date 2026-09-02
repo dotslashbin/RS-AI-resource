@@ -87,7 +87,9 @@ Fetches vendors that have an active offering matching the selected `code`. Uses 
 **Component:** `Step3Schedule/Step3Schedule.tsx`  
 **Service:** `services/schedules.service.ts` → `getSchedulesForVendor(vendorId, offeringCode)`
 
-Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `endDate`, `startTime`/`endTime` (HH:MM, **nullable** — NULL for date-granular offerings), `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `capacityPerSlot`, and `durationMinutes`/`durationUnit` **per schedule** (see I10 under Step 3).
+Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `endDate`, `startTime` and `windowMinutes` (**nullable** — NULL for date-granular offerings), `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `capacityPerSlot`, and `durationMinutes`/`durationUnit` **per schedule** (see I10 under Step 3).
+
+⚠️ **`windowMinutes` is the stored value; `endTime` is DERIVED for display** (`20260828000002`). Never do arithmetic with `endTime`: for a window running past midnight it reads *earlier* than `startTime`, which is precisely the inverted-range bug the length model removed. Use `windowMinutes` with `lib/slots.ts`.
 
 ### Calendar
 
@@ -120,7 +122,10 @@ Occurrence dates are computed client-side from each schedule's recurrence rule:
 ### Time Slots — derived, not stored (2026-08)
 
 `getSlotsForDate(schedules, dateStr)` divides each occurring schedule's **window** by
-that schedule's own `duration_minutes` and returns every resulting unit.
+that schedule's own `duration_minutes` and returns every resulting unit. Since
+`20260828000002` the window is a start plus a **length**, so it may run past midnight:
+`23:00` for 120 minutes yields slots at `23:00` and `00:00`, and the second is physically
+the following day.
 
 > **This is the change that made the booker show reality.** It previously returned the
 > distinct `start_time` values of the *schedules* on that date — one entry per schedule,
@@ -130,6 +135,32 @@ that schedule's own `duration_minutes` and returns every resulting unit.
 Each slot renders as **start–end with a per-slot "N left"**. `endTime` and capacity were
 fetched and discarded before this; nothing showed a booker how long a booking was or
 whether it was nearly full.
+
+#### Overnight windows — three consequences for this step (2026-08-28)
+
+**1. A booking's `booked_date` is the date it STARTS, not the date its schedule's window
+opened.** For a same-day window those coincide. For a Friday 23:00–01:00 window they do
+not: the `00:00` slot is stored as **Saturday** 00:00. The *occurrence* is still Friday,
+and `check_booking_placement()` derives it back — a start earlier in the clock than the
+window opens can only belong to the previous day's window. Booked date is the primitive
+because a booking must describe its own span with no join; filing it under the occurrence
+would make `booked_date + start_time` resolve twenty-four hours early.
+
+**2. The customer reaches that `00:00` slot through FRIDAY's date cell**, not Saturday's.
+The calendar marks the day a window *opens*. A schedule running Fridays 23:00–01:00 marks
+Fridays only.
+
+**3. Therefore the past-day cutoff is span-aware, not date-based.**
+`earliestSelectableDate(schedules, now)` returns yesterday while any of its slots are still
+in the future, and it is the **single** cutoff used by `getAvailableDaysInMonth`, `isPast`
+and `isPastMo`. Cutting the calendar off at today's midnight would make a slot fifty
+minutes away unreachable at 00:10, because it lives under a day that has just become
+"past". `isPastMo` matters as much as the others: at 00:10 on the 1st, the live slot
+belongs to the last day of the *previous month*.
+
+Slots whose start has already passed are filtered out of `slotViews`, against a `now` held
+in state and ticked each minute — a `Date.now()` read during render never recomputes, so an
+expiring slot would otherwise stay on offer.
 
 **Quantity.** Once more than one unit fits, a quantity control appears and the booking
 spans consecutive slots. A start slot is selectable only if **every** slot the quantity
@@ -395,6 +426,67 @@ Do **not** scan the generated QR code in test mode — it processes real transac
 | ~~Duplicate booking check~~ | ~~None~~ | **Done** — DB `UNIQUE (booker_id, schedule_id, booked_date)` + service maps `23505` to `"already_booked"` |
 | ~~Booking history from DB~~ | ~~Dashboard shows seed data~~ | **Done** — `getBookings()` fetches real rows; loaded on login |
 | ~~Capacity overbooking~~ | ~~No DB enforcement~~ | **Done** — `check_booking_capacity()` BEFORE INSERT trigger, row-locked via `FOR UPDATE` on the schedule as of 2026-07-24 (closes a prior TOCTOU race under concurrent bookings for the last slot) |
+
+---
+
+## Kiosk Mode — a second origin for bookings (2026-08-29)
+
+Until now every booking came from the booker portal. **Kiosk Mode** (`vendor/app/kiosk`)
+adds a second origin: a walk-in books and pays for themselves on a tablet at the
+vendor's front desk. `bookings.booked_via` records which (`booker` | `kiosk`).
+
+**What is the same.** The slot rules, `check_booking_placement()`, the trigger-derived
+`price_paid`, the PayMongo Checkout Session, and — importantly — **the webhook**.
+`booker/app/api/payment/webhook` keys purely on `metadata.booking_id` and writes with
+service role, carrying no app-scoping, so it settles kiosk payments unmodified. There is
+deliberately **no second webhook**: two registered endpoints would race on the same
+`is_paid` transition for no gain.
+
+**What differs, and why.**
+
+| | Booker | Kiosk |
+|---|---|---|
+| Who is signed in | the booker | the **vendor** |
+| Booking insert | client, under RLS (`booker_id = auth.uid()`) | **service-role route**, because the row's booker is not the caller |
+| Payment route | `booker/api/payment/create-session`, asserts `booker_id = user.id` | `vendor/api/kiosk/payment/create-session`, asserts caller is a **vendor-admin of `booking.vendor_id`** |
+| The customer's account | they signed up | **created for them** — profile, `booker` portal, `member` role, active status, and a `legal_acceptances` row with `source = 'kiosk_booking'` |
+
+> **Why the customer gets a real account rather than a shared "walk-in" profile.** Two
+> walk-ins on one profile is not merely untidy, it is impossible: `bookings_no_duplicate`
+> and the placement trigger's same-booker overlap test would refuse the second one on the
+> same slot however much capacity remained. And the account must be *complete* —
+> `verifyBookerAccess` needs a portal row, a role row **and** active status, so a profile
+> left at the `handle_new_user` default of `status_id = 3` could neither log in, read its
+> own booking, nor be signed up for later, since both registration paths treat an
+> existing `profiles` row as "email taken".
+
+### Closing a kiosk booking
+
+A kiosk customer never logs in, so `v_booker` (`auth.uid() = booker_id`) is unsatisfiable
+for their bookings — and **both** booker-reserved transitions deadlocked:
+`in_progress → returned` (custody) and `fulfilled → completed` (session). Custody
+deadlocked hard, because `in_progress` has no timer by design; session deadlocked softly,
+completing after three days on the auto-acknowledge.
+
+`20260829000004` widens both to accept a **vendor-admin where `booked_via = 'kiosk'`**.
+The customer confirms on the tablet in front of them, at `/kiosk` → *Finish a booking*,
+identifying their own booking by phone or reference — never from a list, which on a
+public screen would show every other customer's name.
+
+> ⚠️ **The trade, stated plainly.** The database cannot distinguish "the customer tapped
+> it" from "the vendor tapped it" — the session is the vendor's either way. This buys the
+> *shape* of two-party attestation, not the guarantee. What the marker buys is that the
+> widening reaches **only** kiosk-originated bookings; every booker-originated custody
+> booking keeps its counterparty check exactly as it was.
+
+### Overnight windows at the kiosk
+
+`booked_date` is the date a booking **starts**, so the `00:00` slot of a Friday
+23:00–01:00 window is stored under **Saturday**. The kiosk therefore labels any slot
+whose own date differs from the chip the customer tapped, and the booking route derives
+`booked_date` server-side from the schedule's window start rather than trusting a date
+from the client. Without that, a customer tapping `00:00` under a chip reading *Today*
+books tomorrow and arrives on the wrong day.
 
 ---
 

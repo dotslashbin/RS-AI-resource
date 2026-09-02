@@ -70,6 +70,13 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260803000004_booking_derive_price_and_span.sql` | `check_booking_consistency()` now **derives** `price_paid` (`offering.price * quantity`) and the booking's span, and pins them plus `quantity` against UPDATE. Closes a hole where the client wrote `price_paid` and the PayMongo route then trusted it |
 | `20260803000005_booking_slot_and_capacity.sql` | `check_booking_placement()` replaces `check_booking_capacity()`: slot-boundary legality, window fit, **recurrence validity in the DB** (previously app-layer only), per-covered-slot capacity, and same-booker overlap. Renamed so it sorts **after** `bookings_check_consistency` — BEFORE triggers fire alphabetically and this one reads the span that one computes |
 | `20260816000002_completion_view_service_role_grant.sql` | Corrective: grants `service_role` SELECT on `vendor_account_completion`, which `20260816000001` omitted. Not a live bug at the time (every reader was `authenticated`), but the first server-side reader would have failed |
+| `20260828000001_schedule_window_minutes_expand.sql` | **EXPAND.** `schedules` gains `window_minutes`; backfilled from `end_time − start_time`. Both trigger functions move their time arithmetic onto **timestamps** (`date + time`), which carry the day and cannot wrap — so `check_booking_consistency()` drops its "would run past midnight" guard and starts populating `bookings.end_date` for a span that finishes the next day. A temporary `schedules_sync_window` trigger keeps `window_minutes` and `end_time` in step so the pre- and post-refactor app builds can both write during the deploy. **Changes no behaviour:** `end_time` and its CHECK both survive, so an overnight window is still refused |
+| `20260828000002_schedule_window_minutes_contract.sql` | **CONTRACT.** Drops the sync trigger, adds `schedules_window_minutes_range` (`0 < window_minutes <= 1440`) and `schedules_window_shape` (`start_time` and `window_minutes` are NULL together), drops `schedules_end_after_start` and **drops `end_time`**. This is the migration that makes overnight windows legal. Run only after both app builds are deployed — the old builds name `end_time` in their select lists and 400 the moment it goes |
+| `20260828000003_schedules_no_duplicate_rule.sql` | Unique index on `(vendor_id, offering_id, staff_id, start_date, end_date, start_time, window_minutes, days_of_week, recurrence) WHERE is_active`, `NULLS NOT DISTINCT`. One active availability rule per vendor — the backstop for a double-submitting form, which produced three identical schedules in testing |
+| `20260829000001_offering_attachments.sql` | `offering_attachments` (photos and documents a vendor attaches to an offering) and `booking_acknowledgements` (append-only proof a customer accepted them). Also widens `legal_acceptances_source_check` to admit `kiosk_booking`. ⚠️ Two kinds only — `photo` \| `document`; there is **no `requires_agreement`**, because every document must be accepted and a column carrying `true` forever is a constant pretending to be data. `offering_attachments_photo_no_signature` refuses a photo that demands a signature |
+| `20260829000002_attachment_storage.sql` | Three buckets: `offering-attachments` (private, documents), **`offering-photos` (PUBLIC**, display images — a kiosk grid fetches them on every load, and signed URLs would be a round trip per tile plus expiry), and `booking-signatures` (private, **no `authenticated` write policy at all** — signatures are service-role-written, because a vendor-writable signature is a forgeable one) |
+| `20260829000003_booking_origin.sql` | `bookings.booked_via` (`booker` \| `kiosk`, default `booker`) plus `bookings_pin_origin`, a BEFORE UPDATE trigger that refuses any change to it. ⚠️ **The pin is the load-bearing half:** the bookings UPDATE policy lets a vendor-admin write any column on their own rows, so an unpinned marker could be flipped to `kiosk` to unlock the widened rules below |
+| `20260829000004_kiosk_customer_close_out.sql` | Replaces `validate_booking_status_transition()` to let a **vendor-admin** make the two booker-reserved moves — `in_progress → returned` and `fulfilled → completed` — **only** where `booked_via = 'kiosk'`. A kiosk walk-in never logs in, so `v_booker` is unsatisfiable for their bookings and both transitions deadlocked. ⚠️ The database cannot tell whether the customer or the vendor tapped; the marker only guarantees the widening reaches nothing else |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -559,7 +566,7 @@ Vendor-defined availability slots for a specific offering. Stores a recurrence r
 | `start_date` | `date` | First available date |
 | `end_date` | `date` | Last available date, inclusive. NULL = open-ended. For date-granular offerings this and `start_date` **are** the availability; for time-granular it bounds the recurrence |
 | `start_time` | `time` | Start of the daily availability **window** — not a bookable slot. **Nullable**: NULL for date-granular offerings, which have no time of day |
-| `end_time` | `time` | End of the window. Nullable, same reason. Must be after `start_time` when both are present |
+| `window_minutes` | `integer` | Length of the window from `start_time`, in minutes. **Replaced `end_time` in `20260828000001`.** Nullable, same reason as `start_time`. `0 < window_minutes <= 1440` |
 | `days_of_week` | `smallint[]` | 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun. Empty for one-time |
 | `recurrence` | `text` | `none` / `weekly` / `biweekly` / `monthly` |
 | `capacity_per_slot` | `integer` | NOT NULL, default **`1`**, `check (> 0)`. How many bookings may share ONE derived slot (time-granular) or one date (date-granular). Was `max_capacity` default `20`, which conflated "seats in a class" with "simultaneous holders of one asset" **and** was the only thing preventing a double-booking. Now it does exactly one job: sharing |
@@ -574,9 +581,11 @@ Vendor-defined availability slots for a specific offering. Stores a recurrence r
 
 **Integrity:** A cross-vendor trigger ensures `offering.vendor_id` and `staff.vendor_id` both match `schedule.vendor_id`, preventing data mixing between vendors.
 
-**A schedule is an availability RULE, not a bookable thing.** `start_time`–`end_time`
-is the daily **window**; the bookable units inside it are **derived** by dividing that
-window by the offering's `duration_minutes`. Nothing stores them — a 09:00–17:00 window
+**Unique index:** `schedules_no_duplicate_rule` on `(vendor_id, offering_id, staff_id, start_date, end_date, start_time, window_minutes, days_of_week, recurrence) WHERE is_active`, `NULLS NOT DISTINCT` (`20260828000003`). One active availability *rule* per vendor. `title` and `capacity_per_slot` are deliberately **not** part of the key — both are attributes of a rule rather than its identity, and including title would let the same rule exist twice under two names. Two identical active rules derive the same slots (the booker dedupes them to one) while giving the placement trigger two separate capacity buckets, which is how one hour gets sold twice. Raises `23505`, mapped to plain English in `vendor/services/schedules.service.ts`.
+
+**A schedule is an availability RULE, not a bookable thing.** `start_time` plus
+`window_minutes` is the daily **window**; the bookable units inside it are **derived** by
+dividing that window by the offering's `duration_minutes`. Nothing stores them — a 09:00–17:00 window
 against a 1-hour offering yields eight slots, computed identically by
 `check_booking_placement()` in the DB, `vendor/lib/slots.ts` in the schedule form's
 preview, and `booker/lib/slots.ts` in Step 3. **If that rule changes, all three change
@@ -591,15 +600,29 @@ would reject a legitimate window.
 
 | Offering granularity | Uses | NULL / empty |
 |---|---|---|
-| time (`minute`/`hour`) | `start_time`, `end_time`, `recurrence`, `days_of_week` | `end_date` |
-| date (`day`/`week`/`month`) | `start_date`, `end_date` | `start_time`, `end_time`; `recurrence` = `none`, `days_of_week` empty |
+| time (`minute`/`hour`) | `start_time`, `window_minutes`, `recurrence`, `days_of_week` | `end_date` |
+| date (`day`/`week`/`month`) | `start_date`, `end_date` | `start_time`, `window_minutes`; `recurrence` = `none`, `days_of_week` empty |
 
-`check_booking_placement()` enforces those invariants, so a direct insert cannot create
-a mismatched row even though the vendor form no longer offers one.
+`schedules_window_shape` enforces the pairing at the table since `20260828000002`, and
+`check_booking_placement()` enforces the rest, so a direct insert cannot create a
+mismatched row even though the vendor form no longer offers one.
 
-**A window may not cross midnight** (`schedules_end_after_start`). That is load-bearing
-rather than cosmetic: it is what makes a booking's span arithmetic unable to wrap — see
-`bookings`.
+**A window is a START plus a LENGTH** (`start_time` + `window_minutes`), since
+`20260828000001`. It replaced `end_time`, and with it the rule that a window may not cross
+midnight.
+
+That rule was never a product decision. `schedules_end_after_start` began as an ordinary
+sanity check in `20260507000002`; `20260803000004` then leaned on it so that
+`time + interval`'s silent wrap (`23:00 + 2h = 01:00`) could never arise, which promoted it
+into a load-bearing invariant and made overnight trading impossible as a side effect. The
+arithmetic now runs on **timestamps** (`date + time`), which carry the day and cannot wrap,
+so the constraint had nothing left to protect. A length cannot cross midnight in the first
+place — the invalid state stopped being representable rather than being forbidden.
+
+`window_minutes` is capped at 1440. That is a correctness property, not a display
+convenience: without it, consecutive daily occurrences of one schedule would overlap
+themselves, and the capacity trigger — which counts per `(schedule_id, booked_date)` —
+would not see it.
 
 **Future:** `cancelled_at` for soft-cancellation of a series. A `bookings_count` denormalisation is **no longer the obvious next step** — capacity is now a per-slot overlap question, not a per-occurrence count, so a single counter column could not answer it.
 
@@ -624,6 +647,7 @@ A booker's reservation of a specific schedule occurrence.
 | `status_changed_at` | `timestamptz` | When `status` last changed. Nullable — NULL for rows that have never transitioned, which the auto-acknowledge job treats as not-due. Maintained by `validate_booking_status_transition()`, deliberately **not** `updated_at` (which any column write bumps — restarting a booker's acknowledgement window on an unrelated edit would be a money bug) |
 | `fulfilment_pattern` | `text` | FK → `fulfilment_patterns(code)`. NOT NULL, default `'session'`. **Snapshot** of the offering's pattern at booking time, populated on INSERT and pinned against UPDATE by `check_booking_consistency()`. Clients never supply it |
 | `price_paid` | `numeric(10,2)` | **Derived** as `offering.price × quantity` by `check_booking_consistency()` and pinned. Clients do not write it — before `20260803000004` the booker did, and the PayMongo route then charged whatever it found |
+| `booked_via` | `text` | NOT NULL, default `'booker'`. CHECK in (`booker`, `kiosk`). Where the booking originated. **Pinned against UPDATE** by `bookings_pin_origin` (`20260829000003`) — it decides whether the widened close-out transitions apply, so it must not be editable after creation |
 | `notes` | `text` | Optional booker/vendor notes |
 | `rejection_reason` | `text NOT NULL DEFAULT ''` | Reason provided by vendor when rejecting/cancelling. Empty string if not applicable |
 | `cancelled_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. Records which user performed the cancellation or rejection |
@@ -638,7 +662,9 @@ A booker's reservation of a specific schedule occurrence.
 
 **The span is a snapshot, and immutable.** `start_time`/`end_time`/`end_date`/`quantity`/`price_paid` are all computed at INSERT and raise on UPDATE. Same reasoning as `fulfilment_pattern`: the schedule and the offering are mutable, and a vendor editing either must never move a booking that has already been sold. A booking therefore describes its own span with no join — which is why all three clients read these columns rather than joining `schedules`.
 
-⚠️ **`time + interval` wraps in Postgres** (`23:00 + 2h = 01:00`), and an inverted range would make the overlap capacity test match nothing and pass everything. The guard is **ordering**: the window-fit check runs *before* the arithmetic, and since a schedule window cannot cross midnight, a booking that fits inside its window provably cannot wrap.
+⚠️ **`time + interval` wraps in Postgres** (`23:00 + 2h = 01:00`), and an inverted range would make the overlap capacity test match nothing and pass everything. Until `20260828000001` the guard was **ordering** — the window-fit check ran before the arithmetic, and a window could not cross midnight, so a booking that fitted inside one provably could not wrap. **That guard is gone, and so is the need for it:** every time-granular comparison now runs on `timestamp` (`date + time`), which carries the day. The wrap is not avoided; it is unreachable.
+
+⚠️ **`booked_date` is the date the booking STARTS, not the date its schedule's window opened.** For a same-day window those coincide. For a Friday 23:00–01:00 window they do not: the 00:00 slot is stored as **Saturday** 00:00. The *occurrence* is still Friday, and `check_booking_placement()` derives it back (a start earlier in the clock than the window opens can only belong to the previous day's window). Booked date is the primitive because a booking must describe its own span with no join; filing it under the occurrence would make `booked_date + start_time` resolve twenty-four hours early.
 
 **Placement trigger:** `check_booking_placement()` (BEFORE INSERT, `20260803000005`) replaces `check_booking_capacity()`. It answers the whole "can this booking go here" question in one pass, since the parts share the same fetches: shape matches the offering's granularity, the start lands on a real slot boundary inside the window, `booked_date` is a genuine occurrence, capacity is free on **every** slot or date the booking covers, and the same booker holds nothing overlapping. It keeps the `select … for update` row lock from `20260724000003` — that is what closed the TOCTOU race — and the exact `'Schedule is fully booked'` wording, which `booker/services/bookings.service.ts` string-matches.
 
@@ -681,6 +707,62 @@ Three deliberate narrowings versus the pre-2026-08 machine:
 **Payment columns:** `payment_reference text` stores the PayMongo Checkout Session ID; `is_paid boolean default false` is set to `true` by the webhook handler when payment is confirmed.
 
 **Future:** `start_time` snapshot (so if a schedule's time changes, the booking still shows the original time), rating/review join.
+
+---
+
+### `offering_attachments`
+Files a vendor attaches to an offering. Added `20260829000001` for Kiosk Mode.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `offering_id` | `uuid` | FK → `offerings` ON DELETE CASCADE |
+| `kind` | `text` | CHECK in (`photo`, `document`). **The whole taxonomy** — an earlier draft had `info`/`waiver`/`terms`, but "Court Rules" vs "Waiver" is carried by `title`, so those values were a vocabulary nothing read |
+| `title` | `text` | |
+| `storage_path` | `text` | Object key. **Which bucket it points at is derived from `kind`** — `photo` → the public `offering-photos`, otherwise the private `offering-attachments`. There is no bucket column, so that rule lives in exactly two places: this table's comment and the service that resolves a URL. NULL for a document written as inline text |
+| `body` | `text` | Inline text, for a document with no uploaded file |
+| `version` | `integer` | Bumped when wording materially changes; snapshotted onto acknowledgements |
+| `requires_signature` | `boolean` | Document only, enforced by `offering_attachments_photo_no_signature` |
+| `sort_order` | `integer` | Photos: gallery order — **the first is the cover the kiosk shows**. Documents: reading order |
+| `is_active` | `boolean` | Soft delete. Prefer deactivating over deleting once acknowledged: `attachment_id` below is ON DELETE SET NULL, so a hard delete blanks the link on historical proof |
+
+> **There is no `requires_agreement`, deliberately.** Every document must be accepted
+> before payment — that is the product rule, not a per-row choice — so the column would
+> have carried `true` forever. `kind = 'document'` **is** the agreement requirement, and
+> `requires_signature` is the only per-document lever. The consequence, accepted: an
+> offering cannot attach a read-only leaflet (a map, parking directions) without forcing
+> an acceptance tick.
+
+> **The kiosk's conditional steps read the flags, never "has attachments."** Photos live
+> in this same table, so an offering with two photos and no waiver *has attachments* — an
+> existence test would put an empty agreements step in front of the most ordinary
+> offering there is.
+
+---
+
+### `booking_acknowledgements`
+Append-only proof that a customer accepted an offering's documents. One row **per
+document**, not per booking — the same shape, and for the same reason, as
+`legal_acceptances`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK. **Generated by the writer before the row is inserted** — the signature object is keyed on it, and the row is written once, complete |
+| `booking_id` | `uuid` | FK → `bookings` ON DELETE CASCADE. The booking is the subject of the evidence; the row has no meaning without it |
+| `attachment_id` | `uuid` | FK → `offering_attachments` **ON DELETE SET NULL** — deleting an attachment must not destroy the proof that a customer agreed to it |
+| `attachment_title` / `attachment_version` / `attachment_kind` | | **Snapshots.** What keeps the row legible after the attachment it refers to is edited or retired |
+| `signature_path` | `text` | Object in `booking-signatures`. NULL when the document required agreement only |
+| `signer_name`, `ip_address`, `user_agent` | | Evidentiary context; the last two are nullable because a proxy may strip either |
+
+> **Append-only, and structurally so.** SELECT policies only — there is no INSERT,
+> UPDATE or DELETE policy for any role. ⚠️ **A grant alone would not have been enough:**
+> `20260620000001` revokes default privileges from `anon` and `authenticated` but **not**
+> from `service_role`, and the platform's default ACL for postgres-owned tables is
+> `service_role=arwdDxtm`. Granting `select, insert` therefore restricted nothing —
+> measured on a live database, service_role still held UPDATE, DELETE and TRUNCATE. An
+> explicit `revoke update, delete, truncate … from service_role` is what makes the
+> guarantee real. **A grant is additive; it cannot take away what the default ACL
+> already gave.**
 
 ---
 

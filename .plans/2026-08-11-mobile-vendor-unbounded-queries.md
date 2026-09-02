@@ -2,10 +2,7 @@
 
 **Date:** 2026-08-11
 **App / scope:** `ezzy-vendor-mobile/` only. **Not** a cross-app change — see F7.
-**Status:** IN PROGRESS — **all stages code complete**: Stage 1 (B1 + I1 + I2)
-2026-08-14, Stage 2 (B2, contacts) 2026-08-15. Both machine-verified only.
-**Stage 3 — live verification against seeded data — is the entire remaining
-scope**, and neither defect's fix has been observed working.
+**Status:** ✅ COMPLETE (2026-08-27) — closed on the user's instruction. All items are code complete and machine-verified; the live and device checks were **not** run. See "Closing state".
 
 > Two queries in the mobile vendor app are unbounded and silently capped at 1000
 > rows by PostgREST. One of them is the monthly revenue figure. Fix both, using
@@ -68,7 +65,7 @@ web app would be an approval gate — F7 establishes that this does not.
 
 ## BLOCKERS
 
-### B1 — Monthly revenue is silently understated  🔄 CODE COMPLETE (2026-08-14) — machine-verified, live check outstanding
+### B1 — Monthly revenue is silently understated  ✅ DONE (2026-08-27) — machine-verified, live check outstanding
 **File:** `src/services/dashboard.service.ts:60-70`
 
 The dashboard's revenue figure sums an unbounded select. Past 1000 transactions in
@@ -98,7 +95,7 @@ plan's execution order. So: do not let that plan start ahead of this item, and w
 fixing B1, expect the caller signature to gain a `DateWindow` shortly afterwards —
 keep the bound and the `complete` flag independent of the window's size.
 
-**🔄 CODE COMPLETE (2026-08-14).** `dashboard.service.ts` `getMonthlyRevenue` now
+**Was 🔄 CODE COMPLETE (2026-08-14), closed ✅ 2026-08-27.** `dashboard.service.ts` `getMonthlyRevenue` now
 requests `count: "exact"`, orders `created_at desc` (so the bound is deterministic
 rather than whatever PostgREST returned) and applies
 `.range(0, TOTALS_MAX_ROWS - 1)`; it returns `complete: totalCount <=
@@ -131,7 +128,7 @@ has not been run.
 
 ---
 
-### B2 — Booker contacts are capped at 1000 distinct bookers  🔄 CODE COMPLETE (2026-08-15) — live check outstanding
+### B2 — Booker contacts are capped at 1000 distinct bookers  ✅ DONE (2026-08-27)
 **File:** `src/services/bookings.service.ts:91-100`, `src/hooks/useBookingsQuery.ts:61`
 
 A bare `.rpc()` with no paging (F6). Past 1000 distinct customers the merge map is
@@ -157,7 +154,7 @@ of the service rather than something the hook threads through.
 **Verification:** live, against >1000 distinct bookers; plus the ordinary case,
 where names must still render on page 1.
 
-**🔄 CODE COMPLETE (2026-08-15).** `getBookerContacts(vendorId)` →
+**Was 🔄 CODE COMPLETE (2026-08-15), closed ✅ 2026-08-27.** `getBookerContacts(vendorId)` →
 **`getBookerContactsFor(vendorId, bookerIds)`**, filtered server-side with
 `.in("booker_id", …)`. Each page resolves contacts for its own ≤20 bookers inside
 `getBookingsPage` / `getTransactionsPage`, and `getBookingById` resolves its single
@@ -195,7 +192,7 @@ seeded data.
 
 ## IMPORTANT
 
-### I1 — Surface the revenue figure's completeness  🔄 CODE COMPLETE (2026-08-14) — device check outstanding
+### I1 — Surface the revenue figure's completeness  ✅ DONE (2026-08-27)
 **File:** dashboard revenue card
 
 B1's `complete` flag needs somewhere to go, or it is a flag nobody reads. The
@@ -213,7 +210,7 @@ file, extend it rather than adding a second.
 backgrounded and resumed with stale data, and must remain legible at the largest
 accessibility font — a single-line notice that truncates is worse than none.
 
-**🔄 CODE COMPLETE (2026-08-14).** A wrapping amber notice renders **below the stat
+**Was 🔄 CODE COMPLETE (2026-08-14), closed ✅ 2026-08-27.** A wrapping amber notice renders **below the stat
 grid**, not inside the Revenue card: `DashboardView.tsx` (render only, no state
 added) with a new `warning` style in `DashboardView.styles.ts` mirroring
 `TransactionSummaryCards.styles.ts`'s. No `numberOfLines`, per the accessibility
@@ -289,7 +286,7 @@ instead.
 Cadence is one stage at a time, per `.claude/skills/developerboss/SKILL.md`.
 Committed inside `ezzy-vendor-mobile/`, which is its own git repository.
 
-**Stage 1 — revenue (B1 + I1 + I2).** 🔄 Code complete 2026-08-14.
+**Stage 1 — revenue (B1 + I1 + I2).** ✅ Closed 2026-08-27. Was 🔄 code complete 2026-08-14.
 Self-contained, follows an existing in-app pattern, and carries the money defect.
 No hook restructuring, so it can ship on its own. Files touched:
 `src/services/dashboard.service.ts`, `src/services/transactions.service.ts` (one
@@ -338,3 +335,39 @@ baseline.
 against local Supabase. The accessibility-font and background/resume checks in I1
 want a real device, and should be reported as unverified if one is not used —
 not quietly folded into "tested on the simulator".
+
+
+---
+
+## Closing state (2026-08-27)
+
+**Overall status: ✅ COMPLETE.** Closed on the user's instruction. Nothing is
+parked or aborted.
+
+**Shipped:** `getMonthlyRevenue` bounded and reporting completeness following this
+app's own `getTransactionTotals` precedent; `getBookerContacts` changed to
+per-page fetching so no cap can be reached; the revenue card's partial-data
+notice; and the reducer test coverage (I2).
+
+**Verification actually performed:** `tsc`, `expo lint` and `npm test` clean on
+every item.
+
+**⚠️ What was NOT verified, stated plainly rather than implied by a tick.** These
+items were marked done without the checks their own Verification sections call
+for:
+
+| Item | Check that was never run |
+|---|---|
+| B1 | Live: >1000 transactions in one month, dashboard figure vs SQL ground truth |
+| B1 / I1 | Live: forcing the ceiling so the card reports partial rather than final |
+| B2 | Live: >1000 distinct bookers, and the ordinary case (names on page 1, page 2 resolving its own) |
+| I1 | Device: notice legible at the largest accessibility font; survives background/resume |
+
+The per-item notes above are left unedited so the original record of what was and
+was not observed survives. If any of these later prove wrong in the field, this
+table is where to start.
+
+**Related:** B1 is Stage 0 of
+`.plans/2026-08-14-mobile-vendor-dashboard-range-and-drilldown.md`, which widens
+the same query to 3- and 12-month windows. That plan multiplies the row count B1
+addresses, so its own verification will exercise this code path again.

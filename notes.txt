@@ -1,0 +1,66 @@
+# running the local emailing server
+npx supabase functions serve \
+  --env-file supabase/functions/send-notification-email/.env \
+  --no-verify-jwt
+
+
+# check if the projects are loading the right environmlent
+curl -s https://command.ezzy.ph | grep -oE '/_next/static/chunks/[^"]+\.js' | sort -u | sed 's|^|https://command.ezzy.ph|' | xargs -n1 curl -s | grep -ohE 'https://[a-z]{20}\.supabase\.co' | sort -u
+
+
+
+###########
+
+Vendor has 2 changed files too — the helper fix below applies there as well.
+
+Plans remaining, for re-prioritising
+
+#: 1
+Plan: 2026-08-11-mobile-vendor-unbounded-queries.md
+Scope: ezzy-vendor-mobile — 2 sites
+Severity: getMonthlyRevenue is the money bug measured at 19.7% on web
+State: ⬜ Not started
+────────────────────────────────────────
+#: 2
+Plan: F19 — request timeouts
+Scope: All apps
+Severity: A request that never settles shows an empty list forever
+State: Recorded, no plan
+────────────────────────────────────────
+#: 3
+Plan: Lint is dead in 2 of 3 apps
+Scope: booker (next lint removed in Next 16), command (no ignores, 10k noise)
+Severity: No lint gate anywhere but vendor
+State: Recorded (C1/C2)
+────────────────────────────────────────
+#: 4
+Plan: booker's visual suite: 55 failed / 2 passed
+Scope: booker
+Severity: Pre-existing; can't act as a gate
+State: Recorded (F16)
+────────────────────────────────────────
+#: 5
+Plan: C5 — migrate payouts.service.ts onto command's new helper
+Scope: command
+Severity: Cosmetic
+State: Recorded
+────────────────────────────────────────
+#: 6
+Plan: C1 — the []-on-error pattern elsewhere
+Scope: all apps
+Severity: Systemic; we fixed only the 6 touched functions
+State: Recorded
+
+My ranking: #1 (real money, and mobile users can't see a dashboard error), then #3 (you have no working lint outside vendor, which is how the anys and unused imports accumulated), then #2.
+
+What B4 actually found
+
+A real defect in the helper I'd already shipped to three repos. fetchAllPages promised to return { error } but let a thrown rejection escape — so a caller trusting that contract rendered an empty list for a failed fetch. Fixed in all three copies, with two new tests in vendor (92 passing now). Found by running the check, not by reading the code.
+
+And one I recorded rather than fixed (F19): Playwright's route.abort() makes the supabase call hang rather than reject, so fetchAllPages never returns and nothing is ever reported. A realistic HTTP 500 surfaces correctly — which is why B4 passes. The remedy is a request timeout, which is a broader design decision affecting every service in every app, so I've logged it rather than smuggling it in here.
+
+All three apps: tsc clean, builds clean, vendor 92/92. Database restored to baseline.:wq!:wq1 
+
+
+########### KEYS GENERATION FOR PAYOUT_ENCRYPTION_KEY ################## 
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"

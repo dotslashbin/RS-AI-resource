@@ -1107,6 +1107,53 @@ version of this plan would have got wrong.
 
 ---
 
+### I6 — The overnight summary was a hint line, and a whole day had to be keyed by hand  ✅ DONE (2026-08-28) — *user feedback during testing*
+
+Raised while the user was testing I2. Two related problems, one root cause: the form told
+the truth but quietly, and the most common shape — "open all day" — required knowing a
+non-obvious trick.
+
+**Files:** `vendor/components/schedule/ScheduleFormModal/useScheduleForm.ts`,
+`ScheduleFormModal.tsx`, `vendor/lib/scheduleWindow.ts` (exports `FULL_DAY_MINUTES`).
+
+**1 — The overnight case is now a callout, not a hint.** An 11px tinted line became a
+bordered panel with a moon icon, a bold "Runs overnight" heading, the window, and a plain
+sentence: *"This window closes the following day. Bookings in it are filed under the day it
+opens."* It earns the weight — it is the surprising outcome, and the one a typo produces.
+**An ordinary window stays a quiet line**, deliberately: shouting about every window would
+make the one that matters invisible.
+
+**2 — An "Open 24 hours" toggle.** The correct input for a whole day is `00:00 – 00:00`,
+because the window is a length and equal times mean the full 1440. Nobody guesses that. The
+intuitive `00:01 – 23:59` yields **1438 minutes — 23 slots at odd boundaries with 58
+stranded**, a worse schedule reached by reasoning carefully. The button removes the trap
+rather than documenting it.
+
+`isAllDay` is DERIVED from the two time fields, not stored — a separate boolean could
+disagree with them the moment either is edited by hand. Toggling off clears both fields
+rather than restoring a previous pair: the only value being toggled away from is the
+all-day one, so there is nothing to restore.
+
+**ux-design:** the callout pairs colour with an icon AND text, never colour alone (§5); the
+toggle is `min-h-[44px]` per the touch-target rule and carries `aria-pressed`, since it is
+a toggle rather than an action; both states use existing `sp-*` / `blue-600` tokens so
+light and dark both work (§6).
+**component-separation:** `isAllDay` and `toggleAllDay` live in the hook; the `.tsx` renders
+a boolean and a string, with no logic and no inline styles.
+
+**Verified:** 3 new Playwright cases — the toggle fills `00:00`/`00:00`, flips
+`aria-pressed`, shows `Open 00:00 – 24:00` and **does not** show the overnight callout (a
+whole day closes at the end of its own day); toggling off clears the fields and re-disables
+Save; the overnight callout renders its heading, window and explanation. 8/8 in that group.
+`tsc` 0 · 300 unit tests · lint 35→35.
+
+**Two of my own tests from the previous stage needed correcting**, which is the point of
+running them: one asserted `"Runs overnight:"` with a colon the callout no longer has, and
+one asserted the bare string `"24 hours"`, which now also matches the new button — a
+strict-mode violation rather than a pass.
+
+---
+
 ### F2 — CalendarPage rendered the literal text "null - null" for date-granular schedules  ✅ DONE (2026-08-28) — *found by the visual suite during stage 6*
 
 **File:** `vendor/components/calendar/CalendarPage/CalendarPage.tsx:97`, which formatted
