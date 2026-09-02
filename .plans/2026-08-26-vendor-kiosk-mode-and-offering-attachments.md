@@ -1675,7 +1675,13 @@ include bookings whose `bookedDate` is the date *or the day after*, build each b
 and overlap-compare those. Keep `availabilityForDay`'s signature and its existing tests
 green; add overnight cases.
 
-### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ⬜ TODO
+### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ⏸ PARKED (2026-08-29)
+**Parked with B23 until the proper PayMongo credentials are in hand** (user's call).
+Nothing is broken meanwhile: the key is unused, server-only, and in test mode. The cost
+of leaving it is a credential sitting in a second place for no reason, and a future
+reader inferring a vendor webhook exists when the decision on record is that it must not.
+**Unblocks when** the real credentials are provisioned — remove it in the same pass that
+sets the rest.
 **File:** `vendor/.env.local`
 **Found 2026-08-29 during the pre-Stage-4 environment audit.** B4 states plainly that
 this key **must not** be added to this app, and the only occurrence of the name in
@@ -1697,7 +1703,13 @@ is required and correctly present.
 
 ---
 
-### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ⬜ TODO
+### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ⏸ PARKED (2026-08-29)
+**Parked with B22 until the proper PayMongo credentials are in hand** (user's call).
+⚠️ **This one has teeth, and parking it is only safe while nobody takes a real payment.**
+B4 builds PayMongo's `success_url` from this variable, so on any hosted environment where
+it is unset or inherited from local, a customer who pays is redirected to **localhost**
+and never returns — booking paid, tablet stranded on a dead page.
+**Must be set before the first payment test on staging**, not merely before production.
 **File:** deployment configuration (not in the repo)
 **Found 2026-08-29.** Locally it reads `http://localhost:3000`, which is right for local
 and matches vendor's default dev port. But B4 builds PayMongo's `success_url` and
@@ -1716,7 +1728,25 @@ testing or set the variable to match.
 
 ---
 
-### B26 — Two sidebar baselines need accepting  ⬜ TODO (user's call)
+### B26 — Two sidebar baselines accepted  ✅ DONE (2026-08-29)
+> Accepted on the user's explicit instruction, after they reviewed the diff and the
+> rendered result. `npx playwright test -g "sidebar" --update-snapshots` → both
+> regenerated, **2 passed**.
+> **Verified by checksum, not by the run's own word:** `sidebar-dark` `b7b79bd9 →
+> 64d34241`, `sidebar-light` `a8658d4f → 7bccd203`, and git reports both as modified.
+> The new baseline was opened and confirmed to contain the Kiosk Mode item.
+> ⚠️ **A passing `--update-snapshots` run is not evidence** — it rewrites the baseline
+> and then compares against what it just wrote, so it can only pass. The meaningful
+> check is a plain `-g "sidebar"` re-run against the committed images; that is what
+> confirms the suite is genuinely green.
+>
+> **What this locks in:** the sidebar exactly as reviewed, including the bordered-pill
+> treatment that sets Kiosk Mode apart from Settings and Calendar — deliberate, so the
+> entry reads as a mode switch rather than another page. Changing that styling later
+> means another baseline update.
+>
+> ⚠️ **The two PNGs are uncommitted.** `vendor` was clean before this, so they are the
+> only change in the tree.
 **Files:** `visual-tests/pilot.spec.ts-snapshots/sidebar-light-*.png`, `sidebar-dark-*.png`
 **Found by running the visual suite in Stage 6.**
 
@@ -2108,7 +2138,11 @@ only the redundant `booking_created`. Deliberately not decided before B1 exists.
 > +17, `kioskCloseOut` 13.
 >
 > **UI-gallery fixtures: done, for what can honestly be fixtured.** Three added —
-> `kioskexit`, `kiosklauncher`, `kiosksignature`. `KioskShell` is deliberately absent:
+> `kioskexit`, `kiosklauncher`, `kiosksignature`.
+> ⚠️ **They are renderable but NOT yet tested.** `visual-tests/pilot.spec.ts:9` builds
+> its cases from a `modes` array, and the three new modes are deliberately absent from
+> it — registering them is what creates the tests, and that is the same act as accepting
+> their baselines. Both steps belong to whoever reviews them. `KioskShell` is deliberately absent:
 > it gates on the kiosk flag and a live session, so it renders null in a gallery and
 > would baseline an empty page. The step components take a whole flow-state object; a
 > fixture big enough to render them would be more fiction than fixture.
