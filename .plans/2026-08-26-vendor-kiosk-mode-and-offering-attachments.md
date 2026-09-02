@@ -18,6 +18,13 @@ ahead of this one. Stage 0 migrations exist on `backbone` `feature/kiosk` but ar
 
 ---
 
+**Field report 2026-09-02 (first hands-on use):** three items from running the
+kiosk, not by reading it — **B27** (render-phase navigation in `AppShell`, a real React
+invariant violation on the PWA-relaunch path), **I10** (the kiosk scrims are the only
+two modals in the app that do not use the established overlay treatment) and **I11**
+(the kiosk mobile field accepts letters). Both are
+app-layer only: no schema, no migration, no change to Stage 7's production sequence.
+
 ## ⚠️ UPSTREAM CHANGE — read before resuming
 *(added 2026-08-28; extended 2026-08-29 with the two truncation plans, the branch state
 and the re-verified citations. **One section, not two** — a 2026-08-29 pass began writing
@@ -425,6 +432,36 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
   and `canNext` can never be satisfied. Building a second implementation of a mode the
   first app cannot complete would fork an unfinished behaviour. The kiosk therefore
   lists **time-granular, session-pattern** offerings only. See DEFERRED.
+- **D19 — How heavy should the kiosk scrims be, and does the launcher change too?**
+  → **(b) split by audience** (resolved 2026-09-02). Launcher takes the app's standard
+  treatment; the exit dialog, which covers a *customer* surface, takes a near-opaque
+  scrim in the login page's own ink with no blur.
+  - **(a) Conform exactly** — both dialogs adopt the app's `rgba(0,0,0,0.5)` +
+    `blur(6px)`. Cheapest, zero new visual language, and the blur alone fixes the
+    legibility complaint. Risk: `0.5` is *less* opaque than today, so it rests entirely
+    on the blur being enough.
+  - **(b) ⭐ Recommended — split by audience.** The **launcher** is an admin modal over
+    the dashboard: give it (a), matching its eight peers. The **exit dialog** guards a
+    *customer* surface, so give it a near-opaque `rgba(4, 6, 14, 0.94)` — the login
+    page's own ink, so it is a reuse and not an invention — and **no blur**, because at
+    94% there is nothing left to blur and `backdrop-filter` is the expensive property on
+    a cheap Android tablet. Answers the report directly ("like the login form") and is
+    faster than (a).
+  - **(c) Both near-opaque.** Consistent between the two kiosk dialogs, but makes the
+    launcher — an ordinary admin modal — heavier than every other modal in the app.
+
+- **D20 — Which phone rule applies to a kiosk *customer*?** → **The PH-only payout-grade
+  rule** (`normalisePhMobile`), directed 2026-09-02. Recorded as a decision because
+  `lib/payout/phMobile.ts:78-88` explicitly warns the two rules in this app are
+  different **on purpose**: registration uses `isValidPhone` (7–15 digits, any country)
+  for a *contact* number, and the strict PH rule exists for *payout* fields where money
+  is sent. A kiosk customer's mobile is a contact number, so this deliberately applies
+  the stricter of the two.
+  ⚠️ **Stated consequence:** a visitor with a non-PH mobile cannot enter their number.
+  Acceptable because the field is **optional** and email is the booking's identity
+  (`useKioskBooking.ts:198-199`) — but it is a real narrowing, and if a kiosk is ever
+  sited somewhere with foreign walk-ins, this is the line to revisit.
+
 
 ---
 
@@ -1737,8 +1774,10 @@ testing or set the variable to match.
 > The new baseline was opened and confirmed to contain the Kiosk Mode item.
 > ⚠️ **A passing `--update-snapshots` run is not evidence** — it rewrites the baseline
 > and then compares against what it just wrote, so it can only pass. The meaningful
-> check is a plain `-g "sidebar"` re-run against the committed images; that is what
-> confirms the suite is genuinely green.
+> check is a plain `-g "sidebar"` re-run against the committed images.
+> ✅ **That re-run was done (2026-09-02): `2 passed`, exit 0, no update flag.** The two
+> baselines are genuinely green, so the whole suite now stands at **161 passed / 0
+> failed** (159 were already green in the 2026-08-29 full run; these are the other two).
 >
 > **What this locks in:** the sidebar exactly as reviewed, including the bordered-pill
 > treatment that sets Kiosk Mode apart from Settings and Calendar — deliberate, so the
@@ -1875,6 +1914,88 @@ let you pay for someone else's booking.
 
 ⚠️ **Booker has the same ordering and was NOT changed** — it is a different app and
 outside this plan's approved scope (AGENTS.md cross-app gate). Worth its own small fix.
+
+---
+
+### B27 — `AppShell` navigates during render; React logs an invariant error  ✅ DONE (2026-09-02)
+> **Executed:** `AppShell.tsx` — `useEffect` added to the `react` import; the navigation
+> moved into `useEffect(() => { if (kioskDevice) router.replace("/kiosk") }, [kioskDevice, router])`
+> beside the `kioskDevice` state; the render branch reduced to `if (kioskDevice) return null`.
+> The lazy initialiser at `:50` was left alone, as the item required.
+>
+> **Verified — machine:** `tsc --noEmit` clean; `npm test` **354/354**; `npx eslint` on the
+> file → **0 errors**, 1 pre-existing `setBookings` unused-var warning, and **no
+> `react-hooks/exhaustive-deps` complaint** (the dep array is complete).
+>
+> **Verified — live, in a real browser.** Scripted against the running dev server on
+> :3000 with Playwright, reproducing the reported scenario exactly: load `/`, write
+> `ezzy.kioskMode` to `localStorage`, reload `/`. Result — redirect still lands on
+> `/kiosk`, **0 render-phase invariant errors, 0 console errors of any kind.** The run
+> first fires a deliberate `console.error` canary and asserts it was captured, so the
+> clean result is proof the collector works rather than proof it was looking the wrong
+> way.
+**File:** `vendor/components/layout/AppShell/AppShell.tsx:86-89`
+
+```tsx
+if (kioskDevice) {
+  router.replace("/kiosk")   // ← side effect in the render phase
+  return null
+}
+```
+
+`router.replace` schedules a state update on the Router **while `AppShell` is
+rendering**, which is the update-another-component-during-render invariant. React logs
+`Cannot update a component (Router) while rendering a different component (AppShell)`
+and points at line 87. Reported from a dev-server restart with the browser in kiosk
+mode.
+
+> ⚠️ **Correcting the report's framing — this is NOT restart-specific.** The reporter
+> asked to be sure "that does not happen in normal circumstance". It already does. The
+> branch runs on **every load of `/` by a kiosk device**, and `app/manifest.ts` sets
+> `start_url: "/"` — so the **PWA relaunch after a tablet reboot**, which
+> `lib/kioskMode.ts`'s own header names as the reason kiosk mode exists at all, takes
+> this exact path. The restart merely made it visible. Severity is therefore blocker,
+> not curiosity.
+
+**What is NOT wrong** (checked, so the fix stays four lines):
+- **No hydration mismatch.** Server renders `kioskDevice = false` (`typeof window ===
+  "undefined"`) and falls to `if (isCheckingAuth || …) return null` — `isCheckingAuth`
+  is `useState(true)` at `useAppShell.ts:162`. Server emits null, client's first render
+  emits null. The lazy initialiser at `:50` is sound and **stays** — moving the
+  `localStorage` read into an effect would cost the frame of admin chrome that B14
+  exists to prevent.
+- **No hook-order hazard.** Nothing after line 86 calls a hook (verified by scan), so
+  the early `return null` is legal today — but the new effect must still be declared
+  **above** it, and above the four other conditional returns at `:94-130`.
+- **Nowhere else in the app does this.** Swept every `router.replace|push` in
+  `components/`, `app/`, `lib/`, `hooks/`: `useKioskShell.ts:93` is inside a
+  `useEffect`, `useKioskShell.ts:186` and `useKioskLauncherDialog.ts:56` are inside
+  returned callbacks. `AppShell:87` is the only render-phase navigation.
+
+**Fix approach:** split the effect from the render decision — navigation into a
+`useEffect` beside the existing `kioskDevice` state at `:50`, the bail-out left in
+render:
+
+```tsx
+useEffect(() => {
+  if (kioskDevice) router.replace("/kiosk")
+}, [kioskDevice, router])
+...
+if (kioskDevice) return null   // unchanged: still no admin frame paints
+```
+
+The no-flash property is preserved by `return null`, which was always what provided it
+— `router.replace` never did. Add `useEffect` to the `react` import at `:2`.
+
+**Component separation:** `AppShell.tsx` is a client component that already holds hooks
+inline (it is the shell that owns `useAppShell`); this adds one effect adjacent to the
+state it guards and introduces no new component, so `component-separation` is unchanged
+by this item.
+
+**Verification:** machine — `tsc --noEmit`, `npm test` (354), `npx eslint` on the file
+(watch `react-hooks/exhaustive-deps`, and B24's `react-hooks/refs` lesson). Live —
+**this one needs a browser**: set `ezzy.kioskMode` in localStorage, load `/`, confirm
+the console is clean and the redirect to `/kiosk` still happens with no dashboard frame.
 
 ---
 
@@ -2208,6 +2329,179 @@ clearly, not about queuing bookings.
 
 ---
 
+### I10 — The two kiosk scrims ignore the app's established overlay treatment  ✅ DONE (2026-09-02)
+> **Executed per D19(b) — split by audience, 2 files, CSS only.**
+> - `KioskLauncherDialog.module.css:5` — `rgba(15,23,42,0.5)` → **`rgba(0,0,0,0.5)` +
+>   `blur(6px)`**, i.e. the app's standard modal scrim. It is an ordinary admin modal
+>   over the dashboard and was simply the odd one out; it now matches its eight peers.
+> - `KioskExitDialog.module.css:6` — `rgba(15,23,42,0.55)` → **`rgba(4,6,14,0.94)`, no
+>   blur.** The login page's own ink, so a reuse rather than a new colour. Blur omitted
+>   deliberately: at 94% nothing shows through for it to act on, and `backdrop-filter`
+>   is the expensive property to composite on the cheap Android tablets a kiosk runs on
+>   — this is heavier *and* cheaper than the standard treatment.
+> - `-webkit-backdrop-filter` written by hand on the launcher, as the item required
+>   (hand-authored `.module.css`, no autoprefixing, iPad Safari is a target).
+>
+> **Verified — machine:** `tsc --noEmit` clean, `npm test` 360/360 (CSS-only, confirming
+> nothing else moved).
+> **Verified — visually, by actually looking.** Rendered `/ui-gallery?mode=kioskexit`
+> (light + dark) and `?mode=kiosklauncher` against a dev server and inspected the images:
+> the exit scrim now erases what is behind it, and the launcher shows the blurred-but-
+> present dashboard exactly like the app's other modals. The reported complaint is gone.
+>
+> ⚠️ **One observation, not a defect, left for the reviewer's eye:** in **dark** theme the
+> exit dialog's card (`--sp-card-bg`) sits close in value to the 94% scrim, so the card
+> reads flatter than it does in light — it is separated by its border and shadow, and is
+> legible, but it is the one place where the heavier scrim costs something. Raise it as a
+> follow-up only if it bothers you on the actual tablet.
+>
+> **Baselines:** still not registered — `kioskexit` / `kiosklauncher` remain absent from
+> `pilot.spec.ts:9`'s `modes` array. That is I7's act, and it correctly happens *after*
+> this item rather than before, or it would have frozen the scrim this item replaced.
+**Files:** `vendor/components/kiosk/KioskExitDialog/KioskExitDialog.module.css:6`
+(`rgba(15, 23, 42, 0.55)`) and
+`vendor/components/kiosk/KioskLauncherDialog/KioskLauncherDialog.module.css:5`
+(`rgba(15, 23, 42, 0.5)`) — **neither has any blur.**
+
+Reported against the exit dialog: too much of the surface behind stays legible. On a
+customer-facing tablet that surface is a booking in progress, sometimes with a name and
+phone number on it, sitting behind a translucent panel while a staff member types a
+password over it.
+
+> **This is a conformance bug, not a taste call.** Eight existing modals in this app all
+> use one treatment — `fixed inset-0 z-50 bg-black/50 backdrop-blur-[6px]`
+> (`DeletionRequestModal`, `AccountCompletionModal`, `ScheduleFormModal`,
+> `StaffFormModal`, `GuideModal`, `OfferingPerformanceModal`, `OfferingFormModal`,
+> `SchedulePromptModal`), and `AppShell.tsx:167` uses the same idea for the mobile
+> sidebar scrim. **The two kiosk dialogs are the only modals that invented their own,
+> and the thing they dropped is the blur** — which is what actually destroys legibility
+> behind a scrim. Opacity alone does not; `0.55` over white is still readable text.
+
+**The reporter's reference point:** "something like the modal for logging in". The login
+surface (`LoginPage.module.css:8-28`) is an **opaque** dark gradient page
+(`#04060e → #070b17 → #0d1b4b`) with `backdrop-filter: blur(24px)` on the card. It reads
+as deep and closed because the ground is opaque, not because of the blur.
+
+**Fix approach** — see D19 for the open half. Regardless of which option is chosen:
+- `-webkit-backdrop-filter` must be written alongside `backdrop-filter` **if blur is
+  used**: these are hand-authored `.module.css` files, so they get no autoprefixing, and
+  iPad Safari is a first-class kiosk target.
+- Style-only change in `.module.css`; the `.tsx` render layers are untouched, so
+  `component-separation` is satisfied by construction.
+
+**Verification:** machine — `npm run test:visual` for `kioskexit` / `kiosklauncher`
+**only after I7 registers them** (they are still absent from `pilot.spec.ts:9`'s `modes`
+array), so in practice this item's baselines and I7's are the same act. Live — needs a
+human eye on `/ui-gallery?mode=kioskexit` in both themes; "is enough hidden" is not
+machine-checkable.
+
+---
+
+### I11 — The kiosk mobile field accepts anything, including letters  ✅ DONE (2026-09-02)
+> **⚠️ THIS ITEM'S OWN FIX APPROACH WAS WRONG, AND THE ERROR IS INSTRUCTIVE.**
+> Step 1 as written said to extend `customerValid` with **`phoneIssue === null`**, and
+> explicitly argued *against* `normalisePhMobile(...) !== null` on the grounds that it
+> would make the field required. The concern was right; the remedy was not.
+> `mobileFieldIssue` returns null for an invalid number **that has not been blurred yet**
+> — that is its entire purpose. Gating on it would therefore have passed `12345`
+> straight through to payment whenever the customer never left the field, which is the
+> exact value this item exists to keep out of the database. Implemented as **two
+> separate predicates** instead: a timing-free gate, and a timing-aware display rule.
+> Optionality is preserved by the gate's `phone === "" ||` clause, not by borrowing the
+> display rule's silence.
+>
+> **Executed — 5 files:**
+> - `lib/kioskSteps.ts` — new `customerDetailsValid()`. Placed in `lib/` rather than the
+>   hook (a change from step 1) precisely *because* of the mistake above: a rule that can
+>   silently flip an optional field to required needs to be reachable by `node --test`.
+> - `lib/kioskSteps.test.ts` — **6 new tests**, suite **354 → 360**.
+> - `useKioskBooking.ts` — `phoneTouched` state; `customerValid` now delegates to the
+>   lib gate; `phoneIssue` + `markPhoneTouched` added to `KioskBookingState`.
+> - `StepCustomer.tsx` — `onBlur`, `aria-invalid`, error copy, placeholder `+63…` →
+>   `0917 123 4567`.
+> - `KioskBooking.module.css` — `.fieldInvalid` / `.fieldError`, declared after `.field`.
+>
+> **One addition beyond the written item, and why:** the field now carries an
+> **"Optional."** hint. D20 flagged that the PH-only rule locks out a foreign visitor;
+> without saying the field may be left blank, that customer meets an input that refuses
+> them and no visible way past it. The hint is what makes the strict rule safe to ship.
+>
+> **Verified — machine:** `tsc --noEmit` clean; `npm test` **360/360**; `npx eslint` on
+> all three source files → **completely clean, 0 errors 0 warnings**. The new tests
+> assert the D20 consequence rather than assuming it: `+15551234567` (foreign) and
+> `0281234567` (PH landline) are both rejected, `09171234567` in six spellings passes,
+> and empty/whitespace still passes.
+>
+> ⚠️ **NOT verified — the two-tier display timing needs a browser.** That letters flag on
+> the keystroke and "invalid" only after blur is proven for `mobileFieldIssue` itself
+> (`phMobile.test.ts`) and in live use by the payout card, but **the wiring in
+> `StepCustomer` has not been exercised in a browser** — reaching that step needs a
+> signed-in vendor session and a chosen offering and slot, and there is no ui-gallery
+> fixture for it (I7 argues against one). **Outstanding check:** on the customer step,
+> type a letter → message appears immediately; type `12345` → no message until the field
+> is left, and Next stays disabled; clear the field → Next enables.
+**File:** `vendor/components/kiosk/KioskBooking/StepCustomer.tsx:22-31` (the input),
+`vendor/components/kiosk/KioskBooking/useKioskBooking.ts:197-199` (the gate).
+
+> **Field mapping — resolving the report's wording.** The request named "the form number
+> field for the payment section". `StepPayment.tsx` has **no inputs at all** — it is a
+> read-only review screen (service / when / duration / name / total / methods). The only
+> phone input in the entire kiosk flow is the **Mobile number** field on `StepCustomer`,
+> the form that immediately precedes payment. That is the field this item changes.
+
+Today the field is completely unvalidated. `onChange` writes `e.target.value` straight
+into state, and `customerValid` at `useKioskBooking.ts:197-199` checks **fullName and
+email only** — phone is absent from the predicate. `app/api/kiosk/booking/route.ts:62`
+trims it and `:115` passes it through; there is no server-side check either. `qwerty`
+reaches the database.
+
+**This is already solved elsewhere in this app — do not write a new regex.**
+`lib/payout/phMobile.ts` exists, is unit-tested (`phMobile.test.ts`), and exports
+exactly the two-tier behaviour requested:
+
+```ts
+mobileFieldIssue(raw, touched): "letters" | "invalid" | null
+//  letters  → flagged IMMEDIATELY, however little is typed
+//  invalid  → flagged only once the field has been LEFT (touched)
+//  empty    → never an error; requiredness is the submit path's concern
+```
+
+`normalisePhMobile` accepts `09XXXXXXXXX`, `639XXXXXXXXX`, `+639XXXXXXXXX` with
+`[\s()\-.]` separators, anchored and exact-length, and returns null otherwise.
+The live-wiring pattern to copy is `usePayoutDetailsCard.ts:96-108` (compute the issue
+during render from `raw` + `touched`; a `handleBlur` sets touched).
+
+**Fix approach:**
+1. `useKioskBooking.ts` — add `phoneTouched` state and a `setPhoneTouched` callback;
+   derive `phoneIssue = mobileFieldIssue(customer.phone, phoneTouched)`; expose both on
+   `KioskBookingState`. Extend `customerValid` with **`phoneIssue === null`** — *not*
+   with `normalisePhMobile(...) !== null`, which would silently make the field
+   **required** and block every customer who declines to give a number.
+2. `StepCustomer.tsx` — `onBlur={k.setPhoneTouched}`, an error class on the input when
+   `k.phoneIssue`, and a message beneath it. Kiosk copy, not the payout wording:
+   `letters` → "Numbers only, please." · `invalid` → "Enter a Philippine mobile number,
+   like 0917 123 4567."
+3. Placeholder `"+63…"` → `"0917 123 4567"` — the local form is what a Filipino walk-in
+   recognises, and `phMobile.ts:14-17` already argues this for display.
+
+**Assumptions** (stated rather than asked — none would invalidate the work if wrong):
+- **Stays optional.** The request was about *format*, not requiredness, and empty is
+  explicitly not an error in `mobileFieldIssue`'s contract.
+- **Not normalised on write.** The stored value keeps whatever valid spelling was typed;
+  B25's identifier matcher already compares the last 10 significant digits, so
+  canonicalising would buy nothing here and would change stored data shape.
+- **Client-side only.** The route stays unchanged. This is a typo guard on a supervised
+  walk-in surface, not a trust boundary — the number is not used for auth or payment
+  routing.
+
+**Component separation:** all state and the derived issue live in `useKioskBooking.ts`;
+`StepCustomer.tsx` stays a pure render layer receiving `phoneIssue` and a blur handler,
+with the error style in `KioskBooking.module.css`. No new `style={{}}`.
+
+**Verification:** machine — unit tests for the extended `customerValid` (letters block,
+valid PH forms pass, empty still passes); `tsc --noEmit`; `npm test`. Live — needs a
+browser for the two-tier timing (letters flag on keystroke, invalid only after blur).
+
 ---
 
 ## DEFERRED / COSMETIC
@@ -2416,6 +2710,16 @@ either the `in_progress → returned` or the `fulfilled → completed` move, whi
 makes conditionally untrue for `booked_via = 'kiosk'` rows).
 
 </details>
+
+**Stage 6b — field-report fixes (B27, I10).**  ⬜ **TODO — added 2026-09-02.** Both
+found by using the kiosk. **App-layer only: no schema, no migration, no effect on Stage
+7's sequence.** B27 first and independently — it is a correctness fix with a
+machine-checkable result and no open decision. I10 is **blocked on D19** and, for its
+baselines, folds into I7: registering `kioskexit` / `kiosklauncher` in
+`pilot.spec.ts:9` and accepting their snapshots is one act, and doing it *before* I10
+lands would freeze the scrim this item exists to change. **I11** (kiosk mobile-number validation, added 2026-09-02) is independent of both and
+carries no open decision — D20 records the rule.
+**Order: ~~B27~~ ✅ → ~~I11~~ ✅ → ~~I10~~ ✅ (all 2026-09-02) → I7's kiosk baselines (remaining).**
 
 **Stage 7 — production (B17b).** `db push` to production, re-check the grants, **then**
 the app builds — in that order, not the same sitting. Deliberately last, and deliberately
