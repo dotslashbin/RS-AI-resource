@@ -4,8 +4,8 @@
 **App / scope:** `ezzy-vendor-mobile` only. Target screens are Bookings and
 Transactions. Dashboard is documented as a coupling because it also uses
 `PeriodFilter`, but is not in scope unless explicitly approved.
-**Status:** COMPLETE — implementation machine-verified and Android device-verified on
-2026-08-26.
+**Status:** IN PROGRESS (2026-09-02) — Stage 3 Android verification is confirmed; a
+final Stage 2 spacing correction is required before closeout.
 
 > One-line framing: make mobile filtering readable and discoverable without stacking
 > horizontal chip strips or relying on hidden swipe behaviour.
@@ -140,6 +140,37 @@ and static search confirming Bookings/Transactions no longer render `PeriodFilte
 **Verified (device, user-confirmed 2026-08-26):** Transactions date filter and search
 behaviour checked on Android.
 
+### I3 — Filter headers need a visible boundary before the first result  🔄 IN PROGRESS (2026-09-02)
+**Files:** `src/components/common/RefreshableList/RefreshableList.tsx`,
+`src/components/common/RefreshableList/RefreshableList.styles.ts`,
+`src/components/bookings/BookingsList/BookingsList.tsx`,
+`src/components/transactions/TransactionsView/TransactionsView.tsx`
+
+**Gap:** FlashList's row separator only renders between data rows. It creates no space
+between a `ListHeaderComponent` and the first result, leaving the first booking or
+transaction visually attached to the filter header.
+
+**Fix approach:** add a static, opt-in header-to-row boundary in `RefreshableList` and
+enable it on the Bookings and Transactions list headers. The spacing applies after the
+entire header, preserving the grouping of a filter with a visible stale banner or
+transaction summary cards.
+
+**Component convention:** `RefreshableList.tsx` remains the render/layout boundary;
+the static `headerSeparated` rule stays in `RefreshableList.styles.ts`. No state,
+service, schema, or component ownership changes are required.
+
+**Verification:** machine: TypeScript, lint, tests, Android export, diff check. Device:
+on Android, the first row is visibly separated from the full header in Bookings and
+Transactions, in light/dark themes and with a visible stale banner.
+
+**Executed 2026-09-02:** added the `separateHeaderFromRows` opt-in to
+`RefreshableList`, backed by the static `headerSeparated` style, and enabled it for
+Bookings and Transactions. It uses `spacing.md` after the complete header in populated,
+loading, and error states. **Verified (machine):** `tsc --noEmit`, `expo lint`,
+`npm test` (10/10 files), Android `expo export`, and both app/root `git diff --check`
+passed. ⬜ **Still required:** Android visual confirmation of the gap before I3 and
+Stage 4 can be marked done.
+
 ### B3 — Guide text must match the new Bookings filter UI ✅ DONE (2026-08-26)
 **File:** `src/components/dashboard/GuideModal/guideItems.ts:65`
 
@@ -188,7 +219,7 @@ logic. `ScreenShell` now hides/collapses the whole action row after downward scr
 shows it again near the top or on upward scroll. `RefreshableList`, Dashboard and Settings
 report scroll events through the shared context. **Verified (machine):** `tsc --noEmit`,
 `expo lint`, `npm test`, Android `expo export`, and `git diff --check`. **Verified
-(device, user-confirmed 2026-08-26):** Dashboard, Bookings, Transactions and Notifications
+(device, user-confirmed 2026-09-02):** Dashboard, Bookings, Transactions and Notifications
 action-row hide/show behaviour checked on Android.
 
 ---
@@ -278,9 +309,9 @@ Dashboard's remaining `PeriodFilter` is intentionally out of this plan's scope.
 |---|---|---|---|---|
 | **0** | ✅ Resolve D3 after preview review | plan only | User approval received 2026-08-26 | No OPEN decision remains before code starts |
 | **1** | ✅ I1 + B1 + B3 — common sheet, Bookings toolbar, guide copy | `FilterOptionSheet/*`, `BookingsFilterToolbar/*`, `BookingsList.tsx`, `guideItems.ts` | D1 resolved | Machine checks pass; Android Bookings visual/interaction user-confirmed |
-| **2** | ✅ B2 — Transactions toolbar | `TransactionsFilterToolbar/*`, `TransactionsView.tsx` | Stage 1 patterns accepted | Machine checks pass; Android visual/interaction user-confirmed |
+| **2** | 🔄 B2 + I3 — Transactions toolbar and header-to-row spacing | `TransactionsFilterToolbar/*`, `TransactionsView.tsx`, `RefreshableList/*`, `BookingsList.tsx` | Stage 1 patterns accepted | Transactions filter/search Android-verified; spacing correction needs machine checks and Android confirmation |
 | **3** | ✅ B4 — scroll-aware header action row | `ScreenShell/*`, `RefreshableList.tsx`, scroll views | D3 resolved | Machine checks pass; Android scroll behaviour user-confirmed |
-| **4** | ✅ Final polish and plan closeout | all touched files | Device verification required | Machine checks pass; Android device verification user-confirmed |
+| **4** | ⬜ Final polish and plan closeout | all touched files | Stage 2 spacing confirmation required | Machine checks plus final Android confirmation |
 
 ---
 
@@ -326,5 +357,6 @@ clean; `npm test` passed 10/10 test files; `npx expo export --platform android
 --check` clean; static search confirms no `PeriodFilter`/`BookingFilterTabs` remain in
 the targeted Bookings/Transactions filter surfaces.
 
-**Device verification 2026-08-26:** user confirmed the remaining Android checks for
-Transactions filtering/search and scroll-aware header action behaviour. Plan closed.
+**Device verification 2026-09-02:** user confirmed Transactions filtering/search and
+scroll-aware header action behaviour. The first-row spacing issue was found during that
+pass and is tracked as I3; final Android verification remains after its correction.

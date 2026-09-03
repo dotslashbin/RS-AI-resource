@@ -4,8 +4,15 @@
 **App / scope:** `vendor/` (primary), `backbone/supabase/migrations/` (schema + storage).
 **Cross-app read-only reference:** `booker/` — its wizard, slot service and payment
 routes are the source material being adapted, not imported.
-**Status:** IN PROGRESS — **Stage 0 schema is APPLIED AND VERIFIED ON LOCAL
-(2026-08-29); staging and production are still pending (B17).** Re-baselined, migrations
+**Status:** IN PROGRESS — **Stages 0–6b complete; Stage 6c and Stage 7 remain
+(refreshed 2026-09-02).** Schema is applied to **local AND staging** (B17a ✅);
+**production is the one environment still pending** (B17b), and B7–B10 stay 🔄 only
+because of it. The vendor app has **never been deployed to staging**, so B1/B2/B4/R1
+have never run live. Zero open decisions.
+<!-- 2026-09-02: the previous headline still read "staging and production are still
+     pending", which stopped being true when B17a landed on 2026-08-29. Corrected. -->
+
+*Historical, from the 2026-08-29 re-baseline:* Re-baselined, migrations
 re-cut, and syntax + behaviour checked against local (all four applied in one transaction and rolled back;
 11 behavioural assertions passed; one false claim found and corrected — F18). `backbone`
 `feature/kiosk` is rebased onto `develop` (0 behind, 1 ahead); the four Stage 0
@@ -18,7 +25,10 @@ ahead of this one. Stage 0 migrations exist on `backbone` `feature/kiosk` but ar
 
 ---
 
-**Field report 2026-09-02 (first hands-on use):** three items from running the
+**Field reports 2026-09-02 (hands-on use):** *Second pass* added **I13** (chip and slot
+labels do not stack — `margin-top` on inline `<span>`s), **I14** (the mobile field lets
+letters be typed at all — complements I11, does not replace it) and **I12** (gradient
+ground, blocked on **D21**). *First pass:* three items from running the
 kiosk, not by reading it — **B27** (render-phase navigation in `AppShell`, a real React
 invariant violation on the PWA-relaunch path), **I10** (the kiosk scrims are the only
 two modals in the app that do not use the established overlay treatment) and **I11**
@@ -462,6 +472,47 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
   (`useKioskBooking.ts:198-199`) — but it is a real narrowing, and if a kiosk is ever
   sited somewhere with foreign walk-ins, this is the line to revisit.
 
+- **D21 — Does the kiosk's gradient ground stay theme-aware, or go dark-only?**
+  → **(a) theme-aware gradient** (resolved 2026-09-02). Dark keeps login's exact ramp;
+  light gets a light equivalent in the same hue. The kiosk stays theme-responsive, no
+  card or text token is disturbed, and `ux-design` §6 holds. Accepted trade: on a
+  light-set tablet the kiosk will not look identical to the login page.
+  **Agreed shape:**
+  ```css
+  .root { background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 55%, #e0e7ff 100%); }
+  :global(.dark) .root { background: linear-gradient(145deg, #04060e 0%, #070b17 55%, #0d1b4b 100%); }
+  ```
+  - **(a) ⭐ Recommended — theme-aware gradient.** Dark theme gets login's exact ramp;
+    light theme gets a light equivalent built from the same hue. Everything inside the
+    kiosk keeps working untouched, `ux-design` §6 is satisfied, and the change stays one
+    property. What it does *not* do is make the kiosk look identical to the login page on
+    a light-set tablet.
+  - **(b) Dark-only, exactly like login.** Truest to "like the login page", and defensible
+    — a kiosk is a fixed branded installation, which is the same argument that earned the
+    login page its hardcoded exception. **But the cost is not one property:** every card,
+    input and slot inside still reads `--sp-card-bg` / `--sp-strong`, so a light-set
+    tablet would render white cards on a near-black ground. Doing this properly means
+    forcing the `dark` class over the kiosk subtree, which reaches into `next-themes` and
+    is a materially bigger change than the request implies.
+  - **(c) Gradient in dark only, flat `--sp-page-bg` in light.** Cheapest, and honest
+    about only the dark case having been designed — but leaves light looking like the
+    thing that prompted the request.
+
+- **D22 — How are the kiosk chip/slot labels made to stack (I13)?** → **`display: block`
+  on the four spans** (resolved 2026-09-02). Four properties in one file; each container's
+  existing `text-align` still applies to block children and `.nextDay`'s `inline-block`
+  is left alone. The flex-column alternative was declined: it restructures two components'
+  layout to fix a spacing bug and would turn `.nextDay` into a flex item, changing how its
+  own margin behaves. `.dateSub` also goes 2px → 4px, since 2px only ever looked adequate
+  while it was inert.
+- **D23 — What may be typed into the kiosk mobile field, and is a refusal explained
+  (I14)?** → **digits plus `+ ( ) - . space`, with the message shown** (resolved
+  2026-09-02). The character set is exactly what `normalisePhMobile` accepts, so every
+  valid spelling stays typeable and a pasted formatted number keeps its shape. Stricter
+  sets were declined for making the space and dash keys feel dead, and digits-only for
+  making `+639…` untypeable. Silent stripping was declined under `ux-design` §4: a paste
+  that loses characters with no explanation reads as a bug.
+
 
 ---
 
@@ -499,6 +550,11 @@ nothing needs pushing before this can proceed.
 ---
 
 ## BLOCKERS
+
+> **Numbering note (2026-09-02):** there is no **B18** and never was — the number was
+> skipped when B19–B21 were added mid-execution. Recorded so the gap reads as an
+> accident of numbering rather than a lost item. B17 is split into B17a/B17b.
+
 
 ### B1 — Kiosk booking creation must be an atomic service-role route  ✅ DONE (2026-08-29)
 > `app/api/kiosk/booking/route.ts`. Guard verified live (401/403/400). Sends no
@@ -1712,6 +1768,25 @@ include bookings whose `bookedDate` is the date *or the day after*, build each b
 and overlap-compare those. Keep `availabilityForDay`'s signature and its existing tests
 green; add overnight cases.
 
+> ### ⏸ Everything waiting on PayMongo test accounts — the single list
+>
+> Added 2026-09-02 because this work is now spread across two plans and would otherwise
+> be rediscovered piecemeal. When the credentials arrive, this is the whole set:
+>
+> | Where | Item | What it needs the accounts for |
+> |---|---|---|
+> | **this plan** | **B22** `PAYMONGO_WEBHOOK_SECRET` set but unread | wiring it up and seeing an event arrive |
+> | **this plan** | **B23** `NEXT_PUBLIC_APP_URL` per environment | ⚠️ must be set on staging **before** the first payment test, not after |
+> | **this plan** | kiosk payment end-to-end | never exercised — the kiosk's `create-session` has only been probed for auth |
+> | **booker plan** | **A2** webhook config disclosure | how a real unsigned caller is treated in a deployed environment |
+> | **booker plan** | **A3** webhook replay window | a genuine signed event to replay |
+> | **booker plan** | signed-in booking → checkout | the regression check on B1's reordering |
+>
+> Booker plan = `.plans/2026-09-02-booker-payment-route-hardening.md`.
+> ⚠️ **B23 is the one with an ordering constraint** — every other row can happen in any
+> order once the accounts exist; B23 has to come first or the first payment test redirects
+> somewhere wrong.
+
 ### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ⏸ PARKED (2026-08-29)
 **Parked with B23 until the proper PayMongo credentials are in hand** (user's call).
 Nothing is broken meanwhile: the key is unused, server-only, and in test mode. The cost
@@ -1912,8 +1987,11 @@ let you pay for someone else's booking.
 **Verified live:** the same request now returns `401 {"error":"Not signed in."}`;
 `{}` still returns 400.
 
-⚠️ **Booker has the same ordering and was NOT changed** — it is a different app and
-outside this plan's approved scope (AGENTS.md cross-app gate). Worth its own small fix.
+⚠️ **Booker had the same ordering** — a different app, so outside this plan's approved
+scope (AGENTS.md cross-app gate). ✅ **Now fixed under its own plan**,
+`.plans/2026-09-02-booker-payment-route-hardening.md` (approved 2026-09-02), where it is
+that plan's B1. Proven live there by blanking `PAYMONGO_SECRET_KEY` — the only state in
+which the defect is observable.
 
 ---
 
@@ -2504,8 +2582,198 @@ browser for the two-tier timing (letters flag on keystroke, invalid only after b
 
 ---
 
+### I12 — Give the kiosk the login page's gradient ground  ✅ DONE (2026-09-02)
+> **Executed per D21(a) — `KioskShell.module.css` only.** `.root` takes a light ramp
+> (`#f8fafc → #eef2ff → #e0e7ff`) and `:global(.dark) .root` takes login's exact dark ramp
+> (`#04060e → #070b17 → #0d1b4b`). `:global(.dark)` is the selector this codebase already
+> uses (`KioskBooking.module.css:98`).
+> **Verified — machine:** `tsc` clean, 365/365 (CSS-only; confirms nothing else moved).
+> ⚠️ **Needs a browser, in BOTH themes** — and light is the one that matters, since it is
+> the case D21 chose specifically to protect. Confirm cards still read against the light
+> ramp and body text clears `ux-design` §5's 4.5:1.
+**File:** `vendor/components/kiosk/KioskShell/KioskShell.module.css:18` — `background: var(--sp-page-bg)`.
+
+Requested 2026-09-02: the kiosk carries far less furniture than the dashboard, so a flat
+page colour leaves it looking unfinished. Reference is
+`LoginPage.module.css:12` — `linear-gradient(145deg, #04060e 0%, #070b17 55%, #0d1b4b 100%)`.
+
+> ⚠️ **This is not a copy-paste, and `ux-design` §6 is why.** That skill says *"use CSS
+> variable tokens — never hardcode colours"* and *"does this work in light AND dark".*
+> The login page is allowed to break that rule because it is a **deliberate branded
+> exception** — its own header calls it a "full-screen hardcoded-dark branded surface"
+> admitted under D-1's awkward-surface clause. The kiosk today is **theme-responsive**:
+> `.root` reads `--sp-page-bg`, and every card inside reads `--sp-card-bg`. Dropping a
+> hardcoded near-black gradient underneath them without further change would put **white
+> cards on a near-black ground** for any tablet set to light. That is the trap in this
+> item, and D21 is where it gets decided.
+
+**Fix approach:** background only — no layout, no component changes. **D21 resolved (a)**
+on 2026-09-02; the exact two-rule shape is recorded there. `:global(.dark)` is the
+selector the file's neighbours already use (`KioskBooking.module.css:98`).
+**Component separation:** one property in an existing `.module.css`; no `.tsx` touched.
+**Verification:** needs-live — render `/kiosk` in **both** themes and look. Contrast of
+body text on the new ground must still clear `ux-design` §5's 4.5:1.
+
+---
+
+### I13 — Chip and slot labels do not stack: `margin-top` on an inline `<span>`  ✅ DONE (2026-09-02)
+> **Executed per D22 — one file, `KioskBooking.module.css`.** `display: block` added to
+> `.dateLabel`, `.dateSub`, `.slotTime`, `.slotSub`; `.dateSub` margin 2px → 4px. Each
+> pair carries a comment saying the `display` is load-bearing, because deleting it looks
+> like a no-op and silently restores the bug.
+> **Verified — machine:** `tsc` clean, `npm test` 365/365, `eslint` clean. None of that
+> touches spacing; it confirms nothing else moved.
+> ⚠️ **Needs a browser** — the actual result is unverified by me. Check the chips read
+> `Tomorrow` / `Sep 3` on two lines, and slots read `09:00–10:00` / `1 left` on two.
+**Files:** `KioskBooking.module.css:48-49` (`.dateLabel` / `.dateSub`) and `:87-88`
+(`.slotTime` / `.slotSub`).
+
+Reported as two separate problems — "the schedule's day has the date too close to it"
+(`TomorrowSep 3`, `FriSep 4`) and "the slots that say '1 left' is too close to the time".
+**They are one bug with one cause.**
+
+All four elements are `<span>`s — `StepOffering.tsx:20-21` and `StepSlot.tsx:33-34` — and
+a `<span>` is a **non-replaced inline box, on which `margin-top` has no effect at all**.
+The CSS was written as though they were block-level:
+
+```css
+.dateSub  { font-size: 12px; margin-top: 2px; opacity: 0.75; }   /* inert */
+.slotSub  { font-size: 12px; margin-top: 5px; opacity: 0.75; }   /* inert */
+```
+
+So both pairs render on one line, butted together with no separator. It is **not** a
+failed render or a load-order problem, as the report wondered — it renders exactly as
+specified, and the specification is wrong.
+
+> **The tell that proves the diagnosis:** `.nextDay` in the *same* slot button spaces
+> correctly, and it is the *only* one of the five that sets `display: inline-block`
+> (`:92-96`). Same margin, same parent, different display type, different outcome.
+
+**Fix approach — D22 resolved (2026-09-02):** make the four spans block-level and let the
+existing margins take effect. `display: block` on each is the surgical change — `.slot`'s `text-align: center`
+and `.dateChip`'s `text-align: left` both still apply to block children, and
+`.nextDay`'s `inline-block` is left alone. Nudge `.dateSub`'s `margin-top` 2px → 4px:
+once genuinely stacked, 2px between a 15px label and a 12px sub is still cramped.
+
+> **Not chosen: converting `.dateChip` / `.slot` to `flex-direction: column` + `gap`.**
+> Tidier in the abstract, but it restructures two components' layout to fix a spacing bug
+> and would need `align-items` re-derived to preserve each one's existing text alignment.
+> `ux-design` §3 and simplicity-first both point at the four-property fix.
+
+**Hierarchy note (`ux-design` §2):** stacking also restores the intended reading order —
+`Tomorrow` (15px/600) dominant, `Sep 3` (12px/0.75 opacity) subordinate. On one line they
+compete, which is why it reads as "messy" rather than merely tight.
+
+**Component separation:** CSS-only; no `.tsx` changes.
+**Verification:** machine — none meaningful for spacing. Needs-live — render the offering
+and slot steps and confirm both pairs stack. Candidate for a ui-gallery fixture under I7.
+
+---
+
+### I14 — The mobile field lets letters be typed at all  ✅ DONE (2026-09-02)
+> **Executed per D23 — 4 files.** `lib/kioskSteps.ts` gains `stripPhoneInput` (allowed
+> set `[\d+()\-. ]`, i.e. precisely what `normalisePhMobile` accepts);
+> `useKioskBooking.ts` gains `phoneRejected` state and a `setPhone` that filters and
+> records whether it dropped anything; `phoneIssue` prefers `"letters"` while a drop just
+> happened; `StepCustomer.tsx` swaps `setCustomer({phone})` for `setPhone`.
+> **5 new tests**, suite **360 → 365**. The tests guard the *inverse* failure — a filter
+> keen enough to eat a character `normalisePhMobile` would have accepted — plus one
+> asserting a filtered value still satisfies `customerDetailsValid`.
+> **Verified — machine:** `tsc` clean, 365/365, `eslint` clean on all three source files.
+> ⚠️ **Needs a browser:** type `abcde` (nothing appears, message shows), paste
+> `0917-ABC-4567` (→ `0917--4567`, message shows), type `+63 (917) 123-4567` (survives
+> whole), then one clean keystroke (message clears).
+**Files:** `StepCustomer.tsx:26-27` (the `onChange`), `useKioskBooking.ts` (`setCustomer`).
+
+> **⚠️ NOT redundant with I11, and the submitted screenshot is I11 *working*.** The red
+> border and "Numbers only, please." visible in the report are exactly what I11 shipped.
+> The two items solve different halves and both are wanted:
+>
+> | | I11 ✅ | I14 ⬜ |
+> |---|---|---|
+> | Question | is what was typed *acceptable* | may this character be typed *at all* |
+> | Mechanism | validate + flag + block the step | filter on input |
+> | Result | `abcde` is entered, then rejected | `abcde` never appears |
+>
+> I11 is still load-bearing after I14: filtering cannot catch a **well-formed-looking but
+> invalid** number (`12345`, a landline, a foreign number), which is most of what
+> `normalisePhMobile` rejects. Remove I11 and those walk straight through.
+
+`onChange` currently writes `e.target.value` verbatim, so any character lands in state.
+
+**Fix approach — D23 resolved (2026-09-02):** a dedicated `setPhone` on the hook that
+strips anything outside the set
+`normalisePhMobile` actually accepts — digits plus `+ ( ) - . space` (its `SEPARATORS` is
+`[\s()\-.]`). Anything else never enters state.
+
+⚠️ **Silent stripping is the wrong end state (`ux-design` §4).** A customer pasting
+`0917-ABC-4567` would watch it become `0917--4567` with no explanation. So `setPhone`
+also records *whether it dropped anything*, and that drives the existing `"letters"`
+message — the character is refused **and** the reason is shown:
+
+```ts
+const cleaned = raw.replace(/[^\d+()\-. ]/g, "")
+setPhoneRejected(cleaned !== raw)
+```
+
+with `phoneIssue = phoneRejected ? "letters" : mobileFieldIssue(cleaned, phoneTouched)`.
+
+**Consequence to record:** `mobileFieldIssue`'s own `/[a-zA-Z]/` branch becomes
+unreachable, since it can no longer receive a letter. It stays as a backstop rather than
+being deleted — it is shared with the payout card, which does **not** filter its input.
+
+**Component separation:** all logic in `useKioskBooking.ts`; `StepCustomer.tsx` swaps one
+handler and stays a pure render layer.
+**Verification:** machine — extend `lib/kioskSteps.test.ts` if the filter is extracted, or
+test the pure `replace` rule directly. Needs-live — type `abcde` (nothing appears, message
+shows), paste `0917-ABC-4567` (letters dropped, message shows), type `+63 (917) 123-4567`
+(every character survives).
+
+---
+
+### I15 — The three fixture review fixes  ✅ DONE (a, b) / ✖ DECLINED (c) — 2026-09-02
+Raised from reviewing the ui-gallery fixtures; approved 2026-09-02 as "a and b, accept c".
+
+**(a) `KioskLauncherDialog` — the zero cases were arithmetic, not English.** ✅
+`KioskLauncherDialog.tsx:40` read `{eligibleCount} of your {totalCount} offering…`, which
+renders **"0 of your 0 offerings can be booked here."** for a vendor opening the dialog
+before creating anything — i.e. the most likely first-ever view of this screen. Plurals
+were handled; zero was not. Moved the sentence into `useKioskLauncherDialog.ts` as a
+derived `summary` so the `.tsx` stays a pure render layer, with three arms:
+`total === 0` → "You have no offerings yet — add one under Offerings to use Kiosk Mode."
+(a pointer, per `ux-design` §4's empty-state rule); `eligible === 0` → "None of your N
+offerings…"; otherwise the original.
+**Verified:** rendered `/ui-gallery?mode=kiosklauncher` and read it — the zero case now
+reads as a sentence.
+
+**(b) `KioskSignaturePad` — the instruction moved onto the pad.** ✅
+"Sign with your finger or a stylus" was a `<p>` *below* the pad; it is an instruction for
+an empty pad, so it now sits centred **on** it, absolutely positioned with
+`pointer-events: none` so it neither occupies layout nor swallows the first stroke.
+"Tap Clear to sign again." stays below, where it correctly reads as a footnote.
+
+> ⚠️ **A real hazard was found and designed around.** Emptying the hint's text would let
+> `.hint` collapse, shrinking `.pad` the instant the first stroke lands. `fit()`
+> (`useKioskSignaturePad.ts:64-65`) re-runs **only on a `window` resize** — there is no
+> `ResizeObserver` — so the canvas backing store would keep its old dimensions while its
+> CSS box shrank, and the signature would visibly stretch. The hint element is therefore
+> always rendered and `.hint` carries `min-height: 18px`. Both the `.tsx` and the CSS
+> carry a note, because the fix looks removable and is not.
+
+**Verified:** rendered `/ui-gallery?mode=kiosksignature` in **both** themes — placeholder
+centred and legible on the empty pad in each.
+
+**(c) Disabled-button contrast** — ✖ **declined, deliberately.** `.btn:disabled { opacity:
+0.5 }` puts white-on-blue near 2.4:1, under `ux-design` §5's 4.5:1 — but WCAG exempts
+disabled controls, and this is a button nobody can press. Declined as theoretical.
+
+---
+
 ## DEFERRED / COSMETIC
 
+- **Disabled-button contrast in the kiosk dialogs** (I15c) — `opacity: 0.5` reads near
+  2.4:1. Accepted 2026-09-02: WCAG exempts disabled controls, and the affected button
+  cannot be pressed. Revisit only if a disabled control ever needs to be *read*.
 - **Date-granular offerings at the kiosk** (D7) — excluded because the booker's own
   date-granular arm is a documented dead end (`architecture/booking-flow.md`).
   **Unblocks when** the booker's Step 3 render arm and `canNext` are fixed, tracked
@@ -2720,6 +2988,16 @@ baselines, folds into I7: registering `kioskexit` / `kiosklauncher` in
 lands would freeze the scrim this item exists to change. **I11** (kiosk mobile-number validation, added 2026-09-02) is independent of both and
 carries no open decision — D20 records the rule.
 **Order: ~~B27~~ ✅ → ~~I11~~ ✅ → ~~I10~~ ✅ (all 2026-09-02) → I7's kiosk baselines (remaining).**
+
+**Stage 6c — second field report (I13, I14, I12).**  ✅ **CODE COMPLETE 2026-09-02**, all
+three machine-verified and all three awaiting one browser pass. Added 2026-09-02, from
+a second hands-on pass. All three are vendor-app-only; no schema, no effect on Stage 7.
+**I13 first** — it is a one-cause CSS defect with no decision attached and it changes what
+the other two are reviewed against. **I14 next** — self-contained, and it completes the
+phone field rather than replacing I11. **I12 last** — D21 answered (a) on 2026-09-02, so it is
+unblocked and is now a two-rule CSS change.
+⚠️ **I7's baselines move behind all three** — same reasoning as I10: snapshotting the
+kiosk now would freeze the very layout these items change.
 
 **Stage 7 — production (B17b).** `db push` to production, re-check the grants, **then**
 the app builds — in that order, not the same sitting. Deliberately last, and deliberately
