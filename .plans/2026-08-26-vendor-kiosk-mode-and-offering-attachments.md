@@ -4,8 +4,18 @@
 **App / scope:** `vendor/` (primary), `backbone/supabase/migrations/` (schema + storage).
 **Cross-app read-only reference:** `booker/` — its wizard, slot service and payment
 routes are the source material being adapted, not imported.
-**Status:** IN PROGRESS — **Stages 0–6b complete; Stage 6c and Stage 7 remain
-(refreshed 2026-09-02).** Schema is applied to **local AND staging** (B17a ✅);
+**Status:** IN PROGRESS — **B29 is fixed and verified live (2026-09-03); text documents
+can now be authored and edited.** Every blocker is ✅. **Every blocker and every important item is ✅ except B22/B23**, and
+their parking reasons were corrected on 2026-09-04: **B22 is ✅ done (2026-09-04)** and
+**B23 belongs to the app deploy**, not to a later PayMongo pass. B23 is the only item left. No open
+decisions. What remains is confirmation rather than plan work: the production **grants
+re-check**, the reviewer's manual pass, and an app deploy. Schema is on local, staging and production; every blocker and
+important item is ✅ apart from **B22/B23**, which are ⏸ pending PayMongo test accounts.
+What is left is not plan work but confirmation: the production **grants re-check**, the
+reviewer's manual kiosk pass, and an app deploy. **B28 is fixed** (2026-09-03, D24a + D25a) — the launcher no longer opens for an
+incomplete account, so the two dialogs cannot stack. ⚠️ One consequence: no seeded vendor
+has a payout method, so **the kiosk is unreachable in local dev** until one is added — see
+DEFERRED. Schema is applied to **local AND staging** (B17a ✅);
 **production is the one environment still pending** (B17b), and B7–B10 stay 🔄 only
 because of it. The vendor app has **never been deployed to staging**, so B1/B2/B4/R1
 have never run live. Zero open decisions.
@@ -513,6 +523,70 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
   making `+639…` untypeable. Silent stripping was declined under `ux-design` §4: a paste
   that loses characters with no explanation reads as a bug.
 
+- **D24 — How should the kiosk launcher stop losing the stacking contest (B28)?**
+  → **(a) port to Radix** (resolved 2026-09-02, executed 2026-09-03). ⚠️ **Correction:
+  necessary but NOT sufficient** — it made the two dialogs peers, and peers still stack by
+  DOM order, so the launcher is still covered. The port is kept for the focus trap,
+  Escape handling and consistency it brings; the actual fix moved to **D25**. Option (b)
+  remains rejected for the reason recorded below, which the port has now also demonstrated
+  empirically.
+  - **(a) ⭐ Recommended — port the launcher to Radix `Dialog`,** as its eight peers
+    already are. Radix portals to `<body>`, so ordering becomes DOM order among equals
+    rather than a z-index that cannot win, and it brings focus trapping and Escape
+    handling the hand-rolled version does not have. Largest edit of the three, but it
+    removes the whole class of bug instead of this instance.
+  - **(b) Raise the launcher's `z-index`.** One line — and it **does not work**: the
+    launcher is not in the root stacking context, which is exactly why 60 already loses to
+    50. Listed so it is visibly rejected rather than tried later.
+  - **(c) Suppress the completion modal while the launcher is open**, the same way
+    `AppShell` already suppresses the guide modal for the completion modal. Small and
+    consistent with existing precedent, but it fixes this *pair* only — the next
+    full-screen dialog re-opens the bug.
+
+- **D25 — How should the kiosk launcher and the account-completion modal be
+  coordinated (B28)?** → **(a) refuse to open the launcher while the account is
+  incomplete, and say why** (resolved and implemented 2026-09-03). The open caveat below
+  was checked before implementing: `isAccountComplete = hasOffering && hasPayoutDetails`,
+  so an incomplete account really can have **no payout destination** — the copy was not
+  overstating, and (c) is correctly rejected.
+  - **(a) ⭐ Recommended — refuse to open the launcher while the account is incomplete,
+    and say why.** The completion modal's own copy is *"1 step left before you can take
+    bookings"*. A kiosk exists to **sell bookings**, so a vendor who cannot take them must
+    not be able to start one — otherwise a walk-in customer fills in their name, phone and
+    email and only then hits a failure. Clicking Kiosk Mode would open the completion
+    modal instead, which is the thing they actually need to finish.
+    `AppShell.tsx:206` already passes an `accountIncomplete` flag around, so the state is
+    to hand.
+  - **(b) Suppress the launcher only while the completion modal is *open*** —
+    `{kioskPrompt && !completionState.modalOpen && …}`. One line, and it mirrors the
+    existing `suppressAutoOpen` precedent exactly. But clicking Kiosk Mode would then do
+    nothing at all in that state, which is a worse failure than the one being fixed.
+  - **(c) Close the completion modal when the launcher opens.** Lets the vendor through —
+    into a kiosk that, per the app's own copy, cannot take a booking. Rejected unless
+    "cannot take bookings" turns out not to be literally true.
+
+  ✅ **That question was checked before implementing** (2026-09-03): `isAccountComplete`
+  is `hasOffering && hasPayoutDetails`, computed by the `vendor_account_completion` view.
+  Incomplete can mean **no active payout destination**, so the copy stands and (a) holds.
+
+- **D26 — How far does the "Write text" fix go (B29)?** → **(a) finish the feature**
+  (resolved and executed 2026-09-03). Option (c) stays recorded as rejected.
+  - **(a) ⭐ Recommended — finish the feature.** "Write text" opens an inline **draft** held
+    in local state; nothing is inserted until there is content, so the constraint is
+    satisfied by construction rather than worked around. Existing documents become editable
+    too — `updateAttachment` already accepts `body`, and a vendor must be able to fix a
+    typo in a waiver they are asking customers to accept. Largest of the three, and the
+    only one that makes the kiosk's agreements step usable for anything but an uploaded
+    file.
+  - **(b) Stop the crash only — remove or disable "Write text".** Honest and small: the
+    button currently promises something the app cannot do. Uploaded-file documents keep
+    working, so the kiosk's agreements step still functions. Defensible if this needs to
+    ship now, but it leaves `body` as a column the customer sees and no one can populate.
+  - **(c) Seed a placeholder body.** ✖ **Rejected, recorded so it is not attempted:** it
+    satisfies the constraint by creating an active document row, which per B12 puts an
+    agreements step in front of every kiosk customer for that offering. A silent
+    customer-facing change is worse than the crash.
+
 
 ---
 
@@ -827,7 +901,11 @@ DEFERRED with its unblock condition.
 
 ---
 
-### B7 — Attachment schema  🔄 IN PROGRESS
+### B7 — Attachment schema  ✅ DONE (2026-09-03)
+> Closed by **B17b** — the migration is now applied to local, staging **and**
+> production. The item had no outstanding work of its own; it was 🔄 solely because
+> production was pending. Marked on the user's report of the push; the production
+> grants re-check listed under B17b is the one measurement still outstanding.
 > ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000001_offering_attachments.sql`.
 > ⚠️ **Renumbered 2026-08-29 (D16).** The file on `feature/kiosk` is `20260826000001`,
 > which sorts **before** the `20260828…` overnight migrations that are already applied
@@ -1028,7 +1106,11 @@ alter table public.legal_acceptances
 
 ---
 
-### B8 — Attachment + signature storage  🔄 IN PROGRESS
+### B8 — Attachment + signature storage  ✅ DONE (2026-09-03)
+> Closed by **B17b** — the migration is now applied to local, staging **and**
+> production. The item had no outstanding work of its own; it was 🔄 solely because
+> production was pending. Marked on the user's report of the push; the production
+> grants re-check listed under B17b is the one measurement still outstanding.
 > ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000002_attachment_storage.sql`.
 > Not applied. One addition beyond the drafted SQL: an `update` policy for vendor
 > admins on `offering-attachments`, since replacing a file is an UPDATE on the
@@ -1103,7 +1185,11 @@ customer's signature. Recorded in DEFERRED.
 
 ---
 
-### B9 — `booked_via` origin marker, pinned against UPDATE  🔄 IN PROGRESS
+### B9 — `booked_via` origin marker, pinned against UPDATE  ✅ DONE (2026-09-03)
+> Closed by **B17b** — the migration is now applied to local, staging **and**
+> production. The item had no outstanding work of its own; it was 🔄 solely because
+> production was pending. Marked on the user's report of the push; the production
+> grants re-check listed under B17b is the one measurement still outstanding.
 > ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000003_booking_origin.sql`.
 > Not applied.
 **File:** `backbone/supabase/migrations/20260829000003_booking_origin.sql`
@@ -1185,7 +1271,11 @@ next person will reasonably ask.
 
 ---
 
-### B10 — Let the customer close a kiosk booking at the desk  🔄 IN PROGRESS
+### B10 — Let the customer close a kiosk booking at the desk  ✅ DONE (2026-09-03)
+> Closed by **B17b** — the migration is now applied to local, staging **and**
+> production. The item had no outstanding work of its own; it was 🔄 solely because
+> production was pending. Marked on the user's report of the push; the production
+> grants re-check listed under B17b is the one measurement still outstanding.
 > ✅ Approved 2026-08-26. Migration ✅ **re-cut and APPLIED TO LOCAL 2026-08-29** as `20260829000004_kiosk_customer_close_out.sql`
 > (named for what it does — it covers both patterns, not custody alone).
 >
@@ -1481,6 +1571,36 @@ act does" — the actual boundary is still the device lockdown in B5.
 ---
 
 ### B15 — The kiosk requires a live vendor-admin session, always  ✅ DONE (2026-08-29)
+> ## 🔗 COUPLING — `requireVendorAdmin` IS NO LONGER THIS PLAN'S ALONE (added 2026-09-03)
+>
+> `.plans/2026-09-03-vendor-mobile-kiosk-mode.md` **B1** changed `lib/kioskAuth.ts` to give
+> the mobile app a second way in. Both plans now own the same guard, and neither referenced
+> the other until this note — the gap plan-authoring §9 exists to prevent.
+>
+> **What changed under this item:** `requireVendorAdmin(vendorId)` became
+> `requireVendorAdmin(request, vendorId)`. Identity comes from an `Authorization: Bearer`
+> access token when one is sent, and from the cookie-bound SSR client otherwise. All four
+> kiosk routes pass their request through. Reviewed 2026-09-03 and **sound**: a malformed
+> bearer header returns 401 rather than falling through to a coincidental browser cookie,
+> the token is validated by `auth.getUser(token)` rather than decoded locally, it uses the
+> anon key, and the vendor-admin membership check still runs afterwards — so the boundary
+> this item defines is unchanged, only the credential is new.
+>
+> ⚠️ **Three invariants from THIS plan now depend on code the mobile plan edits.** Anyone
+> touching `kioskAuth.ts` must keep all three:
+> 1. **B20** — auth must still precede the `PAYMONGO_SECRET_KEY` check on
+>    `create-session`. Re-verified after the mobile change: `requireVendorAdmin` at `:49`,
+>    `secretKey` at `:52`.
+> 2. **B15** — `verifyVendorAdminFor(user, vendorId)` against the **pinned** vendor, never
+>    `activeRows[0]`, or a multi-vendor admin silently re-points the kiosk.
+> 3. **B4** — the caller names `vendorId`, so membership is checked with no database read
+>    and an unauthorised caller learns nothing about whether a booking id exists.
+>
+> **Fixed 2026-09-03 while reviewing it:** the scheme match was case-sensitive
+> (`/^Bearer …$/`), so `bearer <token>` failed **closed** — a correct-looking, unexplainable
+> 401 for any client that normalises header casing. RFC 7235 §2.1 makes the scheme
+> case-insensitive. Now `/i`, with tests over `Bearer|bearer|BEARER|BeArEr` and the
+> malformed cases re-asserted in lower case. Suite **367 → 369**.
 > `useKioskShell` checks on mount and subscribes to `onAuthStateChange`, against the
 > **pinned** vendor via a new `verifyVendorAdminFor(user, vendorId)`. That function had
 > to be added: `verifyVendorAccess` returns `activeRows[0]`, which for a multi-vendor
@@ -1691,21 +1811,75 @@ staging.
 
 ---
 
-### B17b — Push the Stage 0 schema to PRODUCTION  ⬜ TODO
+### B17b — Push the Stage 0 schema to PRODUCTION  ✅ DONE (2026-09-03)
+> **Pushed by the user on 2026-09-03**, after the command was corrected to
+> `--project-ref pdkejyjidrfxksaczvfy` (see the correction notice below — the original
+> `--linked` would have hit staging).
+> User reports staging and production now hold **the same schema state**, with seed data
+> deliberately present on staging only. That posture is worth keeping: these two
+> environments drifted once before, when work went to prod first and staging was left
+> behind.
+>
+> ⚠️ **Two follow-ups from this item are NOT yet done and are not implied by the push:**
+> 1. **Re-run the grants query on production** — confirm `authenticated => SELECT` and
+>    `service_role => INSERT,REFERENCES,SELECT,TRIGGER`. This is not ceremony: **F18** in
+>    this plan was a false claim about grants that only measurement caught, and a grant
+>    that silently differs shows up as `permission denied` for a real logged-in user.
+> 2. **No app build has been deployed**, which is correct — the schema is inert without
+>    one, and B28's fix is still uncommitted. Deploy is a separate sitting, as planned.
 **Files:** none — this is a deploy, not a code change
 **Runs LAST — Stage 7**, after every stage is complete and B17a's live checks have
 passed on staging.
 
-Same command, same grant re-check, different environment and a different risk posture:
+> ## ⚠️ CORRECTED 2026-09-03 — THE COMMAND BELOW WAS WRONG AND WOULD NOT HAVE REACHED PRODUCTION
+>
+> This item originally read *"same command"* as B17a, i.e. `npx supabase db push --linked`.
+> **`--linked` is STAGING.** `backbone/supabase/.temp/project-ref` holds
+> `fbxbwnfeimzhgxpshdpa`, the staging project; production is a **separate** project,
+> `pdkejyjidrfxksaczvfy` (`architecture/overview.md:87-88`).
+>
+> Running the original command would have re-pushed **staging**, printed a perfectly
+> ordinary success, and left production untouched — while the plan was ticked off as
+> done. Nothing in `db push` output names the environment, which is exactly the trap
+> `architecture/database-reset-and-deploy.md:418` warns about (*"Check `.temp/project-ref`
+> before every command"*).
+>
+> Caught 2026-09-03 when the user said they were ready to push to production.
+
+**Target production explicitly. Do NOT re-link** — a re-link silently retargets every
+later command in this working copy, including future `db push`es intended for staging.
 
 ```bash
 cd backbone
-npx supabase db push --linked --dry-run
-npx supabase db push --linked
+
+# 0. Say out loud which project is about to be hit. Staging = fbxbwnfeimzhgxpshdpa.
+cat supabase/.temp/project-ref          # expect: fbxbwnfeimzhgxpshdpa  (STAGING)
+
+# 1. What does production not yet have?
+npx supabase migration list --project-ref pdkejyjidrfxksaczvfy
+
+# 2. Dry run against PRODUCTION, then the real push.
+npx supabase db push --project-ref pdkejyjidrfxksaczvfy --dry-run
+npx supabase db push --project-ref pdkejyjidrfxksaczvfy
 ```
+
+⚠️ **`20260829000003_booking_origin.sql` carries a backfill** — it revalidates every
+existing booking row. The runbook requires a **baseline query before any migration
+carrying a backfill** (`database-reset-and-deploy.md:421`). Local had 41 rows; production
+will have more, and this is the one migration whose runtime and failure modes scale with
+row count. Take the baseline first.
+
+⚠️ **`20260829000004` replaces `validate_booking_status_transition()`** — an existing
+function on the live booking path, not a new one. Two lines differ. It has been on staging
+since 2026-08-29, which is the whole reason B17a came first.
 
 ⚠️ **`db push` only — never `db reset`, never `--include-seed`.** The repo doc is
 unambiguous: *"Production only ever receives `db push`."*
+
+⚠️ **Also from the runbook's Production section, and NOT yet ticked off anywhere in this
+plan:** `pg_cron` must be enabled before the first push, and `platform_fee_settings.fee_percent`
+arrives at 0 — until it is set the platform earns nothing on every booking. Both are
+one-time production setup rather than kiosk work, but this is the sitting where they bite.
 
 ⚠️ **Do not pair this with the app deploy in one sitting.** Push the schema, re-run the
 grant query, confirm it reads `authenticated => SELECT` and
@@ -1787,8 +1961,37 @@ green; add overnight cases.
 > order once the accounts exist; B23 has to come first or the first payment test redirects
 > somewhere wrong.
 
-### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ⏸ PARKED (2026-08-29)
-**Parked with B23 until the proper PayMongo credentials are in hand** (user's call).
+### B22 — `PAYMONGO_WEBHOOK_SECRET` is set in vendor but nothing reads it  ✅ DONE (2026-09-04)
+> **Removed from `vendor/.env.local`** — one line, matched on the `^PAYMONGO_WEBHOOK_SECRET=`
+> prefix rather than a line number so a shifted file could not take the wrong line. 16 → 15
+> lines; the other eight keys verified present afterwards, `PAYMONGO_SECRET_KEY` included.
+> **Booker's copy is untouched and must stay** — it is the only consumer.
+>
+> **Why removal cannot break settlement, established before deleting:** vendor has **no
+> webhook endpoint at all** (its ten API routes were enumerated; the only payment one is
+> `kiosk/payment/create-session`). PayMongo delivers paid events to the single URL
+> registered in the dashboard, which is booker's. Vendor's kiosk session sends
+> `metadata: { booking_id }` (`create-session/route.ts:103`) and booker's webhook keys on
+> exactly that (`webhook/route.ts:48-51`) with no app- or booker-scoping, so a kiosk
+> booking is settled by booker's webhook using booker's secret. Vendor's copy was read by
+> nothing and could not be read by anything.
+>
+> **Verified after removal:** dev server restarted so the change actually took effect (Next
+> reads env at startup), no startup error mentions the key, and
+> `POST /api/kiosk/payment/create-session` unauthenticated still returns
+> `401 {"error":"Not signed in."}` — B20's ordering intact.
+>
+> ⚠️ **Still outstanding, and it is not in this repo:** remove the same variable from
+> vendor's entry in the **hosting platform**, if it was added there.
+>
+> ⚠️ The value is recoverable from `booker/.env.local` if it is ever needed again.
+> ⚠️ **UNPARKED 2026-09-04 — the parking reason was wrong, and it was mine.** This was
+> filed as "waiting on PayMongo credentials" because it was swept up with B23 when the
+> user deferred *payment testing*. **It is a deletion.** Removing an unused credential
+> needs no credentials. Re-confirmed 2026-09-04: `PAYMONGO_WEBHOOK_SECRET` is still in
+> `vendor/.env.local`, and the only occurrence of that name anywhere in vendor's source is
+> the comment at `create-session/route.ts:21` saying it must not be there. **Doable now.**
+
 Nothing is broken meanwhile: the key is unused, server-only, and in test mode. The cost
 of leaving it is a credential sitting in a second place for no reason, and a future
 reader inferring a vendor webhook exists when the decision on record is that it must not.
@@ -1816,7 +2019,19 @@ is required and correctly present.
 ---
 
 ### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ⏸ PARKED (2026-08-29)
-**Parked with B22 until the proper PayMongo credentials are in hand** (user's call).
+> ⚠️ **PARKING REASON CORRECTED 2026-09-04.** This is **not** waiting on PayMongo
+> credentials — the variable is the *vendor app's own URL* and nothing about it comes from
+> PayMongo. What it actually waits on is a **deployed environment to set it on**:
+>
+> | Environment | Value | State (2026-09-04) |
+> |---|---|---|
+> | local | `http://localhost:3000` | ✅ already correct |
+> | staging | the staging vendor URL | ❌ vendor has never been deployed there |
+> | production | `https://vendor.ezzy.ph` (`architecture/overview.md:88`) | knowable now, unset |
+>
+> **So it belongs to the deploy, not to a later credentials pass.** Set it *as part of*
+> each deploy and the "before the first payment test" constraint is satisfied by
+> construction. Credentials only matter for *testing* the redirect, not for setting it.
 ⚠️ **This one has teeth, and parking it is only safe while nobody takes a real payment.**
 B4 builds PayMongo's `success_url` from this variable, so on any hosted environment where
 it is unset or inherited from local, a customer who pays is redirected to **localhost**
@@ -1966,6 +2181,9 @@ implicit because it is a visible UX consequence of a schema choice, and the obvi
 ---
 
 ### B20 — Auth must precede the config check on payment routes  ✅ DONE (2026-08-29)
+> 🔗 **Coupled to the mobile plan's B1 (2026-09-03)** — it rewrote the very helper this
+> ordering depends on. Re-verified after that change: `requireVendorAdmin` at
+> `create-session/route.ts:49`, `secretKey` at `:52`. See B15's coupling block.
 **File:** `vendor/app/api/kiosk/payment/create-session/route.ts`
 **Found by probing the running route in Stage 2, not by reading it.** The first live
 request — an unauthenticated POST — came back
@@ -2077,7 +2295,283 @@ the console is clean and the redirect to `/kiosk` still happens with no dashboar
 
 ---
 
+### B28 — `AccountCompletionModal` renders ON TOP of the kiosk launcher, killing every button  ✅ DONE (2026-09-03)
+> **Fixed by D25(a), not by the Radix port.** Two changes, in this order:
+> 1. **D24(a) — the Radix port.** Necessary and kept for the focus trap, Escape handling
+>    and consistency, but it did **not** fix the bug: peers still stack by DOM order.
+> 2. **D25(a) — the launcher no longer opens at all when the account is incomplete.**
+>    `AppShell.tsx` gains `accountIncomplete` (reused by the TopBar prop, which previously
+>    inlined the same expression) and an `openKiosk` handler that opens the **completion
+>    modal** instead. Two dialogs can no longer stack, because the second one never opens.
+>
+> **Why (a) rather than closing the completion modal:** `isAccountComplete` is
+> `hasOffering && hasPayoutDetails`, computed by the DB view. Incomplete therefore means
+> either nothing to sell or — the serious one — **no active payout destination**. A kiosk
+> started in that state takes a walk-in's money with nowhere for it to go. The caveat
+> raised in D25 ("does the copy overstate it?") was checked and the answer is **no**.
+>
+> **Verified live, on the account that exhibited the bug** (`jose@`, no payout method):
+> login → completion modal auto-opens → dismiss → click **Kiosk Mode** →
+> **the launcher does not open**, the completion modal opens instead, and its primary
+> control reads **"Add payout details"** and is hittable. Before this, the launcher opened
+> and every control in it was dead.
+> `tsc` clean, `npm test` 365/365, `eslint` clean (one pre-existing `setBookings` warning).
+>
+> ✅ **The complete-account path is now verified too (2026-09-03),** after the user added
+> payout details to Citywide through the UI. Measured: login now auto-opens the **Getting
+> Started guide** rather than the completion modal — exactly what `AppShell.tsx:88-94`
+> predicts, since the guide's once-ever flag was left unspent while the completion modal
+> had the earlier visit. Dismiss it, click **Kiosk Mode**, and the **launcher opens as the
+> only dialog**, its Start button hittable and enabled, and clicking it lands on `/kiosk`.
+> Both sides of D25(a) are therefore exercised: refused when incomplete, allowed when not.
+>
+> ⚠️ **A sibling worth knowing about, NOT a defect today:** the guide modal is also modal
+> and also auto-opens, so it blocks the sidebar the same way the completion modal did.
+> D25(a) does not guard against it — it does not need to, because the guide cannot appear
+> *after* the launcher (it opens once, on load, before anything is clicked). If its
+> auto-open ever becomes deferred or repeatable, it would re-create B28's race.
+> **⚠️ ROOT CAUSE CORRECTED 2026-09-03. The diagnosis below was HALF RIGHT, and acting on
+> it alone did not fix the bug.**
+>
+> The hand-rolled overlay was a real defect and is now gone (see the port below), but it
+> was **not** what made the launcher unclickable. Measured after the Radix port, with both
+> dialogs now portalled peers at `z-50`:
+>
+> ```
+> …end of <body>…
+>   DIV  fixed inset-0 z-50 bg-black/50 backdrop-…   ← launcher overlay
+>   DIV#radix-_r_6_  KioskLauncherDialog_card__…     ← launcher content
+>   DIV  fixed inset-0 z-50 bg-black/50 backdrop-…   ← AccountCompletionModal overlay
+>   DIV#radix-_r_a_  fixed z-50 left-1/2 top-1/2 …   ← AccountCompletionModal content  ▲ ON TOP
+> ```
+>
+> `elementFromPoint` at the button centre still returns the completion modal's content.
+> With equal `z-index` in one stacking context, **DOM order decides — and the completion
+> modal's portal mounts later.** Raising the launcher's z-index or re-ordering portals
+> would only move the same fight somewhere else.
+>
+> **The actual cause is that TWO MODALS ARE OPEN AT ONCE.** Nothing coordinates them.
+> `AppShell.tsx:93-94` already coordinates the *guide* modal against the completion modal
+> (`suppressAutoOpen: completionState.modalOpen`) — the kiosk launcher was simply never
+> added to that contest. See **D25**.
+
+> **✅ The Radix port (D24a) is done and stays** — necessary, and worth having on its own
+> merits, but **not sufficient**. `KioskLauncherDialog.tsx` now uses
+> `Dialog.Root/Portal/Overlay/Content` with `Dialog.Title` and `Dialog.Description`, the
+> app's standard scrim per D19(b), and Escape / overlay-click resolving to Cancel. It
+> gains the focus trap, Escape handling and scroll lock the hand-rolled version never had,
+> and `.overlay` is deleted from the stylesheet with a note not to reintroduce it.
+> `tsc` clean, `npm test` 365/365, `eslint` clean.
+> **Still open:** the coordination fix. The bug is NOT yet fixed for a user.
+**Files:** `components/kiosk/KioskLauncherDialog/KioskLauncherDialog.module.css:16` (`z-index: 60`)
+vs `components/onboarding/AccountCompletionModal/AccountCompletionModal.tsx:75`
+(`<Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[6px]" />`).
+
+**Found by the local end-to-end pass, 2026-09-02** — not by reading. It is why the pass
+could not get past B13, and chasing it down is the only reason it was found at all.
+
+**Measured, not inferred.** With `jose@bookdeck.com` (an account showing "1 step left
+before you can take bookings"), opening Kiosk Mode from the sidebar gives **two**
+`role="dialog"` elements — the launcher AND the completion modal — and
+`document.elementFromPoint()` at the centre of the launcher's **Start Kiosk Mode** button
+returns the completion modal's overlay, **not the button**:
+
+```
+role=dialog: 2
+  • Start Kiosk ModeCitywide Sports CenterThe screen switch…
+  • Complete your account1 step left before you can take bo…
+full-screen fixed overlays: 1
+  · class="fixed inset-0 z-50 bg-black/50 backdrop-blur-[6px]"  z=50
+elementFromPoint(button centre) → DIV.fixed   (isTheButton: false)
+```
+
+**Impact:** the launcher's overlay declares `z-index: 60` and the Radix overlay only 50,
+yet Radix wins — it portals to the end of `<body>`, so the launcher's 60 is confined to a
+lower stacking context and never competes. The card is fully covered by `inset-0`, so
+**every** control in it is dead, *including Cancel*. A vendor in this state sees the
+launcher appear and simply cannot interact with it; the only way out is a reload.
+
+⚠️ **The affected population is exactly the wrong one:** `AccountCompletionModal`
+auto-opens for accounts that are not yet complete — i.e. **new vendors**, who are the
+people most likely to be setting a tablet up for the first time.
+
+> **Pre-existing, not caused by I10.** I10 changed this overlay's colour and blur only;
+> `z-index: 60` is unchanged from the original. The clash has been there since B13.
+> `AppShell.tsx:69-77` already reasons carefully about the guide and completion modals not
+> stacking **on each other** — the gap is that the kiosk launcher was never considered as a
+> third participant in that same contest.
+
+**Fix approach (not yet chosen — see D24):** the launcher is a plain CSS-module overlay
+while the rest of the app's modals are Radix dialogs, and that mismatch is the root of it.
+**Verification:** the pass already has the probe — assert `elementFromPoint` at the
+button's centre resolves to the button, on an account with an incomplete profile.
+
+---
+
+### B29 — "Write text" crashes, and a text document cannot be authored at all  ✅ DONE (2026-09-03)
+> **Executed per D26(a) — the feature is finished, not just the crash stopped. 5 files:**
+> - `lib/attachmentDraft.ts` **(new)** — `documentDraftValid(body)`, the rule that mirrors
+>   the constraint, in `lib/` so `node --test` reaches it. Used in two places, so
+>   extracting it also removes a duplicated rule.
+> - `lib/attachmentDraft.test.ts` **(new)** — 2 tests. Suite **369 → 371**.
+> - `useOfferingAttachmentsEditor.ts` — `addTextDocument` replaced by a `DocumentDraft`
+>   held in local state, with `startNewDocument` / `editDocument` / `patchDraft` /
+>   `cancelDraft` / `saveDraft`. One shape serves both a new document and an existing one;
+>   the only difference is whether `id` is null.
+> - `OfferingAttachmentsEditor.tsx` — the body editor that never existed: a title input, a
+>   textarea, a signature toggle for new documents, and Save/Cancel. Written documents gain
+>   an **Edit text** button; uploaded files do not, since they have no body.
+> - `OfferingAttachmentsEditor.module.css` — `.draft`, `.draftBody`, `.draftActions`.
+>
+> **The constraint is satisfied by construction, not worked around.** No row exists until
+> Save, so there is no window in which B12 could turn a half-written document into an
+> agreements step in front of a customer. Save is disabled until there is content, with the
+> reason shown as text rather than left as a failed insert to interpret — and `saveDraft`
+> re-checks anyway, so the guard does not depend on the button being disabled.
+>
+> **Body is written ONCE on save, never per keystroke** — `run()` refetches every
+> attachment after each mutation, so an onChange-driven save would issue one UPDATE and one
+> full refetch per character. That is what `rename` still does (**I16**, open).
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, `npm test` **371/371**.
+> **Verified — live, driving the exact reported flow** (Playwright, `jose@` → Offerings →
+> Edit → Documents):
+>
+> | Step | Result |
+> |---|---|
+> | click **Write text** | **0 console errors** — the reported crash is gone |
+> | body editor | appears |
+> | Save with an empty body | **disabled** |
+> | Save with text | enabled |
+> | save | **0 constraint errors**; row persisted, `body` 74 chars, `storage_path` null |
+> | **Edit text** on that document | offered, existing body loaded, edit saved, 0 errors |
+>
+> ⚠️ **Test data left behind:** the live runs created **two "Facility Waiver" documents on
+> Private Coaching Session** (Citywide) in the LOCAL database. They are real rows — per B12
+> that offering now shows an agreements step in the kiosk. Keeping one is genuinely useful
+> (it is the first document in local data, so B12's *positive* case becomes testable for
+> the first time); two is clutter. Removable from the offering form. Not deleted here
+> because it is the user's dev data.
+**Files:** `components/offerings/OfferingAttachmentsEditor/OfferingAttachmentsEditor.tsx:165`
+(the button), `:118-150` (the row that has no body field),
+`useOfferingAttachmentsEditor.ts:108-115` (`addTextDocument`).
+
+**Reported 2026-09-03:** clicking **Write text** in the offering form's Documents section
+returns
+
+```
+new row for relation "offering_attachments" violates check constraint
+"offering_attachments_has_content"
+```
+
+**The immediate cause** is one line — the button inserts an empty row up front:
+
+```tsx
+onClick={() => void a.addTextDocument("New document", "", false)}
+```
+
+That is `storage_path IS NULL` **and** `body = ''`, which is exactly what
+`offering_attachments_has_content` (`20260829000001`) forbids: `storage_path is not null
+or body <> ''`. The constraint is correct — an attachment with no content is meaningless
+— so **the constraint is not what should change.**
+
+> ## ⚠️ THE REPORTED ERROR IS THE SMALLER HALF
+>
+> **There is no body editor anywhere in the offering form.** A document row renders an
+> icon, a **title** input, a `"Uploaded file" | "Written text" · v{version}` sub-line, a
+> signature toggle and a delete button (`:118-150`). Nothing accepts the text.
+>
+> So even with the crash fixed, a "written text" document could never be written. Yet
+> `StepAgreements.tsx:25` **renders `d.body` to the customer**, the schema stores it, and
+> `updateAttachment` already accepts it (`offeringAttachments.service.ts:202`). The
+> consuming half shipped; the authoring half never existed.
+>
+> **I2 is marked ✅ and this path was never usable** — the item is not being reopened,
+> because everything I2 claims it delivered does work; this is a gap it did not cover, and
+> it is recorded here rather than by rewriting history.
+
+**Why the one-line fix is wrong.** The tempting repair is to seed a placeholder body so
+the insert satisfies the constraint. **Do not.** `is_active` defaults to `true`
+(`20260829000001:54`) and B12's rule is `needsAgreement = documents.length > 0` over
+active documents — so *any* document row, including a placeholder nobody filled in,
+**immediately puts an agreements step in front of every kiosk customer** for that
+offering. That trades a visible crash for a silent customer-facing change, which is
+strictly worse. Relaxing the constraint is worse again: it needs a new migration to a
+schema now live in **production**, and it would *permit* exactly those junk rows.
+
+**Fix approach — see D26.** Whichever option is chosen, one constraint is not optional:
+
+⚠️ **The body editor must NOT follow `rename`'s pattern.** `rename` is wired to
+`onChange` (`:121`) and `run()` performs a DB write **and a full refetch**
+(`useOfferingAttachmentsEditor.ts:71-78`), so typing a document title today issues **one
+UPDATE and one refetch per keystroke**. A textarea holding a facility waiver built the
+same way would issue hundreds. Body edits must be local state committed on an explicit
+save or on blur. See **I16**, which is that pre-existing defect on its own.
+
+**Component separation:** all new state and handlers go in
+`useOfferingAttachmentsEditor.ts`; the `.tsx` stays a render layer and any new styling
+goes in the existing `.module.css`.
+
+**Verification:** machine — `tsc`, `npm test`, and a unit test that a draft with an empty
+body is never sent to `createTextDocument`. Needs-live — click **Write text**, confirm no
+constraint error, type a body, save, reopen the offering and confirm it persisted, then
+confirm the kiosk's agreements step renders that text.
+
+---
+
 ## IMPORTANT
+### I16 — Renaming an attachment writes to the database on every keystroke  ✅ DONE (2026-09-03)
+> **Executed — 2 files.** `useOfferingAttachmentsEditor.ts` gains a single `titleEdit`
+> `{ id, value }` with `editTitle` / `commitTitle`; `OfferingAttachmentsEditor.tsx` reads
+> the local value, commits `onBlur`, and drops the `onChange` write.
+>
+> **One entry, not a map, and that is deliberate:** a title can only be typed into the
+> focused input, and blur commits before another can take focus. A map would imply
+> concurrent edits that cannot happen and would need reconciling against every refetch.
+>
+> **Two writes are now skipped that the old path always made:** an unchanged title, and a
+> blank one. Blank reverts rather than persisting an untitled document — which matters
+> here, because a customer is asked to accept these by name.
+>
+> **Also fixed, and it was mine:** B29 introduced a conflict where a document open in the
+> draft editor could have its title typed in *two* places, with the draft's copy winning on
+> save. The row's title input is now disabled while that document is being edited below.
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, `npm test` 371/371.
+> **Verified — live, by counting requests rather than reasoning about them.** Playwright
+> intercepted every `PATCH` to `offering_attachments` while typing a 17-character title:
+>
+> | | Before | After |
+> |---|---|---|
+> | PATCHes while typing 17 chars | 17 (+17 refetches) | **0** |
+> | PATCHes on blur | — | **1** |
+> | PATCHes for an unchanged title | 1 per keystroke | **0** |
+>
+> Title persisted correctly (`Safety Rules 2026`). The before-column is what the old
+> `onChange` path did by construction, not a measurement of reverted code.
+**File:** `OfferingAttachmentsEditor.tsx:121` with
+`useOfferingAttachmentsEditor.ts:71-78`.
+
+```tsx
+onChange={e => void a.rename(d, e.target.value)}
+```
+
+`rename` calls `updateAttachment`, and `run()` then bumps `reloadKey`, which refetches
+every attachment for the offering. So typing a 20-character title issues **20 UPDATEs and
+20 refetches**, each racing the last — and `busy` flickers throughout, disabling the
+sibling buttons while the vendor types.
+
+Found while diagnosing **B29**, not reported. Pre-existing and **not caused by** the kiosk
+work, but it is in the file B29 must change and it is the pattern B29 must not copy.
+
+**Fix approach:** hold the title in local state and commit on blur (or debounce), matching
+how B29's body editor will have to behave. One shared approach for both fields.
+
+**Verification:** machine — `tsc`, lint. Needs-live — type a long title and confirm a
+single write on blur rather than one per character.
+
+---
+
 
 ### I1 — Port occupancy and span checking into vendor  ✅ DONE (2026-08-29)
 > **Delivered as three things, not the four functions this item first named** — because
@@ -2329,7 +2823,65 @@ only the redundant `booking_created`. Deliberately not decided before B1 exists.
 
 ---
 
-### I7 — Tests and visual baselines  🔄 IN PROGRESS (2026-08-29)
+### I7 — Tests and visual baselines  ✅ DONE (2026-09-03)
+> **Baselines generated and the suite is green — 2026-09-03.** The reviewer confirmed all
+> three fixtures in both themes, which is what unblocked this: registering a mode and
+> accepting its baseline are the same act, so approval had to come first.
+>
+> **Executed (first pass):** `kioskexit`, `kiosklauncher`, `kiosksignature` added to
+> `visual-tests/pilot.spec.ts:9`'s `modes` array (with a note saying why they land after
+> I10/I13/I14/I15 rather than before), then **6 baselines written** — 3 modes × 2 themes.
+>
+> ⚠️ **The update run was SCOPED, deliberately.** `npm run test:visual:update` is
+> `playwright test --update-snapshots` with **no filter**, so running it as written would
+> have regenerated all 82 existing baselines and silently accepted any drift in them.
+> Used `--grep "kiosk" --update-snapshots` instead. Anyone adding baselines later should
+> do the same.
+>
+> **Verified — machine:**
+> - kiosk-only re-run **twice** with no `--update`: 6 passed both times. This settles the
+>   original worry that `kiosklauncher` was too network-dependent to baseline — it is
+>   stable, measured rather than assumed.
+> - **Full suite: 167 passed, 0 failed, exit code 0** (161 + 6). Summary read from a
+>   redirected log, never through `tail`, which hides both the count and the exit code.
+>
+> **✅ The step fixtures were then approved and added the same day (2026-09-03).**
+> `kioskoffering`, `kioskslot` and `kioskcustomer` — **12 baselines in total**, 6 modes ×
+> 2 themes.
+>
+> **This item's original objection is answered by construction, not waived.** It said a
+> flow-state fixture would be "more fiction than fixture". `kioskState()` in
+> `app/ui-gallery/page.tsx` returns a **complete, uncast `KioskBookingState`** — there is
+> no `as unknown as` anywhere in it, so the file stops compiling the moment the interface
+> gains a field. A fixture the compiler enforces is a contract.
+>
+> **What earned the exception:** I13 was a pure CSS defect with no unit test possible, and
+> it shipped precisely because nothing rendered these two components in CI.
+>
+> **What the baselines actually pin** — chosen to cover what breaks, not just to exist:
+> `kioskoffering` freezes the date chips reading **`Today` over `4 Sep` on two lines**,
+> which is I13's exact reported bug (`TomorrowSep 3`). `kioskslot` freezes the same fix on
+> slot labels (`09:00–10:00` over `6 left`) plus **B16's next-day marker** (`Sat, Sep 5`),
+> a Full slot, a selected slot, and the quantity row.
+>
+> ⚠️ Two deliberate constraints, both to keep pixel-exact baselines honest:
+> **dates are literals**, never `new Date()`, so they cannot drift when the suite's clock
+> pin changes; and **`photosFor` returns `[]`**, because a real `storagePath` would send
+> `photoUrl()` at Supabase Storage mid-screenshot — a network round trip inside a
+> pixel-exact comparison.
+>
+> **`kioskcustomer` renders THREE states in one fixture, following the `staffstates`
+> pattern** — an empty form alone would pin nothing about the two items it exists for.
+> Both I14 (a refused character is reported, never silently swallowed) and I11 (letters
+> flagged on the keystroke, anything else only once the field is left) live entirely in
+> `phoneIssue`, so the fixture drives that field directly rather than pretending to type.
+> Pinned: the `0917 123 4567` placeholder and the **"Optional."** hint that makes D20's
+> PH-only rule safe; I14's `0917--4567` + *"Numbers only, please."*; and I11's `12345` +
+> *"Enter a Philippine mobile number, like 0917 123 4567."*
+>
+> **Verified:** every new fixture re-run twice with no `--update` — 4 passed both times
+> for the step pair, 2 passed both times for the customer states.
+> **Full suite: 173 passed, 0 failed, exit 0.** `tsc` clean throughout.
 > **Tests: done.** 13 new in `lib/kioskCloseOut.test.ts`, bringing the suite to **354**.
 > The identifier matcher was **extracted from the close-out route into `lib/` to make it
 > testable** — and the tests immediately earned it (see B25).
@@ -2588,9 +3140,27 @@ browser for the two-tier timing (letters flag on keystroke, invalid only after b
 > (`#04060e → #070b17 → #0d1b4b`). `:global(.dark)` is the selector this codebase already
 > uses (`KioskBooking.module.css:98`).
 > **Verified — machine:** `tsc` clean, 365/365 (CSS-only; confirms nothing else moved).
-> ⚠️ **Needs a browser, in BOTH themes** — and light is the one that matters, since it is
-> the case D21 chose specifically to protect. Confirm cards still read against the light
-> ramp and body text clears `ux-design` §5's 4.5:1.
+> ✅ **Light theme verified live 2026-09-03** — `/kiosk` rendered in the real app (not the
+> gallery, which does not apply `.root`) shows the light ramp behind the welcome screen,
+> with both choice cards reading clearly against it. Light was the case D21(a) was chosen
+> specifically to protect, so this is the half that mattered.
+> ✅ **Dark theme verified live 2026-09-03**, closing this item completely. Driven with
+> Playwright's `colorScheme: "dark"` rather than by forcing a stored value — `layout.tsx:78`
+> is `defaultTheme="system" enableSystem`, so the OS preference is what actually drives a
+> tablet, and that is the path worth testing. `document.documentElement.className` came
+> back `dark`, and `.root`'s computed background was login's exact ramp:
+> `linear-gradient(145deg, rgb(4,6,14) 0%, rgb(7,11,23) 55%, rgb(13,27,75) 100%)` with
+> `color: rgb(241,245,249)`.
+>
+> Inspected the render: the gradient reads from near-black to the deep blue, "Welcome" and
+> both choice cards are clearly legible, and the header and Staff exit remain readable.
+> One note carried over from I10's dark observation — the secondary card sits close in
+> value to the ground, separated by its border rather than by contrast. Legible, but it is
+> the same trade the heavier dark scrim makes.
+>
+> **Neither theme is covered by a baseline, and cannot be:** `app/ui-gallery/page.tsx` does
+> not wrap fixtures in `KioskShell`, so `.root` — where the gradient lives — never renders
+> there. This item is verified by inspection, not by the visual suite.
 **File:** `vendor/components/kiosk/KioskShell/KioskShell.module.css:18` — `background: var(--sp-page-bg)`.
 
 Requested 2026-09-02: the kiosk carries far less furniture than the dashboard, so a flat
@@ -2771,6 +3341,18 @@ disabled controls, and this is a button nobody can press. Declined as theoretica
 
 ## DEFERRED / COSMETIC
 
+- **⚠️ ~~Local seed data cannot reach the kiosk any more~~ — RESOLVED 2026-09-03** by the
+  user adding payout details to Citywide through Settings → Payout Details. Kept because
+  the next person to reset the local database will hit it again, and it is not obvious.
+  (Original note follows.) Consequence of D25a —
+  `vendor_payout_methods` has **no active row for any of the three seeded vendors**, so
+  every seeded account is "incomplete" and the launcher now correctly refuses to open for
+  all of them. It is also why the local end-to-end pass kept hitting B28: every account
+  available to it was incomplete.
+  **Unblocks by** adding payout details to one vendor — through Settings → Payout Details,
+  which is the real flow and exercises the completion path at the same time, or by seeding
+  an active `vendor_payout_methods` row. **Not done here: it is a change to the user's dev
+  data, and they were mid-test.**
 - **Disabled-button contrast in the kiosk dialogs** (I15c) — `opacity: 0.5` reads near
   2.4:1. Accepted 2026-09-02: WCAG exempts disabled controls, and the affected button
   cannot be pressed. Revisit only if a disabled control ever needs to be *read*.
