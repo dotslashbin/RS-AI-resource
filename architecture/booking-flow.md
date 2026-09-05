@@ -410,6 +410,65 @@ Do **not** scan the generated QR code in test mode — it processes real transac
 2. Register the webhook in the PayMongo dashboard (Developers → Webhooks) pointing to `https://<ngrok-url>/api/payment/webhook`
 3. Copy the generated signing secret into `PAYMONGO_WEBHOOK_SECRET` in `.env.local`
 
+### Webhook Setup on a Hosted Environment (added 2026-09-04)
+
+**⚠️ ONE webhook serves BOTH portals. Do not register a second one for `vendor`.**
+This is the single most important thing on this page. A kiosk Checkout Session is created
+by `vendor`, but it carries `metadata.booking_id` and PayMongo emits the event on the
+*account*, not the app. `booker/app/api/payment/webhook` keys purely on that id and writes
+with service role — no app-scoping, no booker-scoping — so it settles kiosk bookings
+unchanged. A second registered endpoint would race the first on the same `is_paid`
+transition for no gain, which is also why `PAYMONGO_WEBHOOK_SECRET` must **never** be added
+to `vendor` (kiosk plan B22).
+
+**Order matters — deploy first, register second.** PayMongo validates the endpoint when you
+create it, so registering before booker is reachable at that URL fails.
+
+1. **Deploy `booker`** to the environment and confirm `/api/payment/webhook` answers. An
+   unsigned POST must return `400 {"error":"Invalid signature"}` — that is the endpoint
+   working, not failing:
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<booker-host>/api/payment/webhook
+   ```
+2. **Register** in the PayMongo dashboard → **Developers → Webhooks**, URL
+   `https://<booker-host>/api/payment/webhook`, subscribing to
+   **`checkout_session.payment.paid`**. The handler also accepts `payment.paid`
+   (`webhook/route.ts:53`); either alone is sufficient.
+3. **Copy the signing secret immediately.** It is shown **once**, at creation. Set it as
+   `PAYMONGO_WEBHOOK_SECRET` on **booker only**, as a genuine **secret** — unlike the
+   `NEXT_PUBLIC_*` values, this one must never be public config.
+4. **Redeploy booker** so the new variable is picked up.
+
+**⚠️ Test and live are separate registrations.** A webhook created under a `sk_test_` key
+receives only test events. The signature header reflects this — `parts["te"]` carries the
+test HMAC and `parts["li"]` the live one, and `verifySignature` accepts either
+(`webhook/route.ts:10`). Staging (test keys) and production (live keys) therefore need
+**two** webhooks with **two different secrets**. Do not copy one environment's secret into
+the other; verification will fail with a correct-looking `400`.
+
+**Verify end to end** — the only proof that matters:
+1. Book through the kiosk on that environment and pay with `4343 4343 4343 4345`.
+2. `select is_paid from bookings where id = '<booking>'` → must be `true`.
+
+If the redirect returns but `is_paid` stays false, the session was created but the event
+never arrived: check the webhook's delivery log in the dashboard, then that the secret on
+booker matches *that* webhook, then that the URL points at the environment you just paid on.
+
+**Booker's own env on a hosted environment** — the same list as vendor, minus the payout
+key, plus the webhook secret:
+
+| Variable | Type |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | config |
+| `NEXT_PUBLIC_APP_URL` | config — **booker's own origin**, not vendor's |
+| `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_DOMAIN` | config |
+| `SUPABASE_SERVICE_ROLE_KEY` | 🔒 secret |
+| `PAYMONGO_SECRET_KEY` | 🔒 secret — mode must match the webhook's |
+| `PAYMONGO_WEBHOOK_SECRET` | 🔒 secret — from step 3 |
+
+⚠️ `NEXT_PUBLIC_APP_URL` must be **booker's** host with the scheme and no trailing slash.
+It builds booker's own payment redirect; vendor's kiosk uses vendor's value for its own.
+
 ---
 
 ## Known Gaps and Future Work

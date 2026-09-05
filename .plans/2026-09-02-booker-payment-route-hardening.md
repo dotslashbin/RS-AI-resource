@@ -5,7 +5,8 @@
 **Cross-app note:** raised from `.plans/2026-08-26-vendor-kiosk-mode-and-offering-attachments.md`
 **B20**, which fixed the identical defect in `vendor`. AGENTS.md gates cross-app work;
 approval to open this as its own plan was given 2026-09-02.
-**Status:** IN PROGRESS — **B1, I1 and I2 executed and PROVEN LIVE (2026-09-02).**
+**Status:** IN PROGRESS — **B1, I1, I2 proven on STAGING (2026-09-04); I3 awaits one
+signed-in checkout.**
 Everything still open here waits on the **same** thing: **PayMongo test accounts**. That
 is one regression check (a signed-in booking through to checkout) plus the two parked
 webhook follow-ups, A2 and A3. Nothing is blocked on a decision.
@@ -181,6 +182,57 @@ takes depends on how much of the signature the caller guessed correctly.
 > rejects is a silent outage, not a fix. The three length-gap rows prove the guard.
 >
 > **Verified — machine:** `tsc --noEmit` clean, `eslint` clean.
+
+---
+
+### I3 — The return URL was read raw, so a missing var redirects to localhost  ✅ DONE (2026-09-04)
+**File:** `booker/app/api/payment/create-session/route.ts`
+🔗 **Cross-app; the kiosk plan's B33 is the other half** — the identical line existed in
+`vendor`'s kiosk route and both were changed together, on the user's approval.
+
+`const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"` fell back
+silently. On a hosted deploy with the variable unset the **build still succeeded**, because
+`resolveSiteUrl()` protects Open Graph metadata via `VERCEL_PROJECT_PRODUCTION_URL` — while
+this line sent PayMongo a `success_url` on localhost. A customer pays and never comes back:
+booking charged, page dead, nothing reporting a fault.
+
+**Executed:** `resolveSiteUrl().origin`, wrapped so a failure returns a clean 500 with the
+cause logged rather than throwing at a customer. `.origin` and not the URL object —
+`String(new URL("https://x"))` is `"https://x/"`, which would yield `//`.
+
+**Verified — machine:** `tsc` clean, `eslint` clean.
+⚠️ **NOT verified live** — needs a signed-in booker session, the same gap as this plan's
+existing checkout regression check. Recorded rather than assumed from vendor's passing
+probe of the equivalent route.
+
+---
+
+## Staging verification — 2026-09-04
+
+Booker deployed to `staging-booker.ezzy.ph` (staging Supabase `fbxbwnfeimzhgxpshdpa`), and
+the PayMongo **test-mode** webhook registered against
+`https://staging-booker.ezzy.ph/api/payment/webhook` with `checkout_session.payment.paid`.
+
+**Three of this plan's four items are now verified on a HOSTED environment, not just local:**
+
+| Item | Probe | Result |
+|---|---|---|
+| **B1** | unauthenticated POST to `create-session` | `401 {"error":"Unauthorized"}` — auth precedes the config check |
+| **I1** | body `not json` | `400 {"error":"Missing bookingId"}` — old code returned 500 here, so this doubles as proof the new build is deployed |
+| **I2** | 7 signature shapes: correct-length, truncated, overlong, non-hex, live (`li=`) slot, malformed header, empty | **all `400`, never `500`** — the truncated and overlong cases are the ones `timingSafeEqual` throws on without the length guard |
+
+⚠️ **I3 is still NOT verified live.** `resolveSiteUrl()` demonstrably resolves correctly in
+this deployment — the served HTML self-references `https://staging-booker.ezzy.ph` via
+`metadataBase` — but the `create-session` code path that uses it sits behind auth, and the
+401 probe never reaches it. It needs one signed-in booking taken through to checkout.
+
+⚠️ **Getting the secret live took three attempts**, and the failure mode is worth recording:
+`!secret` is true for an **empty string** as well as undefined, so a blank value, a
+mis-scoped Vercel environment (Production vs Preview), or a redeploy that reused a cached
+build all present identically as `500 {"error":"Webhook not configured"}`. The diagnostic
+that isolated it: another variable (`NEXT_PUBLIC_APP_URL`) was demonstrably reaching the
+same deployment, which ruled out "env does not flow here" and pointed at this one variable's
+scope.
 
 ---
 

@@ -129,7 +129,46 @@ vendor targeted lint, vendor TypeScript check, mobile lint, mobile unit tests (1
 mobile TypeScript check and both diff checks. Full `vendor` lint is still blocked by 32
 pre-existing errors outside this scope. Re-verified 2026-09-03: the same 26 vendor and 10
 mobile tests, the vendor targeted lint, and both TypeScript checks pass. B1 still needs
-deployed cookie and bearer probes.
+deployed cookie and bearer probes. **Staging probe (2026-09-04):** an unauthenticated
+HTTPS `POST /api/kiosk/close-out` with a non-existent vendor UUID returned `401 Not signed
+in` and created no data. Cookie fallback, other-vendor bearer rejection, and rightful
+mobile-bearer success remain to be checked with signed-in test accounts. **Staging browser
+cookie probe (2026-09-04):** a signed-in vendor admin opened Kiosk Mode, selected “Finish
+a booking”, searched the fake identifier `zzzz-no-match-staging-20260904`, and received
+“Nothing found waiting on you. Please check the number, or see the front desk.” This
+confirms the cookie-session fallback and a no-match lookup made no change.
+**Staging invalid-bearer probe (2026-09-05):** a deliberately invalid
+`Authorization: Bearer …` header returned `401 Not signed in` with no data change. This
+confirms the deployed bearer-header branch is live; the outstanding probe concerns a real
+mobile session and membership, not server deployment.
+
+#### B1.1 — Development-only signed-bearer probe  🔄 IN PROGRESS (2026-09-04)
+**Files:** `ezzy-vendor-mobile/src/services/kioskApi.ts`,
+`src/components/settings/SettingsList/{SettingsList,useSettingsList,SettingsList.styles}.ts*`
+
+The real customer kiosk surfaces that call the privileged routes are intentionally later
+stages, so a signed mobile bearer caller cannot otherwise prove B1 before I1/I3/I4 are
+built. A temporary staff probe is needed to test the already-deployed server boundary
+without creating a booking or exposing a customer surface.
+
+**Fix approach:** In development builds only, Settings calls the existing close-out route
+with a non-matching marker and the selected vendor UUID; an optional, memory-only UUID
+field tests that a second vendor-admin is rejected. It displays only success, 401, 403, or
+generic failure states; it never renders, stores, or logs an access token. The render,
+hook, and themed style files remain separated.
+
+**Verification:** TypeScript, lint, tests and Android development-build check. With staging
+configured, a rightful selected vendor returns success; a different vendor UUID returns
+403. Remove this development-only probe after B1 is verified.
+
+**Implementation note (2026-09-04):** Added the development-only Settings probe, backed by
+the existing `kioskApi` service. It uses a non-matching close-out lookup and displays the
+configured server before a test runs, preventing an accidental production validation. It
+does not persist, render, or log tokens. Mobile lint, TypeScript and unit tests (10/10)
+pass; Android device verification remains. **Device finding (2026-09-04):** the first
+selected-vendor probe displayed only a generic failure, which could not distinguish an HTTP
+error from an emulator network failure. The development-only result now reports a safe HTTP
+status or an explicit no-response state; re-run the device check before drawing conclusions.
 
 ### B2 — Use a fixed payment return bridge, never an arbitrary redirect  ⬜ TODO
 **Files:** `vendor/app/api/kiosk/payment/create-session/route.ts:85-120` (modify),

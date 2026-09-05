@@ -6,8 +6,13 @@
 routes are the source material being adapted, not imported.
 **Status:** IN PROGRESS — **B29 is fixed and verified live (2026-09-03); text documents
 can now be authored and edited.** Every blocker is ✅. **Every blocker and every important item is ✅ except B22/B23**, and
-their parking reasons were corrected on 2026-09-04: **B22 is ✅ done (2026-09-04)** and
-**B23 belongs to the app deploy**, not to a later PayMongo pass. B23 is the only item left. No open
+their parking reasons were corrected on 2026-09-04: **B22 is ✅ done (2026-09-04)**; **B23 belongs to
+the app deploy**. **B30 ✅ resolved 2026-09-04** — the local key is back to `sk_test_`, matching booker.
+**Stage 9 ✅ (2026-09-04)** — B31, B32 and I17 from the first preview deploy are all
+fixed and verified. **B23 is the only item not ✅**, and it closes with the deploys — now with **B33** behind
+it, so a missing value fails loudly instead of redirecting a paying customer to localhost.
+Confirmed 2026-09-04: values are `https://vendor.ezzy.ph` (production) and
+`https://staging-vendor.ezzy.ph` (staging), scheme included, no trailing slash. No open
 decisions. What remains is confirmation rather than plan work: the production **grants
 re-check**, the reviewer's manual pass, and an app deploy. Schema is on local, staging and production; every blocker and
 important item is ✅ apart from **B22/B23**, which are ⏸ pending PayMongo test accounts.
@@ -586,6 +591,41 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
     satisfies the constraint by creating an active document row, which per B12 puts an
     agreements step in front of every kiosk customer for that offering. A silent
     customer-facing change is worse than the crash.
+
+- **D27 — Does I20 centre only "Your details", or every constrained step?**
+  → **(a) centre all three** (resolved and executed 2026-09-05). Option (c) — centring
+  `.content` — stays rejected: it would also centre the offering and slot grids, which are
+  full-bleed by design.
+  - **(a) ⭐ Chosen — centre all three** (`.fields`, `.docs`, `.summary`). The
+    confirmation step already centres, so today the flow runs left, left, left, then
+    jumps. Centring the other three removes the jump instead of adding one, and it is the
+    same single property on each. Wider than the words of the request, narrower than its
+    intent.
+  - **(b) Centre only `.fields`.** Literally what was asked, one line. But it inserts a
+    sideways jump between "Your details" and "Before you book" that is not there now — the
+    reported problem, relocated.
+  - **(c) Centre the `.content` wrapper instead.** One rule for everything, but it would
+    also centre the **offering grid and slot grid**, which are full-bleed on purpose and
+    should keep filling the screen. Rejected.
+
+- **D28 — How is the login-baseline/env mismatch resolved (I21)?** → **(b) restore the
+  `.env.local` values** (resolved 2026-09-05). Verified: 16/16 login tests pass.
+  ⚠️ Chosen with its limitation understood — (b) fixes the instance, not the class. (c)
+  stays on the table if this recurs.
+  - **(a) Re-record the 15 login baselines** against the current values. One scoped
+    `--grep "login" --update-snapshots`. Fastest, and correct *if* "STAGING Ezzy Vendor" is
+    what local should say — but it bakes one machine's config into a shared, committed
+    artefact, so the next person with different values hits the same 15 failures.
+  - **(b) Restore the previous `.env.local` values** and leave the baselines alone. Also
+    fast, and it keeps the committed baselines matching whatever they matched before — but
+    it is a manual step nothing enforces, and the same drift recurs the next time someone
+    points local at a hosted config.
+  - **(c) ⭐ Recommended — pin `APP_NAME`/`APP_DOMAIN` for the visual run.**
+    `playwright.config.ts` already boots the dev server with `PW_TEST=1`; adding two fixed
+    env values there makes the baselines depend on the suite rather than on whoever ran it.
+    Precedent is in the same file: `pilot.spec.ts` already pins a **fixed instant** so that
+    screens rendering today's date do not drift. This is the same problem with the same
+    shape of answer. Slightly more work, and it ends the class rather than this instance.
 
 
 ---
@@ -2018,7 +2058,22 @@ is required and correctly present.
 
 ---
 
-### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ⏸ PARKED (2026-08-29)
+### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  🔄 IN PROGRESS (2026-09-04)
+> **Staging half ✅ done and verified remotely (2026-09-04).** Vendor deployed to
+> `https://staging-vendor.ezzy.ph`; the served HTML self-references that origin and
+> contains **zero** occurrences of `localhost:3000`, so the variable is set and
+> `resolveSiteUrl()` is resolving to the right environment.
+> Also confirmed from the response headers on the same deploy: **B32 shipped** —
+> `img-src 'self' data: blob: https://fbxbwnfeimzhgxpshdpa.supabase.co`, pointing at the
+> **staging** Supabase project, alongside a matching `connect-src`.
+>
+> ⚠️ **See B34: production also needs `booker` deployed there before the kiosk can
+> settle a payment at all.**
+>
+> **Production half ⬜ remaining** — the value `https://vendor.ezzy.ph` is entered in
+> Vercel (as **Config**, not Secret — a `NEXT_PUBLIC_` value is inlined into the browser
+> bundle regardless of the label, so "Secret" there would promise a protection it cannot
+> deliver) but no production app build has been deployed yet, deliberately, per Stage 8.
 > ⚠️ **PARKING REASON CORRECTED 2026-09-04.** This is **not** waiting on PayMongo
 > credentials — the variable is the *vendor app's own URL* and nothing about it comes from
 > PayMongo. What it actually waits on is a **deployed environment to set it on**:
@@ -2519,7 +2574,395 @@ confirm the kiosk's agreements step renders that text.
 
 ---
 
+### B30 — `vendor/.env.local` holds a LIVE PayMongo key on a local dev machine  ✅ DONE (2026-09-04)
+> **Corrected by the user the same day.** Re-verified 2026-09-04: `vendor` and `booker`
+> both read `sk_test_`. The live key belongs only in the production environment variable.
+> ⚠️ **If that live key was ever exposed** (shell history, screenshot, shared channel),
+> rotating it in the PayMongo dashboard is still worth doing — not checkable from here.
+**File:** `vendor/.env.local` — `PAYMONGO_SECRET_KEY`
+**Found 2026-09-04** while verifying B22's reasoning, by comparing vendor's and booker's
+keys. Not reported; found by measurement.
+
+| App | Key mode | Supabase target |
+|---|---|---|
+| `vendor` | **`sk_live_`** | `http://127.0.0.1:54321` (LOCAL) |
+| `booker` | `sk_test_` | `http://127.0.0.1:54321` (LOCAL) |
+
+⚠️ **On 2026-09-02 both read `sk_test_`.** This changed between then and now. Recorded as an
+observation, not an accusation — but it means any earlier statement in this plan that
+"payment initiation is testable locally because both keys are test keys" is **now false**,
+and that statement was mine.
+
+**Three consequences, in order of severity:**
+
+1. **A completed kiosk payment on localhost would be a REAL charge.** The kiosk calls
+   `https://api.paymongo.com/v1/checkout_sessions` with whatever key is configured — there
+   is no sandbox switch other than the key itself
+   (`kiosk/payment/create-session/route.ts:86-90`). A live key plus a real card is real
+   money, taken against a LOCAL database whose bookings are throwaway.
+2. **Settlement cannot work in this configuration even if it were test mode.** Vendor would
+   create sessions on the **live** account while booker's `PAYMONGO_WEBHOOK_SECRET` is for
+   the **test** account. Webhook events from a live session cannot be verified by a test
+   secret, so `is_paid` would never flip.
+3. **It reopens the question B22 answered.** F4's "the booker webhook already settles kiosk
+   sessions" holds only while both apps are on **one PayMongo account in one mode**. Live
+   and test are effectively different accounts with different keys and separate webhook
+   registrations. B22's removal of `PAYMONGO_WEBHOOK_SECRET` from vendor was correct *for
+   the single-account design*; if vendor is genuinely meant to operate on a different
+   account, that design — not just the variable — needs revisiting.
+
+**Fix approach:** the user's call, and it is a configuration decision, not a code one.
+Almost certainly: put `sk_test_` back in local `vendor/.env.local`, matching booker, and
+reserve the live key for the production environment variable only — never a developer
+machine. **Not changed here: this is a credential, and rotating or replacing one is the
+user's decision, not something to do unannounced.**
+
+⚠️ **If that live key has ever been in a shell history, a screenshot, or a commit, treat it
+as exposed and rotate it in the PayMongo dashboard.** `.env.local` is gitignored — verified
+— so it is not in the repository.
+
+**Verification:** confirm `vendor/.env.local`'s key begins `sk_test_`; confirm the
+production Vercel env holds the live key and local does not. Neither is checkable from this
+repo beyond the local file.
+
+---
+
+### B31 — Two signature-required documents collide on one primary key  ✅ DONE (2026-09-04)
+> **Executed — the row builder moved out of the route and became testable.**
+> `lib/kioskAcknowledgements.ts` **(new)** owns `acknowledgementRows()` with `id:
+> randomUUID()` unconditionally; `booking/route.ts` calls it. `ackId` keeps its only
+> remaining job — naming the signature object — which is correct: **one signature file,
+> shared by every row that required one**, matching B12's `.some()` semantics.
+> **6 new tests** (`lib/kioskAcknowledgements.test.ts`), suite **371 → 377**, including the
+> exact two-signature shape that failed and a 25-document uniqueness check.
+>
+> **Extracted rather than patched in place, deliberately:** the defect was invisible from
+> the route because the builder was an inline `.map`, and no test could reach it. The two
+> halves of the invariant — *ids unique, signature path shared* — are easy to undo by
+> accident, so both are asserted.
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, 377/377.
+> **Verified — live, against the exact failing shape.** "Foot spa" (2 documents, **both**
+> requiring a signature) booked via a direct authenticated `POST /api/kiosk/booking`:
+>
+> ```
+> HTTP 200  {"bookingId":"746bf964…","bookedDate":"2026-09-08","customerCreated":true}
+> rows | distinct_ids | distinct_signature_paths
+>    2 |            2 |                        1
+> ```
+>
+> Before the fix that insert produced 2 rows with **1** id and died on `23505`. The UI walk
+> was abandoned for a direct call — same route, same insert, far less to go wrong in the
+> harness.
+**File:** `vendor/app/api/kiosk/booking/route.ts:162` and `:182`
+
+**This is the reported "Could not record the agreements. Please try again."**
+
+```ts
+const ackId = randomUUID()                         // :162 — generated ONCE
+…
+id: d.requires_signature ? ackId : randomUUID(),   // :182 — reused for EVERY signed doc
+```
+
+`booking_acknowledgements.id` is the primary key. An offering with **two or more**
+documents that require a signature builds two rows carrying the **same `id`**, the batch
+insert raises `23505 unique_violation`, and the route rolls the booking back and returns
+that message.
+
+**Reproduced 2026-09-04**, not inferred — the exact two-row shape was inserted against a
+temp table cloned from the real one (`including all`, so the PK came with it):
+
+```
+ERROR:  duplicate key value violates unique constraint "probe_pkey"
+DETAIL:  Key (id)=(1111…) already exists.
+```
+
+**Why it appeared now and not earlier:** it needs an offering with ≥2 signature-required
+documents, which local data did not have until recently. It does now — **"Foot spa" has 2
+documents and both require a signature**, while "Private Coaching Session" has 2 requiring
+none. That is exactly the split between the offering that fails and the ones that do not.
+
+**Consequence:** such an offering **can never be booked at the kiosk**. Every attempt dies
+at the last step, after the customer has entered their details and signed.
+
+**Fix approach:** `id: randomUUID()` unconditionally. `ackId` keeps its *other* job —
+naming the signature object at `:165` — and that is correct: **one signature file, shared
+by every row that required one.** This matches B12, whose `needsSignature` is `.some(...)`,
+i.e. a single signature step covers all signature-demanding documents. Nothing about the
+storage path or the flow changes; only the row identity.
+
+**Verification:** machine — a unit test over the row builder asserting N documents produce
+N distinct ids with a shared `signature_path`. Needs-live — book the "Foot spa" offering
+end to end and confirm the acknowledgement rows land.
+
+---
+
+### B32 — CSP blocks every Supabase-hosted image, so uploaded photos never render  ✅ DONE (2026-09-04)
+> **Executed — `next.config.ts`.** Extracted `supabaseOrigin()` so `img-src` and
+> `connect-src` share ONE derivation, added `supabaseImgSrc()`, and changed the directive to
+> `` `img-src 'self' data: blob:${supabaseImgSrc()}` ``. **Derived, never a wildcard**, for
+> the reason the file already documents at `:37-48`.
+>
+> **Emitted per environment, checked before touching a browser:**
+>
+> | env | `img-src` |
+> |---|---|
+> | local | `'self' data: blob: http://127.0.0.1:54321` |
+> | hosted | `'self' data: blob: https://<ref>.supabase.co` |
+> | unset | `'self' data: blob: https://*.supabase.co` + a warning |
+>
+> The local row is the one a wildcard would have broken — the 2026-08-08 failure mode,
+> avoided.
+>
+> **Verified — served header:** `curl -I` returns
+> `img-src 'self' data: blob: http://127.0.0.1:54321`.
+> **Verified — live in the kiosk offering grid:** 2 storage `<img>` elements, both with
+> **`naturalWidth = 1254`** (genuinely decoded, not merely present), and
+> **zero `securitypolicyviolation` events**. Before the fix these were blocked with
+> `naturalWidth = 0`.
+>
+> ## 🔎 CROSS-APP FOLLOW-UP — CHECKED 2026-09-04, AND THERE IS NOTHING TO FIX
+>
+> I flagged that `command` and `booker` carry the same narrow `img-src`, and the user asked
+> for both to be fixed. **Investigated first, and the change was NOT made — neither app
+> renders a Supabase-hosted image, so widening its policy would loosen a security header
+> for a need that does not exist.**
+>
+> | App | `img-src` today | Renders a storage image? | Action |
+> |---|---|---|---|
+> | `vendor` | now includes the Supabase origin | **Yes** — `StepOffering.tsx:45` and the attachment editor | ✅ fixed (this item) |
+> | `booker` | `'self' data: ${TILE_HOST}` | **No.** Zero `<img>`, zero `<Image>`, zero `.storage` usage anywhere. Its only remote images are CARTO map tiles, already allowed | none |
+> | `command` | `'self' data: blob:` | **No.** Its one storage call is `signKycUrl`, and `useKycPanel.ts:50` consumes it with `window.open(url, "_blank")` — a top-level navigation in a new tab, which `img-src` does not govern. The only `<img>` mentions in the app are a comment explaining why `BrandLogo` is inline SVG *instead* of one | none |
+>
+> **The directive being narrow is not the defect — rendering a blocked image is.** vendor did;
+> these two do not.
+>
+> **What would change this answer:** booker gaining offering photos on the customer-facing
+> booking flow, which is plausible and would need its `img-src` widened in the same commit
+> as the feature. Adding it now, for code that does not exist, is speculative loosening.
+**File:** `vendor/next.config.ts:98`
+
+**This is the reported "uploaded photo does not show in the kiosk offering list".**
+
+```
+img-src 'self' data: blob:
+```
+
+The Supabase Storage origin is absent. `photoUrl()` returns
+`<supabase-origin>/storage/v1/object/public/offering-photos/…`
+(`offeringAttachments.service.ts:247-248`), which matches neither `'self'` (the page's own
+origin) nor `data:` nor `blob:` — so the browser blocks it before a request is made.
+
+> ⚠️ **NOT staging-specific**, which was the reporter's open question. The answer is no: it
+> fails identically on local, preview, staging and production, because the blocked origin
+> is always different from the page's. Locally it is `http://127.0.0.1:54321`; hosted it is
+> `https://<ref>.supabase.co`.
+
+⚠️ **Wider than the kiosk.** Two surfaces render storage photos, and both are broken:
+- `kiosk/KioskBooking/StepOffering.tsx:45` — the customer's offering grid
+- `offerings/OfferingAttachmentsEditor/OfferingAttachmentsEditor.tsx` — **the vendor's own
+  photo manager.** A vendor uploads a photo and cannot see it in the very screen that
+  uploaded it, which makes the photo half of offering attachments unusable.
+
+**Fix approach:** add the Supabase origin to `img-src`, **derived** the way
+`connect-src` already derives it — never a wildcard. `next.config.ts:37-48` is emphatic
+about this and names the incident: a hardcoded `https://*.supabase.co` shipped on
+2026-08-08 and broke both portals against local Supabase, because `127.0.0.1:54321`
+matches neither the wildcard nor `'self'` — and it looked fine in production, which is how
+it passed review. **`img-src` has the identical failure mode, and the same rule applies.**
+Reuse the existing derivation rather than writing a second one; `img-src` needs only the
+http(s) origin, not the `ws`/`wss` variant `connect-src` adds.
+
+**Verification:** machine — assert the emitted CSP header contains the Supabase origin in
+`img-src`. Needs-live — load the kiosk offering grid with a photo attached and confirm the
+image renders with no `securitypolicyviolation` in the console. `visual-tests/smoke.spec.ts`
+already listens for exactly that event and is the natural place to extend.
+
+---
+
+### B33 — Payment routes read the return URL raw, so a missing var redirects to localhost  ✅ DONE (2026-09-04)
+**Files:** `vendor/app/api/kiosk/payment/create-session/route.ts` and
+`booker/app/api/payment/create-session/route.ts`
+**Cross-app — approved 2026-09-04.** Coupled to **B23**: this is what makes B23 safe to get
+wrong.
+
+Both routes read `process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"` directly,
+bypassing `lib/siteUrl.ts`. **The silent fallback was the danger.** On a hosted deploy with
+the variable unset the **build still succeeds** — `resolveSiteUrl()` protects Open Graph
+metadata by falling back to `VERCEL_PROJECT_PRODUCTION_URL` — while these lines quietly
+hand PayMongo a `success_url` pointing at **localhost**. A customer pays and never returns:
+booking charged, tablet stranded, nothing reporting a fault. The build-time guard gave
+false comfort; it protected metadata, not the money path.
+
+**Executed:** both routes now use `resolveSiteUrl().origin`, wrapped so a failure returns a
+clean 500 and logs its cause rather than throwing an unhandled error at a customer.
+
+⚠️ **`.origin`, not the URL object** — `String(new URL("https://x"))` is `"https://x/"`, so
+interpolating the object would produce `https://x//kiosk`. A useful side effect: `.origin`
+**normalises a trailing slash away**, so `https://vendor.ezzy.ph/` now yields a correct
+single-slash URL where the old concatenation would not have.
+
+⚠️ **Failing the request is the right trade.** Refusing before money moves beats taking it
+and stranding the payer.
+
+**Verified — machine:** both apps `tsc` clean and `eslint` clean; vendor 377/377.
+**Verified — live (vendor), the full path:** authenticated `POST` for a ₱800 booking
+returned **HTTP 200** with a real `checkout.paymongo.com` URL, and no "site URL unresolved"
+in the log — so auth, the config check, the amount check, the URL resolution and the
+PayMongo call all ran. Unauthenticated still returns `401`, so **B20's ordering is intact**.
+⚠️ **booker's change is NOT exercised live** — same shape, type-checked and lint-clean, but
+it needs a signed-in booker session to prove. It joins booker's existing outstanding
+regression check.
+
+---
+
+### B34 — Kiosk payments cannot settle in production until `booker` is deployed there  ⬜ TODO
+**Files:** none — a deployment/topology gap, not code.
+**Found 2026-09-04** while answering "do I need a second webhook for production?" — by
+reading the deployed CSP `connect-src` of each host to see which Supabase project it
+actually talks to, rather than trusting the domain name.
+
+| Host | Supabase project | |
+|---|---|---|
+| `staging-vendor.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
+| `staging-booker.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
+| **`vendor.ezzy.ph`** | **production `pdkejyjidrfxksaczvfy`** | old build — `/kiosk` 404s |
+| `booker.ezzy.ph` | **staging** | stale build; serves no CSP header at all |
+
+**Nothing runs booker against production.** The consequence chain:
+1. `is_paid` is written **only** by `booker/app/api/payment/webhook` (F4, D4, B22 — there is
+   deliberately no vendor webhook).
+2. A production webhook must write to the **production** `bookings` table.
+3. Therefore it must reach a booker deployment connected to the production project.
+4. None exists. Pointing a live webhook at `booker.ezzy.ph` would attempt to settle
+   production bookings against the **staging** database, where those rows do not exist —
+   so the update matches nothing and the booking stays unpaid, silently.
+
+⚠️ **A kiosk launched in production before this is resolved takes REAL money and never
+marks the booking paid.** Worse than the staging equivalent: the customer is charged.
+
+**This is not currently blocking anything** — verified 2026-09-04 that `vendor.ezzy.ph`
+still serves the pre-kiosk build (`img-src` without the Supabase origin, `/kiosk` → 404,
+`/api/kiosk/booking` → 404). It becomes blocking the moment the kiosk build reaches
+production, which is Stage 8's last step.
+
+**Fix approach — two options, and the first is already the documented intent:**
+- **(a) ⭐ Deploy `booker` to production** and repoint `booker.ezzy.ph` at the production
+  project. `architecture/overview.md:89` already records this as the plan ("repoint at
+  production when it is [launched]") **and carries an ordering dependency**: repoint booker
+  **first**, confirm, *then* set `PORTAL_URL_BOOKER` in production Command — otherwise
+  booker-only users get a set-password email whose token cannot validate. See
+  `auth-and-roles.md`.
+- **(b) Give `vendor` its own production webhook.** Reverses B22/D4/F4 and re-creates the
+  two-endpoints-racing-one-transition problem those decided against. Recorded so it is
+  visibly rejected rather than rediscovered as a shortcut under launch pressure.
+
+**Verification:** needs-live — after (a), a production kiosk booking paid with a live card
+must flip `is_paid`. Until then the production kiosk is not launchable.
+
+---
+
+### B35 — Kiosk payment fails on staging; cause not yet identified  ✅ RESOLVED (2026-09-05)
+> **Cause: `PAYMONGO_SECRET_KEY` was not set on staging-vendor.** The user added it and the
+> payment flow now works. That was the first of the three candidates listed below — the
+> `500 {"error":"Payment not configured"}` branch — and it is one of the two that **log
+> nothing server-side**, which is exactly why Vercel's function log looked clean and the
+> fault took two reports to pin down.
+>
+> **Pattern worth naming, because it has now cost time three separate times:** a missing
+> environment variable on a hosted deploy presents as a *generic application failure*, not
+> as a configuration error — `PAYMONGO_WEBHOOK_SECRET` (three attempts), `NEXT_PUBLIC_APP_URL`
+> (B23/B33), and now this. The check that resolves it fastest is asking **"which variables
+> does this route read, and is each one set on the environment this domain actually
+> serves?"** rather than reading application code.
+>
+> **I18 was the right fix and arrived one report too late** — the browser console now names
+> the cause directly, so a fourth occurrence should cost seconds.
+>
+> **Verified:** the user confirms payment now works on staging.
+> ⚠️ **Not confirmed by this:** whether the webhook **settles** the booking (`is_paid` →
+> `true`), and **R1** (the kiosk customer signing into booker). Reaching PayMongo's checkout
+> page and being marked paid are different milestones.
+**Files:** none yet — a live-environment fault, not a known code defect.
+**Reported 2026-09-05**, second occurrence: the booking is created, then
+`/api/kiosk/payment/create-session` fails and the customer sees *"The booking was created
+but payment could not start. Please see staff."*
+
+**The booking half is working.** `/api/kiosk/booking` returned 200 — the row exists, is
+findable by staff, and **no card was charged**. Only session creation failed.
+
+**Already ruled out on staging, by probe:**
+- **Auth / B20 ordering** — unauthenticated returns `401 {"error":"Not signed in."}`.
+- **The site-URL branch** — `staging-vendor.ezzy.ph` self-references itself in its served
+  HTML, so `resolveSiteUrl()` resolves there; B33's 500 is not firing.
+
+**Remaining causes, and how to tell them apart:**
+
+| Response | Meaning | Logs server-side? |
+|---|---|---|
+| `500 {"error":"Payment not configured"}` | `PAYMONGO_SECRET_KEY` unset on staging-vendor | **no** |
+| `400 {"error":"Invalid booking amount"}` | the offering is priced **₱0** | **no** |
+| `502 {"error":"Failed to create payment session"}` | **PayMongo rejected it** | **yes** — `PayMongo error:` |
+| `404` / `403` | booking not found / not a kiosk booking | no |
+
+⚠️ **Two of the three likeliest log nothing server-side**, which is why Vercel's function
+log looked clean. **I18 (shipped in `48c15db`) now writes the cause to the BROWSER
+console** — `[kiosk/checkout] create-session failed { status, error }`. That line is the
+fastest route to the answer and did not exist when this was first reported.
+
+**Fix approach:** diagnose before changing anything. Reproduce with DevTools open, read
+that line, then act on what it names. Do **not** guess-fix.
+
+**Verification:** needs-live — a kiosk booking on staging reaches PayMongo's hosted
+checkout page.
+
+---
+
 ## IMPORTANT
+### I17 — The booking route swallows the database error behind a generic message  ✅ DONE (2026-09-04)
+> **Executed — `booking/route.ts`.** A `logCause(where, cause)` helper now records the
+> failure at both paths that discarded it: the acknowledgement insert and the signature
+> upload. The customer-facing strings are unchanged.
+>
+> ⚠️ **`code` and `message` ONLY — never `details` or `hint`, and that is a PII decision,
+> not an oversight.** PostgREST echoes the offending row into `details` for several error
+> classes, and these rows carry `signer_name` — the walk-in's real name. B6.1 keeps
+> customer PII out of anything outliving the session, and a server log outlives it.
+> `message` alone was sufficient here: for B31 it reads "duplicate key value violates
+> unique constraint …", which names the defect outright.
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, 377/377.
+> ⚠️ **NOT verified firing.** The log line has never been observed emitting, because the
+> failure that would trigger it is exactly what B31 fixed. It is code-complete and
+> type-checked, not exercised — recorded honestly rather than claimed.
+**File:** `vendor/app/api/kiosk/booking/route.ts:198-201` (and the sibling paths at
+`:172-175`)
+
+```ts
+const { error: ackError } = await admin.from("booking_acknowledgements").insert(rows)
+if (ackError) {
+  …
+  return err("Could not record the agreements. Please try again.", 500)
+}
+```
+
+`ackError` is destructured and then **never read**. The customer-facing message is right —
+a walk-in must not be shown a Postgres constraint name — but nothing records the cause
+anywhere, so **B31 presented as an unfalsifiable "try again" with no way to learn why.**
+"Please try again" is also untrue for B31: retrying could never succeed.
+
+Found while diagnosing B31, 2026-09-04. Pre-existing.
+
+**Fix approach:** `console.error` the underlying error server-side before returning, keeping
+the customer-facing text unchanged. Vercel captures server logs, so this is the difference
+between a five-minute diagnosis and an hour of guessing. Apply to the signature-upload
+branch too, which discards `uploadError` the same way.
+
+**Verification:** machine — none meaningful. Needs-live — trigger a failure and confirm the
+cause appears in the server log while the client still sees the friendly message.
+
+---
+
 ### I16 — Renaming an attachment writes to the database on every keystroke  ✅ DONE (2026-09-03)
 > **Executed — 2 files.** `useOfferingAttachmentsEditor.ts` gains a single `titleEdit`
 > `{ id, value }` with `editTitle` / `commitTitle`; `OfferingAttachmentsEditor.tsx` reads
@@ -3339,8 +3782,252 @@ disabled controls, and this is a button nobody can press. Declined as theoretica
 
 ---
 
+### I18 — The kiosk checkout discards the server's reason for a payment failure  ✅ DONE (2026-09-04)
+> **Executed — `useKioskCheckout.ts`.** A `console.error` records the HTTP status and
+> `pay.error` before the friendly message is set. The customer-facing copy is byte-for-byte
+> unchanged.
+>
+> **Finding that sharpens the item:** the **booking** branch above already surfaces
+> `booking.error` straight to the screen, and correctly so — those strings are written for
+> a customer ("That time has just been taken. Please pick another."). Only the **payment**
+> branch discarded its cause, and its strings are the ones no walk-in should ever read.
+> The split is now explicit in the file so nobody "fixes" it by surfacing both.
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, `npm test` 377/377.
+> ⚠️ **Not exercised** — needs a real failure. The cheapest trigger is an offering priced
+> **₱0**, which returns `Invalid booking amount`; that is also a live candidate for the
+> staging failure being diagnosed.
+**File:** `components/kiosk/KioskBooking/useKioskCheckout.ts:72-79`
+
+```ts
+const pay = await payRes.json().catch(() => ({}))
+if (!payRes.ok || !pay.checkout_url) {
+  setError("The booking was created but payment could not start. Please see staff.")
+```
+
+`pay.error` carries the precise cause and is **thrown away**. Reported 2026-09-04 from
+staging: a real payment failed and the only information anywhere was that sentence, which
+is deliberately vague because a walk-in customer must never be shown
+`Payment not configured`. The customer-facing copy is right; the problem is that the
+diagnosis exists and is discarded, so identifying it needed DevTools and a round trip.
+
+`create-session` can fail six distinguishable ways — `Payment not configured` (500, logs
+nothing), `Invalid booking amount` (400, logs nothing), `Booking not found` (404),
+`Not a kiosk booking.` (403), the site-URL branch (500, logs), and
+`Failed to create payment session` (502, logs). **Two of the likeliest log nothing at all
+server-side**, so Vercel's function log is silent and the client is the only place the
+answer ever exists.
+
+**This is I17's client-side twin.** Same reasoning, same resolution: keep the friendly
+message, record the real one.
+
+**Fix approach:** `console.error` the status and `pay.error` before `setError`. The visible
+copy does not change. Apply to the booking call in the same hook if it has the same shape.
+
+**Component separation:** hook-only; no `.tsx` or style change.
+**Verification:** machine — `tsc`, lint. Needs-live — force a failure (e.g. an offering
+priced ₱0 → `Invalid booking amount`) and confirm the cause appears in the browser console
+while the customer still sees the friendly text.
+
+---
+
+### I19 — The offering form's photo previews are too small to judge  ✅ DONE (2026-09-05)
+> **Executed — `OfferingAttachmentsEditor.module.css`.** `.photo` and `.addTile` both
+> `92 × 68` → **`120 × 90`**, approved at that size. Both, because they share a flex row and
+> a mismatch makes it ragged — the file now says so beside `.addTile`.
+> **Verified — machine:** `tsc` clean, `eslint` clean, `npm test` 377/377. Wrapping was
+> checked before the change rather than after: `MAX_PHOTOS = 3`, so 4 tiles × 120 + 3 × 8px
+> gaps = **504px**, still one line in the modal.
+> **No baseline covers this** — confirmed nothing in `app/ui-gallery/page.tsx` renders
+> `OfferingAttachmentsEditor`, so there was nothing to re-record.
+> ⚠️ Needs a browser to confirm the row reads better; the size is arithmetic, the judgement
+> is not.
+**File:** `components/offerings/OfferingAttachmentsEditor/OfferingAttachmentsEditor.module.css:45-52`
+(`.photo`) and `:98-101` (`.addTile`)
+
+Both are `92 × 68`. A vendor choosing which photo the kiosk shows as the offering's cover
+is deciding from a thumbnail smaller than a postage stamp — and per `useOfferingsPage`,
+the first by `sortOrder` **is** the cover, so this is a decision, not decoration.
+
+**Fix approach:** `92 × 68` → **`120 × 90`**. A ~30% bump, and it lands on a clean 4:3 —
+the current 92:68 is 1.353, an approximation of 4:3 that nothing depends on. **`.addTile`
+must change with it** or the row goes ragged; it is the same size today by design.
+
+⚠️ **Wrapping checked, not assumed:** `MAX_PHOTOS = 3`, so the row holds at most 3 photos
+plus the add tile — 4 × 120 + 3 × 8px gap = **504px**, which still fits the offering modal
+without wrapping. `object-fit: cover` on `.photoImg` means the aspect change crops rather
+than distorts.
+
+**Component separation:** CSS-only.
+**Verification:** needs-live — open the offering form with photos attached and confirm the
+row still fits on one line at the modal's width.
+
+---
+
+### I20 — Kiosk step content is left-aligned on a wide screen  ✅ DONE (2026-09-05)
+> **Executed per D27(a) — `KioskBooking.module.css`.** `margin-inline: auto` added to
+> `.fields`, `.docs` and `.summary`, matching `.done`'s existing `margin: 0 auto`. No new
+> width and no new breakpoint: the `max-width`s were already there and already right.
+> **Verified — machine:** the `kioskcustomer` baseline **failed first** (2 failed), which is
+> what proves the rule took effect, then regenerated; full suite green afterwards —
+> 161 snapshot tests with **zero** failures plus **15/15** on the responsive sweep.
+> Inspected the regenerated baseline: the form now carries equal margins instead of hugging
+> the left edge.
+> **Scope check that shaped the fix:** only `kioskcustomer` renders `.fields`;
+> `kioskoffering` and `kioskslot` use `.dates`/`.grid`/`.slots` and were confirmed
+> unaffected before the change, so exactly one baseline needed re-recording.
+**File:** `components/kiosk/KioskBooking/KioskBooking.module.css` — `.fields:128`,
+`.docs:150`, `.summary:177`
+
+Reported 2026-09-04: "Your details" looks right on mobile but stranded on a desktop
+browser.
+
+> ⚠️ **The cause is NOT a missing max-width, which is what the report implies.** `.fields`
+> already sets `max-width: 720px`. The content is constrained; it is simply **pinned to the
+> left** because nothing centres it. On a 2560px kiosk display that leaves the form hugging
+> one edge with two thirds of the screen empty.
+
+**And it is not only that step.** Three containers are constrained-but-left; a fourth is
+already centred:
+
+| Step | Container | Today |
+|---|---|---|
+| Your details | `.fields` `max-width: 720px` | left |
+| Before you book | `.docs` `max-width: 860px` | left |
+| Review and pay | `.summary` `max-width: 620px` | left |
+| Confirmation | `.done` `max-width: 620px` | **`margin: 0 auto`** |
+
+So the flow already jumps to centre at the last step. Fixing only "Your details" would add
+a second jump rather than remove one. See **D27**.
+
+**Fix approach:** `margin-inline: auto`, matching `.done`'s existing `margin: 0 auto`. No
+new width, no new breakpoint — the constraint is already there and correct.
+
+**Component separation:** CSS-only.
+**Verification:** needs-live — walk the flow at a desktop width and confirm the content
+block stays centred from step to step, with no sideways jump.
+
+---
+
+### I21 — Visual baselines encode `.env.local` values, so a config change fails 15 tests  ✅ RESOLVED (2026-09-05) via D28(b)
+> **Resolved by restoring the values** — `.env.local` is back to `NEXT_PUBLIC_APP_NAME="Ezzy
+> Vendor"` / `NEXT_PUBLIC_APP_DOMAIN="vendor.ezzy.ph"`. **All 16 login tests pass.**
+>
+> ⚠️ **The underlying fragility is NOT fixed, deliberately** — D28(b) restores this
+> instance, it does not prevent the next one. The baselines still encode two env values, so
+> the same 15 failures return for anyone whose `.env.local` differs, presenting as "your
+> change broke login". D28(c) — pinning both values in `playwright.config.ts`'s `webServer`
+> beside the existing `PW_TEST=1`, the way `pilot.spec.ts` already pins a fixed instant — is
+> the durable answer and remains available. Recorded so the recurrence is recognised in
+> seconds rather than re-diagnosed.
+**Files:** `components/auth/LoginPage/LoginPage.tsx:90,141,173`, `lib/constants.ts:42-43`,
+and the 15 `login*` baselines.
+
+**Found 2026-09-04**, and the discovery route is the point: I19/I20 were CSS-only kiosk and
+offerings changes, yet the full suite came back **15 failed / 158 passed** — every failure a
+`login*` mode, none of them touched by the diff.
+
+**Cause — environment, not code.** `vendor/.env.local` now holds
+`NEXT_PUBLIC_APP_NAME="STAGING Ezzy Vendor"` and
+`NEXT_PUBLIC_APP_DOMAIN="staging-vendor.ezzy.ph"` (changed while configuring the Vercel
+staging deploy). `LoginPage` renders both — `Sell on {APP_NAME}` and `{APP_DOMAIN}` — so
+every login baseline, recorded against the earlier values, now mismatches. The failures are
+**text, not layout**: 3026 pixels, ratio 0.01, and the diff image shows the two strings
+superimposed in exactly those three positions.
+
+⚠️ **The real finding is that the suite is not environment-independent.** Any developer
+whose `.env.local` differs gets 15 red tests that have nothing to do with their change —
+and the failure presents as "your CSS broke login", which is the most expensive kind of
+wrong signal. `lib/constants.ts` falls back to `"Josh demo app"` / `"ang.demo.app.ni.josh"`
+when unset, so an unset environment produces a *third* distinct rendering.
+
+**This did not affect the kiosk baselines**, checked: none of the six kiosk fixtures renders
+`APP_NAME` or `APP_DOMAIN` — `kiosklauncher` takes its vendor name from a literal prop.
+
+**Fix approach — see D28.** The immediate unblock is a choice between restoring the values
+and re-recording the baselines; the durable fix is pinning these two values for the visual
+run the way `pilot.spec.ts` already pins the clock for date-rendering screens.
+
+**Verification:** machine — the full suite returns to 0 failures, and stays there after a
+deliberate `.env.local` edit if the durable fix is taken.
+
+---
+
+### I22 — The kiosk exit dialog needs the blur, not a heavier scrim  ✅ DONE (2026-09-05)
+> **Executed — `KioskExitDialog.module.css`.** `rgba(4,6,14,0.94)` with no blur →
+> `rgba(0,0,0,0.5)` + `backdrop-filter: blur(6px)` + the `-webkit-` prefix. Identical to the
+> app's eight Radix dialogs, which is the look the reporter pointed at. The comment block
+> now records that D19(b) was reversed and **tells the next reader not to "restore" the
+> opaque version.**
+>
+> **Verified — machine:** `tsc` clean. `kioskexit-light` failed against its old baseline and
+> was re-recorded; re-run twice, stable. Inspected the new baseline: standard scrim, card
+> reads cleanly.
+>
+> ⚠️ **`kioskexit-dark` did not change at all, and that is a finding about the FIXTURE, not
+> the fix.** The gallery renders this dialog over an essentially empty page, so there is
+> nothing behind it to blur — a blur of a flat colour is that flat colour, and against a
+> near-black ground the two scrims round to the same pixels. **So this baseline cannot
+> prove the fix**; it only proves nothing else broke. The actual defect — legible text
+> behind the dialog — needs the real kiosk with the welcome screen behind it.
+> Worth remembering before trusting a green `kioskexit` run to mean the scrim is right.
+>
+> ✅ **Confirmed on STAGING 2026-09-05** by the reporter, on the real kiosk with the welcome
+> screen behind the dialog — the case the gallery fixture cannot reproduce. This is the
+> verification that actually closes the item.
+**File:** `components/kiosk/KioskExitDialog/KioskExitDialog.module.css:18-27`
+
+> ## ⚠️ THIS REVERSES D19(b), AND THE REASONING THERE WAS MINE AND WRONG
+>
+> D19(b) gave this dialog `rgba(4, 6, 14, 0.94)` and **deliberately no blur**, arguing "at
+> 94% there is nothing left showing through for a blur to act on". Confirmed 2026-09-05
+> against a real screenshot: **that is false.** "Welcome", "What would you like to do?" and
+> both choice cards are still plainly legible behind it.
+>
+> **Opacity and blur are not interchangeable, and I treated them as if they were.** A 94%
+> wash *reduces contrast* — white text survives at 6% as a faint but readable ghost, which
+> is exactly what a dark kiosk surface makes visible. A 6px blur *destroys letterforms*,
+> and does so regardless of opacity.
+>
+> **It also means the blur serves D19's own stated concern better than the scrim did.** The
+> point was that a customer's booking — name, mobile — sits behind this dialog while staff
+> type a password over it. Ghosting at 6% leaves that readable; a blur does not. The
+> heavier scrim was worse at the job it was chosen for.
+
+**Fix approach:** the app's standard modal treatment, the same one the reporter pointed at
+on the offering form — `rgba(0, 0, 0, 0.5)` plus `backdrop-filter: blur(6px)`, with the
+`-webkit-` prefix written by hand (a hand-authored `.module.css` gets no autoprefixing, and
+iPad Safari is a first-class kiosk target). This is what D19 option **(a)** proposed and
+I argued against.
+
+**Not in scope:** porting this dialog to Radix. The launcher was ported under D24(a)
+because it lost a stacking contest; nothing stacks over the exit dialog — the kiosk route
+mounts no other dialog — so there is no defect to fix, only consistency, and that is not
+worth a rewrite here.
+
+**Component separation:** CSS-only.
+**Verification:** needs-live — open the exit dialog over the kiosk welcome screen and
+confirm the text behind is a smear rather than a readable ghost. The `kioskexit` baseline
+**will move** and must be re-recorded.
+
+---
+
 ## DEFERRED / COSMETIC
 
+- **Hydration mismatch on `/ui-gallery`, in `StatCard`** (observed 2026-09-05, **not
+  caused by this plan's work**). The dev server logs `Hydration failed because the server
+  rendered text didn't match the client`, rooted at `<UiGalleryPage>` and pointing at
+  `StatCard.tsx:72` — the `{sub}` line, beside a `delta.pct` computation.
+  **Pre-existing:** present in every visual-suite log back to 2026-09-03 (19 occurrences in
+  the oldest), before I18–I21. **Intermittent** — one later run reproduced it zero times.
+  **Harmless to the suite:** 173/173 pass regardless; React discards and re-renders the
+  subtree.
+  **Likely cause, unverified:** `pilot.spec.ts` pins a fixed instant in the *browser*, but
+  the dev server rendering SSR uses the real system clock — so date-derived text differs
+  across the boundary. That would make it an artefact of clock-pinning a fixture page
+  rather than an app defect. ⚠️ **Worth confirming before dismissing**, because `StatCard`
+  is also used by the real dashboard: if its `sub` is time-derived there too, the live
+  dashboard has the same mismatch without a gallery to blame.
 - **⚠️ ~~Local seed data cannot reach the kiosk any more~~ — RESOLVED 2026-09-03** by the
   user adding payout details to Citywide through Settings → Payout Details. Kept because
   the next person to reset the local database will hit it again, and it is not obvious.
@@ -3495,7 +4182,7 @@ env vars are unset. They run in a second staging pass after Stage 4.
 migration, not an edit.
 </details>
 
-**Stage 4 — kiosk UI.**  🔄 **SPLIT 2026-08-29 — 4a complete, 4b remaining.** The stage
+**Stage 4 — kiosk UI.**  ✅ **COMPLETE (2026-08-29)** — split into 4a and 4b, both done. The stage
 as scoped was roughly four times any previous one, so it was split at the seam between
 the safety envelope and the booking flow.
 **4a ✅ done:** the kiosk exists, is reachable, contained, persistent and guarded —
@@ -3561,7 +4248,7 @@ makes conditionally untrue for `booked_via = 'kiosk'` rows).
 
 </details>
 
-**Stage 6b — field-report fixes (B27, I10).**  ⬜ **TODO — added 2026-09-02.** Both
+**Stage 6b — field-report fixes (B27, I10).**  ✅ **COMPLETE (2026-09-02).** Both
 found by using the kiosk. **App-layer only: no schema, no migration, no effect on Stage
 7's sequence.** B27 first and independently — it is a correctness fix with a
 machine-checkable result and no open decision. I10 is **blocked on D19** and, for its
@@ -3581,10 +4268,51 @@ unblocked and is now a two-rule CSS change.
 ⚠️ **I7's baselines move behind all three** — same reasoning as I10: snapshotting the
 kiosk now would freeze the very layout these items change.
 
-**Stage 7 — production (B17b).** `db push` to production, re-check the grants, **then**
-the app builds — in that order, not the same sitting. Deliberately last, and deliberately
-unsurprising: every live-environment row was already run on staging at Stage 3b.
-**No app build reading the new tables may reach production until this completes.**
+**Stage 7 — production schema (B17b).**  ✅ **COMPLETE (2026-09-03).** `db push` to
+production, re-check the grants, **then** the app builds — in that order, not the same
+sitting. Deliberately unsurprising: every live-environment row was already run on staging
+at Stage 3b. **No app build reading the new tables may reach production until this
+completes.**
+⚠️ **"Deliberately last" no longer applies** — that was written when this was the final
+stage. The app builds were split out and reordered on 2026-09-04; see Stage 8.
+⚠️ **The production grants re-check is still outstanding** — the schema went up, the
+measurement did not.
+
+**Stage 9 — preview-deployment findings (B31, B32, I17).**  ✅ **COMPLETE (2026-09-04)** — all
+three executed and verified; only I17's log line is unexercised. Added 2026-09-04,
+from the first Vercel preview deploy and a real kiosk booking attempt. All three are
+vendor-app-only: no schema, no migration, no effect on Stage 8's deploy order. No open
+decisions — each has one obvious fix.
+**Order: B31 → I17 → B32.** B31 first because it makes an offering unbookable; **I17
+immediately after, because it is why B31 took a reproduction to identify** and the next
+failure in this route deserves to be legible. B32 last — it is a one-line CSP change but
+it is cosmetic-severity for booking, and it wants the smoke test extended with it.
+⚠️ **B32 must land before the staging deploy is judged**, or photos will look broken there
+and be misread as an environment problem rather than the policy it is.
+
+**Stage 8 — deploy order, REVISED 2026-09-04 at the user's request.** Production *schema*
+is already live (B17b, 2026-09-03); what remains is the **app build**, and it moves to
+**last** because `ezzy-vendor-mobile` currently points only at staging, so staging must
+carry the vendor app before mobile can be worked on at all.
+
+**Revised order:** commit → **deploy vendor to STAGING** (+ set B23's staging
+`NEXT_PUBLIC_APP_URL`) → verify B1/B2/B4/R1 live, which have never run outside local →
+mobile work against staging → **deploy vendor to PRODUCTION last** (+ set B23's production
+value, `https://vendor.ezzy.ph`).
+
+**This is safe, and it was checked rather than assumed.** Two of the four migrations are
+already active in production and neither is waiting on the app:
+- `booked_via` is `not null default 'booker'` (`20260829000003:36`), so **every existing
+  production booking is `'booker'`**.
+- `20260829000004` widens the `completed` / `returned` transitions **only** for
+  `booked_via = 'kiosk'`. With no kiosk rows in production, that widening is inert; every
+  other branch of the function is unchanged.
+
+⚠️ **THE REAL REASON THIS ORDERING MATTERS: there is no feature flag.** Nothing in
+`Sidebar` or `AppShell` gates the kiosk — the "Kiosk Mode" button ships with the build. So
+the kiosk goes live the moment the vendor app reaches production, and **deploy order is the
+only control over when that happens.** Anyone shipping an unrelated vendor release to
+production before this point ships the kiosk with it.
 
 **Coupled batches that must not be split:** B7 + B8 + the `lib/legal.ts` union
 (Stage 0). **B9 + B10** — the marker and the rule are one change in two files, and
