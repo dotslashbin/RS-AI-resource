@@ -260,6 +260,22 @@ not acceptable.
 
 ---
 
+### Carried forward from the closed hardening plan — ⏸ PARKED
+`.plans/2026-09-02-booker-payment-route-hardening.md` closed ✅ on 2026-09-06 with two
+webhook items parked. They are recorded here so a closed plan does not bury them:
+
+- **A2 — the webhook discloses configuration state.** An unsigned POST returns
+  `500 {"error":"Webhook not configured"}` when the secret is unset, on a public
+  unauthenticated endpoint. Only manifests in a misconfigured environment; the ordering
+  cannot be swapped, since a signature cannot be verified without the secret.
+- **A3 — no replay window.** The signature timestamp is parsed and never compared to now, so
+  a captured valid webhook stays replayable. The handler is idempotent, so a replay re-asserts
+  a state that is already true.
+
+**Unblocks when** PayMongo test accounts exist — both need *verifying*, not just fixing.
+⚠️ **A2 becomes more relevant once `booker.ezzy.ph` is production**, because the endpoint is
+then public on a production domain rather than a staging one.
+
 ## Execution order
 
 1. **D1** — resolve the origin. Nothing below can start without it.

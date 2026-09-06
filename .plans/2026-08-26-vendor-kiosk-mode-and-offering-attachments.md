@@ -4,28 +4,29 @@
 **App / scope:** `vendor/` (primary), `backbone/supabase/migrations/` (schema + storage).
 **Cross-app read-only reference:** `booker/` — its wizard, slot service and payment
 routes are the source material being adapted, not imported.
-**Status:** IN PROGRESS — **B29 is fixed and verified live (2026-09-03); text documents
-can now be authored and edited.** Every blocker is ✅. **Every blocker and every important item is ✅ except B22/B23**, and
-their parking reasons were corrected on 2026-09-04: **B22 is ✅ done (2026-09-04)**; **B23 belongs to
-the app deploy**. **B30 ✅ resolved 2026-09-04** — the local key is back to `sk_test_`, matching booker.
-**Stage 9 ✅ (2026-09-04)** — B31, B32 and I17 from the first preview deploy are all
-fixed and verified. **B23 is the only item not ✅**, and it closes with the deploys — now with **B33** behind
-it, so a missing value fails loudly instead of redirecting a paying customer to localhost.
-Confirmed 2026-09-04: values are `https://vendor.ezzy.ph` (production) and
-`https://staging-vendor.ezzy.ph` (staging), scheme included, no trailing slash. No open
-decisions. What remains is confirmation rather than plan work: the production **grants
-re-check**, the reviewer's manual pass, and an app deploy. Schema is on local, staging and production; every blocker and
-important item is ✅ apart from **B22/B23**, which are ⏸ pending PayMongo test accounts.
-What is left is not plan work but confirmation: the production **grants re-check**, the
-reviewer's manual kiosk pass, and an app deploy. **B28 is fixed** (2026-09-03, D24a + D25a) — the launcher no longer opens for an
-incomplete account, so the two dialogs cannot stack. ⚠️ One consequence: no seeded vendor
-has a payout method, so **the kiosk is unreachable in local dev** until one is added — see
-DEFERRED. Schema is applied to **local AND staging** (B17a ✅);
-**production is the one environment still pending** (B17b), and B7–B10 stay 🔄 only
-because of it. The vendor app has **never been deployed to staging**, so B1/B2/B4/R1
-have never run live. Zero open decisions.
-<!-- 2026-09-02: the previous headline still read "staging and production are still
-     pending", which stopped being true when B17a landed on 2026-08-29. Corrected. -->
+**Status:** IN PROGRESS — **all development and all staging verification are COMPLETE
+(rewritten clean 2026-09-06).**
+
+<!-- 2026-09-06: this block had accreted six layers of patched-on corrections and was
+     contradicting itself — still claiming B23 was the only open item and that B22 was
+     PayMongo-blocked, both false. Rewritten whole rather than patched again. -->
+
+**Proven end to end on staging:** both payment origins settle (`kiosk` via
+`vendor/api/kiosk/payment/create-session`, online via booker), through **one shared webhook**
+— the design F4 asserted and nothing had ever measured until **B38** was found and fixed.
+**R1** confirmed: a kiosk-created customer signs in to booker. Schema is on **local, staging
+and production**, and production's grants were **measured** on 2026-09-05 (`service_role`
+carries no UPDATE/DELETE on `booking_acknowledgements`, so D17's revoke holds where it
+counts — F18's failure mode closed). Money confirmed in PayMongo, not just events.
+
+**Two items remain, both deployment, neither code:**
+- **B34** ⬜ — booker must run against production before the kiosk can settle there.
+  **Delegated** to `.plans/2026-09-06-booker-production-minimal-for-vendor.md`.
+- **B23** 🔄 — staging half done and verified; the production half closes with the vendor
+  kiosk build. It is **not** PayMongo-blocked.
+
+**No open decisions.** ⚠️ **No feature flag** — the kiosk goes live the moment the vendor
+build reaches production, so deploy order is the only control over launch timing.
 
 *Historical, from the 2026-08-29 re-baseline:* Re-baselined, migrations
 re-cut, and syntax + behaviour checked against local (all four applied in one transaction and rolled back;
@@ -2869,6 +2870,44 @@ marks the booking paid.** Worse than the staging equivalent: the customer is cha
 still serves the pre-kiosk build (`img-src` without the Supabase origin, `/kiosk` → 404,
 `/api/kiosk/booking` → 404). It becomes blocking the moment the kiosk build reaches
 production, which is Stage 8's last step.
+
+> ## ⚠️ HOLD — B34 MAY BE SUPERSEDED, DO NOT EXECUTE IT OUT OF HABIT (2026-09-06)
+>
+> A migration from **PayMongo to PayMaya** is being considered on its own feature branch. It
+> bears directly on this item, because **B34 exists only because of how the PayMongo
+> integration was shaped** — one shared merchant account, therefore one webhook, and it
+> happened to be built in `booker` back when booker was expected to launch first. That
+> expectation has since inverted: **vendor launches first and booker does not.**
+>
+> **Two questions for the PayMaya plan to answer before this item is executed:**
+> 1. **Which app should own the webhook?** Nothing makes `booker` the right home. If
+>    **vendor** owned it, this item's whole dependency chain disappears and the kiosk could
+>    reach production with no booker deployment at all.
+> 2. **Can each app hold its own registration?** D4/B22 rejected two webhooks because two
+>    endpoints on one account would race the same `is_paid` transition. Whether PayMaya
+>    scopes registrations so each app receives only its own sessions' events is **unverified**
+>    and needs checking, not assuming.
+>
+> **Decision 2026-09-06: HOLD B34.** Do not deploy booker to production for the webhook's
+> sake until PayMaya's shape is known. **B23's production half is unaffected and proceeds** —
+> it is provider-agnostic; every hosted-checkout provider redirects to a URL you supply.
+>
+> ⚠️ **BUT B34 IS NOT PURELY A WEBHOOK ITEM, AND THE SECOND REASON SURVIVES ANY PROVIDER
+> CHANGE.** `StepCustomer.tsx:74` tells every walk-in, before they hand over their details:
+>
+> > *"We'll create an account for you so you can view this booking later."*
+>
+> That promise is honoured by **booker**. With no booker in production, every kiosk customer
+> is given an account against a portal that does not exist for them — B2 provisions it,
+> **R1** proved it works, and the customer cannot reach it. **Changing the payment provider
+> does not touch this.** So booker in production is needed either way, unless that copy and
+> the account provisioning are deliberately changed — which would be its own decision.
+>
+> ⚠️ **Also: staging works today, end to end, on PayMongo — proven.** Anything built for
+> PayMaya starts at zero verification, and this integration has twice shown that "the code
+> looks right" is not "it works" (**B38** was a webhook that had never settled a single
+> payment while reading perfectly). Keep PayMongo functional until PayMaya is proven to the
+> same standard.
 
 > 🔗 **NOW HAS ITS OWN PLAN (2026-09-06):**
 > `.plans/2026-09-06-booker-production-minimal-for-vendor.md`. Scoped deliberately to

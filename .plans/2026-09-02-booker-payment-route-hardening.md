@@ -5,9 +5,25 @@
 **Cross-app note:** raised from `.plans/2026-08-26-vendor-kiosk-mode-and-offering-attachments.md`
 **B20**, which fixed the identical defect in `vendor`. AGENTS.md gates cross-app work;
 approval to open this as its own plan was given 2026-09-02.
-**Status:** IN PROGRESS — **all four items proven on STAGING (B1, I1, I2 on 2026-09-04;
-I3 on 2026-09-05).** Only A2 and A3 remain, both ⏸ pending PayMongo test accounts. No code
-work outstanding.
+**Status:** ✅ **COMPLETE (2026-09-06).**
+
+**Every item in this plan's declared scope is done and proven on a hosted environment**:
+**B1** (auth before the config check), **I1** (unguarded `req.json()`), **I2** (constant-time
+signature comparison) and **I3** (derived return URL) — the last confirmed by a real booker
+payment that settled `is_paid` on 2026-09-05.
+
+**A2 and A3 are ⏸ PARKED and do not block closure**, because D1 scoped this plan to
+`create-session`; they are *adjacent webhook findings* recorded so they would not be lost,
+never scope. They are **wanted, not declined**, and they need **PayMongo test accounts to
+verify** — not merely to fix. They are carried forward in
+`.plans/2026-09-06-booker-production-minimal-for-vendor.md` so they resurface when someone is
+next holding the PayMongo dashboard.
+
+⚠️ **One thing this plan proved that is bigger than its own scope:** verifying I3 required a
+real payment, and that is what exposed **kiosk B38** — booker's webhook had *never* settled a
+payment, in any environment, because it read the event type one level too shallow. This plan
+closed a set of hardening items; it also turned "the code looks right" into "it demonstrably
+works", which nothing before it had done.
 Everything still open here waits on the **same** thing: **PayMongo test accounts**. That
 is one regression check (a signed-in booking through to checkout) plus the two parked
 webhook follow-ups, A2 and A3. Nothing is blocked on a decision.
