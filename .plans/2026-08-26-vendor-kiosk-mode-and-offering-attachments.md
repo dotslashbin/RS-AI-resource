@@ -1841,7 +1841,15 @@ it just proves less than I first claimed:
   wrong, and every stage after this one assumed it.
 - **The grant re-check** — whether D17's revoke actually took on hosted. F18 proved this
   class of thing differs by environment.
-- **R1** — whether a kiosk-created customer can genuinely claim their account. That is
+- **R1 — ✅ VERIFIED ON STAGING 2026-09-05.** A customer created by a kiosk booking signed
+  into the booker portal successfully. This is the finding's own closure: `verifyBookerAccess`
+  demands a `booker` portal row **and** a `member` role **and** `status = active`, and
+  `handle_new_user()` grants none of them — an earlier draft would have shipped accounts
+  that could never log in, never read their own booking, and could not be signed up later
+  either, because both registration paths treat an existing `profiles` row as "email taken".
+  B2 mirrors booker's own `/api/register` precisely so that cannot happen, and this is the
+  first live proof it works.
+- ~~**R1**~~ *(original wording)* — whether a kiosk-created customer can genuinely claim their account. That is
   D1's entire premise.
 - Plus B1's two (single complete insert, orphan sweep), B2's race, and D10's bucket
   visibility checks.
@@ -1860,8 +1868,24 @@ staging.
 > environments drifted once before, when work went to prod first and staging was left
 > behind.
 >
-> ⚠️ **Two follow-ups from this item are NOT yet done and are not implied by the push:**
-> 1. **Re-run the grants query on production** — confirm `authenticated => SELECT` and
+> ✅ **PRODUCTION GRANTS RE-CHECK DONE 2026-09-05 — and they match.**
+> `booking_acknowledgements` → `authenticated: SELECT`, `service_role:
+> INSERT,REFERENCES,SELECT,TRIGGER`; `offering_attachments` → `authenticated:
+> DELETE,INSERT,SELECT,UPDATE`, `service_role: DELETE,INSERT,REFERENCES,SELECT,TRIGGER,
+> TRUNCATE,UPDATE`. **No `anon` row on either.**
+> **The one that mattered:** `service_role` on `booking_acknowledgements` carries **no
+> UPDATE and no DELETE**, so D17's revoke took on production — the append-only guarantee
+> holds on the table that exists to be legal evidence. **F18's failure mode is closed on the
+> environment where it counts**, and it was closed by measurement rather than by assuming
+> staging's result carried over, since the ACL that caused F18 was platform-provided and
+> therefore per-project.
+>
+> ✅ **Money confirmed in PayMongo's Payments list 2026-09-05** — not merely that events
+> fired. "The event fired" and "the customer was charged" are different facts and this plan
+> was bitten by exactly that distinction (B38).
+>
+> ⚠️ **One follow-up from this item remains:**
+> 1. ~~Re-run the grants query on production~~ ✅ done — confirm `authenticated => SELECT` and
 >    `service_role => INSERT,REFERENCES,SELECT,TRIGGER`. This is not ceremony: **F18** in
 >    this plan was a false claim about grants that only measurement caught, and a grant
 >    that silently differs shows up as `permission denied` for a real logged-in user.
@@ -2881,7 +2905,7 @@ must flip `is_paid`. Until then the production kiosk is not launchable.
 >
 > **Verified:** the user confirms payment now works on staging.
 > ⚠️ **Not confirmed by this:** whether the webhook **settles** the booking (`is_paid` →
-> `true`), and **R1** (the kiosk customer signing into booker). Reaching PayMongo's checkout
+> `true` — ✅ confirmed 2026-09-05), and **R1** (✅ confirmed 2026-09-05). Reaching PayMongo's checkout
 > page and being marked paid are different milestones.
 **Files:** none yet — a live-environment fault, not a known code defect.
 **Reported 2026-09-05**, second occurrence: the booking is created, then
@@ -2915,6 +2939,195 @@ that line, then act on what it names. Do **not** guess-fix.
 
 **Verification:** needs-live — a kiosk booking on staging reaches PayMongo's hosted
 checkout page.
+
+---
+
+### B36 — Payment does not settle on staging: `is_paid` stays false  ✅ RESOLVED (2026-09-05)
+> **Root cause was B38** — the webhook read the event type one level too shallow, so the
+> paid branch was never entered. B37 (mismatched PayMongo keys) and the wrong-mode webhook
+> were real faults found on the way and both had to be fixed to get a delivery at all, but
+> neither was the reason `is_paid` stayed false once deliveries started arriving.
+**Files:** `booker/app/api/payment/webhook/route.ts:60-78` (the write), plus staging
+configuration.
+**Reported 2026-09-05.** A staging kiosk booking
+(`cf3fa50e-dafd-4fcb-b3ad-a82e155fa8bf`) completed payment — the redirect returned with
+`payment=success&booking_id=…` — but `is_paid` is still **false**.
+
+**Confirmed working already, so not these:** the session was created (the redirect carried
+the booking id back, which only happens if PayMongo received `metadata.booking_id`), the
+booking exists with `booked_via = 'kiosk'`, and the webhook endpoint verifies signatures
+(`400 {"error":"Invalid signature"}` on an unsigned POST).
+
+> ## ⚠️ THE WEBHOOK RETURNS 200 WHEN THE WRITE FAILS — SO THE DELIVERY LOG CANNOT BE TRUSTED
+>
+> ```ts
+> const { data: updated } = await supabase.from("bookings").update({ is_paid: true })…
+> if (!updated || updated.length === 0) {
+>   return NextResponse.json({ received: true })      // 200
+> }
+> ```
+>
+> The update's `error` is **destructured away and never read**, and a write that failed
+> returns the *same* `200 {"received":true}` as a write that succeeded. **A green delivery
+> log in PayMongo therefore proves delivery and signature verification — nothing more.**
+>
+> One 200 covers four different outcomes: settled · already paid · no `booking_id` in
+> metadata · **the write failed**. Only the third leaves a trace (`console.warn`). This is
+> the third instance of the pattern behind I17 and I18, and the most consequential, because
+> the failure is a paid booking that nobody knows is unpaid.
+
+> ## 🔎 NARROWED 2026-09-05 — THE WEBHOOK CODE IS NOT THE PROBLEM
+>
+> While verifying I23, a **real signed `checkout_session.payment.paid`** was driven against
+> a local booker and it **settled the booking end to end** — signature verified, metadata
+> read, service-role write applied, `is_paid` flipped `false → true`. Every branch behaved.
+>
+> **So B36 is environmental, not a code defect**, and the ranking below stands with more
+> confidence: something about staging's configuration or the event's delivery, not the
+> handler. I23 also means a repeat now leaves a specific line in booker's Vercel log rather
+> than a silent 200.
+
+> ## ✅ CAUSE IDENTIFIED 2026-09-05 — see **B37**
+> No delivery entry in PayMongo **and** no `[webhook]` line in Vercel means the event was
+> never sent, which clears every candidate below: they all require the request to arrive.
+> `vendor` and `booker` hold **different `sk_test_` keys**, so kiosk sessions are created on
+> one PayMongo account while the webhook listens on another.
+
+**Ranked causes (superseded by B37):**
+1. **`SUPABASE_SERVICE_ROLE_KEY` unset or wrong on booker staging.** The write is
+   service-role; without it `createClient(url, undefined!)` cannot write, and the route
+   still answers 200. ⚠️ **Fourth occurrence of "a missing env var on a hosted deploy
+   presents as an application fault"** — after `PAYMONGO_WEBHOOK_SECRET`,
+   `NEXT_PUBLIC_APP_URL` and `PAYMONGO_SECRET_KEY`. Check this first.
+2. **The webhook was created in the wrong PayMongo mode.** Staging pays with `sk_test_`, so
+   a webhook registered under **live** keys never fires — the delivery log would be
+   **empty**, which distinguishes it cleanly from (1).
+3. **`booking_id` absent from the event metadata** — leaves
+   `[webhook] paid event with no booking_id in metadata` in booker's Vercel log.
+
+**Diagnostic order:** PayMongo delivery log (empty → cause 2; present → read the status) →
+booker's Vercel function log for the `console.warn` (present → cause 3) → otherwise cause 1,
+check the variable.
+
+**Fix approach:** identify first. The code fix that must land regardless is **I23**, so the
+next failure is not silent.
+
+**Verification:** needs-live — a fresh kiosk booking paid on staging flips `is_paid` to
+true. ⚠️ The booking above was manually approved from the vendor portal during testing, so
+its `status` no longer reflects the payment path; **use a new booking**.
+
+---
+
+### B37 — `vendor` and `booker` use DIFFERENT PayMongo keys, so kiosk events reach no webhook  ✅ RESOLVED (2026-09-05)
+> **Keys aligned by the user, and the webhook re-registered in TEST mode** — it had been
+> created in live mode, which alone would have stopped every delivery. Deliveries now
+> arrive (green, 0 retries). Settlement still failed after this, which is what isolated
+> **B38** as the separate and final cause.
+**Files:** environment configuration on every environment; no code change.
+**Found 2026-09-05**, diagnosing B36 after the decisive symptom: **no delivery entry in
+PayMongo and no `[webhook]` line in Vercel**, while the payment itself succeeded. That
+combination rules out everything inside booker — the event was never sent.
+
+**Measured locally** (values never printed, compared by SHA-256 fingerprint):
+
+| App | Mode | Key fingerprint |
+|---|---|---|
+| `vendor` | `sk_test_` | `b0c708d73cf3…` |
+| `booker` | `sk_test_` | `7fbb7376c745…` |
+
+**Same mode, different keys — therefore, in all likelihood, different PayMongo accounts.**
+
+**Why that produces exactly this symptom.** PayMongo scopes webhooks to the **account**. A
+Checkout Session created with *vendor's* key belongs to vendor's account, and
+`checkout_session.payment.paid` is delivered only to webhooks registered on **that** account.
+The webhook was registered against booker's. So the event fires on one account and is
+listened for on another: **no delivery, no log, no retry, and the payment still succeeds.**
+
+> ## ⚠️ THIS INVALIDATES F4's PREMISE, WHICH THIS PLAN HAS RELIED ON THROUGHOUT
+>
+> F4 — and D4, B22, and the "no second webhook" design — all rest on *"booker's webhook
+> already settles kiosk sessions, because it keys purely on `metadata.booking_id` and
+> carries no app-scoping."* That is true **only while both apps are on one PayMongo
+> account**. The routing happens before `metadata` is ever read.
+>
+> **This was half-caught on 2026-09-04 and I stopped one step short.** Comparing the two
+> keys then showed a `sk_live_` / `sk_test_` split, which was corrected to both-test. I
+> verified the **modes** now matched and did not re-compare the **values** — so a
+> same-mode, different-account split survived the check that was looking straight at it.
+
+**Fix approach — configuration, and the direction matters:** both apps must hold the
+**same PayMongo account's** secret key per environment. Whichever account owns the
+registered webhook is the account both keys should come from.
+⚠️ **Not** "register a second webhook for vendor's account" — that reverses D4/B22 and
+re-creates two endpoints racing one `is_paid` transition.
+
+**Checks, in order:**
+1. Is `PAYMONGO_SECRET_KEY` on **staging-vendor** byte-identical to the one on
+   **staging-booker**? If not, that is the fault.
+2. Which PayMongo account is the webhook registered on? Align both keys to it.
+3. Same question again for production before any live key is set — **B34 already blocks
+   that**, and this compounds it.
+
+**Verification:** needs-live — a kiosk booking paid on staging produces a **delivery entry**
+in PayMongo, and `is_paid` becomes true.
+
+---
+
+### B38 — The webhook read the event type one level too shallow, so nothing ever settled  ✅ DONE (2026-09-05)
+**File:** `booker/app/api/payment/webhook/route.ts:47-53`
+**This is the root cause of B36, and of B37's remaining half.**
+
+PayMongo wraps the resource in an **event envelope**. The handler read the event name from
+`data.type` — which is the literal string **`"event"`**, never a payment type:
+
+```
+data.id                        "evt_…"
+data.type                      "event"                          ← what was read
+data.attributes.type           "checkout_session.payment.paid"  ← where it lives
+data.attributes.data           the checkout_session resource
+data.attributes.data.attributes.metadata.booking_id             ← the booking id
+```
+
+So `isPaidEvent` was **always false**. The route did nothing, logged nothing, and returned
+`200`. Three deliveries showed green in PayMongo while `is_paid` stayed false.
+**The metadata was present and correct the entire time** — confirmed from the real payload;
+the routing never reached it.
+
+> ⚠️ **BOOKER'S WEBHOOK HAS THEREFORE NEVER SETTLED A PAYMENT — IN ANY ENVIRONMENT.** Not a
+> kiosk regression: it could not have worked for an ordinary booker payment either. It went
+> unnoticed because no real payment had ever been taken through this system until
+> 2026-09-05, and **F4's "the booker webhook already settles kiosk sessions" was reasoning
+> from the code, never a measurement.** Every decision resting on F4 — D4, B22, the
+> no-second-webhook design — was sound in principle and untested in fact.
+>
+> `architecture/booking-flow.md:308` states the webhook "handles
+> `checkout_session.payment.paid`". True of intent, false of behaviour, since 2026-07.
+
+**Executed:** read `type` from `data.attributes.type` and the resource from
+`data.attributes.data`, with the payload type narrowed to match. **Plus the silent
+fall-through is closed** — an unrecognised type previously dropped to a bare 200 with
+nothing recorded, which is exactly how this hid. It now logs what it saw.
+
+**Verified — live, against the user's real payload wrapped in the real envelope:**
+
+| Case | HTTP | Result |
+|---|---|---|
+| real PayMongo envelope, valid booking | 200 | **`is_paid` false → true** |
+| old shallow shape | 200 | `ignoring event { type: '(no type found in envelope)' }` |
+| unrelated event (`source.chargeable`) | 200 | `ignoring event { type: 'source.chargeable' }` |
+| paid event, metadata missing | 200 | `paid event with no booking_id in metadata` |
+
+`tsc` clean, `eslint` clean.
+
+> ✅ **CONFIRMED ON STAGING 2026-09-05.** A kiosk booking paid end to end and `is_paid`
+> flipped to **true** — the first settled payment in this project, and the first live proof
+> of F4's premise that booker's single webhook settles kiosk sessions.
+
+⚠️ **One thing to confirm separately:** the delivered payload showed `paid_at: null`,
+`payments: []` and `payment_intent.status: "processing"`. If PayMongo captured that snapshot
+before the payment finalised it is harmless, but **confirm in PayMongo's Payments list that
+money actually moved** — a `checkout_session.payment.paid` for a payment still processing
+would be a different question from this fix.
 
 ---
 
@@ -4009,6 +4222,62 @@ worth a rewrite here.
 **Verification:** needs-live — open the exit dialog over the kiosk welcome screen and
 confirm the text behind is a smear rather than a readable ghost. The `kioskexit` baseline
 **will move** and must be re-recorded.
+
+---
+
+### I23 — The webhook swallows its write error and answers 200 either way  ✅ DONE (2026-09-05)
+> **Executed — `booker/app/api/payment/webhook/route.ts`.** `error` is now destructured and
+> logged, and the zero-rows branch is split in two.
+>
+> **The split is the substantive part, not the logging.** Zero rows had two opposite
+> meanings conflated: a **benign PayMongo replay** (what the `.eq("is_paid", false)` guard
+> exists to absorb) and **the booking not being in this database at all** — which is
+> **B34's failure mode**, and silent it means a customer charged against a booking that can
+> never settle. One extra read on a rare path tells them apart.
+>
+> **Response stays 200 in every case, deliberately.** A non-2xx makes PayMongo retry, and a
+> retry cannot fix a bad key or a wrong environment. The cause goes to the log, never the
+> body — the endpoint is public and unauthenticated (booker **A2**). Logged fields are
+> `code`/`message` only, never `details`, matching I17.
+>
+> **Verified — all four branches driven with real signed events** against a local booker
+> with an injected secret:
+>
+> | Event | HTTP | Logged |
+> |---|---|---|
+> | booking id not in this database | 200 | `booking id not found in THIS database — wrong environment?` |
+> | unpaid booking | 200 | *(none — it settled)* |
+> | same booking replayed | 200 | `already paid, ignoring replay` |
+> | no `booking_id` in metadata | 200 | `paid event with no booking_id in metadata` |
+>
+> ⚠️ **And the settle case genuinely settled** — `is_paid` flipped `false → true` on the
+> real row. `tsc` clean, `eslint` clean, booker tests 19/19.
+> *(Local test data: one seeded booking is now marked paid.)*
+**File:** `booker/app/api/payment/webhook/route.ts:70-78`
+
+```ts
+const { data: updated } = await supabase.from("bookings").update({ is_paid: true })…
+if (!updated || updated.length === 0) return NextResponse.json({ received: true })
+```
+
+`error` is not destructured at all, and the early return conflates **"already paid"**
+(correct, idempotent, the reason the guard exists) with **"the write failed"** (a paid
+booking left unpaid, silently). PayMongo sees 200 for both and stops retrying.
+
+Found while diagnosing **B36**, 2026-09-05. Pre-existing; the third instance of the pattern
+behind I17 (server) and I18 (client).
+
+**Fix approach:** destructure `error`, and `console.error` it before returning. Keep the
+200 — a non-2xx would make PayMongo retry, and a retry cannot fix a bad key, it just
+multiplies the noise. Also log the `updated.length === 0` case distinctly so "already paid"
+is visibly different from "wrote nothing", because those two need opposite responses.
+
+⚠️ **Do not surface the cause in the response body.** The caller is PayMongo, and this
+endpoint is public and unauthenticated — that is booker **A2**'s concern, still parked.
+
+**Component separation:** route handler; no component.
+**Verification:** machine — `tsc`, lint. Needs-live — with a deliberately wrong service-role
+key, the cause appears in booker's Vercel log while the response stays 200.
 
 ---
 

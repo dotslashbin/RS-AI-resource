@@ -5,8 +5,9 @@
 **Cross-app note:** raised from `.plans/2026-08-26-vendor-kiosk-mode-and-offering-attachments.md`
 **B20**, which fixed the identical defect in `vendor`. AGENTS.md gates cross-app work;
 approval to open this as its own plan was given 2026-09-02.
-**Status:** IN PROGRESS — **B1, I1, I2 proven on STAGING (2026-09-04); I3 awaits one
-signed-in checkout.**
+**Status:** IN PROGRESS — **all four items proven on STAGING (B1, I1, I2 on 2026-09-04;
+I3 on 2026-09-05).** Only A2 and A3 remain, both ⏸ pending PayMongo test accounts. No code
+work outstanding.
 Everything still open here waits on the **same** thing: **PayMongo test accounts**. That
 is one regression check (a signed-in booking through to checkout) plus the two parked
 webhook follow-ups, A2 and A3. Nothing is blocked on a decision.
@@ -201,9 +202,15 @@ cause logged rather than throwing at a customer. `.origin` and not the URL objec
 `String(new URL("https://x"))` is `"https://x/"`, which would yield `//`.
 
 **Verified — machine:** `tsc` clean, `eslint` clean.
-⚠️ **NOT verified live** — needs a signed-in booker session, the same gap as this plan's
-existing checkout regression check. Recorded rather than assumed from vendor's passing
-probe of the equivalent route.
+✅ **Verified live on STAGING 2026-09-05.** A customer booked through the **booker portal**
+(not the kiosk — a separate route and a separate code path), paid, and **`is_paid` toggled
+to true**. That exercises this item's `resolveSiteUrl()` derivation, and with it **B1**'s
+auth ordering and **I1**'s body guard on the same route, none of which had ever been run by
+a real booker payment.
+
+**This also closes the plan's last outstanding regression check.** Both payment origins —
+kiosk (`vendor`) and online (`booker`) — are now proven end to end against one shared
+webhook, which is the design F4 asserted and nothing had ever measured.
 
 ---
 
