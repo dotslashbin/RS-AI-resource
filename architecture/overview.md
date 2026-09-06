@@ -86,11 +86,62 @@ All three portals **and the mobile clients** connect to the same Supabase projec
 |---|---|---|
 | `command.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
 | `vendor.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
-| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` | ⚠️ deliberate — booker is not launched; repoint at production when it is. **Consequence (2026-08-17):** production Command leaves `PORTAL_URL_BOOKER` blank, so booker-only users get no set-password email — a production-minted token cannot validate against staging. When repointing, do it in this order: repoint booker **first**, confirm, *then* set the variable. See `auth-and-roles.md` → "How a Command-created user gets a password" |
+| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` — **to become production** | ⚠️ deliberate and temporary. Booker is **not launched**; this host still serves a stale, staging-backed build. It is repointed at production under `.plans/2026-09-06-booker-production-minimal-for-vendor.md` — **deploy, not launch** — because vendor's kiosk cannot settle payments without a booker on the production database. **Ordering (2026-08-17):** production Command leaves `PORTAL_URL_BOOKER` blank, since a production-minted recovery token cannot validate against staging. When repointing: repoint booker **first**, confirm, *then* set the variable. See `auth-and-roles.md` → "How a Command-created user gets a password" |
 | `staging-command.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-vendor.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-booker.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | local dev | local stack on `127.0.0.1:54321` | `supabase start` in `backbone/` |
+
+**Six hosted domains, three apps × two environments.** Every `staging-` prefixed host is
+backed by the **staging** project and every unprefixed one by **production** — with
+`booker.ezzy.ph` the single, temporary exception noted above.
+
+| App | Production | Staging |
+|---|---|---|
+| command | `command.ezzy.ph` | `staging-command.ezzy.ph` |
+| vendor | `vendor.ezzy.ph` | `staging-vendor.ezzy.ph` |
+| booker | `booker.ezzy.ph` ⚠️ *staging-backed until repointed* | `staging-booker.ezzy.ph` |
+
+⚠️ **Verify, do not assume, which project a host serves.** The CSP header names it, because
+`connect-src` is derived from `NEXT_PUBLIC_SUPABASE_URL` at build:
+
+```bash
+curl -sI https://<host>/ | grep -io "connect-src[^;]*"
+```
+
+That check is how the `booker.ezzy.ph` mismatch above was actually established (2026-09-05),
+and it is faster and more reliable than reading configuration.
+
+### PayMongo webhooks — one per environment
+
+`is_paid` is written **only** by `booker/app/api/payment/webhook`. There is deliberately no
+vendor webhook: a kiosk Checkout Session carries `metadata.booking_id`, and booker's handler
+keys purely on that with no app-scoping, so one endpoint settles **both** booking origins
+(see `booking-flow.md`).
+
+| PayMongo mode | Registered endpoint | Settles payments from |
+|---|---|---|
+| **test** | `https://staging-booker.ezzy.ph/api/payment/webhook` | staging — `sk_test_` |
+| **live** | `https://booker.ezzy.ph/api/payment/webhook` | production — `sk_live_` |
+
+The two never collide: a test-mode webhook receives events only from `sk_test_` payments and
+a live-mode one only from `sk_live_`. That is **not** the "two endpoints racing one
+transition" case the single-webhook design rejects — that would be two webhooks in the *same*
+mode on the *same* account.
+
+⚠️ **Three failure modes here are invisible — no delivery, no log, and the payment still
+succeeds.** All three were hit during the 2026-09 kiosk rollout:
+1. **Wrong mode** — a live-mode webhook never fires for `sk_test_` payments.
+2. **Different PayMongo accounts** — PayMongo scopes webhooks to the *account*, so `vendor`
+   and `booker` must hold the same account's `PAYMONGO_SECRET_KEY` per environment. Compare
+   the **values**, not just the `sk_test_`/`sk_live_` prefix.
+3. **A stale registration** — a webhook left pointing at a staging host becomes a live
+   endpoint the day live keys are set, and would try to settle production bookings against
+   the staging database.
+
+`PAYMONGO_WEBHOOK_SECRET` belongs to **booker only**, never vendor, and is **different per
+mode**. Full variable-by-variable guidance, with value sources, is in
+`production-env-checklist.md`.
 
 > **Auth SMTP is configured per project, by hand, in the dashboard** — it is in no
 > migration and no repo file. Production has Resend (`no-reply@ezzy.ph`); **staging was

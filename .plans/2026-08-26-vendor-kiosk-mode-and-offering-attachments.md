@@ -2870,6 +2870,14 @@ still serves the pre-kiosk build (`img-src` without the Supabase origin, `/kiosk
 `/api/kiosk/booking` → 404). It becomes blocking the moment the kiosk build reaches
 production, which is Stage 8's last step.
 
+> 🔗 **NOW HAS ITS OWN PLAN (2026-09-06):**
+> `.plans/2026-09-06-booker-production-minimal-for-vendor.md`. Scoped deliberately to
+> **deploy, not launch** — booker carries six documented functional gaps (booking document
+> uploads are never persisted; the "Reschedule" button has no handler), so it is not a
+> launch candidate, and none of that blocks it *serving vendor*. That plan carries the env
+> table with value sources, the live-webhook registration, and the `PORTAL_URL_BOOKER`
+> ordering. **This item closes when that plan's execution order reaches step 6.**
+
 **Fix approach — two options, and the first is already the documented intent:**
 - **(a) ⭐ Deploy `booker` to production** and repoint `booker.ezzy.ph` at the production
   project. `architecture/overview.md:89` already records this as the plan ("repoint at
