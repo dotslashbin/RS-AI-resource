@@ -143,6 +143,15 @@ verifies invalid credentials are rejected. It does not prove that the bearer bra
 deployed: a cookie-only server without cookies could return the same 401.
 
 #### B1.2 — Diagnose authenticated staging HTTP 500  🔄 IN PROGRESS (2026-09-07)
+**Cause identified (2026-09-07):** user Vercel trace shows auth/user, roles and
+vendor_members calls followed by a bookings GET returning HTTP 300. The query embeds
+`profiles` without distinguishing `booker_id` from `cancelled_by`, both foreign keys to
+profiles (migrations `20260507000004` and `20260516000005`). Specified
+`profiles!bookings_booker_id_fkey(phone, email)` in the close-out route. Deployment and
+authenticated mobile re-test remain required; B1 is not yet complete.
+**Local verification (2026-09-07):** vendor TypeScript check, targeted route lint,
+bearer-parser and close-out test files, and vendor diff check passed. These do not
+substitute for the staging query re-test.
 **Files:** `vendor/app/api/kiosk/close-out/route.ts:33`,
 `vendor/app/api/kiosk/close-out/route.ts:55`, `vendor/lib/kioskAuth.ts:42`.
 **Evidence:** user screenshot shows the mobile selected-vendor probe received HTTP 500
