@@ -628,6 +628,23 @@ rather than reasoned about. **Seven surfaces came back clean; three did not.**
     screens rendering today's date do not drift. This is the same problem with the same
     shape of answer. Slightly more work, and it ends the class rather than this instance.
 
+- **D29 — How does the confirmation get real booking data after the redirect (B40)?**
+  → **(a) fetch by `booking_id` on mount** (resolved 2026-09-07) — RLS already carries it:
+    the policy *"vendor admins can read their bookings"* permits the select under the
+    kiosk's existing session, so no service-role route is involved and nothing is stored.
+  - **(a) ⭐ Recommended — fetch the booking by `booking_id` on mount.** The id is in the URL
+    and the kiosk already holds a live **vendor-admin session** (B15), so an authenticated
+    read is available. Accurate, survives any reload, and **stores nothing** — which keeps
+    B6.1 intact. Cost: a small read path; `services/kiosk.service.ts` has no
+    read-booking-by-id today, so one is added.
+  - **(b) Render only what survives — reference, "paid", and the front-desk instruction.**
+    Smallest change and strictly honest, but the receipt loses Service, When and the amount,
+    which are what a customer actually checks.
+  - **(c) Stash the summary in `sessionStorage` before redirecting.** Cheap and needs no
+    read path, but it **writes customer-adjacent data to storage**, which B6.1 exists to
+    prevent — the rule is that nothing outlives the session, and a redirect round trip is
+    exactly the boundary it was written for. Rejected unless (a) proves impractical.
+
 
 ---
 
@@ -2083,7 +2100,14 @@ is required and correctly present.
 
 ---
 
-### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  🔄 IN PROGRESS (2026-09-04)
+### B23 — `NEXT_PUBLIC_APP_URL` must be set per environment  ✅ DONE (2026-09-07)
+> **Production half done and verified remotely 2026-09-07.** `vendor.ezzy.ph` self-references
+> `https://vendor.ezzy.ph`, contains **zero** `localhost:3000`, and its `img-src` names the
+> **production** project `pdkejyjidrfxksaczvfy`. `/kiosk` returns **200** — the kiosk build is
+> live. Unauthenticated `create-session` returns `401 {"error":"Not signed in."}`, so B20's
+> ordering shipped intact.
+> All four hosted environments were checked together and each talks to the right database —
+> `vendor.ezzy.ph` and `booker.ezzy.ph` to production, both `staging-` hosts to staging.
 > **Staging half ✅ done and verified remotely (2026-09-04).** Vendor deployed to
 > `https://staging-vendor.ezzy.ph`; the served HTML self-references that origin and
 > contains **zero** occurrences of `localhost:3000`, so the variable is set and
@@ -2841,7 +2865,30 @@ regression check.
 
 ---
 
-### B34 — Kiosk payments cannot settle in production until `booker` is deployed there  ⬜ TODO
+### B34 — Kiosk payments cannot settle in production until `booker` is deployed there  🔄 IN PROGRESS (2026-09-07)
+> **Booker is now in production and the live webhook is armed.** Verified remotely
+> 2026-09-07: `booker.ezzy.ph` `connect-src` names **`pdkejyjidrfxksaczvfy`**, zero
+> `localhost`, and an unsigned POST to `/api/payment/webhook` returns
+> `400 {"error":"Invalid signature"}` — the secret is set and signatures are being verified.
+> `PORTAL_URL_BOOKER` set in production Command **after** booker confirmed production, as the
+> ordering requires.
+>
+> ⚠️ **CAUGHT AND CORRECTED ON THE WAY, 2026-09-07 — this item's exact failure mode was live
+> for a short window.** After the first booker production deploy, `booker.ezzy.ph` served a
+> **current build wired to the STAGING database** while the **live-mode** webhook pointed at
+> it. Every surface check passed — webhook armed, no localhost, correct self-reference — and
+> only the deployed **CSP `connect-src`** revealed it. A real payment in that window would
+> have created a booking in production, had the event delivered, and found nothing to update.
+> **`PORTAL_URL_BOOKER` had also been set during that window**, which would have minted
+> set-password links a staging GoTrue could not validate. Both resolved by repointing
+> booker's three Supabase variables at production and redeploying.
+>
+> **The lesson, recorded because it generalises:** *"deployed and answering correctly"* is not
+> *"connected to the right database"*. The CSP header is the only external evidence of the
+> latter, and it is the check that found this.
+>
+> ⬜ **Remaining: one real production payment must settle.** Everything configurable is
+> verified; nothing has yet proved it end to end **on production**.
 **Files:** none — a deployment/topology gap, not code.
 **Found 2026-09-04** while answering "do I need a second webhook for production?" — by
 reading the deployed CSP `connect-src` of each host to see which Supabase project it
@@ -3175,6 +3222,178 @@ nothing recorded, which is exactly how this hid. It now logs what it saw.
 before the payment finalised it is harmless, but **confirm in PayMongo's Payments list that
 money actually moved** — a `checkout_session.payment.paid` for a payment still processing
 would be a different question from this fix.
+
+---
+
+### B39 — The PayMongo return never reaches the confirmation, and its params never clear  ✅ DONE (2026-09-07)
+> **Executed — `useKioskShell.ts` only, both halves.**
+> 1. `view` now initialises from the URL: `payment=success` opens directly on `"booking"`, so
+>    the component that owns the return is mounted to handle it.
+> 2. `resetNow` **and** the idle timeout now call `clearPaymentReturn()`, which
+>    `router.replace("/kiosk")`s away a spent query.
+>
+> **A lazy initialiser, not an effect — and I got this wrong first.** My first attempt set
+> the view inside a mount effect, which `react-hooks/set-state-in-effect` rejected, correctly:
+> it is a cascading render for a value knowable at first render. I had talked myself out of
+> the initialiser on hydration grounds, and that reasoning was wrong: `KioskShell.tsx:25`
+> returns **null** while `gate === "checking"`, and the gate starts there and only resolves
+> after an async auth round trip — so server and client render the *same* thing (nothing)
+> whatever this holds. Identical to **B14/B27**'s `kioskDevice`, which is the pattern this now
+> follows.
+>
+> ⚠️ **The URL is the one thing a key bump cannot clear.** B6's reset works by unmounting
+> keyed components, which is why nothing needed clearing — but the query string sits outside
+> React entirely and outlived every reset. Stripping it is part of a reset, not housekeeping.
+> `router.replace` is called from event/timer callbacks, never render — calling it during
+> render is **B27**.
+>
+> **Verified — machine:** `tsc` clean, `eslint` clean, 377/377.
+> **Verified — live, by driving the real flow:**
+>
+> | | Before | After |
+> |---|---|---|
+> | Return shows "You're booked" | ❌ | ✅ |
+> | Return shows Welcome instead | ✅ *(the bug)* | ❌ |
+> | URL after **Done** | `?payment=success&…` | **`/kiosk`** |
+> | **Book something** starts a new flow | ❌ | ✅ |
+> | **Book something** replays the old confirmation | ✅ *(the bug)* | ❌ |
+**Files:** `components/kiosk/KioskShell/useKioskShell.ts:56` (`view` initial state),
+`components/kiosk/KioskShell/KioskShell.tsx:100,113`,
+`components/kiosk/KioskBooking/KioskBooking.tsx:41-57`
+
+**Reported 2026-09-07 from staging. Covers reported bugs #1 and #3 — one root cause.**
+
+**The param handling exists and is correct.** `KioskBooking.tsx:44-45` reads
+`payment=success` and `booking_id` and renders `StepConfirmation`. The Shell even documents
+it at `:106` — *"the flow reads search params (the PayMongo return)"*.
+
+**What breaks is the ROUND TRIP, not the reading.** Paying leaves the app entirely
+(`window.location.href = checkout_url`), so PayMongo's redirect back is a **full page load**.
+On that load:
+
+1. `useKioskShell` initialises `view` to **`"home"`** (`:56`) — React state does not survive
+   a navigation away and back.
+2. `KioskBooking` is mounted **only** when `view === "booking"` (`KioskShell.tsx:100`).
+3. So the one component that reads the params **is never mounted**, and the customer lands
+   on the Welcome screen with a perfectly correct URL. **Bug #1.**
+
+**And the params outlive the reset.** `onExitFlow={k.resetNow}` (`:113`) sets `view: "home"`
+and bumps `resetKey` — but **never touches the URL**. So `?payment=success&booking_id=…` is
+still there, and the next tap on **Book something** mounts `KioskBooking`, which reads the
+stale params, sees `paid`, and shows the old confirmation instead of a new booking.
+**Bug #3.** Reloading bare `/kiosk` works precisely because the params are gone.
+
+**Fix approach — two halves, both required:**
+- **Enter the booking view on a paid return.** `useKioskShell` should initialise `view` to
+  `"booking"` when the URL carries `payment=success`, so the component that owns the return
+  is mounted to handle it.
+- **Clear the params once consumed.** After the confirmation is shown and the customer taps
+  Done, replace the URL with bare `/kiosk` (`router.replace`) so no later mount re-reads a
+  spent return.
+⚠️ **`router.replace` must not be called during render** — that is **B27**, fixed once in
+`AppShell` already. It belongs in an effect.
+
+**Component separation:** state and the effect in `useKioskShell`; `KioskShell.tsx` and
+`KioskBooking.tsx` stay render layers.
+
+**Verification:** machine — a unit test over the "which view should this URL open" rule if it
+is extracted. Needs-live — pay, land on the confirmation; tap Done, confirm the URL is bare
+`/kiosk`; tap **Book something**, confirm a fresh flow starts at the offering step.
+
+---
+
+### B40 — The confirmation renders from state the redirect destroyed  ✅ DONE (2026-09-07)
+**File:** `components/kiosk/KioskBooking/StepConfirmation.tsx:19,29,31-39,43`
+
+**Reported bug #2: Service is blank and Paid reads ₱0.**
+
+Every field except the reference comes from **in-memory** state:
+
+```tsx
+{k.customer.email || "your email"}     // :19
+{k.offering?.name}                      // :29  → undefined after a reload
+{k.slot && …}                           // :31  → null, so the row vanishes
+₱{k.total.toLocaleString()}             // :43  → (offering?.price ?? 0) * qty = 0
+```
+
+The return is a full page load (see **B39**), so `useKioskBooking` has just initialised:
+`offering` null, `slot` null, `total` **0**. The reference survives only because it is in
+the URL.
+
+⚠️ **"Paid ₱0" is worse than a blank field.** It is a receipt stating the customer paid
+nothing, handed to someone who just paid. Blank rows read as unfinished; a wrong number
+reads as fact — and this is the screen the copy tells them to show at the front desk.
+
+**Fix approach — see D29.** Whichever option is chosen, **no field may render a default that
+looks like data**: an unknown price must not fall back to `0`.
+
+**Component separation:** any fetch belongs in a hook; `StepConfirmation.tsx` stays a pure
+render layer taking what it displays.
+
+**Verification:** machine — `tsc`, and a fixture for the confirmation in its
+post-reload state so this cannot regress unseen (the ui-gallery already fixtures four kiosk
+steps). Needs-live — complete a real payment and read the receipt.
+
+> **Executed 2026-09-07 per D29(a) — the receipt is now re-read, not remembered.**
+>
+> - `services/kiosk.service.ts` — new `getKioskReceipt(bookingId)` selecting
+>   `price_paid, booked_date, start_time, offerings(name)`. **`price_paid`, not the
+>   offering's list price** — it is what was actually charged, and the only number honest
+>   to print. Embedded-row shape is normalised object-or-array, as the payment route does.
+> - `components/kiosk/KioskBooking/useKioskReceipt.ts` (new) — the fetch, with `failed`
+>   kept **separate from "loading finished"**: a missing row is not an empty receipt to
+>   render with zeroes, it is an *unknown* amount. A late resolve after an idle reset is
+>   ignored.
+> - `StepConfirmation.tsx` — rewritten to a pure render layer. It no longer takes the whole
+>   `KioskBookingState` (it only ever needed the email), so the props are `email`,
+>   `reference`, `receipt`, `onDone`. Unknown renders `—`; **a `0` appears only when the
+>   read returned 0.** The failed state says the payment stands and points at the reference
+>   rather than showing a receipt of silent dashes.
+> - `KioskBooking.tsx` — calls `useKioskReceipt(paid ? reference : null)` and passes data down.
+> - `KioskBooking.module.css` — `.doneSummary/.paidLabel/.paidVal/.doneHint/.doneCta`
+>   replace the static inline styles this file had been carrying (AGENTS.md render-layer
+>   rule). `.paidVal` is 21px, matching the old inline value — deliberately *not* the
+>   payment step's 29px `.totalVal`.
+>
+> **Verified (machine):** `tsc` clean · `eslint` clean on every changed file · 377/377 unit
+> tests. A `kioskconfirmation` ui-gallery fixture was added covering **all three** receipt
+> states, because the bug was a wrong *value* rather than a wrong shape — a happy-path-only
+> screenshot would look identical before and after the fix.
+>
+> **Baseline recorded** the same day — see B40.1.
+>
+> ⏳ **Needs-live:** complete a real payment and read the receipt.
+
+---
+
+### B40.1 — Record the `kioskconfirmation` baseline  ✅ DONE (2026-09-07)
+**File:** `visual-tests/pilot.spec.ts:22` (mode registered), `app/ui-gallery/page.tsx` (fixture)
+
+The fixture and the mode registration landed with B40; the three baseline PNGs did not,
+because a local dev server held the port. Until they exist the full visual suite fails on
+this mode.
+
+**Fix approach:** with no vendor dev server running —
+`npx playwright test --grep "kioskconfirmation" --update-snapshots`, then re-run **without**
+`--update` to prove stability, then the full suite. Registering a mode and accepting its
+baseline are the same act, so review all six images (three tiles × two themes) before
+committing them.
+
+**Verification:** machine — a clean second run plus a green full suite.
+
+> **Executed 2026-09-07.** `kioskconfirmation-light-chromium-linux.png` and
+> `-dark-chromium-linux.png` written, then a re-run **without** `--update` passed 2/2 —
+> so the surface is stable, not merely captured. Full suite: **175 passed, 0 failed**.
+>
+> Both images reviewed in both themes before this line was written. What they pin: the
+> paid tile reads **₱1,850**, and the loading and failed tiles show an em dash on Service,
+> When *and* Paid — **no `0` anywhere**, which is the whole point of the fixture.
+>
+> ⚠️ Unrelated finding, left alone: the full run logs **31 "Hydration failed" errors** from
+> the gallery page. They are not from this fixture — the kioskconfirmation-only run logs
+> **zero** — and the suite is green regardless. Likely the gallery's own theme toggle
+> (`app/ui-gallery/page.tsx` sets `dark` in an effect). Worth a look if the gallery ever
+> starts producing flaky baselines; not worth touching now.
 
 ---
 
