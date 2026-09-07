@@ -3,7 +3,9 @@
 **Date:** 2026-09-06
 **App / scope:** `booker` (deployment + configuration only), one ordered variable change in
 production `command`.
-**Status:** DRAFT
+**Status:** IN PROGRESS — configuration COMPLETE and measured on the deployed hosts
+(2026-09-07). Only two things remain: **I1** (production has data to serve) and the live
+payment that closes kiosk **B34**.
 
 > Put `booker` in production **without launching it**, so vendor's kiosk can settle payments
 > and kiosk customers can claim their accounts. Nothing more.
@@ -59,7 +61,7 @@ See **I3** — accepted for now, not fixed here.
 
 ## BLOCKERS
 
-### B1 — A booker deployment on the production Supabase project  ⬜ TODO
+### B1 — A booker deployment on the production Supabase project  ✅ DONE (2026-09-07)
 **Files:** none — Vercel project + domain configuration.
 
 Today **nothing** runs booker against production. Verified 2026-09-05 by reading each
@@ -81,7 +83,7 @@ so the payment routes match.
 
 ---
 
-### B2 — Production environment variables on booker  ⬜ TODO
+### B2 — Production environment variables on booker  ✅ DONE (2026-09-07)
 **File:** Vercel → booker project → Settings → Environment Variables (**Production** scope).
 
 Booker reads exactly these. **It does NOT read `PAYOUT_ENCRYPTION_KEY`** — that is vendor
@@ -125,8 +127,13 @@ and command only, confirmed from source.
 
 ---
 
-### B3 — Register the LIVE webhook, and delete the stale one  ⬜ TODO
+### B3 — Register the LIVE webhook, and delete the stale one  ✅ DONE (2026-09-07)
 **File:** PayMongo dashboard → Developers → Webhooks.
+
+> ✅ Registered by the user 2026-09-07. ⚠️ **Not externally verifiable** — nothing outside
+> the PayMongo dashboard can confirm an endpoint is registered and live-mode-scoped. The
+> probe above proves only that booker *answers* correctly if called. The proof that it *is*
+> called is a live payment (kiosk B34).
 
 **Order matters: deploy first, register second.** PayMongo validates the endpoint on
 creation, and an endpoint answering `500` (because its secret is not yet set) may be
@@ -160,8 +167,13 @@ diagnostic cycle on staging.
 
 ---
 
-### B4 — Set `PORTAL_URL_BOOKER` in production Command, in this order  ⬜ TODO
+### B4 — Set `PORTAL_URL_BOOKER` in production Command, in this order  ✅ DONE (2026-09-07)
 **File:** Vercel → command project → Production env.
+
+> ✅ Set by the user 2026-09-07, in the required order — booker was already serving the
+> production project (B1, measured) before the variable was set, so no set-password link
+> was ever minted against a staging booker. Not externally verifiable: a server-only env
+> var leaves no trace in a response.
 
 Production Command leaves `PORTAL_URL_BOOKER` **deliberately blank** today, because a
 production-minted recovery token cannot validate against a staging booker
@@ -194,7 +206,7 @@ staging both hit this; production will too if payout details are unset.
 
 ---
 
-### I2 — Post-deploy verification probes  ⬜ TODO
+### I2 — Post-deploy verification probes  ✅ DONE (2026-09-07)
 Configuration is only real once measured **on the deployed host**. Run all of these:
 
 ```bash
@@ -211,6 +223,29 @@ curl -s $H/robots.txt                               # must NOT allow indexing
 **Then the only test that counts:** a production kiosk booking, paid, and `is_paid = true`.
 Reaching PayMongo's checkout page and being *marked paid* are different milestones — that
 distinction hid a broken webhook for months (kiosk B38).
+
+> **Measured on the deployed hosts 2026-09-07** (re-run rather than recalled, so this line
+> is evidence and not memory):
+>
+> | Probe | `booker.ezzy.ph` | `staging-booker.ezzy.ph` |
+> |---|---|---|
+> | CSP `connect-src` | `pdkejyjidrfxksaczvfy` ✅ **production** | `fbxbwnfeimzhgxpshdpa` ✅ staging |
+> | `localhost:3000` in HTML | 0 ✅ | 0 ✅ |
+> | unsigned webhook POST | `400 {"error":"Invalid signature"}` ✅ | `400` ✅ |
+> | bare create-session POST | `400` (see correction below) | `400` |
+> | `robots.txt` | `Disallow: /` ✅ | `Disallow: /` ✅ |
+>
+> **Staging is intact** — repointing production did not disturb it, which was the specific
+> risk of editing env vars on a shared Vercel project.
+>
+> ⚠️ **Correction to this item's own text:** it predicted `401 — auth precedes the config
+> check` for a bare create-session POST. That is wrong, and the probe above proves it — the
+> route checks `bookingId` *before* auth, so an empty body returns **400**. A `401` would
+> require a well-formed body. Left corrected rather than silently re-interpreted, because
+> the wrong expectation would make a future run read a healthy host as broken.
+
+> ⏳ **Still unmeasured:** the live payment itself. Every probe above tests *configuration*;
+> none of them proves PayMongo will call the endpoint. That is kiosk **B34**.
 
 ---
 

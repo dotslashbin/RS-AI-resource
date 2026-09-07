@@ -19,7 +19,7 @@ probes remain before it can close.
 **In scope**
 
 - A native, kiosk-only route outside the mobile tab navigator, launched by a vendor
-  from Settings and protected by a staff-password exit confirmation.
+  from a main-menu **Kiosk** button and protected by a staff-password exit confirmation.
 - Customer offering, slot, details, agreement, booking and PayMongo Checkout Session
   flow, built on the existing kiosk schema and server-side business rules.
 - The existing server routes accept the Expo app's short-lived Supabase access token as
@@ -139,8 +139,23 @@ a booking”, searched the fake identifier `zzzz-no-match-staging-20260904`, and
 confirms the cookie-session fallback and a no-match lookup made no change.
 **Staging invalid-bearer probe (2026-09-05):** a deliberately invalid
 `Authorization: Bearer …` header returned `401 Not signed in` with no data change. This
-confirms the deployed bearer-header branch is live; the outstanding probe concerns a real
-mobile session and membership, not server deployment.
+verifies invalid credentials are rejected. It does not prove that the bearer branch is
+deployed: a cookie-only server without cookies could return the same 401.
+
+#### B1.2 — Diagnose authenticated staging HTTP 500  🔄 IN PROGRESS (2026-09-07)
+**Files:** `vendor/app/api/kiosk/close-out/route.ts:33`,
+`vendor/app/api/kiosk/close-out/route.ts:55`, `vendor/lib/kioskAuth.ts:42`.
+**Evidence:** user screenshot shows the mobile selected-vendor probe received HTTP 500
+from the configured staging endpoint. ADB is no longer blocking execution. HTTP 500 alone
+does not establish whether identity validation, admin-client construction, the booking
+query, or the hosting layer failed. The earlier claim that staging was fully healthy was
+too broad: only unauthenticated rejection and the user-reported cookie lookup were proven.
+**Next check:** inspect staging runtime logs for the failing POST and its response body;
+request only a sanitised error/stack, never headers, cookies, tokens or environment values.
+Fix the demonstrated cause and rerun the rightful-bearer and other-vendor tests. An EAS
+build is not evidence that this server error is fixed.
+**Verification:** real mobile bearer lookup returns 200 with an empty bookings array;
+another vendor's admin receives 403. Both remain outstanding.
 
 #### B1.1 — Development-only signed-bearer probe  🔄 IN PROGRESS (2026-09-04)
 **Files:** `ezzy-vendor-mobile/src/services/kioskApi.ts`,
@@ -221,7 +236,7 @@ in `vendor` as a webhook secret.
 **Files:** `ezzy-vendor-mobile/src/app/_layout.tsx:48-94`,
 `src/app/index.tsx:11-35`, new `src/app/kiosk.tsx`,
 new `src/lib/kioskMode.ts`, new `src/components/kiosk/KioskShell/*`,
-`src/components/settings/SettingsList/{SettingsList,useSettingsList}.tsx`
+`src/app/(app)/_layout.tsx:55`, new `src/components/kiosk/KioskLauncher/*`
 
 Kiosk must not be another tab or a modal over the vendor dashboard: customer-facing UI
 would coexist with staff navigation and a relaunch would return to admin content. The
@@ -235,7 +250,10 @@ the app becomes active and on auth changes. Session/access loss, no network, or 
 vendor access clears all in-memory customer state and shows a neutral customer panel with
 a separate Staff sign-in action.
 
-Settings gains an Operations row that opens a launch confirmation: vendor identity,
+The main menu gains a **Kiosk** button (requested 2026-09-07), interpreted as the bottom
+navigation alongside Dashboard, Bookings, Transactions and Alerts. It opens a launch
+confirmation, then navigates outside the staff tab navigator; customer kiosk content must
+never render inside the staff tabs. The confirmation shows vendor identity,
 eligible-offering count, no-lockdown warning, and a single Start kiosk command. Exiting
 requires the current staff password to be re-authenticated, clears the mode flag and all
 customer state, and returns to the normal dashboard. Android back is intercepted while
@@ -245,6 +263,14 @@ in the customer flow but is not represented as device lockdown.
 `useKioskShell.ts` owns mode persistence, AppState/auth checks, idle reset and exit;
 `KioskShell.styles.ts` owns static themed styles. The launcher dialog follows the same
 three-file convention. Route files remain composition only.
+
+**Web behaviour acceptance checklist (2026-09-07):** reproduce the web kiosk's
+“Book something” and “Finish a booking” home choices, offering/slot/customer/document/
+signature/payment flow, identifier-only close-out, persisted mode and password-confirmed
+staff exit. Use `vendor/components/kiosk/KioskShell/KioskShell.tsx:115` and
+`architecture/portals.md:378` as references. Adapt layout and lifecycle to native; verify
+booking rules against the current web services during I2–I5. The menu button ships with
+the usable protected route, not a dead link or the development probe.
 
 **Verification:** restart/relaunch returns to kiosk with no tabs flashing; Back cannot
 reveal staff UI; session loss clears fields; wrong staff password cannot exit; correct

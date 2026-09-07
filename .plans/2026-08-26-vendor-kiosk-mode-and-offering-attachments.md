@@ -4,8 +4,10 @@
 **App / scope:** `vendor/` (primary), `backbone/supabase/migrations/` (schema + storage).
 **Cross-app read-only reference:** `booker/` — its wizard, slot service and payment
 routes are the source material being adapted, not imported.
-**Status:** IN PROGRESS — **all development and all staging verification are COMPLETE
-(rewritten clean 2026-09-06).**
+**Status:** COMPLETE — **all development done, all staging verification passed, no open
+items.** Closed 2026-09-07. The one item that remained (**B34**) was ✖ carried forward to
+the forthcoming **PayMaya** plan rather than executed here; see the note at B34 and the
+caveat below for exactly what that leaves unproven. (Header rewritten clean 2026-09-06.)
 
 <!-- 2026-09-06: this block had accreted six layers of patched-on corrections and was
      contradicting itself — still claiming B23 was the only open item and that B22 was
@@ -19,11 +21,24 @@ and production**, and production's grants were **measured** on 2026-09-05 (`serv
 carries no UPDATE/DELETE on `booking_acknowledgements`, so D17's revoke holds where it
 counts — F18's failure mode closed). Money confirmed in PayMongo, not just events.
 
-**Two items remain, both deployment, neither code:**
-- **B34** ⬜ — booker must run against production before the kiosk can settle there.
-  **Delegated** to `.plans/2026-09-06-booker-production-minimal-for-vendor.md`.
-- **B23** 🔄 — staging half done and verified; the production half closes with the vendor
-  kiosk build. It is **not** PayMongo-blocked.
+**Closed since that rewrite:**
+- **B23** ✅ (2026-09-07) — `NEXT_PUBLIC_APP_URL` set per environment, production included.
+- **B39 / B40 / B40.1** ✅ (2026-09-07) — the three post-payment-redirect bugs. The kiosk
+  return is a **full page load**, so the confirmation now initialises its view from the URL
+  and re-reads the booking rather than rendering from destroyed flow state. Ends the
+  **"Paid ₱0"** receipt. Machine-verified: `tsc`, eslint, 377/377 unit tests, and a new
+  three-state `kioskconfirmation` visual baseline; full suite 175 passed.
+
+- **B34** ✖ (2026-09-07) — **carried forward to the PayMaya plan**, not completed. Its
+  deployment half is done (booker is in production, measured); its verification half — *one
+  real production payment settling* — moves with the provider decision, because verifying
+  PayMongo end to end and then replacing PayMongo is work with a known expiry date.
+
+⚠️ **What this plan does NOT claim.** No kiosk payment has ever settled in **production**,
+by any provider. Everything proven end to end was proven on **staging**. That open thread is
+now the PayMaya plan's first blocker, stated there in the only terms that count: `is_paid =
+true` on the row — not a checkout page, not a `200` in a delivery log, not money in a
+dashboard. Conflating those hid **B38** for months.
 
 **No open decisions.** ⚠️ **No feature flag** — the kiosk goes live the moment the vendor
 build reaches production, so deploy order is the only control over launch timing.
@@ -2865,7 +2880,29 @@ regression check.
 
 ---
 
-### B34 — Kiosk payments cannot settle in production until `booker` is deployed there  🔄 IN PROGRESS (2026-09-07)
+### B34 — Kiosk payments cannot settle in production until `booker` is deployed there  ✖ ABORTED — CARRIED FORWARD (2026-09-07)
+
+> **Closed here, not finished — handed to the PayMaya plan (2026-09-07, user's call).**
+>
+> **Both halves of this item's premise have now moved:**
+> 1. *Booker must exist in production.* ✅ **Done** — repointed and measured 2026-09-07.
+>    This half is genuinely complete, and it is the half that survives any provider change
+>    (kiosk customers are promised an account they can use).
+> 2. *One real production payment must settle.* **Still unproven — and now belongs to the
+>    provider plan**, because what would be verified depends on who processes the payment.
+>    Verifying PayMongo end to end in production, only to replace PayMongo, is work with a
+>    known expiry date.
+>
+> ⚠️ **This is a deferral, not a dismissal. The unverified thing is still unverified.** No
+> kiosk payment has ever settled in **production** by any provider. Whichever provider the
+> next plan chooses, its first blocker is the same sentence: *one real production payment
+> must settle, confirmed by `is_paid = true` on the row* — not by a checkout page appearing,
+> not by a `200` in a delivery log, and not by money visible in a dashboard. That
+> distinction is what hid **B38** for months.
+>
+> The HOLD analysis below stays for the next plan to act on — particularly **which app
+> should own the webhook**, since nothing makes `booker` the right home and vendor owning it
+> would have removed this item entirely.
 > **Booker is now in production and the live webhook is armed.** Verified remotely
 > 2026-09-07: `booker.ezzy.ph` `connect-src` names **`pdkejyjidrfxksaczvfy`**, zero
 > `localhost`, and an unsigned POST to `/api/payment/webhook` returns

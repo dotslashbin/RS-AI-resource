@@ -86,21 +86,22 @@ All three portals **and the mobile clients** connect to the same Supabase projec
 |---|---|---|
 | `command.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
 | `vendor.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | live |
-| `booker.ezzy.ph` | **staging** `fbxbwnfeimzhgxpshdpa` — **to become production** | ⚠️ deliberate and temporary. Booker is **not launched**; this host still serves a stale, staging-backed build. It is repointed at production under `.plans/2026-09-06-booker-production-minimal-for-vendor.md` — **deploy, not launch** — because vendor's kiosk cannot settle payments without a booker on the production database. **Ordering (2026-08-17):** production Command leaves `PORTAL_URL_BOOKER` blank, since a production-minted recovery token cannot validate against staging. When repointing: repoint booker **first**, confirm, *then* set the variable. See `auth-and-roles.md` → "How a Command-created user gets a password" |
+| `booker.ezzy.ph` | **production** `pdkejyjidrfxksaczvfy` | ✅ repointed 2026-09-07, measured via CSP. **Deployed, not launched** — booker exists on production because vendor's kiosk cannot settle payments without a booker on the production database, not because customers are being sent to it. `PORTAL_URL_BOOKER` was set in production Command *after* this host was confirmed on production, in the required order (a production-minted recovery token cannot validate against a staging booker). See `auth-and-roles.md` → "How a Command-created user gets a password" |
 | `staging-command.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-vendor.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | `staging-booker.ezzy.ph` | staging `fbxbwnfeimzhgxpshdpa` | |
 | local dev | local stack on `127.0.0.1:54321` | `supabase start` in `backbone/` |
 
 **Six hosted domains, three apps × two environments.** Every `staging-` prefixed host is
-backed by the **staging** project and every unprefixed one by **production** — with
-`booker.ezzy.ph` the single, temporary exception noted above.
+backed by the **staging** project and every unprefixed one by **production**. That rule now
+holds without exception — `booker.ezzy.ph` was the last host out of line, and was repointed
+on 2026-09-07.
 
 | App | Production | Staging |
 |---|---|---|
 | command | `command.ezzy.ph` | `staging-command.ezzy.ph` |
 | vendor | `vendor.ezzy.ph` | `staging-vendor.ezzy.ph` |
-| booker | `booker.ezzy.ph` ⚠️ *staging-backed until repointed* | `staging-booker.ezzy.ph` |
+| booker | `booker.ezzy.ph` *(deployed, not launched)* | `staging-booker.ezzy.ph` |
 
 ⚠️ **Verify, do not assume, which project a host serves.** The CSP header names it, because
 `connect-src` is derived from `NEXT_PUBLIC_SUPABASE_URL` at build:
@@ -109,8 +110,25 @@ backed by the **staging** project and every unprefixed one by **production** —
 curl -sI https://<host>/ | grep -io "connect-src[^;]*"
 ```
 
-That check is how the `booker.ezzy.ph` mismatch above was actually established (2026-09-05),
-and it is faster and more reliable than reading configuration.
+That check is how the `booker.ezzy.ph` mismatch was originally caught (2026-09-05) and how
+its repointing was confirmed (2026-09-07) — faster and more reliable than reading
+configuration, and the only *external* evidence of which database a host serves. A host can
+be freshly deployed and answering every request correctly while wired to the wrong project;
+"deployed" and "connected to the right database" are separate claims needing separate proof.
+
+**Measured on all six hosts, 2026-09-07** — every one matches the rule above:
+
+| Host | `connect-src` names | |
+|---|---|---|
+| `command.ezzy.ph` | `pdkejyjidrfxksaczvfy` | ✅ production |
+| `vendor.ezzy.ph` | `pdkejyjidrfxksaczvfy` | ✅ production |
+| `booker.ezzy.ph` | `pdkejyjidrfxksaczvfy` | ✅ production |
+| `staging-command.ezzy.ph` | `fbxbwnfeimzhgxpshdpa` | ✅ staging |
+| `staging-vendor.ezzy.ph` | `fbxbwnfeimzhgxpshdpa` | ✅ staging |
+| `staging-booker.ezzy.ph` | `fbxbwnfeimzhgxpshdpa` | ✅ staging |
+
+Both booker hosts also return `robots.txt` → `Disallow: /`, and neither leaks
+`localhost:3000` into its HTML.
 
 ### PayMongo webhooks — one per environment
 

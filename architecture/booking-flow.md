@@ -307,6 +307,41 @@ Once a booking exists, its status keeps updating on the booker's dashboard **wit
 
 `POST /api/payment/webhook` — verifies PayMongo HMAC-SHA256 signature, handles `checkout_session.payment.paid`, sets `is_paid = true` on the booking via service role. This is the authoritative payment confirmation (independent of the browser redirect).
 
+#### ⚠️ The event envelope — read `data.attributes.type`, never `data.type`
+
+PayMongo wraps the event in a resource envelope. The shape is:
+
+```
+data.type                                              "event"   ← ALWAYS this literal
+data.attributes.type          "checkout_session.payment.paid"    ← the actual event name
+data.attributes.data                        the checkout_session resource
+data.attributes.data.attributes.metadata.booking_id     ← our booking id
+```
+
+**This cost months.** The route originally tested `data.type`, which is the constant string
+`"event"` and never a payment type — so the paid check was **always false**, and the
+webhook had never settled a payment in *any* environment. The metadata was present and
+correct the whole time; the routing simply never reached it. Nothing surfaced it: PayMongo's
+delivery log showed green because the endpoint returned `200`, and the app's own logs said
+nothing because ignoring an unrecognised event is normal behaviour.
+
+Two lessons that outlive this provider:
+
+- **A `200` from a webhook endpoint proves delivery, not settlement.** The only evidence
+  that a payment was *processed* is the database row — `is_paid = true`. Reaching the
+  provider's checkout page and being marked paid are different milestones, and a dashboard
+  showing money received does not prove the write happened.
+- **Log the ignored branch with the value that caused it.** The route now emits
+  `[webhook] ignoring event { type }` on every non-paid event. Had that line existed, the
+  literal `"event"` would have been visible in the first log anyone read.
+
+The `is_paid` write is **idempotent**: it updates `WHERE is_paid = false` and returns early
+if nothing transitioned, so a provider retry/replay neither re-fires nor duplicates the
+`payment_confirmed` notification. The failure branches are deliberately distinguishable in
+the logs — a failed write, a `booking_id` that matches no row *in this database* (which
+means the wrong environment is wired up), and an already-paid replay each say so
+differently. A paid event with no `booking_id` is logged rather than silently dropped.
+
 The `is_paid` write is **idempotent**: it updates `WHERE is_paid = false` and returns early if nothing transitioned, so a PayMongo retry/replay neither re-fires nor duplicates the `payment_confirmed` notification. A paid-type event arriving with no `booking_id` is logged (`console.warn`) rather than silently dropped.
 
 **Env vars required:**
@@ -315,6 +350,102 @@ PAYMONGO_SECRET_KEY=sk_test_...        # server-only
 PAYMONGO_WEBHOOK_SECRET=whsk_...       # server-only
 NEXT_PUBLIC_APP_URL=https://...        # used for success/cancel redirect URLs
 ```
+
+---
+
+## The payment-provider surface — what a migration touches (2026-09-07)
+
+Written for a provider swap. PayMongo is named in ~20 files, but **only three actually
+talk to it**; the rest are comments, type names, and copy. Anyone changing providers should
+work this list rather than grepping the name.
+
+### The three real integration points
+
+| File | What it does | Provider-specific |
+|---|---|---|
+| `booker/app/api/payment/create-session/route.ts` | creates a Checkout Session for a booker-originated booking; asserts `booker_id = user.id` | API host, auth header, request/response shape, `metadata.booking_id` |
+| `vendor/app/api/kiosk/payment/create-session/route.ts` | the same for a kiosk booking; asserts the caller is a **vendor-admin of `booking.vendor_id`** | as above |
+| `booker/app/api/payment/webhook/route.ts` | verifies the signature, settles `is_paid` via service role | **HMAC scheme, header name, and the event envelope** |
+
+**There is deliberately one webhook, not two.** It keys purely on `metadata.booking_id` and
+writes with service role, carrying no app-scoping, so it settles kiosk and booker payments
+identically. Two registered endpoints would race on the same `is_paid` transition for no
+gain. A provider swap does not change this.
+
+### The exact contract in use today
+
+Both create-session routes send the same payload. A migration's real work is mapping this
+table, not renaming files.
+
+```
+POST https://api.paymongo.com/v1/checkout_sessions
+Authorization: Basic base64(`${PAYMONGO_SECRET_KEY}:`)     ← note the trailing colon
+```
+
+| Field sent | Value | Notes for a swap |
+|---|---|---|
+| `line_items[0].amount` | `Math.round(price_paid * 100)` | **Centavos, integer.** Derived from the DB row, **never** from the client — `20260803000004` pins `price_paid` precisely so this cannot be steered |
+| `line_items[0].currency` | `"PHP"` | |
+| `line_items[0].name` / `description` | `"<offering.code> — <offering.name>"` | falls back to `"<APP_NAME> booking"` |
+| `payment_method_types` | `["card","gcash","grab_pay","paymaya","billease","qrph"]` | ⚠️ see below |
+| `success_url` | `<origin>/?payment=success&booking_id=<uuid>` | origin from `resolveSiteUrl().origin` — **derived, never a raw env read** |
+| `cancel_url` | `<origin>/?payment=cancel&booking_id=<uuid>` | |
+| `metadata.booking_id` | the booking uuid | **the entire contract** — the only link back to a row |
+
+| Field consumed | Used for |
+|---|---|
+| `data.id` | written to `bookings.payment_reference` (service role) |
+| `data.attributes.checkout_url` | the customer is sent here by top-level navigation |
+
+> ⚠️ **`resolveSiteUrl()` throws rather than guessing.** This line was once
+> `process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"`. On a hosted deploy with the
+> variable unset, the build succeeded and the route quietly sent a `success_url` pointing at
+> localhost — the customer pays, is charged, and lands on a dead page, with nothing anywhere
+> reporting a fault. Refusing before money moves beats taking it and stranding the payer.
+> Any replacement must keep that property.
+
+### ⚠️ "Maya" is already a payment method here
+
+`payment_method_types` includes **`"paymaya"`** today, so a customer can already pay with
+Maya — PayMongo is merely the acquirer processing it. That makes "move to PayMaya" two
+quite different projects, and a plan must say which one it means:
+
+- **Maya as a payment *method*** — already done. No work.
+- **Maya as the *acquirer*** (Maya Business / Maya Checkout replacing PayMongo end to end) —
+  a real migration: new API, new signature scheme, new envelope, new dashboard, new
+  credentials, and a re-verification of every settlement path.
+
+The second is the only one worth planning, and its justification should be commercial (fees,
+settlement terms, merchant onboarding) rather than technical, because the customer-visible
+payment options barely change.
+
+### What is NOT provider-specific, and must keep working
+
+- **`metadata.booking_id` is the entire contract.** It is the only thing that ties a
+  payment back to a row. Whatever the new provider calls its metadata bag, that id must
+  survive the round trip, and the webhook must read it from wherever the new envelope puts
+  it — see the envelope trap above.
+- **Idempotency.** `WHERE is_paid = false`, returning early if nothing transitioned. Every
+  provider retries.
+- **The `booking_transactions` ledger needs no changes.** Its trigger fires on
+  `bookings.is_paid` false→true — anchored to the *column*, deliberately not to the webhook
+  — so it stays correct no matter what confirms the payment (`schema.md`).
+- **The return URL contract**, `?payment=success|cancel&booking_id=<uuid>` — consumed
+  differently by the two origins (booker soft-navigates, the kiosk cold-starts; see *The
+  payment return at the kiosk*).
+- **`NEXT_PUBLIC_APP_URL`** builds those return URLs (`booker/lib/siteUrl.ts`).
+
+### Two traps worth carrying forward
+
+- **No browser-side origin is needed in CSP.** The secret-key call is server-side, and the
+  customer reaches checkout by top-level navigation (`window.location.href = checkout_url`),
+  which is governed by neither `connect-src` nor `form-action`. `api.paymongo.com` is
+  deliberately absent from `booker/next.config.ts`, and `conventions.md` records the same.
+  A new provider needs an entry **only** if it ships a browser SDK.
+- **Test-mode and live-mode credentials are separate scopes.** A webhook registered in test
+  mode never fires for a live payment, and the secret key and webhook secret must come from
+  the *same* account and mode. `production-env-checklist.md` carries the full matrix of
+  which app holds which variable — `PAYMONGO_WEBHOOK_SECRET` is **booker-only**.
 
 ---
 
@@ -537,6 +668,35 @@ public screen would show every other customer's name.
 > *shape* of two-party attestation, not the guarantee. What the marker buys is that the
 > widening reaches **only** kiosk-originated bookings; every booker-originated custody
 > booking keeps its counterparty check exactly as it was.
+
+### The payment return at the kiosk (2026-09-07)
+
+The booker's return is a soft one: `useAppShell` reads the params, clears them with
+`history.replaceState`, and the SPA carries on with its state intact. **The kiosk's is
+not.** Paying leaves the app entirely, so the redirect back to
+`/kiosk?payment=success&booking_id=<uuid>` is a **full page load** — every piece of flow
+state is gone, and `useKioskBooking` is back at its initial values.
+
+Three failures followed from not treating that as a cold start, and the fixes are the
+contract any future provider must satisfy:
+
+| What broke | Why | The rule it establishes |
+|---|---|---|
+| The customer landed on the kiosk **Welcome** screen, not the confirmation | `KioskShell` initialised `view` to `"home"`, so the return params were parsed by a component that was never rendered | **The URL is the only state that survives the redirect.** `view` initialises *from* it (a lazy `useState` initialiser, matching the `kioskDevice` pattern) rather than being corrected afterwards |
+| The receipt showed a blank service and **"Paid ₱0"** | `StepConfirmation` rendered `k.offering?.name` and `k.total` from destroyed memory; `total` defaults to `0` | **No field may fall back to something that looks like data.** The receipt now re-reads the booking (`getKioskReceipt`), and an unknown value renders an em dash — a `0` appears only when the read returned 0 |
+| Starting a new booking jumped straight back to the confirmation | `?payment=success` was still in the URL, so the next customer inherited the previous one's return | **The params must be cleared on every exit**, both the *Done* button and the idle timeout (`clearPaymentReturn()`) |
+
+> ⚠️ **"Paid ₱0" is worse than a blank field.** A blank row reads as unfinished; a wrong
+> number reads as fact — and this is the screen the copy tells the customer to show at the
+> front desk.
+
+The re-read goes through the kiosk's **existing vendor-admin session**, not a service-role
+route: the RLS policy *"vendor admins can read their bookings"* already permits it, so the
+receipt is accurate without storing anything. That matters because the kiosk's standing
+rule is that **nothing about a customer outlives the session** — stashing a summary in
+`sessionStorage` to survive the redirect would have been the cheap fix and the wrong one.
+
+---
 
 ### Overnight windows at the kiosk
 
