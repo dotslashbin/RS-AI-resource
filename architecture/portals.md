@@ -525,8 +525,25 @@ only.
 #### Flag Queue (2026-08, fully wired)
 `components/flags/FlagQueue`, backed by `disputes.service.ts`. Lists open `booking_disputes` oldest-first (served by the partial `booking_disputes_open_idx`), showing who raised each flag, their reason, the booking, and the current `booking_transactions.payout_status`. Resolving calls `resolve_booking_dispute()`, which closes the flag and moves the booking to `completed` / `refunded` / `cancelled` in one transaction. **Command is the only party that can resolve a flag** — there is no counterparty response and no self-service withdrawal, so a flag raised in error is resolved back to `completed` by the same action.
 
-#### Payouts Page (2026-08, fully wired)
-`components/payouts/PayoutsPage`, backed by `payouts.service.ts`. Reads `booking_transactions` grouped by `payout_status` (`held` / `releasable` / `released` / `reversed`) with vendor, offering, service date, amount, fee and payout. Bulk release calls `release_booking_payouts(uuid[])`, the Command-only definer RPC. **"Owed back" is where a post-release refund surfaces** — `released` is never downgraded, because money that has left really has left, so reversing it after the fact has to be visible rather than papered over.
+#### Payouts Page (2026-08, redesigned 2026-09-10, fully wired)
+`components/payouts/`, backed by `payouts.service.ts`. Reads `booking_transactions` with vendor, offering, service date, amount, fee and payout. Release — of one payout, one vendor's worth, or a hand-picked selection — calls `release_booking_payouts(uuid[])`, the Command-only definer RPC, which is bulk by design and skips ids that are no longer releasable rather than failing the batch.
+
+**Five buckets, and they are disjoint.** `held` / `releasable` / `released` / `reversed` plus the derived `owed_back`. Two things changed in the 2026-09 pass and both were correctness fixes, not cosmetics:
+
+- **`reversed` used to appear on no tab at all** — it was a real `payout_status` that Command could not see. It now has its own bucket.
+- **"Paid" used to double-count.** Owed-back rows are `released`, so they showed on both. Harmless while the tabs displayed no money; a silent double count of pesos the moment they did. `released` now excludes them, so each payout sits in exactly one bucket and the five totals can be added together.
+
+**"Owed back" is where a post-release refund surfaces** — `released` is never downgraded, because money that has left really has left, so reversing it after the fact has to be visible rather than papered over.
+
+**Bucket counts and totals come from `command_payout_bucket_totals()`** (`20260910000001`), a read-only Command-only definer RPC returning count + payout sum per bucket in one round trip. It exists because the page fetches one bucket at a time and PostgREST cannot aggregate. **Its `CASE` is the single definition of bucket membership** — `payouts.service.ts` applies the same rule to the row lists, and if one moves without the other, a card and the list beneath it will disagree about money. The RPC's counts stay exact past the 10,000-row fetch ceiling, so the cards are never understated by truncation even when the list below them is; the truncation banner says exactly that.
+
+**Ready to pay is grouped by vendor; the other four are a sortable table.** A payout run is one bank transfer per vendor, not one per booking, so the release surface shows a vendor's total with a single `Mark N paid`. The audit buckets deliberately carry no checkboxes and no row actions — nothing is paid from them, and a disabled action column would imply otherwise. Every column is sortable in both layouts: `SortableColumnHeader` on the table, `PayoutGroupColumns` above the grouped rows (which have no `<thead>` to hang headers on).
+
+**Recording a payout is gated on an inline confirmation** — per row and per vendor group. There is no un-release RPC, so a single unguarded click on a money row cannot be taken back. The multi-select + selection-bar bulk path is unchanged.
+
+**Search and filters are client-side, within the fetched bucket** — vendor, paid-from / paid-until (Asia/Manila day bounds; a raw UTC compare files a 07:00 PH payment under the previous day), and min/max payout, with removable chips. The stated limit: past the fetch ceiling, narrowing cannot recover rows that were never fetched — which is survivable only because the bucket totals are exact regardless.
+
+**Print / Save PDF** — browser-native `window.print()`, no PDF dependency. `PayoutPrintView` is a **second render of the full filtered set**, and has to be: `window.print()` serialises the DOM as it stands and does not re-render, so printing the on-screen tree would drop every collapsed vendor group from a document that gets reconciled against a bank statement. The sheet carries the bucket, a description of every active filter, the sort, "N of M rows", an Asia/Manila timestamp, per-vendor subtotals on Ready to pay, and a grand total. **Warnings print too** — truncation and load failure, as bordered text rather than colour, because browsers drop backgrounds and a filed PDF is the worst place to lose "these totals are short".
 
 > ⚠️ `payout_status = 'reversed'` means the **vendor** will not be paid. It says nothing about whether the *booker* was refunded — there is no refund mechanism in this system. Never label it "Refunded" in any UI.
 
@@ -591,7 +608,7 @@ All four tabs are reachable by anyone who reaches the command portal at all — 
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | Flag Queue (resolve booking disputes) | ✅ Supabase-wired — `disputes.service.ts` + `resolve_booking_dispute()` |
-| Payouts (release vendor payouts) | ✅ Supabase-wired — `payouts.service.ts` + `release_booking_payouts()` |
+| Payouts (release vendor payouts) | ✅ Supabase-wired — `payouts.service.ts` + `release_booking_payouts()`; redesigned 2026-09-10 (five disjoint buckets, search + filters, vendor-grouped release, per-row and per-vendor confirm, filter-aware print/PDF). Bucket counts and totals come from `command_payout_bucket_totals()` |
 | **Vendor payout destinations** (view + per-field copy) | ✅ Live 2026-08-16 — a payout badge on each vendor card opens `VendorPayoutModal`, which decrypts server-side via `/api/vendor-payout`, shows values **masked until revealed**, and copies each field to the clipboard for a manual bank transfer. **Every decrypt is recorded in `vendor_payout_view_log`, and a read that cannot be audited is refused.** Command's **first Radix dialog** — the app's own `ModalOverlay` has no focus trap, Escape handling or scroll lock, which is not acceptable for a dialog showing bank details |
 | **Vendor account-completion badge** | ✅ Live 2026-08-16 — reads the `vendor_account_completion` view, the single definition shared with the vendor portal. `null` renders as **Unknown**, never as Incomplete |
 | Fulfilment oversight (stale `in_progress`, open flags) | ✅ Supabase-wired — `oversight.service.ts` on the Overview |

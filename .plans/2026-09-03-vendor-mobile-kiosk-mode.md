@@ -5,6 +5,88 @@
 **Status:** IN PROGRESS — B1 implementation is machine-verified; authenticated live-route
 probes remain before it can close.
 
+**Reassessed:** 2026-09-10 — implementation paused for review of this revised plan,
+at the user's request. Existing code is retained; this assessment changes this plan only.
+The stage table below supersedes earlier chat stage numbering. Web releases first;
+mobile must preserve its customer workflow and server contracts.
+
+## Current Assessment and Stages (2026-09-10)
+
+| Stage | Items / status | What exists now | What remains |
+|---|---|---|---|
+| 1. API access | B1, B1.1, B1.2 — 🔄 IN PROGRESS | Bearer/cookie guard, mobile API client, development probe, explicit booker-profile FK fix | Re-test rightful bearer 200 and other-vendor 403 after deployment; remove temporary probe after proof |
+| 2. Main-menu entry and containment | I1 — ⬜ TODO | Four staff navigation tabs; no customer kiosk route | Main-menu **Kiosk Mode** action, launcher, separate root kiosk route, persisted vendor, staff exit, session/back/deep-link guards |
+| 3. Catalogue and schedules | I2, I7 — ⬜ TODO | Web catalogue, photos, eligibility, occurrence/capacity helpers; mobile booking history | Port read models and tests, seven-day picker, quantity/span rules, 24-hour and overnight dates; correct mobile history span formatting |
+| 4. Customer and agreements | I3 — ⬜ TODO | Web name/email/optional PH mobile form, document review and consent | Native forms, conditional agreement step, safe document viewer, matching validation and reset behaviour |
+| 5. Signatures | I5 — ⬜ TODO | Web PNG capture; server supports one signature shared by distinct acknowledgement rows | Full native capture before release, clear/redraw, multiple required documents, approved SDK-compatible dependency if necessary |
+| 6. Checkout and receipt | B2, I6 — 🔄 IN PROGRESS | Mobile session creation, browser opener and RLS payment-status reader; web receipt re-read | Wire checkout, safe retry/recovery, return handling, verified payment state and actual receipt fields; resolve D6 before implementation |
+| 7. Finish a booking | I4 — ⬜ TODO | Web identifier lookup and server-derived session/custody transitions | Native lookup/results/confirmation, duplicate/stale response handling, reset; no staff roster |
+| 8. Release verification | B3, I8 — ⬜ TODO | Web staging payment and customer email proven in newer plan | Mobile end-to-end payment/email, lifecycle and privacy tests, Android/iOS checks; production evidence separately |
+
+### Evidence and Corrections
+
+- Reviewed current code, not just the original August plan: `vendor/lib/kioskAuth.ts:28`,
+  `vendor/lib/kioskSteps.ts:34`, `vendor/lib/kioskAcknowledgements.ts:44`,
+  `vendor/components/kiosk/KioskBooking/useKioskBooking.ts:84`,
+  `vendor/components/kiosk/KioskBooking/useKioskCheckout.ts:29`,
+  `vendor/components/kiosk/KioskBooking/useKioskReceipt.ts:26`,
+  `vendor/services/kiosk.service.ts:206`, and all four kiosk API routes.
+- **B1 is further along than the old chat recap:** the dated September 4–7 notes below
+  record cookie/invalid-token probes and the authenticated query diagnosis. Do not erase
+  that evidence or equate an invalid-token 401 with valid bearer success.
+- **B2 has partial mobile code:** `src/services/kioskApi.ts:99` creates a session and
+  `src/services/kioskPayment.service.ts:11` opens an ordinary browser and reads `is_paid`.
+  These helpers are not connected to a customer screen and implement no native callback.
+  The planned HTTPS bridge and `client: mobile` server contract do not exist.
+- **Webhook setup is no longer globally missing:** the September 8 email plan records
+  an actual staging kiosk payment and branded customer receipt, with production deployed
+  but an actual production payment still awaiting proof. This is evidence recorded in
+  that plan, not a new live verification in this assessment. Reuse that infrastructure.
+- **Web fixes to carry forward:** August kiosk plan B31 fixes multiple signed documents;
+  B33 uses `resolveSiteUrl` instead of localhost fallback; B38 corrects webhook event
+  parsing; B39 clears consumed payment-return state; B40 re-reads real receipt values.
+  See `architecture/booking-flow.md:622` and `:672` for the updated contracts.
+- Assessment checks: vendor kiosk test files passed **5/5** and mobile test files passed
+  **10/10** on 2026-09-10. No live requests, deployments, builds, or device tests were
+  performed in this plan-only pass. These tests do not establish UI parity.
+
+### Parity Acceptance Rules
+
+- Main menu means the existing bottom navigation. Add an icon plus **Kiosk Mode** label
+  (wrap within a stable target if needed), alongside Dashboard, Bookings, Transactions,
+  and Alerts. Tapping opens the staff launch confirmation; starting leaves staff tabs.
+  It must ship with usable kiosk content, not the development diagnostic probe.
+- Home exposes **Book something** and **Finish a booking**, with the pinned vendor name
+  prominent. Mode survives process death; loss of access keeps the device in the neutral
+  kiosk gate. All staff destinations, notification taps and recovery deep links must obey
+  that gate. Holding only the index redirect is insufficient because direct links bypass it.
+- Match active offering eligibility (time-based session and custody; exclude date-based
+  or unscheduled), ordered photos, seven-day choices, real-time slot order, span capacity
+  and quantity limits. Keep PH calendar meaning independent of device timezone. Fail
+  closed on incomplete availability or attachment reads; do not interpret errors as none.
+- Name and email are required; phone is optional but must validate as PH mobile when
+  present. Match input filtering and validation timing in `vendor/lib/kioskSteps.ts:106`.
+- Photos alone produce no agreement step. Every active document needs acceptance;
+  a signature step appears if any document requires it. One PNG may cover multiple
+  required documents, each with a distinct server-written acknowledgement id. Do not
+  filter signature-required offerings out of the first mobile release (D3-B).
+- Match the final review, real booking reference, service, date/time and actual charged
+  amount. Payment status and booking approval status remain distinct: paid can still be
+  pending vendor approval. Never label a redirect or a failed receipt read as paid.
+- Checkout creates the booking as late as possible. Preserve a successful booking id
+  during session-creation failure and reuse a returned checkout URL on browser-open
+  retry. Do not automatically replay an ambiguous booking POST or create a second session
+  when payment may already have succeeded; offer a staff recovery path.
+- Customer data stays memory-only and outside the existing persisted staff query keys.
+  Intentional document/payment browser handoffs must not trigger ordinary background reset.
+  Suspend inactivity during the handoff; on resume recheck access and the elapsed deadline,
+  refetch availability/payment as applicable, and ignore responses belonging to an old
+  customer. On process death restore kiosk home safely, never invent a paid receipt.
+- OS notification content and app-switcher previews need device checks during kiosk use:
+  hiding tabs alone does not hide staff information outside the foreground UI. Document
+  device lockdown/notification setup limitations; do not promise app-level OS lockdown.
+
+
 > Give a vendor-owned Android or iOS device a customer-facing, full-screen kiosk flow
 > that creates kiosk-origin bookings and starts a PayMongo Checkout Session without
 > exposing staff UI, service-role credentials, or customer data.
@@ -194,7 +276,10 @@ selected-vendor probe displayed only a generic failure, which could not distingu
 error from an emulator network failure. The development-only result now reports a safe HTTP
 status or an explicit no-response state; re-run the device check before drawing conclusions.
 
-### B2 — Use a fixed payment return bridge, never an arbitrary redirect  ⬜ TODO
+### B2 — Complete mobile payment return and reconciliation  🔄 IN PROGRESS (2026-09-10)
+**Reassessment:** session creation/browser/status service code exists, but no kiosk UI
+calls it. The bridge below is a proposal awaiting D6, not an implemented or approved
+new vendor change. Preserve the web's existing return behaviour and `resolveSiteUrl`.
 **Files:** `vendor/app/api/kiosk/payment/create-session/route.ts:85-120` (modify),
 new `vendor/app/kiosk/payment-return/route.ts`,
 new `ezzy-vendor-mobile/src/app/kiosk/payment-return.tsx`,
@@ -224,7 +309,11 @@ test card completes, cancellation returns, forged deep-link does not display pay
 paid, and the customer cannot alter the HTTPS return destination. Test only when a
 PayMongo test key is available.
 
-### B3 — Do not claim payment is complete before the shared webhook is live  ⏸ PARKED
+### B3 — Verify mobile settlement through the existing webhook  ⬜ TODO (2026-09-10)
+**Previous status:** ⏸ PARKED (2026-09-03), waiting for user webhook setup.
+**Reopened:** the September 8 email plan records staging settlement and email delivery.
+The remaining work is proving the mobile-created booking follows that same chain and
+recording production verification separately. No new webhook is required.
 **Files:** `booker/app/api/payment/webhook/route.ts` (existing owner),
 `vendor/app/api/kiosk/payment/create-session/route.ts:17-22`, mobile payment-result UI
 
@@ -233,9 +322,9 @@ PayMongo's redirect only reports browser navigation. The shared webhook, keyed b
 vendor/mobile webhook would race it and is explicitly rejected by the established kiosk
 design.
 
-**Unblock condition:** User creates/configures the PayMongo webhook pointing to the
-existing deployed booker webhook endpoint and sets its webhook secret in that endpoint's
-environment. Then run an end-to-end sandbox payment and verify exactly one paid
+**Verification:** Confirm the target environment is the one already validated by the
+web release, without reading or copying its secrets. Run a mobile end-to-end sandbox
+payment and verify exactly one paid
 transition, ledger row, and vendor notification. No PayMongo secret belongs in mobile or
 in `vendor` as a webhook secret.
 
@@ -331,14 +420,15 @@ the customer presses Pay, so an abandoned offering/customer form cannot occupy c
 customer details → required documents → payment → neutral confirmation. Every network
 state has loading, unavailable, empty and recoverable-error rendering. Tapping an active
 document obtains a short-lived signed URL from the RLS-bound service and opens it only for
-review; an agreement checkbox cannot be enabled until all required documents are accepted.
+review; the Continue action is disabled until all required document checkboxes are checked.
 The server remains the authority for the actual document set and acceptance snapshot.
 
 The payment action posts the minimal selected data to B1's booking endpoint, then B2's
 payment endpoint. A failed payment-session start states that the booking exists but is
 unpaid; it does not attempt a client-side rollback. The idle timer resets this entire
-component subtree after 90 seconds of inactivity or immediately on app background,
-access loss, or exit.
+component subtree after 90 seconds of inactivity, access loss, or exit. Ordinary background
+abandonment clears customer data; intentional document/payment handoffs follow the lifecycle
+exception in the parity rules above, so opening a browser does not destroy checkout.
 
 **Component separation:** each stateful flow surface has `Component.tsx`,
 `useComponent.ts`, and `Component.styles.ts`; the checkout orchestration lives in one
@@ -383,13 +473,62 @@ in the booking request. Do not alter the server's append-only acknowledgement or
 upload signature bytes directly from mobile. Any library addition is an explicit
 dependency approval gate after its Expo SDK 57 compatibility and permissions are reviewed.
 
-**Verification:** test the no-signature eligibility boundary; after implementation, a
-real device signs a document, server stores one PNG acknowledgement, and a missing or
-empty signature remains rejected.
+**Verification:** test offerings with no documents, agreement-only documents, one and
+multiple signed documents. A real device produces a PNG, the server stores distinct
+acknowledgement rows sharing its path where required, and blank signatures are rejected.
+
+### I6 — Recover an accurate receipt and reuse customer email delivery  ⬜ TODO (2026-09-10)
+**Files:** `vendor/services/kiosk.service.ts:206` and
+`vendor/components/kiosk/KioskBooking/useKioskReceipt.ts:26` (references only);
+`ezzy-vendor-mobile/src/services/kioskPayment.service.ts:23` (extend), new
+`src/components/kiosk/KioskPaymentResult/{KioskPaymentResult.tsx,useKioskPaymentResult.ts,KioskPaymentResult.styles.ts}`.
+**Fix:** fetch a minimal receipt by booking id AND pinned vendor AND kiosk origin under
+RLS. Read actual price, service and booking span; distinguish pending/paid/read failure.
+Never default unavailable financial fields to zero. Clear receipt and consumed callback
+state on Done/idle so the next customer cannot replay it. The existing booker webhook
+creates the customer notification and email; mobile must not send a duplicate email.
+**Separation:** hook owns read/poll/reset state; TSX renders; themed styles are co-located.
+**Verification:** delayed webhook, failed receipt read, exact amount, duplicate callback,
+next-customer reset, and one customer email with reference/service/date/amount.
+**Coupling:** consumes the completed `.plans/2026-09-08-email-branding-and-kiosk-confirmation.md`
+B3–B7 implementation; no change to that completed work is currently proposed.
+
+### I7 — Existing booking history must represent overnight kiosk bookings  ⬜ TODO (2026-09-10)
+**Files:** `ezzy-vendor-mobile/src/lib/format.ts:167`, `:183`, `src/lib/types.ts:53`,
+`src/components/bookings/BookingDetail/BookingDetail.tsx:39`.
+**Gap:** timed spans ignore `endDate`; day count treats any `endDate` as a date-based
+booking. An overnight hourly booking can consequently look like a multi-day booking.
+**Fix:** distinguish timed records by `startTime`, display the next-day boundary in
+timed spans, retain inclusive day counts only for date-based records, correct the type
+comment and affected callers. Preserve exact-midnight `24:00` semantics.
+**Verification:** same-day, midnight, overnight timed and true multi-day fixtures; inspect
+list/detail alongside the kiosk receipt. Rendering changes keep existing hook/style split.
+
+### I8 — Complete parity and release verification  ⬜ TODO (2026-09-10)
+**Files:** `ezzy-vendor-mobile/src/app/_layout.tsx:48`, `src/lib/queryClient.ts:15`,
+`src/lib/notifications.ts:40`, `app.json:12`; component paths in I1–I6.
+**Fix:** run the stage table's acceptance cases on Android and iOS, both themes and large
+text, with keyboard and screen reader. Confirm main-menu target size and no staff content
+through back/deep links/push/cold start. Preserve current portrait/iPhone support scope;
+enabling native iPad distribution is separate from responsive Android-tablet checks.
+**Verification:** app-local lint/type checks/tests/exports plus screenshots and live
+customer flows. Record platform/environment evidence separately. Do not declare the whole
+feature complete while only API helpers have passed tests.
 
 ## DECISIONS
 
 <!-- No execution may begin while an OPEN decision remains. -->
+
+- **D6 — Mobile checkout return** ⬜ TODO, **OPEN (2026-09-10):** recommend the fixed
+  HTTPS bridge described in B2, preserving default web returns and using a mobile-only
+  destination selector. This needs a specifically scoped vendor change and deployment
+  under the current mobile AGENTS boundary. Alternative: retain current unmodified web
+  checkout URLs and explicitly close the browser/return to mobile to check payment. The
+  existing mobile helpers support that alternative, but it cannot automatically return
+  to the native receipt and may show a web staff sign-in gate. User chooses after review.
+- **D7 — Main menu** ✅ DONE (2026-09-10): user explicitly requires Kiosk Mode in the
+  main menu; use the existing bottom navigation to launch a separate protected flow.
+  Recorded in this plan and checked against the current four-tab layout; UI not yet built.
 
 - **D1 — Native customer flow** → **Native kiosk route outside tabs** (resolved
   2026-09-03 from the requested mobile implementation). The web kiosk remains its own
@@ -417,22 +556,20 @@ empty signature remains rejected.
   Access; enterprise lock task or MDM work is a separate device-management project.
 - **PayMongo v2:** evaluate only in a payment-contract plan spanning both existing web
   checkout creators. It is not required to safely use the proven v1 flow today.
-- **Webhook end-to-end check:** parked at B3 until the user configures PayMongo. The
-  mobile feature remains usable for creating a session, but no build may claim that paid
-  bookings settle until this is tested.
+- **Webhook end-to-end check:** B3 now tracks mobile verification against the existing
+  staging setup; its former account-access blocker was superseded by the September 8 work.
 
 ## Execution Order
 
-1. **Approval gate:** resolve D2 and D3. No code or package installation before both.
-2. **Coupled security batch:** B1, then B2's server return bridge. Deploy and prove bearer
-   and cookie callers before creating a mobile checkout UI.
-3. **Mobile foundations:** I1 and I2. The kiosk must have a separate route, a safe exit,
-   and schedule-correct read models before it can show an offering.
-4. **Customer experience:** I3, then I4. Customer data stays ephemeral and no public
-   roster is introduced.
-5. **Signature scope:** either retain I5's exclusion under D3-A or implement I5 under
-   D3-B after an explicit dependency approval.
-6. **Live payment verification:** B3 after the user configures the existing webhook.
+Use stages **1–8 in the Current Assessment table** as the canonical order. D2 and D3
+are already resolved; D6 and approval of this revised scope precede implementation.
+Stage 1 live verification remains necessary; local read-model work and native fixtures
+do not require a new webhook and can be prepared independently after plan approval.
+Keep customer launch unavailable in release builds until stages 2–7 form a complete flow.
+Signature capture is mandatory under D3-B. Stage 8 records live payment and platform
+evidence; it is not implicitly complete when unit tests pass. Web release need not wait
+for mobile. Any B2 vendor bridge is an additive, separately reviewed change with default
+web behaviour regression-tested before deployment; no schema change is proposed.
 
 ## Verification Matrix
 

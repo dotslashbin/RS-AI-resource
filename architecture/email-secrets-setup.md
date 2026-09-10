@@ -130,5 +130,7 @@ This needs the DB to reach the function. **The local catch:** the dispatch trigg
 - [ ] `edge_function_base_url` in Vault = bare `https://<ref>.supabase.co` (no `/functions/v1`).
 - [ ] `notification_email_secret` (Vault) === `NOTIFICATION_EMAIL_SECRET` (function) — identical strings.
 - [ ] `RESEND_API_KEY`, `NOTIFICATION_EMAIL_FROM` set as function secrets.
+- [ ] Nothing to set for the email logo — it is **embedded in the function**, not
+      configured. See `lib/templates/logoAsset.ts`.
 - [ ] Non-prod: `NOTIFICATION_EMAIL_OVERRIDE_TO` set; prod: unset.
 - [ ] Sending domain Verified in Resend (see `email-sending-domain.md`).

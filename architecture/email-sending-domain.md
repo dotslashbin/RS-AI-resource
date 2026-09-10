@@ -52,6 +52,7 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
 | **Edge Function deploy** | Redeploy to pick up the secret | `supabase functions deploy …` |
 | **Auth SMTP sender** | sender email → `no-reply@NEW` | Dashboard → Auth → SMTP (hosted only) — local uses Inbucket, no sender/domain to change |
 | **In-email display name** (optional) | only if rebranding the name, not the domain — see §4 | `base.ts` in the function (code) |
+| **In-email logo** (optional) | only if rebranding the mark, not the domain — see §4 | `lib/templates/logoAsset.ts` in the function (code) |
 | **Plan/docs** (optional) | update `info.ezzy.com` references for accuracy | `.plans/2026-06-23-email-notifications-resend.md`, this file |
 
 > The `RESEND_API_KEY` does **not** change when you change domains (it's account-scoped, and the same key is the SMTP password). Only re-issue it if it's compromised.
@@ -62,6 +63,15 @@ Assume `OLD` = current (temporary) domain, `NEW` = the real domain (e.g. `info.e
 - **Email address domain** (`@info.ezzy.com` → `@info.ezzy.ph`): pure config — the steps above.
 - **Display name** (the `Ezzy` in `Ezzy <no-reply@…>`): part of `NOTIFICATION_EMAIL_FROM`, so also config for the From header.
 - **In-body brand text** (header/footer chrome inside the email): lives in the Edge Function template (`templates/base.ts`). Only needs a code edit if you rebrand the *name* (e.g. "Ezzy" → "EzzyBook" during the deferred rename) — a domain-only change needs nothing here.
+- **In-body logo** (the wordmark on the email's dark header bar): the image is **embedded
+  in the message as a CID inline attachment**, with its bytes held as a base64 constant in
+  the function (`lib/templates/logoAsset.ts`). It is therefore *code*, not config: there is
+  no URL, no secret, and nothing to set per environment. A **domain change needs nothing
+  here at all** — the logo is not hosted anywhere and does not touch the sending domain.
+  The PNG is generated from the checked-in vector by
+  `vendor/scripts/generate-brand-assets.mjs` (output: `vendor/brand/`, deliberately **not**
+  `public/` — it is not served); refresh the constant with the `base64` command documented
+  at the top of `logoAsset.ts` rather than hand-editing either file.
 
 ---
 
