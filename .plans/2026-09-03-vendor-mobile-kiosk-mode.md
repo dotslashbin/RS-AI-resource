@@ -2,8 +2,7 @@
 
 **Date:** 2026-09-03  
 **App / scope:** `ezzy-vendor-mobile`, with a narrow authenticated API-contract change in `vendor`  
-**Status:** IN PROGRESS — B1 implementation is machine-verified; authenticated live-route
-probes remain before it can close.
+**Status:** IN PROGRESS — Stage 1 is complete (2026-09-10); stages 2–8 remain.
 
 **Reassessed:** 2026-09-10 — implementation paused for review of this revised plan,
 at the user's request. Existing code is retained; this assessment changes this plan only.
@@ -14,7 +13,7 @@ mobile must preserve its customer workflow and server contracts.
 
 | Stage | Items / status | What exists now | What remains |
 |---|---|---|---|
-| 1. API access | B1, B1.1, B1.2 — 🔄 IN PROGRESS | Bearer/cookie guard, mobile API client, development probe, explicit booker-profile FK fix | Re-test rightful bearer 200 and other-vendor 403 after deployment; remove temporary probe after proof |
+| 1. API access | B1, B1.1, B1.2 — ✅ DONE | Bearer/cookie guard, mobile API client and FK fix; selected-vendor success and other-vendor 403 verified by emulator screenshots; temporary probe removed | None for Stage 1; production and full kiosk workflow verification remain in later stages |
 | 2. Main-menu entry and containment | I1 — ⬜ TODO | Four staff navigation tabs; no customer kiosk route | Main-menu **Kiosk Mode** action, launcher, separate root kiosk route, persisted vendor, staff exit, session/back/deep-link guards |
 | 3. Catalogue and schedules | I2, I7 — ⬜ TODO | Web catalogue, photos, eligibility, occurrence/capacity helpers; mobile booking history | Port read models and tests, seven-day picker, quantity/span rules, 24-hour and overnight dates; correct mobile history span formatting |
 | 4. Customer and agreements | I3 — ⬜ TODO | Web name/email/optional PH mobile form, document review and consent | Native forms, conditional agreement step, safe document viewer, matching validation and reset behaviour |
@@ -148,7 +147,58 @@ mobile must preserve its customer workflow and server contracts.
 
 ## BLOCKERS
 
-### B1 — Preserve the privileged server boundary for mobile callers  🔄 IN PROGRESS (2026-09-03)
+### B1 — Preserve the privileged server boundary for mobile callers  ✅ DONE (2026-09-10)
+**Stage 1 closeout (2026-09-10):** User supplied the second Android emulator screenshot
+showing selected vendor `10000000-0000-0000-0000-000000000003`, other vendor
+`10000000-0000-0000-0000-000000000002`, server `https://staging-vendor.ezzy.ph`, and
+"Access to the other vendor was correctly denied (403)." The target is Harbor Sports
+Complex, an actual vendor in `backbone/supabase/seed.sql`, not the similarly numbered
+user UUID. Together with the earlier selected-vendor success, both authenticated live
+checks pass. Evidence is user-operated emulator screenshots, not agent-captured HTTP bodies.
+
+Removed the temporary Settings panel, hook state/handlers, probe-only styles and imports,
+and the unused `verifyKioskAccess` helper from `src/services/kioskApi.ts`. Existing render,
+hook and style separation is preserved in the three `SettingsList` files. Production
+kiosk requests and server authorization are unchanged; no sibling app, schema, dependency
+or version changes were made. User approved this cleanup and plan closeout in conversation.
+
+**Cleanup verification:** mobile TypeScript, the standard `npm run lint` and all 10 Node
+test files passed; `git diff --check` passed and source search found no remaining probe
+references. No post-cleanup emulator screenshot or iOS run was performed; this records
+source removal, not a new visual signoff. Earlier cookie/401 and vendor test evidence is
+retained below. All outstanding Stage 1 wording in the dated history below is superseded
+by this closeout. Stages 2–8 are not authorized by this cleanup and remain unfinished.
+
+**Live verification update (2026-09-10):** User supplied an emulator screenshot showing
+`https://staging-vendor.ezzy.ph`, selected vendor
+`10000000-0000-0000-0000-000000000003`, and "Access to the selected vendor succeeded."
+This verifies the signed mobile selected-vendor probe succeeds and the previously observed
+500 is no longer reproduced on that path. The screenshot does not expose the raw response
+body, so an empty bookings array was not independently inspected. B1.2 is closed on this
+device evidence. B1 and B1.1 remain open for a known other-vendor 403 and probe removal.
+The earlier checkpoint and next-step text below are retained as history, superseded by
+this result for the selected-vendor test.
+
+**Stage 1 checkpoint (2026-09-10):** User explicitly requested Stage 1 after the
+reassessment; D6 concerns later checkout work and does not block these access checks.
+Re-read the bearer guard, all previously recorded live results, the explicit profile FK
+join and the mobile Settings probe. Vendor and mobile app-local TypeScript checks passed;
+targeted vendor/mobile lint passed; bearer and close-out test files passed (2/2).
+ADB was checked twice successfully outside the WSL sandbox and reported no devices.
+Consequently no authenticated request was executed this session and no deployment was
+verified. Keep B1/B1.1/B1.2 in progress and retain the development probe until a signed-in
+staging device demonstrates selected-vendor success and a genuine other-vendor 403.
+No application code was changed during this checkpoint.
+
+**Next live steps:** Start the emulator, open the current development build and sign in
+to staging. In Settings verify the displayed kiosk server is staging, then run
+"Test selected vendor access". Expect selected-vendor success (the no-match endpoint
+returns 200 with an empty bookings array). Use a known existing vendor UUID that this
+account does not administer for "Test other vendor is denied"; expect 403. A fabricated
+UUID alone is not evidence of isolation between two real vendors. Never copy a session
+token or password into chat. If the selected-vendor test still returns 500, confirm the
+FK fix was deployed and inspect a sanitised server error before changing more code.
+
 > ## 🔗 COUPLING — THIS EDITS CODE THE KIOSK PLAN OWNS (added 2026-09-03)
 >
 > `lib/kioskAuth.ts` and the four kiosk routes are delivered by
@@ -224,7 +274,10 @@ confirms the cookie-session fallback and a no-match lookup made no change.
 verifies invalid credentials are rejected. It does not prove that the bearer branch is
 deployed: a cookie-only server without cookies could return the same 401.
 
-#### B1.2 — Diagnose authenticated staging HTTP 500  🔄 IN PROGRESS (2026-09-07)
+#### B1.2 — Diagnose authenticated staging HTTP 500  ✅ DONE (2026-09-10)
+**Verification:** User's emulator screenshot confirms selected-vendor access succeeds
+against staging after the FK query fix; the earlier HTTP 500 no longer reproduces in this
+probe. Other-vendor rejection is still tracked under B1, not a condition for this bug fix.
 **Cause identified (2026-09-07):** user Vercel trace shows auth/user, roles and
 vendor_members calls followed by a bookings GET returning HTTP 300. The query embeds
 `profiles` without distinguishing `booker_id` from `cancelled_by`, both foreign keys to
@@ -248,7 +301,11 @@ build is not evidence that this server error is fixed.
 **Verification:** real mobile bearer lookup returns 200 with an empty bookings array;
 another vendor's admin receives 403. Both remain outstanding.
 
-#### B1.1 — Development-only signed-bearer probe  🔄 IN PROGRESS (2026-09-04)
+#### B1.1 — Development-only signed-bearer probe  ✅ DONE (2026-09-10)
+
+**Closeout:** Both user-operated staging emulator access checks passed; temporary probe
+removed and cleanup machine-verified as recorded under B1. The implementation notes below
+describe the now-removed diagnostic, not current Settings functionality.
 **Files:** `ezzy-vendor-mobile/src/services/kioskApi.ts`,
 `src/components/settings/SettingsList/{SettingsList,useSettingsList,SettingsList.styles}.ts*`
 
@@ -552,6 +609,11 @@ feature complete while only API helpers have passed tests.
 
 ## Deferred / Follow-up
 
+- **I9 — Broad lint tooling scope — ⏸ PARKED (2026-09-10):** Direct `eslint .`
+  flags pre-existing `__dirname` usage in `scripts/generate-brand-assets.js` and an unused
+  disable in generated `.expo/types/router.d.ts`. The supported `npm run lint` passes.
+  This is unrelated tooling scope, not a kiosk runtime defect; defer to tooling maintenance.
+
 - **OS kiosk lockdown:** app copy points vendors to Android screen pinning / iOS Guided
   Access; enterprise lock task or MDM work is a separate device-management project.
 - **PayMongo v2:** evaluate only in a payment-contract plan spanning both existing web
@@ -563,7 +625,7 @@ feature complete while only API helpers have passed tests.
 
 Use stages **1–8 in the Current Assessment table** as the canonical order. D2 and D3
 are already resolved; D6 and approval of this revised scope precede implementation.
-Stage 1 live verification remains necessary; local read-model work and native fixtures
+Stage 1 live verification and probe cleanup are complete; local read-model work and native fixtures
 do not require a new webhook and can be prepared independently after plan approval.
 Keep customer launch unavailable in release builds until stages 2–7 form a complete flow.
 Signature capture is mandatory under D3-B. Stage 8 records live payment and platform
