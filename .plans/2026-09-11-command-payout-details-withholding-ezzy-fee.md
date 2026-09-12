@@ -1,8 +1,30 @@
 # Payouts — details modal, Withholding Tax (saved at payment, configurable), corrections, Ezzy fee on Ready to pay
 
 **Date:** 2026-09-11
-**App / scope:** `command/`; **two migrations**, one SQL test and two hand-run rollback scripts in `backbone/supabase/`; docs in `architecture/`. **No vendor or booker code is touched**, but commission corrections are **visible to vendors** (see "Vendor impact").
-**Status:** IN PROGRESS (2026-09-11) — stages 1–4 executed; Playwright 16/16, unit 79/79. A3/A4 ✅ (all three migrations applied locally; SQL tests 63/63, 45/45, 8/8). I9 ✅, I10 ✅. **All eight build stages are done (2026-09-12).** Outstanding: the list-header label on the real Payouts page (stage 3 note), I11 (needs your decision), and **your rollout — U2 (staging) then U0/U3 (production)**. Gates: schema (B1, B4, B6), security (I2/I3 bank details, B6), vendor-visible data change (B4/I8).
+**App / scope:** `command/`; **two migrations**, one SQL test and two hand-run rollback scripts in `backbone/supabase/`; docs in `architecture/`. **No vendor or booker code is touched by the plan itself**, but commission corrections are **visible to vendors** (see "Vendor impact"), and one unrelated vendor bug surfaced during staging testing and was fixed separately (see "AD-HOC", AH1).
+**Status:** ✅ **COMPLETE (2026-09-12) — shipped to production.**
+
+All eight build stages, all three migrations, and the full rollout are done. Every item is
+✅ except **I11, deliberately ✖ ABORTED** (narrow-screen cosmetic defect on a desktop-only
+portal — reasoning recorded under I11; the defect is still in the code by choice).
+
+**How it was proven, in order:** local (three migrations; SQL 63/63, 45/45, 8/8; unit
+79/79; 19 behavioural specs) → **staging, all nine U2 steps** including a real kiosk
+payment and a live payout correction reaching the vendor apps → **production** (migrations
+pushed, check script **16/16 PASS**, Command deployed, rate confirmed at 1% / 50%, and the
+smoke check passed on a real payment). U0 ✅: the accountant confirmed 1% of 50% of the
+post-commission payout, so the shipped defaults are the intended values.
+
+Gates cleared: schema (B1, B4, B6), security (I2/I3 bank details, B6), vendor-visible data
+change (B4/I8 — proven live, not only by test).
+
+**Also fixed along the way:** **AH1**, an unrelated kiosk custody close-out bug this
+plan's staging testing uncovered — every custody close-out had been broken since the kiosk
+shipped. Fixed in `vendor/` and confirmed live. See "AD-HOC".
+
+**Known and accepted:** existing paid payouts were backfilled with withholding that was
+never deducted from a real transfer (D8, your call). The A6 rollback rehearsal was never
+run — optional by design, and moot now the path is live.
 
 > What this plan adds to the Payouts page:
 > - a row-click details modal: the printed ledger's fields plus where the vendor is paid
@@ -19,7 +41,8 @@
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
 > **Numbering legend:** B# = Blocker, I# = Important, D# = Decision, U# = a step **you**
-> run. Numbers are plan-local. "payouts-redesign X" means item X of
+> run, AH# = **ad-hoc** — found while testing this plan but outside its scope, and fixed
+> in another repo. Numbers are plan-local. "payouts-redesign X" means item X of
 > `.plans/2026-09-10-command-payouts-redesign.md`.
 
 > **Revision history (all 2026-09-11).**
@@ -415,7 +438,7 @@ grant  execute on function public.command_payout_bucket_totals() to authenticate
   - Seeds go through the trigger.
 - **Reversibility.** `rollback/20260911000001_withholding_tax.rollback.sql` (B5).
 
-### B2 — Every "transfer" figure is net of withholding  🔄 IN PROGRESS (2026-09-11) — built and machine-verified; one live check outstanding (the list-header label on the real Payouts page; see the stage 3 note)
+### B2 — Every "transfer" figure is net of withholding  ✅ DONE (2026-09-12) — built and machine-verified; the list-header label checked and confirmed on the real Payouts page (you, 2026-09-12)
 **Files:** `services/payouts.service.ts:195-250`; `PayoutsPage.tsx:51-62, 139-151`;
 `PayoutVendorGroup.tsx:30, 49-52` + `.module.css`; `PayoutBucketCards.tsx:6-13, 44-46` +
 `.module.css`; new `lib/payout/transfer.ts` + `transfer.test.ts`.
@@ -737,7 +760,7 @@ grant  execute on function public.correct_booking_transaction(uuid, numeric, num
   stay in `booking_transactions`, and the log is the only record of what they were
   before. The rollback script drops the functions only, unless the log is empty.
 
-### B5 — Payment-path safeguards  🔄 IN PROGRESS (2026-09-11) — local part ✅ (plpgsql_check zero findings; real payment path exercised; rollback files byte-checked). Remaining: A6 rollback rehearsal (optional), staging test payment (U2), production smoke check (U3)
+### B5 — Payment-path safeguards  ✅ DONE (2026-09-12) — local ✅, staging ✅ (a real kiosk payment through to a payout row), production ✅ (check script 16/16 and the smoke check passed). The A6 rollback rehearsal was never run — optional by design, and now moot: the path it de-risked is live and working
 **Why it is a blocker.** `create_booking_transaction()` runs inside the webhook's
 `UPDATE`, and the webhook answers `200` on failure, so PayMongo never retries
 (`route.ts:117-129`).
@@ -1157,7 +1180,22 @@ confirmation naming both rules. The example reads "vendor payout ₱ 880.00 · w
 **Found while checking, logged as I10:** the confirmation reuses `DeleteConfirmModal`,
 which is dressed for destruction (red button, red icon tile).
 
-### I6 — Tests  ⬜ TODO
+### I6 — Tests  ✅ DONE (2026-09-12) — marker was stale; the work landed across stages 2–8
+
+> Every artifact below exists and passes. The ⬜ was never updated as the stages that
+> wrote these tests closed, which is exactly the drift the status model is meant to
+> prevent — corrected on 2026-09-12 after re-verifying each file.
+>
+> - SQL: `backbone/supabase/tests/withholding_and_corrections_test.sql` — **63/63**
+>   (stage 2 note), `plpgsql_check` zero findings, plus the 14 grant cases B6 added.
+> - Unit: `command/lib/payout/transfer.test.ts` — part of **79/79** (`npm test`,
+>   re-run 2026-09-12).
+> - Behavioural: `visual-tests/payouts.spec.ts` (16 tests) and
+>   `visual-tests/settings-withholding.spec.ts` (3) — 16/16, 22/22 and 24/24 across
+>   stages 5, 6 and 8.
+> - Gallery fixture: `app/ui-gallery/page.tsx`, including `?mode=withholding`.
+>
+> The case table below is kept as the record of what each test covers.
 
 **SQL**, new `backbone/supabase/tests/withholding_and_corrections_test.sql`. It follows
 `auto_acknowledge_test.sql`: rolled back, with a results table. To impersonate a caller,
@@ -1447,7 +1485,7 @@ dialog), `tsc` and `build` clean.
 default. It was not part of this plan, and changing its tone is a judgement about that
 flow, not this one.
 
-### I11 — On the release rows, the booking name collapses to zero width below ~430px  ⬜ TODO — needs your decision
+### I11 — On the release rows, the booking name collapses to zero width below ~430px  ✖ ABORTED (2026-09-12) — option 3, "leave it" (your call)
 **Files:** `components/payouts/PayoutRow/PayoutRow.module.css:56-61` (the ≤780px layout).
 
 Measured during stage 6 (`getBoundingClientRect` on the row's booking control):
@@ -1474,6 +1512,86 @@ the keyboard trigger, on a narrow phone.
 ⚠️ Whichever is chosen, `PayoutRow.module.css` and `PayoutGroupColumns.module.css` must
 change together — their grids mirror each other by hand.
 
+**Resolution (2026-09-12): option 3, aborted deliberately — not forgotten.**
+Command is an internal desktop ops portal and `architecture/portals.md` describes no
+phone use for it, so the cost falls on a viewport nobody works in. Against that, the fix
+means editing two hand-mirrored CSS grids in lockstep, and I9 had already shown what that
+costs: the first attempt there squeezed the sort chevron from 11px to 2px, caught only by
+measuring. Real regression surface, no user.
+
+**What is still true if this is ever revisited:** the defect is pre-existing and remains
+in the code — nothing was changed to close this item. At ≤430px the booking name is
+unreadable and the keyboard trigger unreachable; tapping the row still opens the modal,
+and the modal itself is correct at 400px. Reopen this item rather than rediscovering it
+if Command ever gains a genuine phone use.
+
+## AD-HOC — found while testing this plan, fixed outside its scope
+
+> Items here are **not part of the payouts work**. They are bugs this plan's staging
+> testing happened to surface, recorded so the fix is not lost. They live in a different
+> repository (`vendor/`) on a different branch, and they ship on their own schedule.
+
+### AH1 — Kiosk custody close-out failed: "actor not permitted"  ✅ DONE (2026-09-12) — vendor app, branch `feature/debug_rental_from_kiosk`
+**Repo:** `vendor/` — **not** `command/`, and no migration.
+**Found:** staging, 2026-09-12, while testing a kiosk rental for U2. Booking
+`77b21422-74da-4a69-8ad8-afab176749d7`. Tapping **"I've returned it"** showed
+`Invalid booking status transition: in_progress -> returned (fulfilment_pattern custody,
+actor not permitted)`. Caught and displayed, not a crash.
+
+**Root cause (confirmed in the trigger source, not inferred).**
+`validate_booking_status_transition()` classifies the actor from `auth.uid()`
+(`20260829000004_kiosk_customer_close_out.sql`):
+
+```sql
+v_system := auth.uid() is null;
+…
+elsif old.status = 'fulfilled' then     -- session
+  if new.status = 'completed' and (v_booker or v_system or v_command or (v_vendor and new.booked_via = 'kiosk'))
+elsif old.status = 'in_progress' then   -- custody
+  -- No system branch by design: an asset that never came back must never auto-complete.
+  if new.status = 'returned'  and (v_booker or v_command or (v_vendor and new.booked_via = 'kiosk'))
+```
+
+`app/api/kiosk/close-out/confirm/route.ts` performed its UPDATE with
+`createAdminClient()` — service role, no `auth.uid()` — so every kiosk close-out reached
+the trigger as **system**. `fulfilled → completed` allows system, so the **session** flow
+worked; `in_progress → returned` does not, so **every custody close-out has been broken
+since the kiosk shipped**. The user's own query confirmed the row qualified in every other
+respect: `booked_via = kiosk`, `fulfilment_pattern = custody`, `is_paid = true`, kiosk
+clause present, and the vendor's own undo/restart transitions (user-scoped client)
+succeeding in `booking_status_log`.
+
+**Fix — act as the caller, not as the system.**
+| File | Change |
+|---|---|
+| `vendor/lib/kioskAuth.ts` | `requireVendorAdmin` now also returns `client`: a Supabase client scoped to the caller — the bearer-header client for Expo, the cookie-bound SSR client for web. **Additive**, so `kiosk/booking`, `kiosk/close-out` and `kiosk/payment/create-session` are untouched; they still write with the admin client, which is correct for them (they create a booking on behalf of a customer who is not the caller, where RLS can never be the gate). |
+| `vendor/app/api/kiosk/close-out/confirm/route.ts` | The status UPDATE now uses `caller.client`, so `auth.uid()` is the vendor admin and the trigger's `v_vendor and booked_via = 'kiosk'` branch applies. The admin client is kept for the existence read. Adds `.select("id")` and a **rows-affected check** → 403. |
+| `vendor/lib/kioskCloseOut.ts` | The target-status rule (`in_progress → returned`, `fulfilled → completed`, else `null`) extracted as `closeOutTarget()` so the two lines that decide whether a payout is released have a test. |
+| `vendor/lib/kioskCloseOut.test.ts` | 3 cases: custody goes to `returned` (never straight to `completed`), session goes to `completed`, and all eight other statuses refuse. |
+
+**The rows-affected check is the non-obvious half.** An UPDATE that RLS refuses returns
+**zero rows and no error**. Swapping the service-role client for a user-scoped one
+without checking the count would have turned a loud, correct failure into a silent 200 —
+the kiosk thanking a customer for a close-out that never happened. Bookings RLS does allow
+it (`20260507000004_bookings.sql:141-149`, vendor admins may UPDATE their vendor's
+bookings), so the check is a guard against a future policy change, not a live path.
+
+**No schema change, and none needed.** The trigger's refusal is correct — the app was
+lying about who was acting. Widening the trigger to admit `system` out of `in_progress`
+would have deleted the exact safeguard its comment names.
+
+**Verified (machine):** `npx tsc --noEmit` clean · `npm test` **380/380** (3 new) ·
+`npm run lint` 35 problems, all pre-existing and none in a touched file (baseline
+unchanged) · `npm run build` exit 0, `/api/kiosk/close-out/confirm` present.
+**Verified live (staging, 2026-09-12):** a custody kiosk booking closed out end to end —
+"I've returned it" moved it to `returned`, the vendor's "Got it back" completed it, and
+the payout row appeared in Command with its withholding snapshot. That single run also
+proves the close-out fix, the custody branch of the state machine and B1's payment path
+in one pass.
+**Still unexercised:** the **bearer** branch of the new caller-scoped client, unless the
+close-out above was driven from the Expo app rather than the web kiosk. The web kiosk
+uses the cookie branch; both were changed, only one is confirmed.
+
 ## Your steps
 
 The backfill is **inside migration 1**, so it happens when the migration is applied.
@@ -1482,10 +1600,13 @@ Run commands from `backbone/`.
 > ⚠️ **Order, every environment:** migrations first, then the Command build. Old Command
 > code runs fine on the new schema; new Command code fails on the old one.
 
-### U0 — Before production  ⬜ TODO
+### U0 — Before production  ✅ DONE (2026-09-12) — accountant agrees to the rule as specified
 - **Confirm the rule and base with your accountant:** 1% of 50% of the vendor payout
   after commission. Saved values are permanent unless corrected, and corrections to
   paid payouts don't move money.
+- **Confirmed 2026-09-12:** the accountant agrees. The shipped defaults
+  (`withholding_rate_percent = 1.00`, `withholding_base_percent = 50.00`) are therefore
+  the intended production values, and U3 step 6 is a check rather than a change.
 
 ### U1 — Local  ✅ DONE (2026-09-11) — all three migrations applied; SQL tests 63/63, 45/45, 8/8
 1. `npx supabase migration up --local`. **Not only `db reset`**, which runs the
@@ -1498,7 +1619,18 @@ Run commands from `backbone/`.
    `auto_acknowledge_test.sql`.
 3. Tell me. I'll run U2 step 4's checks read-only against local and continue.
 
-### U2 — Staging  ⬜ TODO
+### U2 — Staging  ✅ DONE (2026-09-12) — all nine steps, confirmed by you
+
+> **Steps 1–6:** migrations pushed, Command deployed, and a real kiosk booking taken all
+> the way through to a payout row visible in Command — the payment path B1 and B5 exist
+> to protect, exercised for real.
+> **Steps 7–9:** the rate change and its confirmation, a live payout correction
+> (commission and withholding) matching its review and reaching the vendor apps, and the
+> staging rate restored. All reported working.
+>
+> This clears the last item that could only be proven by a human:
+> `correct_booking_transaction()` and the vendor-visible propagation behind D14–D16 had
+> been proven by SQL and Playwright, never against a live database. Now both.
 
 > The CLI is **linked to staging** (`fbxbwnfeimzhgxpshdpa`); no output says so.
 
@@ -1534,7 +1666,43 @@ Run commands from `backbone/`.
    - the vendor web and mobile apps show the new fee and payout for that booking
 9. Put the staging rate back if you changed it for the test.
 
-### U3 — Production  ⬜ TODO
+### U3 — Production  ✅ DONE (2026-09-12) — migrations pushed, check script **16/16 PASS on production**, Command deployed, rate confirmed, smoke check passed
+
+> **Use the check script, not the loose queries.** `backbone/supabase/checks/20260911_post_deploy_verification.sql`
+> (written 2026-09-12) replaces step 4 below with 16 PASS/FAIL checks plus an INFO row.
+> **Paste the whole file into Supabase Studio → SQL Editor and run it**, or use psql:
+> ```
+> PGPASSWORD=... psql -h <host> -p <port> -U postgres -d postgres \
+>   -v ON_ERROR_STOP=1 -f supabase/checks/20260911_post_deploy_verification.sql
+> ```
+> Read-only, rerunnable, safe on production. **17 rows, 16/16 PASS on local, 2026-09-12**,
+> with checks 15–16 covering 47 real rows.
+>
+> ⚠️ **It is one statement with no psql meta-commands, and must stay that way.** The first
+> draft opened with `\pset` and ended with a second `select`. Both break in the SQL Editor:
+> `\pset` is a psql-only command, and the editor shows only the LAST result set, which
+> would have silently hidden all 16 checks behind the summary. The summary is now row 17
+> of the same result.
+>
+> **Read-only is verified, not assumed:** re-run under `default_transaction_read_only=on`,
+> which makes the server reject any write — 16/16 PASS, no error (2026-09-12). A keyword
+> scan also finds no write or DDL statement; the only `INSERT`/`UPDATE`/`DELETE` text in
+> the file is inside check labels.
+>
+> ⚠️ **Do NOT move this into `migrations/`.** It is a check, not a change. Anything in
+> `migrations/` is applied by `db push` and recorded in the migration history, which would
+> permanently desync the environments' migration lists; it also uses psql meta-commands
+> (`\pset`) the migration runner does not handle. And migrations are frozen once applied,
+> whereas this file should grow as more becomes worth checking. Run it with `psql`.
+>
+> ⚠️ **Why it exists: production is nearly empty pre-launch.** The two data checks
+> (15, 16) pass vacuously against an empty ledger — zero mismatches out of zero rows is
+> not evidence. So the script also verifies the *machinery*: both money functions and
+> their rounding, the settings singleton reading 1.00/50.00, the four ledger columns,
+> the three NOT NULL snapshots, `net_payout_amount` being GENERATED, the CHECK, all five
+> routines, the corrections table with RLS, and B6's append-only grants. Its last row
+> states outright how many real rows checks 15–16 actually covered, so a vacuous pass
+> cannot be mistaken for a meaningful one.
 1. **Parity check.** Compare `migration list` for staging and production, inspecting
    production without re-linking, as `database-reset-and-deploy.md` describes. Every
    migration applied on staging must be applied on production, except the two new ones.
@@ -1542,7 +1710,9 @@ Run commands from `backbone/`.
 2. **Have the rollback scripts open** (`backbone/supabase/rollback/`) and know when you
    pushed. That timestamp is Section A's incident start.
 3. Push at a quiet time, the way you normally push production (`db push` only).
-4. Run U2 step 4's queries on production.
+4. Run the check script above. Expect **16/16 PASS**. Any FAIL: stop, don't deploy the
+   Command build, and send me the row — old Command code runs fine on the new schema, so
+   not deploying is a safe place to stand while it's diagnosed.
 5. Deploy the Command build.
 6. Settings → Platform Fee: confirm the rate is 1% / 50%, or set your real values,
    **before the next payment**.
