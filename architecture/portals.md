@@ -547,6 +547,27 @@ only.
 
 > ⚠️ `payout_status = 'reversed'` means the **vendor** will not be paid. It says nothing about whether the *booker* was refunded — there is no refund mechanism in this system. Never label it "Refunded" in any UI.
 
+**Withholding tax, and what "to transfer" means** (2026-09-11). Ezzy withholds tax from what it sends a vendor: `withholding_rate_percent` of `withholding_base_percent` of the vendor payout, 1% of 50% by default. It is **computed and stored by the database at payment** (`20260911000001`), never by Command, and snapshotted like the commission — so editing the rule in Settings changes future payments only.
+
+That splits the money into two figures the page never conflates:
+
+- **Vendor payout** — what the ledger says the vendor is owed, before withholding. The bucket cards and the list header show this.
+- **To transfer** — `net_payout_amount`, the payout minus withholding. **Every figure labelled "transfer" is this one**: the selection bar, each vendor group's header, and the printed per-vendor subtotal. Before this change all three showed the full payout, i.e. the wrong amount to type into a bank.
+
+A vendor group therefore reads "₱3,152.16 to transfer" above "2 payouts · ₱3,168.00 less ₱15.84 withholding", so the rows beneath visibly add up. Reversed payouts show "—" for withholding and net: nothing is ever transferred, so nothing is withheld.
+
+**The printed ledger is landscape** since it gained Withholding tax and Net payout columns — nine columns overflowed A4 portrait into the margin.
+
+**Payout details modal** (2026-09-11). Clicking any row opens it. It renders the **same field list the printed sheet renders as columns** (`lib/payout/details.ts`), so the modal and the filed report cannot disagree. Clicks on the row's own checkbox and its "Mark paid" control do not open it; the booking name is a real button, so the row is reachable from the keyboard, and focus returns to it on close. Below the figures it shows **where the vendor is paid, masked** — and only masked, until someone presses "Show full details", which decrypts server-side and records the access. **Opening a payout costs no audit row**; that is what keeps `vendor_payout_view_log` meaningful.
+
+**Corrections** (2026-09-11). Staff can fix a payout whose saved commission or withholding rule was wrong, from that modal.
+
+- **Rates only.** Amounts are never typed: the database recomputes them with the same functions it used at payment.
+- **Review, then save.** The review shows figures returned by `preview_booking_transaction_correction()`, so what is approved is exactly what is written. Editing a field discards the review.
+- **A reason of at least 10 characters is required**, and every correction is written to `booking_transaction_corrections` in the same transaction as the change — a corrected figure without a log entry is impossible.
+- **Any bucket, paid ones included.** The log records the payout's status at the time, and the form warns that correcting a paid payout changes the record, not the money that was sent.
+- ⚠️ **Commission corrections are visible to vendors.** They change `platform_fee_percent` / `platform_fee_amount` / `payout_amount`, which the vendor web and mobile apps display — with no notification and no explanation. Withholding is not shown to vendors at all. Telling them is an open follow-up.
+
 #### Admin override
 `admin_override_booking_status()` lets Command move a booking a third party otherwise could not, and **requires a reason**, which lands in `booking_status_log.notes`. Dispute resolution is exempt — it carries its own `resolution_notes`.
 
@@ -583,7 +604,11 @@ Accessible via the Sidebar's Settings button; **four tabs** (`SettingsPage` owns
 
 - **Notification Types tab** — table of all 7 notification types with label, description, target portal, and an on/off toggle. Toggle updates `notification_type_settings.is_enabled` — disabling a type suppresses all future notifications of that type platform-wide (does not delete existing rows).
 - **Divisions tab** (2026-07) — full CRUD over the `divisions` lookup table: add a division (name → slug auto-derived, kebab-case), inline-rename, and toggle active/disabled. This is the first true add/edit/disable lookup-table admin UI in command (Notification Types only ever toggles pre-seeded rows). Disabling a division hides it from new vendor selection without touching existing vendor associations; hard delete isn't exposed in the UI (the DB FK is `ON DELETE RESTRICT` while any vendor references it).
-- **Platform Fee tab** (2026-07) — sets `platform_fee_settings.fee_percent`, the global commission taken from every booking payment (0–100, 2 dp; applies to all vendors, no per-vendor rate). Shows a live money-split preview ("On a ₱1,000 booking the platform keeps ₱120 and the vendor receives ₱880") so an abstract percentage reads as money and a transposed entry is obvious before saving, plus who last changed it and when. Save is gated on a genuine change — an equivalent value (`12` vs `12.00`) does not enable it. The tab states prominently that **changes affect future payments only**: each transaction permanently records the rate in force when it was paid, so vendors' existing payout history never moves (see `schema.md` → `booking_transactions`).
+- **Platform Fee tab** (2026-07; withholding added 2026-09-11) — two rules, both applied to every booking payment and both snapshotted at payment time.
+  - **Commission** — `platform_fee_settings.fee_percent`, the global cut (0–100, 2 dp; no per-vendor rate). A live money-split preview ("On a ₱1,000 booking the platform keeps ₱120 and the vendor receives ₱880") makes an abstract percentage read as money, so a transposed entry is obvious before saving. Save is gated on a genuine change — `12` vs `12.00` does not enable it.
+  - **Withholding tax** — `withholding_rate_percent` **of** `withholding_base_percent` of the *vendor payout* (default 1% of 50%). Both halves save together: half a rule snapshotted onto payments is a rule nobody chose. The preview continues the same ₱1,000 example ("vendor payout ₱880.00 · withheld ₱4.40 · transferred ₱875.60"), and **saving is gated on a confirmation naming the old rule and the new one** — the rate is invisible on every future payment until a payout is read back, so a typo is expensive and late to surface.
+  - One "last changed" line serves both, because they share one settings row.
+  - The tab states that **changes affect future payments only**. Since 2026-09-11 it also says what is now true: a saved payout changes afterwards **only** if staff correct it from Payouts, and every correction is logged (see `schema.md` → `booking_transaction_corrections`).
 
 - **Password tab** (2026-08-10, `components/settings/SecuritySettingsPage/`) — change your own password. Not an admin tool: it acts on the signed-in user only, never on another account. See `auth-and-roles.md` → "Changing a password while signed in".
 
@@ -613,6 +638,9 @@ All four tabs are reachable by anyone who reaches the command portal at all — 
 | **Vendor account-completion badge** | ✅ Live 2026-08-16 — reads the `vendor_account_completion` view, the single definition shared with the vendor portal. `null` renders as **Unknown**, never as Incomplete |
 | Fulfilment oversight (stale `in_progress`, open flags) | ✅ Supabase-wired — `oversight.service.ts` on the Overview |
 | Platform Fee setting | ✅ Live — global commission %, snapshotted onto each payment; browser-verified end-to-end |
+| **Withholding tax setting** | ✅ Live 2026-09-11 — rate % of base % (default 1% of 50%), saved as a pair, gated on a confirmation naming both rules. Computed and stored by the database at payment, never by Command |
+| **Payout details modal** | ✅ Live 2026-09-11 — row click opens the printed sheet's own field list plus the masked destination; "Show full details" is the only path that decrypts, and it is audited |
+| **Payout corrections** | ✅ Live 2026-09-11 — Command-only, rates only, server-computed review, reason required, logged to `booking_transaction_corrections`. ⚠️ Commission corrections change figures vendors can see, with no notice |
 | KPI widgets | ⚠️ Vendor count live; bookings/revenue seeded |
 | Transactions | ❌ Mock data (`ALL_TXNS` constant). **No longer blocked** — `booking_transactions` now exists and holds exactly the platform-wide data this page needs; wiring it up is a small, self-contained follow-up since the table/filter/pagination UI is already built |
 

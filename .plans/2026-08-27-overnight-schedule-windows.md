@@ -9,6 +9,12 @@ parked with a reason. All decisions D1–D5 resolved. Both migrations and the un
 are applied to local, staging and production; both app builds are deployed. Overnight
 windows are now creatable, bookable and legible end to end.
 
+**Closed out 2026-09-11.** The user confirmed the feature working through hands-on testing;
+all vendor changes are committed and shipped (vendor is clean at version-0.52.0, two
+releases on). One residual is carried rather than claimed: B12's three clock-dependent
+scenarios were never systematically exercised — see the note on that item. P1 and P2 remain
+⏸ PARKED for their own `booker` plan and are unaffected by this closure.
+
 **Supersedes** `.plans/2026-08-27-vendor-schedule-duplicates.md` (2026-08-27). Every live
 item from that plan is merged here as **B8, B9, B10, I4, I5**; its I4 (the "Ends at
 midnight" checkbox) is retired by this refactor — see B7. That file is kept as the
@@ -662,8 +668,8 @@ consumed in existing expressions. `onSave` becomes `=> void | Promise<void>`.
 > `window_minutes` is still allowed; an **inactive** duplicate is allowed, confirming the
 > partial `WHERE is_active` predicate.
 > `tsc` exit 0 · 271 tests · lint 35→35.
-> ⬜ **Not applied anywhere** — user pushes it, and the duplicate pre-flight must return 0
-> on each environment first.
+> ✅ **Applied 2026-08-28** to local, staging and production. The duplicate pre-flight
+> returned 0 on both hosted environments before each push, as required.
 
 **File:** `20260507000002_schedules.sql:18-40`; the deliberate-absence note at
 `vendor/lib/offeringSchedules.ts:5-9`.
@@ -881,8 +887,13 @@ update leaves `db reset` broken on every machine.
 > from the current day too. That closes a pre-existing gap — nothing filtered past times
 > within today before.
 > **Verified:** type-check, tests, lint parity.
-> ⬜ **The three live scenarios (Sat 00:10, the month boundary, the fully-expired window)
-> need a browser AND overnight test data.** Migration B is not sufficient on its own: the
+> ⏸ **RESIDUAL (2026-09-11) — accepted in practice, not systematically exercised.** The
+> feature shipped, the user tested it hands-on, and no defect has surfaced through
+> version-0.52.0. But the three scenarios below each need the clock at a specific moment,
+> and testing by hand does not reach them. They remain the least-covered part of this work
+> and are the first place to look if a vendor reports a late-night slot they cannot book.
+> **Original note:** the three live scenarios (Sat 00:10, the month boundary, the
+> fully-expired window) need a browser AND overnight test data. Migration B is not sufficient on its own: the
 > vendor form still refuses `end <= start` (`useScheduleForm.ts:132`), so **no overnight
 > schedule can be created through the UI until I2 ships in stage 6**. Until then the only
 > way to produce one is a direct SQL insert, which exercises the READ path (day panel,
@@ -1075,8 +1086,7 @@ created.
 > check need the identical wrap rule, and a wrap rule duplicated is one that drifts.
 > **Verified:** `tsc` exit 0 both apps · vendor 286 tests (was 271) · booker 19 · lint
 > 35→35 and 23→23 · `slots.ts` copies still identical.
-> ⬜ **Not verified:** the advisory's appearance on screen and in both themes — needs a
-> browser.
+> ✅ **Verified by the user (2026-09-11)** through hands-on testing of the shipped app.
 
 **Files:** `vendor/components/schedule/ScheduleFormModal/useScheduleForm.ts:123-137`
 (`saveBlocker` validates the form against itself only) and `useSchedulePage.ts:143-146`
@@ -1493,10 +1503,9 @@ unless you ask otherwise.
    `getSchedulesForVendor`, booker `getSlotOccupancy`, vendor
    `countBookingsOutsideWindow`. That was the one failure mode dropping `end_time` could
    cause: a service still naming it would 400 every schedule query. None does.
-   ⬜ **Not verified:** a human loading the Schedule page and the booker against the final
-   schema. The residual risk is a rendering bug, not a query failure — and overnight stays
-   unreachable through the UI until I2 (stage 6), so Migration B enables a capability
-   nothing can yet exercise. Drops the sync trigger, adds the two constraints,
+   ✅ **Verified by the user (2026-09-11)** — the Schedule page and booker were exercised
+   against the final schema on the shipped build. Vendor has since released through
+   version-0.52.0 with no schedule regression reported. Drops the sync trigger, adds the two constraints,
    drops `end_time`. **This is the migration that turns overnight on.** Staging, verify,
    then production.
 4. 🔄 **B9 — written and locally verified 2026-08-28; awaiting the user's push.** **coupled batch:** the unique index (keyed on `window_minutes`, per B1), the

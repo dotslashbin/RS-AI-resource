@@ -247,6 +247,33 @@ never runs the backfill. If a migration carries one, test it with
 
 ---
 
+## `supabase/rollback/` — undoing a migration by hand
+
+A third folder of hand-run SQL, beside `bootstrap/` and `demo/`. **The CLI never reads
+it**, and `config.toml` seeds only `./seed.sql`, so nothing here can run by accident —
+including during a `db reset`.
+
+| File | Purpose |
+|---|---|
+| `20260911000001_withholding_tax.A-emergency.sql` | **Payments failing after the withholding migration.** Restores the original payment trigger **and** defaults the new columns to 0. Keeps every column and value |
+| `20260911000001_withholding_tax.B-full-revert.sql` | Removes the withholding feature deliberately. Destructive |
+| `20260911000002_payout_corrections.full-revert.sql` | Drops the correction RPCs; keeps the log table if it holds any row |
+| `20260911000003_audit_logs_append_only.full-revert.sql` | Restores `service_role`'s previous privileges on the four audit logs |
+
+Three rules learned writing them:
+
+1. **An emergency file and a full revert are separate files, never two sections of one.**
+   A file with both gets run whole by mistake, and during an incident the destructive
+   half is the one you cannot undo.
+2. **Restoring a function is often not enough.** The payment trigger's emergency
+   rollback must also give the new `NOT NULL` columns a default — the old `INSERT` does
+   not fill them, so the function alone would still fail every payment.
+3. **After running one, tell the CLI:**
+   `npx supabase migration repair --status reverted <version>`, or it still believes the
+   migration is applied.
+
+---
+
 ## Staging — deliberate fresh start
 
 Use when you want staging to mirror local exactly, and you accept losing

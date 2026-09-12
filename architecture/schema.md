@@ -78,6 +78,9 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260829000003_booking_origin.sql` | `bookings.booked_via` (`booker` \| `kiosk`, default `booker`) plus `bookings_pin_origin`, a BEFORE UPDATE trigger that refuses any change to it. ⚠️ **The pin is the load-bearing half:** the bookings UPDATE policy lets a vendor-admin write any column on their own rows, so an unpinned marker could be flipped to `kiosk` to unlock the widened rules below |
 | `20260829000004_kiosk_customer_close_out.sql` | Replaces `validate_booking_status_transition()` to let a **vendor-admin** make the two booker-reserved moves — `in_progress → returned` and `fulfilled → completed` — **only** where `booked_via = 'kiosk'`. A kiosk walk-in never logs in, so `v_booker` is unsatisfiable for their bookings and both transitions deadlocked. ⚠️ The database cannot tell whether the customer or the vendor tapped; the marker only guarantees the widening reaches nothing else |
 | `20260910000001_command_payout_bucket_totals.sql` | `command_payout_bucket_totals()` — read-only Command-only definer RPC returning count + payout sum per payout bucket. **Its `CASE` is the single definition of bucket membership**: a `released` payout on a refunded/cancelled booking classifies as `owed_back` and NOT as `released`, so the five buckets are disjoint and their totals can be summed. Command's `payouts.service.ts` applies the same rule to the row lists — move one without the other and a card disagrees with the list beneath it |
+| `20260911000001_withholding_tax.sql` | **Withholding tax**, configurable and snapshotted at payment. Two pure functions — `platform_fee_amount()` and `withholding_amount()` — become the ONLY definition of the money maths; `platform_fee_settings` gains `withholding_rate_percent` / `withholding_base_percent` (default 1.00 / 50.00); `booking_transactions` gains the two snapshot percentages, `withholding_amount`, and **generated** `net_payout_amount`, backfilled for existing rows; `create_booking_transaction()` snapshots the rule alongside the fee; `command_payout_bucket_totals()` returns withholding and net sums too. ⚠️ Defaults are **not** 0, unlike `fee_percent` — a tax obligation the business already has, where a zero default would make every "to transfer" figure overstate the transfer |
+| `20260911000002_payout_corrections.sql` | `booking_transaction_corrections` (append-only log) + `preview_booking_transaction_correction()` and `correct_booking_transaction()`, both Command-only definers. **Ends the ledger's absolute immutability**: money figures can change after payment, but only through the RPC, which requires a reason and writes old → new values in the same transaction |
+| `20260911000003_audit_logs_append_only.sql` | `revoke all … from service_role`, then `grant select, insert`, on `booking_status_log`, `vendor_payout_method_log`, `vendor_payout_view_log` and `booking_transaction_corrections`. **Found by a test, not an audit**: a `GRANT` only adds, so the schema's default privileges had been leaving `service_role` with UPDATE, DELETE and TRUNCATE on four logs documented here as append-only |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -390,6 +393,8 @@ Index: `vendor_payout_method_log_vendor_idx on (vendor_id, changed_at desc)` —
 
 **RLS:** vendor admins SELECT their own rows. Grants are `select` for `authenticated`, `select, insert` for `service_role` — **no UPDATE or DELETE for anyone**, because append-only is the point.
 
+⚠️ **That was false until `20260911000003`.** A `GRANT` only adds; it never restricts. `service_role` kept the schema's default privileges — UPDATE, DELETE and TRUNCATE included — so this log was append-only in intent only. The fix revokes everything from `service_role` first, then grants `select, insert`. Found by a test written for a *new* log, not by anyone reading this line.
+
 ---
 
 ### `vendor_payout_view_log`
@@ -406,7 +411,7 @@ Exists because Command can now read bank details (`20260816000001`). Reading is 
 
 Two indexes, because it answers two questions: `(vendor_id, viewed_at desc)` "who touched vendor X", and `(viewed_by, viewed_at desc)` "what has this admin been looking at" — the second is the insider-risk query and is useless without its own index.
 
-**RLS:** Command admin/root SELECT only. **Deliberately no vendor-side read policy** — a vendor seeing which named staff member opened their record is a different feature with its own privacy questions. Grants: `authenticated` SELECT, `service_role` SELECT+INSERT — **no UPDATE or DELETE for anyone**.
+**RLS:** Command admin/root SELECT only. **Deliberately no vendor-side read policy** — a vendor seeing which named staff member opened their record is a different feature with its own privacy questions. Grants: `authenticated` SELECT, `service_role` SELECT+INSERT — **no UPDATE or DELETE for anyone**, enforced by the explicit `revoke` in `20260911000003` (the grant alone never restricted `service_role` — see `vendor_payout_method_log`).
 
 **Written by** `command/app/api/vendor-payout/route.ts`, **before** the plaintext is returned. A read that cannot be audited is refused (503) — an audit control a failing insert can skip is not a control.
 
@@ -803,6 +808,7 @@ Immutable audit trail of every booking status change. Written only by the `log_b
 - Vendor admins can SELECT rows for bookings at their vendor
 - Command admins/root can SELECT all rows
 - No INSERT/UPDATE/DELETE policies for app users — trigger-only writes (executed as service role via `SECURITY DEFINER`)
+- ⚠️ Policies were not the whole story: `service_role` held every table privilege here by default until `20260911000003` revoked them, leaving `select, insert`. "Immutable audit trail" is enforced from that migration onward, not from this table's own (see `vendor_payout_method_log`)
 
 ---
 
@@ -839,20 +845,24 @@ A flag raised on a booking by either party. Freezes the vendor payout until a Co
 ---
 
 ### `platform_fee_settings`
-Single-row global configuration: the commission percentage the platform takes from every booking payment. Seeded by migration at `0`; managed by Command admins via the Settings → Platform Fee tab. Applies across the board — there is no per-vendor rate.
+Single-row global **money policy**: the commission the platform takes from every booking payment, and (since `20260911000001`) the withholding-tax rule applied to what vendors are transferred. Managed by Command admins via the Settings → Platform Fee tab. Both apply across the board — there is no per-vendor rate.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `smallint` | PK, `default 1`, `check (id = 1)` — makes the table physically single-row, so no query has to decide which config row is current |
 | `fee_percent` | `numeric(5,2)` | NOT NULL, default `0`, `check (>= 0 and <= 100)`. Percentage deducted from each payment |
+| `withholding_rate_percent` | `numeric(5,2)` | NOT NULL, default `1.00`, `check (0–100)`. Withholding = payout × rate% × base% |
+| `withholding_base_percent` | `numeric(5,2)` | NOT NULL, default `50.00`, `check (0–100)`. The portion of the payout the rate applies to; `50` is "of one half". Saved as a pair with the rate — half a rule snapshotted onto payments is a rule nobody chose |
 | `updated_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The Command admin who last changed the rate. Written by the app layer — `set_updated_at()` only maintains `updated_at` |
 | `updated_at` | `timestamptz` | Default `now()`; maintained by the `set_updated_at()` trigger |
 
-**Seeded at `0` deliberately** — a migration must be environment-neutral and must never start charging vendors a fee on its own. Local dev sets a demonstration rate (12%) in `seed.sql`; production is configured through the Command UI.
+**`fee_percent` is seeded at `0` deliberately** — a migration must be environment-neutral and must never start charging vendors a fee on its own. Local dev sets a demonstration rate (12%) in `seed.sql`; production is configured through the Command UI.
+
+**The withholding columns deliberately do NOT follow that rule** (`20260911000001`): they default to 1.00 / 50.00. The commission is a commercial choice a migration must not make; withholding is a tax obligation the business already has, and a zero default would make every "to transfer" figure on the Payouts page overstate what staff should send — while the backfill recorded zero withholding on existing rows.
 
 **RLS:** all authenticated users SELECT (the trigger reads it via SECURITY DEFINER, and both the Command settings UI and the vendor Transactions page surface the rate); only `admin`/`root` on the `command` portal UPDATE. No INSERT/DELETE for authenticated — the single row is seed-fixed, mirroring `notification_email_settings`.
 
-> **The rate is never applied live at read time.** It is snapshotted onto each `booking_transactions` row when payment is confirmed. Editing it affects future payments only — see `booking_transactions`.
+> **Neither rule is applied live at read time.** Both are snapshotted onto each `booking_transactions` row when payment is confirmed. Editing them affects future payments only; a saved payout changes afterwards only through `correct_booking_transaction()`, which logs it — see `booking_transactions` and `booking_transaction_corrections`.
 
 ---
 
@@ -868,6 +878,10 @@ Immutable ledger of confirmed payments — one row per booking, created the mome
 | `platform_fee_percent` | `numeric(5,2)` | NOT NULL. The `platform_fee_settings.fee_percent` value **in force when this payment was confirmed** — a historical record, not a live lookup |
 | `platform_fee_amount` | `numeric(10,2)` | NOT NULL. `round(amount_paid * platform_fee_percent / 100, 2)` |
 | `payout_amount` | `numeric(10,2)` | NOT NULL. `amount_paid - platform_fee_amount`. Computed from a single rounded fee value, so `platform_fee_amount + payout_amount = amount_paid` exactly |
+| `withholding_rate_percent` | `numeric(5,2)` | NOT NULL. The `platform_fee_settings.withholding_rate_percent` in force when this payment was confirmed (`20260911000001`) |
+| `withholding_base_percent` | `numeric(5,2)` | NOT NULL. Likewise for the base. Both are recorded so a rate change never re-prices history |
+| `withholding_amount` | `numeric(10,2)` | NOT NULL. `withholding_amount(payout_amount, rate, base)`, i.e. `round(payout × rate% × base%, 2)`. CHECK `>= 0 and <= payout_amount`. ⚠️ A **record** of a deduction — the platform transfers nothing; a human sends the money |
+| `net_payout_amount` | `numeric(10,2)` | **GENERATED** `payout_amount - withholding_amount`, stored. What staff actually transfer. Generated so no write path can make it disagree with its inputs |
 | `payout_status` | `text` | NOT NULL, default `'held'`. CHECK in (`held`, `releasable`, `released`, `reversed`). The payout lifecycle — the one mutable part of this row. Moved by the `sync_booking_payout_status()` trigger or the Command-only `release_booking_payouts()` RPC, never by an `authenticated` write |
 | `released_at` | `timestamptz` | When the platform recorded the payout as disbursed. Set alongside `payout_status = 'released'`; NULL otherwise |
 | `created_at` | `timestamptz` | Default `now()`. **When payment was confirmed** — this is the transaction date the apps filter and summarise by, *not* `bookings.booked_date` (when the service occurs) |
@@ -882,6 +896,10 @@ Indexes: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc
 
 **Amended 2026-08-01 — the ledger is immutable in its FIGURES, not in every column.** `20260801000003` adds `payout_status` (`held → releasable → released`, or `reversed`) and `released_at`. `amount_paid`, `platform_fee_percent`, `platform_fee_amount` and `payout_amount` remain written-once and never recomputed, so changing the global fee still cannot move a vendor's historical figures. The payout lifecycle is explicitly mutable — but there is still **no `authenticated` write path**: it moves by trigger (`sync_booking_payout_status`) or by the Command-only `release_booking_payouts()` definer RPC.
 
+**Amended 2026-09-11 — the figures are no longer absolutely immutable, and the rule that replaced immutability is worth stating exactly.** `20260911000002` allows a money figure to change after payment **only** through `correct_booking_transaction()`: Command-only, a reason of at least 10 characters, amounts recomputed from rates by the same functions used at payment, and the before/after values written to `booking_transaction_corrections` **in the same transaction** — so a corrected figure without a log entry cannot exist. There is still no `authenticated` write path. What remains true from 2026-08-01: nothing recomputes on read, and editing a rate in Settings never touches a saved row.
+
+⚠️ **Correcting the commission is visible to vendors.** `platform_fee_percent`, `platform_fee_amount` and `payout_amount` are displayed by the vendor web and mobile apps, which are not notified and show no explanation. The withholding columns are not read by either vendor app.
+
 ⚠️ **`payout_status = 'reversed'` means the VENDOR will not be paid.** It says nothing about whether the *booker* was refunded — there is no refund mechanism in this system (PayMongo's refund API is never called). Never label it "Refunded" in any UI.
 
 **Status is deliberately NOT stored here.** The financial figures must never drift, but booking status is live and mutable (`pending → confirmed → completed → refunded`); freezing it would show a booking as permanently "confirmed" after it was refunded. Readers join `bookings` for current status. Refunded/cancelled rows **stay in the ledger** (the payment really happened) but the apps exclude them from payout totals.
@@ -892,6 +910,27 @@ Indexes: `booking_transactions_vendor_created_idx on (vendor_id, created_at desc
 - Vendor admins SELECT their own vendor's rows — `is_active() and has_vendor_role(vendor_id, 'vendor-admin')`. The `is_active()` guard is **required**: `has_vendor_role()` checks membership and role only and does *not* consider profile status, so without it a **suspended** vendor-admin would retain access to financial data
 - Command admins/root SELECT all rows
 - No INSERT/UPDATE/DELETE policies for authenticated — trigger-only writes, mirroring `booking_status_log`. The ledger is append-only by construction
+
+---
+
+### `booking_transaction_corrections`
+Append-only record of every change to a `booking_transactions` money figure after payment (`20260911000002`). Written **only** by `correct_booking_transaction()`, in the same transaction as the change it describes.
+
+Exists because the ledger stopped being absolutely immutable. A saved commission or withholding rule can be wrong — mistyped in Settings before a batch of payments — and the alternative to correcting it was leaving vendors' figures wrong forever, or editing rows by hand with no record.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `transaction_id` | `uuid` | FK → `booking_transactions` ON DELETE CASCADE |
+| `corrected_by` | `uuid` | FK → `profiles` ON DELETE SET NULL — the record survives the person |
+| `corrected_at` | `timestamptz` | Default `now()` |
+| `reason` | `text` | NOT NULL, CHECK ≥ 10 characters after trimming. The RPC refuses anything shorter |
+| `payout_status` | `text` | NOT NULL. The payout's status **at the time of correction** — `released` means the money had already been sent, so the correction changed a record and not a transfer |
+| `from_*` / `to_*` | `numeric` | Both sides of each figure: fee percent, fee amount, payout amount, withholding rate/base percent, withholding amount |
+
+Index: `(transaction_id, corrected_at desc)` — every read is "this payout's corrections, newest first".
+
+**RLS:** Command admin/root SELECT only. Grants: `authenticated` SELECT, `service_role` SELECT+INSERT, and `20260911000003` **revokes everything else from `service_role`** so append-only is actually enforced rather than merely intended. The definer RPC inserts as the table owner.
 
 ---
 
@@ -1262,7 +1301,9 @@ See `auth-and-roles.md` for the full access control model. Schema-level summary:
   | `release_booking_payouts(uuid[])` | Command admin/root | Bulk `releasable → released`. Takes **`booking_transactions` ids**, not booking ids |
   | `admin_override_booking_status(...)` | Command admin/root | Third-party override; **reason required**, lands in `booking_status_log.notes` |
 
-  Read-only companion, not a writer: **`command_payout_bucket_totals()`** (`20260910000001`) returns count + payout sum per payout bucket for Command's Payouts page. Same caller check as `release_booking_payouts` (Command portal, admin/root) and it **raises** rather than returning an empty set when that check fails — a silent ₱ 0 on a money screen is worse than an error. Its counts are exact regardless of PostgREST's `max_rows` ceiling, which is what lets the page show truncated *lists* without ever showing understated *totals*.
+  Read-only companion, not a writer: **`command_payout_bucket_totals()`** (`20260910000001`) returns count + payout sum per payout bucket for Command's Payouts page. Same caller check as `release_booking_payouts` (Command portal, admin/root) and it **raises** rather than returning an empty set when that check fails — a silent ₱ 0 on a money screen is worse than an error. Its counts are exact regardless of PostgREST's `max_rows` ceiling, which is what lets the page show truncated *lists* without ever showing understated *totals*. Since `20260911000001` it also returns `withholding_total` and `net_total`, so the Ready-to-pay card can show what will actually be transferred.
+
+  **Corrections (`20260911000002`)** add two more: `preview_booking_transaction_correction()` (STABLE, read-only — returns the figures a correction *would* save, so Command reviews the database's arithmetic rather than its own) and `correct_booking_transaction()`, the **only** way a `booking_transactions` money figure changes after payment. Same Command-only caller check; requires a ≥10-character reason; locks the row; recomputes every amount from the rates via `platform_fee_amount()` / `withholding_amount()`; and writes the before/after values to `booking_transaction_corrections` in the same transaction.
 
   `auto_acknowledge_bookings()` is the fifth writer — an hourly `pg_cron` job running as the system actor (`auth.uid()` NULL). It promotes `fulfilled`/`returned` after 3 days, **never** `in_progress`, and (since `20260801000009`) never promotes a `fulfilled` booking before its `booked_date` in Asia/Manila.
 

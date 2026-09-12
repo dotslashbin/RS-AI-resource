@@ -113,7 +113,8 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 ### Invariants
 
 - All Supabase tables must have RLS enabled — no exceptions
-- Every new table must include explicit table-level `GRANT`s for the API roles in its migration (RLS alone is not enough — PostgREST checks table privileges first). Follow `20260620000001_api_role_grants.sql`: `anon` none; `authenticated` only the operations its RLS policies permit (never `TRUNCATE`); `service_role` full DML. The `public` default privileges grant no DML, so a table without grants returns `permission denied` for logged-in users
+- Every new table must include explicit table-level `GRANT`s for the API roles in its migration (RLS alone is not enough — PostgREST checks table privileges first). Follow `20260620000001_api_role_grants.sql`: `anon` none; `authenticated` only the operations its RLS policies permit (never `TRUNCATE`); `service_role` full DML. The `public` default privileges grant no DML **to `anon`/`authenticated`** (those defaults were revoked), so a table without grants returns `permission denied` for logged-in users
+- ⚠️ **A `GRANT` only adds; it never restricts.** `service_role` keeps the schema's default privileges — **every** privilege, `TRUNCATE` and `UPDATE` included — on each new table, so granting it `select, insert` removes nothing. An append-only table needs an explicit `revoke all … from service_role` **before** its grant, or it is append-only in name only. Four audit logs were wrong this way until `20260911000003` (see `architecture/schema.md`)
 - No app writes raw SQL outside of migration files in `backbone/supabase/migrations/`
 - `SUPABASE_SERVICE_ROLE_KEY` never appears in client-side code or any `NEXT_PUBLIC_` variable
 - Migration files are never edited after being applied — create a new migration instead
