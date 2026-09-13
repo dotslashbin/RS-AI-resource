@@ -9,6 +9,13 @@ items.** Closed 2026-09-07. The one item that remained (**B34**) was ✖ carried
 the forthcoming **PayMaya** plan rather than executed here; see the note at B34 and the
 caveat below for exactly what that leaves unproven. (Header rewritten clean 2026-09-06.)
 
+> **Changed after this plan closed (2026-09-12)** — see
+> `.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md`: uploaded documents
+> are now openable from the agreements step (K1); the 90s idle reset pauses while the page is
+> hidden, with a 10-minute cap (K2); the vendor can view acknowledgements and the signature in
+> the booking details modal (B6); and the in-app guide has a Kiosk tab (G1). The descriptions
+> below are the state at closing and are not rewritten.
+
 <!-- 2026-09-06: this block had accreted six layers of patched-on corrections and was
      contradicting itself — still claiming B23 was the only open item and that B22 was
      PayMongo-blocked, both false. Rewritten whole rather than patched again. -->

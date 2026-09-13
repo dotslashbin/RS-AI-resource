@@ -739,6 +739,13 @@ Files a vendor attaches to an offering. Added `20260829000001` for Kiosk Mode.
 > offering cannot attach a read-only leaflet (a map, parking directions) without forcing
 > an acceptance tick.
 
+> **Uploaded documents are opened at the kiosk** (2026-09-12) through a signed URL on
+> `offering-attachments`, minted under the kiosk's vendor-admin session — the
+> `attachments active users read` policy already allows it. A document written as text is
+> shown inline instead. Editing a document's `body` does **not** bump `version`
+> (`updateAttachment` never touches it), so acknowledgements cannot tell two wordings of the
+> same version apart — a recorded follow-up.
+
 > **The kiosk's conditional steps read the flags, never "has attachments."** Photos live
 > in this same table, so an offering with two photos and no waiver *has attachments* — an
 > existence test would put an empty agreements step in front of the most ordinary
@@ -750,6 +757,14 @@ Files a vendor attaches to an offering. Added `20260829000001` for Kiosk Mode.
 Append-only proof that a customer accepted an offering's documents. One row **per
 document**, not per booking — the same shape, and for the same reason, as
 `legal_acceptances`.
+
+**Read by** (2026-09-12) the vendor portal's booking details modal
+(`vendor/services/bookingAcknowledgements.service.ts`): title, version, `agreed_at`,
+`signer_name` and `signature_path`, with the signature fetched from `booking-signatures` as a
+short-lived signed URL — once per distinct path, since one kiosk signature is shared by every
+signed row. `ip_address` and `user_agent` are deliberately not selected. No policy or grant
+changed: the existing vendor-admin SELECT policy and the `signatures vendor admin read own`
+storage policy already permitted both reads.
 
 | Column | Type | Notes |
 |--------|------|-------|

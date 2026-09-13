@@ -650,6 +650,44 @@ deliberately **no second webhook**: two registered endpoints would race on the s
 > own booking, nor be signed up for later, since both registration paths treat an
 > existing `profiles` row as "email taken".
 
+### Free kiosk bookings (2026-09-12)
+
+A ₱0 kiosk offering has nothing to pay, so it cannot follow the payment path at all:
+`create-session` refuses an amount that is not greater than zero, and the webhook — which sets
+`is_paid`, triggers the ledger row and sends the kiosk confirmation — never runs. So:
+
+- **The kiosk booking route creates it settled.** It reads the offering's list price
+  server-side and INSERTs with `is_paid = true` when that price is 0. An INSERT does not fire
+  `create_booking_transaction()` (AFTER **UPDATE** of `is_paid`), so a free booking writes **no
+  ₱0 ledger row** — nothing in Transactions, nothing in Command's payout buckets.
+- **The derived `price_paid` stays the authority.** If the vendor edits the price during the
+  request, the inserted row and the list price disagree: a settled row with a price is set back
+  to unpaid (true → false fires nothing) and continues to payment; an unpaid row at ₱0 is left
+  as is, because flipping it would be an UPDATE that writes a ₱0 ledger row
+  (`vendor/lib/kioskFreeBooking.ts`).
+- **The route sends the confirmation** (`kiosk_booking_confirmed`), gated like the webhook, with
+  the body "No payment needed." — a vendor copy of the booker's builder
+  (`vendor/lib/kioskBookingNotification.ts`). The email template still shows a "Paid ₱0.00" row
+  by decision.
+- **The kiosk skips payment on the route's `free` flag**, never on its own total, and reuses
+  the payment return URL to reach the receipt, which reads **Free**.
+
+The booker app has no equivalent yet (`booker/app/api/payment/create-session` refuses ₱0 the
+same way).
+
+### Availability at the kiosk, and times that have started (2026-09-12)
+
+- **"Available" means bookable now**: a free place (overlap-counted, as `check_booking_placement()`
+  counts) at a slot whose start has not passed. The offering step groups offerings by the first
+  such day in the next 7 days, from one bookings read across every eligible schedule;
+  `lib/kioskAvailability.ts` composes it from `isOccurrence`, `availabilityForDay` and `slotDate`,
+  so the grid and the time step cannot disagree. An incomplete read falls back to the plain list.
+- **A started time is refused twice**: the time step never lists it, and the kiosk booking route
+  returns 409 for it. Both compare a fixed **+08:00** instant built from the date the booking is
+  *stored under* (the next day for a post-midnight slot), never the machine's timezone.
+- ⚠️ `check_booking_placement()` itself does **not** refuse a past start, so other clients are not
+  protected by this (launch follow-up F16).
+
 ### Closing a kiosk booking
 
 A kiosk customer never logs in, so `v_booker` (`auth.uid() = booker_id`) is unsatisfiable
@@ -695,6 +733,32 @@ route: the RLS policy *"vendor admins can read their bookings"* already permits 
 receipt is accurate without storing anything. That matters because the kiosk's standing
 rule is that **nothing about a customer outlives the session** — stashing a summary in
 `sessionStorage` to survive the redirect would have been the cheap fix and the wrong one.
+
+### Documents and the idle reset at the kiosk (2026-09-12)
+
+The agreements step is where a customer accepts an offering's documents, so it is also
+the step where they need to *read* one. Two rules now hold there:
+
+- **An uploaded document is openable, and the link exists before the tap.** Documents live
+  in the private `offering-attachments` bucket and are read through a signed URL under the
+  kiosk's vendor-admin session. The URL is minted when the step mounts and re-signed every
+  240s, and the control is a plain `<a target="_blank" rel="noopener noreferrer">` — a
+  `window.open` issued after awaiting the signature runs outside the tap and Safari blocks
+  it. Ticking "I have read and agree" is still the agreement; it is not gated on opening.
+- **Reading must not cost the customer their progress, and walking away must not leave it on
+  screen.** Opening a document hides the kiosk page, and the 90s idle reset counts only
+  interaction on that page. So the reset **pauses while the page is hidden** and, on return,
+  restarts — unless the page was hidden for more than 10 minutes, in which case the kiosk
+  starts over at once (`lib/kioskIdle.ts`). The payment confirmation's suspension still wins.
+
+What was agreed is then visible to the vendor: `booking_acknowledgements` and the signature
+are shown, read-only, in the vendor portal's booking details modal (`portals.md` →
+Bookings Page).
+
+> ⚠️ **A stored signature's ink colour is not fixed.** The signature pad strokes in the
+> kiosk's computed theme colour on a transparent canvas, so a signature taken on a
+> dark-themed kiosk is near-white ink. Anything displaying one must pick a ground that works
+> for both (the modal uses mid-slate). Recorded as a follow-up.
 
 ---
 

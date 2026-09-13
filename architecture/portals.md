@@ -248,12 +248,22 @@ auto-opens once per browser. See "Getting Started guide" below.
 
 #### Bookings Page (fully wired)
 - Incoming booking list with **six lifecycle filter tabs**, not one tab per status. `BOOKING_FILTERS` (`lib/utils.ts`) groups the nine statuses by what the vendor has to *do*: **All**, **Needs you** (`pending`, `returned`), **Active** (`confirmed`, `fulfilled`, `in_progress`), **Done** (`completed`), **Issues** (`disputed`), **Closed** (`cancelled`, `refunded`). Badge counts on "Needs you" and "Issues"
-- **Full vendor-side fulfilment (2026-08)** — hand over / mark as done / got it back / undo / flag, with `fulfilActionFor()` in `components/bookings/BookingRow/useBookingRow.ts` picking the action from `(status, fulfilmentPattern)` and every label and hint coming from the single `lib/bookingActionCopy.ts` table, so the wording that tells someone *when money moves* cannot drift between clients. (The booker keeps its own table with its own keys and audience — `booker/lib/bookingActionCopy.ts`; `ezzy-vendor-mobile` mirrors the vendor one.) Flagging goes through `raise_booking_dispute()`. See `booking-flow.md`
+- **Full vendor-side fulfilment (2026-08)** — hand over / mark as done / got it back / undo / flag, with `fulfilActionFor()` in `components/bookings/BookingActions/useBookingActions.ts` (moved from `useBookingRow.ts` 2026-09-12) picking the action from `(status, fulfilmentPattern)` and every label and hint coming from the single `lib/bookingActionCopy.ts` table, so the wording that tells someone *when money moves* cannot drift between clients. (The booker keeps its own table with its own keys and audience — `booker/lib/bookingActionCopy.ts`; `ezzy-vendor-mobile` mirrors the vendor one.) Flagging goes through `raise_booking_dispute()`. See `booking-flow.md`
 - **Live updates** — a Realtime `postgres_changes` subscription (`bookings` `INSERT`+`UPDATE`, filtered to the selected vendor) brings in new bookings and status/payment changes (e.g. a booker cancellation, the PayMongo webhook's `is_paid`) without a refresh; the subscription re-scopes when switching between multiple vendors.
 - Approve and reject actions write to the `bookings` table; DB triggers log status changes to `booking_status_log`
 - Optimistic UI: state updates immediately on approve/reject; reverts on error with a toast notification (reconciles idempotently with the live Realtime echo of the same change)
-- Pending count badge on the filter tab
-- Booker name fetched via `profiles` join on `bookings`
+- Pending count badge on the filter tab. **Badges count the unfiltered list** — no date range, short code or search ever shrinks them, so they cannot understate outstanding work
+- Booker name/email/phone come from the `get_booker_contacts` RPC, not a `profiles` join (profiles RLS does not let a vendor-admin read booker profiles). *Corrected 2026-09-12 — this line previously said "profiles join"*
+- **Service-date range, sort, search and short-code filter (2026-08 / 2026-09-12)** — all client-side over the fully-paged `bookings` array the shell already holds, so they cover the vendor's whole history with no extra query. Pipeline: status tab → service date → short code → search → sort.
+  - **Sort** defaults to **Date — latest first** (by `bookedDate + startTime`, the day the session is booked FOR); soonest-first, customer A–Z and offering A–Z remain in the select
+  - **Search** (`lib/bookingSearch.ts`, unit-tested) matches a substring of customer name/email/phone and offering name/code. Two stricter rules exist because the loose versions return noise: the **booking reference matches by PREFIX, ≥4 characters** (an id is hex, so a substring match would hit most bookings), and **digits-only phone matching applies only to a phone-shaped query** with ≥4 digits, including `0917…` ↔ `+63 917…` via `samePhone()` shared with kiosk close-out
+  - **Short code** filters on the offering's `code` (unique per vendor). The selected code stays in the options even if no booking carries it any more, so the select never renders blank
+  - A filter that matches nothing shows *No matching bookings* with **Clear filters** (search, code, dates — never the status tab); an empty status group keeps *No bookings found.*
+- **Booking details modal (2026-09-12)** — clicking a row (or Enter on the customer's name, which is a real `<button>`) opens `BookingDetailsModal` on the **live** row, so an optimistic approve or a Realtime update changes it in place. Clicks on a row's own controls, inside a portalled InfoTip, or with a text selection do not open it.
+  - Shows status, source (**App** / **Kiosk**, from `bookings.booked_via`), the **booking reference** (the booking UUID — the same label and value as the kiosk receipt and confirmation email) with Copy, service, when, quantity, booked-on, notes, rejection reason, customer contact, and payment: amount, paid, and — from `booking_transactions` on open — platform fee, payout and the same `payoutExclusionReason()` wording Transactions uses
+  - **Agreements**: the document acknowledgements (`booking_acknowledgements`) and the customer's signature from the private `booking-signatures` bucket via a short-lived signed URL, one image per distinct signature. Read-only; both reads were already permitted by RLS/storage policy. The signature sits on a mid-slate ground because the kiosk strokes in its own theme colour
+  - **Actions are the row's actions, not a copy**: `useBookingActions` is shared by the row and the modal (`BookingActionButtons` / `BookingActionPrompt`), so permissions, confirmations and service calls cannot drift between the two
+  - Split as a container (`BookingDetails` + `useBookingDetails`, which fetches) and a pure modal, so `/ui-gallery?mode=bookingdetails` renders it populated for the visual suite
 
 #### Transactions Page (fully wired, 2026-07)
 Payment history and payout accounting for the vendor's own bookings, read from `booking_transactions` joined to `bookings`/`offerings` (booker contact via the `get_booker_contacts` RPC, since `profiles` RLS blocks a direct join for vendor-admins).
@@ -279,9 +289,17 @@ only the dashboard. Auto-opens **once per browser**, keyed on the same `localSto
 flag the old inline panel used — a vendor who already dismissed the panel is not
 onboarded a second time because the guide changed shape.
 
-- **Seven tabs**: Dashboard · Bookings · Offerings · Staff · Schedule · Transactions ·
-  Completing. Order follows the app's own navigation. Approving/rejecting is covered
-  **inside Bookings**, not as its own tab, because that is where the vendor does it
+- **Nine tabs** (was seven; **Closing** added 2026-08-23, **Kiosk** added 2026-09-12):
+  Dashboard · Bookings · Offerings · Staff · Schedule · Transactions · Completing · Kiosk ·
+  Closing. Order follows the app's own navigation, with Kiosk after the pages because
+  Kiosk Mode is the sidebar's last entry. Approving/rejecting is covered **inside
+  Bookings**, not as its own tab, because that is where the vendor does it
+- **Kiosk** (2026-09-12) documents activation and eligibility, what customers see (including
+  the idle reset and its pause while a document is open), finishing a booking, staff exit,
+  offering photos (cover only), written and uploaded documents, and signatures (found under
+  Agreements in the booking details modal). Its item in `guideItems.ts` carries a comment
+  citing the code behind each claim, and deliberately makes **no** claim that editing a
+  document changes its version — it does not
 - Built on **Radix Dialog + Tabs** — both packages were already dependencies, and Radix
   supplies the focus trap, Escape handling, scroll lock and arrow-key tab navigation that
   the app's old hand-rolled `ModalOverlay` lacked. This was the first modal to move; the
@@ -289,7 +307,7 @@ onboarded a second time because the guide changed shape.
   now Radix — see `architecture/conventions.md` → Component Conventions for the shape they
   all share
 - The tab strip **scrolls sideways** rather than wrapping, and carries a right-edge fade
-  mask. At seven tabs it overflows the 560px dialog at every width, and a hard-clipped
+  mask. From seven tabs on it overflows the 560px dialog at every width, and a hard-clipped
   final tab reads as a rendering fault rather than as "there is more this way". Note
   that a `toHaveCount(7)` assertion cannot see clipping — this was caught by looking at
   the screenshot
@@ -305,7 +323,9 @@ onboarded a second time because the guide changed shape.
 > exist), and had no Dashboard or Transactions section at all. `visual-tests/pilot.spec.ts`
 > now asserts specific *claims*, not just structure — the Dashboard panel's two-clocks
 > explanation, the Transactions panel naming the payment-date clock, and Staff carrying
-> its statuses. A stale guide otherwise fails silently in every way a test can see.
+> its statuses — and since 2026-09-12 the Bookings panel's reference-prefix search rule
+> and the Kiosk panel's device-lock, cover-photo, Open document, Agreements, Needs you and
+> ₱0 claims. A stale guide otherwise fails silently in every way a test can see.
 > **Change the guide in the same commit as the UI it describes.**
 >
 > `ezzy-vendor-mobile` keeps its **own** copy (`components/dashboard/GuideCard/guideItems.ts`)
@@ -405,6 +425,41 @@ third-party page that no app-level timer can reclaim (the device kiosk browser's
 idle-return setting is the answer); and a kiosk customer cannot raise a dispute until
 they claim the account created for them, since `disputed` requires `v_booker`.
 
+**Documents, idle behaviour and the vendor's view (2026-09-12).**
+- **Uploaded documents can be opened** from the agreements step — before, an uploaded PDF or
+  image showed only its title beside "I have read and agree". The link is a plain
+  `<a target="_blank" rel="noopener noreferrer">` to a signed URL minted **before** the tap
+  (Safari's pop-up blocker swallows `window.open` after an await) and re-signed every 240s
+  while the step is open; a failed refresh keeps the last good link. Accepting is not gated
+  on opening. Written-text documents still show inline. Verified by the user on tablets,
+  local and staging
+- **The 90s idle reset pauses while the page is hidden** — a document open in another tab or
+  in-app browser, or the screen off — and resets immediately on return after more than 10
+  minutes away (`lib/kioskIdle.ts`, unit-tested). The payment confirmation still never resets
+- **The vendor sees what was agreed**: kiosk bookings arrive `pending`, badged **Kiosk**, and
+  the booking details modal lists the acknowledged documents and shows the signature (see
+  Bookings Page above)
+- Photos: up to 3 are allowed but the kiosk shows **only the first (cover)** — a recorded
+  follow-up in `.plans/2026-08-25-vendor-launch-followups.md` (F14)
+- **The offering step groups by availability (2026-09-12).** "Available today" first (emerald,
+  with the next start time and how many times are left), then "Later this week" ("Available
+  tomorrow" / "Available on Wednesday", or "Fully booked today"), then "Not available this week"
+  as non-tappable rows. "Available" means a free place at a time that has not started. It is
+  counted once per customer from one 7-day bookings read (`lib/kioskAvailability.ts`, built on
+  the same slot helpers as the time step); if that read fails or is incomplete the plain grid is
+  shown instead. The day chips moved to the time step, which opens on the offering's first free
+  day and dims days with nothing bookable
+- **Times that have already started are never offered or accepted (2026-09-12).** The time step
+  filters them against a Manila instant refreshed every minute, and the kiosk booking route
+  refuses them (409). The database does not enforce this for other clients yet (launch
+  follow-up F16)
+- **Free (₱0) offerings skip payment (2026-09-12).** The kiosk booking route creates the
+  booking already settled (`is_paid = true` on INSERT, so no ₱0 ledger row), sends the
+  customer's confirmation itself because the payment webhook never runs, and returns
+  `free: true`; the kiosk then shows **Confirm booking** instead of **Pay** and a receipt
+  reading **Free**. The booking reads "Free / No payment needed" in the vendor's booking
+  details. The booker app still cannot book a ₱0 offering (launch follow-up F15)
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -427,9 +482,12 @@ they claim the account created for them, since `disputed` requires `v_booker`.
 | Offering performance (per-offering income modal) | ✅ Supabase-wired — `getOfferingFinancials()` over `booking_transactions` |
 | Assigned staff shown per offering | ✅ Derived in-memory from the shell's staff — no extra query |
 | Staff status filtering (All / Active / On Leave / Inactive) | ✅ Live |
-| Getting Started guide (7 tabs, TopBar dialog) | ✅ Live — content asserted in `visual-tests/pilot.spec.ts` |
+| Getting Started guide (9 tabs, TopBar dialog) | ✅ Live — content asserted in `visual-tests/pilot.spec.ts` |
+| Booking search, short-code filter, latest-first sort | ✅ Live (2026-09-12) — client-side over the shell's paged bookings; rules unit-tested in `lib/bookingSearch.test.ts` |
+| Booking details modal (contact, reference, payment/payout, agreements + signature, actions) | ✅ Live (2026-09-12) — `bookingdetails` visual baseline |
+| Kiosk Mode (self-service booking, attachments, signatures, close-out) | ✅ Live (2026-08-29) — uploaded documents openable and idle pause while reading added 2026-09-12. See `booking-flow.md` → Kiosk Mode |
 | Booking status management | ✅ Supabase-wired — approve/reject **and the full vendor side of fulfilment** (hand over, mark as done, got it back, undo, flag) across all nine statuses |
-| Booking document viewing | ❌ Not implemented |
+| Booking document viewing (booker uploads, `booking_documents`) | ❌ Not implemented — booker uploads are still in-memory only. *Kiosk agreements and signatures ARE viewable, in the booking details modal* |
 | Packages | ❌ Mock data |
 
 ### Known Gaps

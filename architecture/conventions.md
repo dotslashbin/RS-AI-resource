@@ -342,17 +342,17 @@ what to render and in which theme (`/ui-gallery?mode=step3&theme=light`). The sp
 makes ordinary DOM assertions against it.
 
 ```
-npx playwright test              # from inside the app folder
-npx playwright test --update-snapshots
+npx playwright test                                            # from inside the app folder
+npx playwright test --grep "ui-gallery <mode>-" --update-snapshots   # re-record ONLY the modes you changed
 ```
 
 **Coverage is uneven — do not assume it:**
 
 | App | `/ui-gallery` | `playwright.config.ts` | `visual-tests/` |
 |---|---|---|---|
-| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs **+ committed baselines** (82 PNGs, since 2026-08-26) |
+| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs **+ committed baselines** (committed since 2026-08-26; 98 PNGs in `pilot.spec.ts-snapshots` as of 2026-09-12) |
 | `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs **+ committed baselines** (55 PNGs, since 2026-08-26) |
-| `command` | ✅ | ⚠️ port 3100 — **collides with `vendor`** — and still `127.0.0.1` | ❌ **none** — the harness is wired up but nothing tests it |
+| `command` | ✅ | ✅ port 3300, `localhost` (fixed 2026-08-21) | ⚠️ **behavioural specs only** — `closures`, `payouts`, `seo`, `settings-withholding`; **no `pilot.spec.ts` and no baselines**, so no pixel coverage (`.plans/2026-08-25-vendor-launch-followups.md` F2) |
 
 Two things about this setup are load-bearing:
 
@@ -361,12 +361,14 @@ Two things about this setup are load-bearing:
   Next.js dev resource /_next/webpack-hmr`), so the page renders, **React never hydrates**,
   and no `onClick` fires anywhere. Every interaction test fails while the screenshot looks
   correct, which sends you hunting in the tests rather than the config. Fixed in `vendor`
-  and `booker` on 2026-08-04; **`command` is still on `127.0.0.1`** — any interactive
-  baseline recorded there before it is fixed is worthless. See I15 in
+  and `booker` on 2026-08-04, and in `command` on 2026-08-21 (it also moved off vendor's
+  port to 3300). Any interactive baseline recorded on `127.0.0.1` before a fix is worthless. See I15 in
   `.plans/2026-08-03-offering-duration-and-booking-units.md`.
 - **`toHaveScreenshot: { maxDiffPixels: 0 }`** — baselines are exact, with animations
   disabled and the caret hidden. A diff is a real change; regenerate deliberately with
-  `--update-snapshots` and read the diff before committing it.
+  `--update-snapshots` **scoped by `--grep`** to the modes you mean to change (the bare flag
+  re-records every baseline and silently accepts any drift), read the diff before
+  committing it, and re-run without the flag to prove the new baseline is stable.
 - **Baselines ARE committed, in both `vendor` and `booker`** (since 2026-08-26). They
   were gitignored until then, in both apps, while `.gitignore`'s own comment and this
   table both claimed the opposite. Two consequences worth keeping in mind: a

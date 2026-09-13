@@ -248,6 +248,10 @@ the filter tab. Needs-live-environment.
 > **Default preserves prior behaviour:** soonest-first was the previous fixed
 > order, so the page does not reorder itself on load.
 >
+> ⚠️ **Superseded 2026-09-12:** the default is now **Date — latest first**, by the user's
+> request (`.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md` B2). The four
+> options are unchanged.
+>
 > **Fixed while here — a label that would have become a lie.** The bar hardcoded
 > *"{n} records · sorted by earliest"*. That text is only true until someone uses
 > the control, so it now reads *"{n} records"* and the select states the order.

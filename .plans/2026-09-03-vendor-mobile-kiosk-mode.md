@@ -487,6 +487,34 @@ component subtree after 90 seconds of inactivity, access loss, or exit. Ordinary
 abandonment clears customer data; intentional document/payment handoffs follow the lifecycle
 exception in the parity rules above, so opening a browser does not destroy checkout.
 
+> **Web parity update (2026-09-12) — read before building this item.** The web kiosk now
+> has concrete rules for the two things above
+> (`.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md` K1/K2, verified by
+> the user on tablets, local and staging). Match them, or record a decision to differ:
+> - **Uploaded documents are openable; written ones stay inline.** Web signs every uploaded
+>   document when the agreements step mounts, re-signs every 240s, and keeps the last good
+>   link on a failed refresh; the error state is "please ask a staff member" + Try again.
+>   (Web's reason for pre-signing — Safari blocking `window.open` after an await — does not
+>   apply to `Linking`/`expo-web-browser`, but the refresh and error rules do.)
+> - **Ticking "I have read and agree" is NOT gated on opening a document** (plan D10); the
+>   Continue gate stays "every document ticked", as written above.
+> - **The idle reset pauses while the customer is away, with a 10-minute cap:** on return
+>   after more than 10 minutes the kiosk starts over at once, so a walk-away's details never
+>   wait on screen (`vendor/lib/kioskIdle.ts`, unit-tested). The "lifecycle exception" above
+>   needs the same cap, not an unbounded pause; the payment confirmation's suspension still
+>   wins.
+> - The vendor now sees acknowledgements and the signature in the web booking details modal.
+>   Mobile has no equivalent (launch follow-ups F8).
+> - **Free (₱0) offerings skip payment** (hardening H1, 2026-09-12). The web kiosk booking route
+>   now returns `free: true` for a booking it created settled; the client goes straight to the
+>   receipt ("Confirm booking", receipt "Free") and must never call `create-session` for it. The
+>   mobile flow calls the same route, so branch on that flag — never on the client's own total.
+> - **Offering grid grouped by availability, and started times hidden** (hardening H8/H9,
+>   2026-09-12). Web groups offerings into Available today / Later this week / Not available this
+>   week from `vendor/lib/kioskAvailability.ts` (port it with its tests, as the other kiosk helpers
+>   were), moves the day chips to the time step, and never lists a slot whose Manila start has
+>   passed. The route now refuses a started time with 409 — handle that response.
+
 **Component separation:** each stateful flow surface has `Component.tsx`,
 `useComponent.ts`, and `Component.styles.ts`; the checkout orchestration lives in one
 `useKioskCheckout` hook and calls only `kiosk.service.ts`.

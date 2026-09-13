@@ -2,7 +2,9 @@
 
 **Date:** 2026-08-16
 **App / scope:** `ezzy-vendor-mobile`, `backbone/`, `command/`, `vendor/` — one item each
-**Status:** DRAFT — nothing started; every item is a deliberate deferral, not a gap
+**Status:** DRAFT — every item is a deliberate deferral, not a gap. **Reviewed 2026-09-12:**
+D1, D2, D3, D5 re-verified still valid; D4 overtaken in part (✅, remainder owned by
+`.plans/2026-08-25-vendor-launch-followups.md` F2).
 
 > Everything consciously left out of
 > `.plans/2026-08-15-vendor-account-completion-and-payout-details.md`, gathered so the
@@ -38,6 +40,8 @@ Changes are audited in `vendor_payout_method_log`; **reads** are audited in
 ## DEFERRED ITEMS
 
 ### D1 — `ezzy-vendor-mobile` has no account-completion surface ⏸ PARKED
+**Re-verified 2026-09-12:** still absent — nothing under `ezzy-vendor-mobile/src` reads
+`vendor_account_completion` or renders a completion prompt.
 **Deferred by:** the user, 2026-08-16 — *"I will think about mobile later."*
 **Unblocks when:** they decide to take it.
 **Source:** payout plan C1.
@@ -69,6 +73,8 @@ not NativeWind.
 ---
 
 ### D2 — No notification when a payout destination changes ⏸ DEFERRED
+**Re-verified 2026-09-12:** still absent — no migration seeds a payout-change notification
+type or adds a trigger on `vendor_payout_methods`.
 **Deferred by:** the user, 2026-08-16 — *"no notifications are needed for now."*
 **Unblocks when:** notifications are wanted, or the vendor base grows enough that
 unnoticed changes become a real risk.
@@ -104,6 +110,16 @@ account number. An email that quotes a bank account defeats the encryption it si
 ---
 
 ### D3 — No payout rail ⏸ DEFERRED
+**Re-verified 2026-09-12 — still true, with context that has moved on since this was written:**
+- Command's payouts redesign (`.plans/2026-09-10-command-payouts-redesign.md`,
+  `20260910000001`) added a derived **`owed_back`** bucket: a *released* payout on a booking
+  later refunded or cancelled is now classified as money owed back to the platform. That makes
+  part of the "paid-then-cancelled" gap *visible*; it still moves nothing.
+- `20260911000001` / `20260911000002` added **withholding tax** snapshotted onto
+  `booking_transactions` and Command-only **payout corrections** — so the ledger a rail would
+  read is no longer strictly immutable (corrections go through `correct_booking_transaction()`).
+- `.plans/2026-09-07-paymongo-to-maya-migration-research.md` (research only) is the live
+  thread on the payment provider; any rail decision should start there.
 **Deferred by:** the user, 2026-08-16. Never in the payout plan's scope.
 **Unblocks when:** the business wants automated disbursement rather than manual transfers.
 
@@ -131,7 +147,14 @@ that, not step around it.
 
 ---
 
-### D4 — Command's Playwright harness is unusable ⬜ TODO
+### D4 — Command's Playwright harness is unusable ✅ DONE in substance (recorded 2026-09-12)
+<!-- ✅ 2026-09-12 — Overtaken by later work, not executed from this plan. `command/playwright.config.ts`
+     is on port 3300 with `localhost` (fixed 2026-08-21), and the harness is in real use:
+     `command/visual-tests/` has `closures`, `payouts`, `seo` and `settings-withholding` specs.
+     The only part of this item still true — **no `pilot.spec.ts` and no pixel baselines** — is
+     owned by `.plans/2026-08-25-vendor-launch-followups.md` **F2**; unpark it there, not here.
+     The description below is the state on 2026-08-16 and its "no visual-tests at all" claim is
+     no longer true. -->
 **Deferred by:** me, 2026-08-16 — out of scope mid-execution.
 **Unblocks when:** anyone wants automated coverage of Command's UI.
 **Files:** `command/playwright.config.ts`
@@ -155,6 +178,8 @@ trust existing ones if any appear.
 ---
 
 ### D5 — Vendor's completion matrix no longer fails fast ⬜ TODO
+**Re-verified 2026-09-12:** still true — no `vendor/lib/*.test.ts` exercises the
+`vendor_account_completion` rule; it remains covered only by database-backed checks.
 **Deferred by:** me, 2026-08-16 — an accepted cost of moving the rule into the database.
 **Unblocks when:** the slower feedback actually bites.
 
@@ -186,6 +211,7 @@ rule. That is a test-infrastructure change, not a code one.
 - **D3 payout rail** → ⏸ deferred by the user (2026-08-16); never in scope.
 - **D4 command Playwright** / **D5 fast completion tests** → ⬜ mine, deferred as
   out-of-scope during execution. Neither blocks anything shipped.
+- **D4** → ✅ overtaken (2026-09-12); its remaining pixel-suite ask lives at launch F2.
 
 ---
 
@@ -195,7 +221,9 @@ No stages, deliberately — these are independent and none is scheduled.
 
 If they are ever picked up, the **only** ordering constraint worth honouring:
 
-1. **D4 before any further Command UI work.** Without a working harness, Command UI
+1. ~~**D4 before any further Command UI work.**~~ Satisfied in substance (2026-09-12) — the
+   harness works and has specs; see launch F2 for the pixel suite. Original note:
+   **D4 before any further Command UI work.** Without a working harness, Command UI
    changes are verified by throwaway scripts that leave nothing behind — which is what
    happened in Phase 2 and is exactly the state D4 exists to end.
 
