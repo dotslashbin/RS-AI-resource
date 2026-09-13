@@ -173,3 +173,63 @@ supabase secrets unset NOTIFICATION_EMAIL_OVERRIDE_TO
 - **Changing the sending domain** (e.g. subdomain later): config-only — see `email-sending-domain.md` (verify new domain, update `NOTIFICATION_EMAIL_FROM` + Auth SMTP sender; no code/migration).
 - **Separate Resend keys per environment** is recommended (a dev key locally, prod key hosted) so revoking one never breaks the other.
 - **After every local `supabase db reset`:** re-add the two local Vault secrets (§3).
+
+---
+
+## 10. The email override — send every notification to one inbox
+
+`NOTIFICATION_EMAIL_OVERRIDE_TO` is a **non-production safety valve**. When it is set, the
+function sends **every** notification email to that one address instead of the real recipient
+(`handler.ts`: `const to = deps.overrideTo ?? recipient.email`).
+
+### What changes while it is set
+
+| | With the override set | Without it |
+|---|---|---|
+| Vendor, kiosk customer, booker and Command emails | **All** go to the override inbox. Real recipients receive **nothing** | Go to the real recipients |
+| In-app notifications (the bell) | Unaffected — still reach the right users | Unaffected |
+| `notification_emails.recipient_email` | Still records the **real** intended recipient, so you can tell who each email was for | Same |
+| Email content | Still written for the real recipient (their name, their booking) | Same |
+| Password reset / sign-in emails | **Unaffected** — sent by Supabase Auth, not this function | Same |
+
+It never belongs on **production**: there it would silently stop all customer and vendor email.
+
+### Add it (hosted — e.g. staging)
+
+```bash
+cd backbone
+supabase secrets list                                              # confirm the project and current secrets
+supabase secrets set NOTIFICATION_EMAIL_OVERRIDE_TO="you+ezzy@gmail.com"
+supabase secrets list                                              # the name appears (values are hidden)
+```
+
+### Remove it (back to real recipients)
+
+```bash
+cd backbone
+supabase secrets unset NOTIFICATION_EMAIL_OVERRIDE_TO
+supabase secrets list                                              # the name is gone
+```
+
+### Things to know
+
+- **Which project.** `supabase secrets` always targets the **linked remote project**, and the
+  `backbone/` CLI is linked to **staging**, not production. To be explicit, add
+  `--project-ref <ref>` to each command. Confirm the link first if unsure (§8).
+- **No redeploy.** The function reads the value on every email, so adding or removing it applies
+  from the next email once Supabase has picked up the change (usually within a minute).
+- **Check it worked** — make a booking, then:
+  ```sql
+  select recipient_email, status, error from notification_emails order by attempted_at desc limit 3;
+  ```
+  With the override: `status = 'sent'`, the real address in `recipient_email`, and the mail in your
+  inbox. Without it: the mail arrives at that real address.
+- **Local** does not use `supabase secrets`. Set or clear `NOTIFICATION_EMAIL_OVERRIDE_TO` in
+  `backbone/supabase/functions/send-notification-email/.env` (§3) and restart the functions.
+- **Testing one account without the override.** To see what a single vendor receives while
+  everyone else gets their own mail, leave the override unset and change that account's email in
+  **Supabase Auth** (Authentication → Users), not only in `profiles`. The `profiles` copy follows
+  automatically, and sign-in then uses the new address. Emails are unique per account, so use a
+  plus-address (`you+vendor@gmail.com`) if the inbox already has an account. Put the old address
+  back if a real person uses that account.
+

@@ -88,6 +88,9 @@ supabase secrets set NOTIFICATION_EMAIL_OVERRIDE_TO="you@example.com"
 ```
 `NOTIFICATION_EMAIL_SECRET` here **must equal** the Vault `notification_email_secret`, or the function will reject the trigger's call with 401.
 
+> **Adding or removing the override later** — what it does to real recipients, the exact `set` /
+> `unset` commands, and how to check it: `email-notifications-guide.md` §10.
+
 ---
 
 ## What "email sending is available" actually requires
