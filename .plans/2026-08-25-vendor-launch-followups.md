@@ -296,6 +296,20 @@ example `booked_date + start_time` in Asia/Manila must be later than `now()` on 
 **checking whether the booker app's slot step filters past times** (not investigated).
 Mobile clients port the vendor helpers, so they inherit whatever the helpers do.
 
+### F17 — A rolled-back kiosk booking still emails the vendor "New Booking Received" ⏸ PARKED
+**Origin:** found 2026-09-13 while answering which emails vendors receive.
+**Unblocks when:** the user wants it fixed.
+`notify_on_new_booking()` (`20260525000003`) runs **AFTER INSERT** on `bookings` and writes a
+`new_booking` notification for every vendor-admin; the dispatch trigger then emails it. The kiosk
+booking route (`vendor/app/api/kiosk/booking/route.ts`) inserts first and **deletes the booking**
+if a later step fails: signature upload, acknowledgement insert, or the H1a free-price race
+correction. Each PostgREST call is its own transaction, so the notification row (no FK to
+`bookings`) and its email survive the delete. The vendor gets an email and an in-app alert for a
+booking that no longer exists. Rare (those failure paths only), and pre-existing for the first two.
+**Fix options:** (a) the route deletes the matching `new_booking` notification rows on rollback
+(the email may already have gone); (b) create kiosk bookings through a single RPC so the whole
+write is one transaction (schema change → approval gate); (c) accept and document.
+
 ---
 
 ## COSMETIC
@@ -349,7 +363,7 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
 7. **F2** — its own piece of work; the vendor suite is 123 tests, so this is not small.
 8. **C1** — any time.
 9. **F5, F7, F9, F10, F11, C2, C3** — scheduled 2026-09-12 in `.plans/2026-09-12-vendor-kiosk-hardening.md` (see that plan's execution order).
-   **F6, F8, F12–F16** remain unscheduled; each waits on its own unblock condition.
+   **F6, F8, F12–F17** remain unscheduled; each waits on its own unblock condition.
    *(Original note, 2026-09-12:)* **F5–F14, C2, C3** (added 2026-09-12) — unscheduled; each waits on its own unblock condition.
    Cheapest if ever wanted: **F7** (one line) → **F5a** (eligibility rule + test) → **F9**
    (prop on a shared component) → **F6** (service-side version bump) → **F11** → **F10**

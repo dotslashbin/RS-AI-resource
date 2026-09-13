@@ -966,8 +966,9 @@ Platform-wide on/off controls per notification type. Seeded in migration; manage
 | `booking_confirmed` | booker | Vendor approves a booking |
 | `booking_rejected` | booker | Vendor rejects a booking |
 | `booking_cancelled` | booker | Vendor cancels a confirmed booking |
-| `new_booking` | vendor | Booker creates a booking |
-| `payment_confirmed` | vendor | PayMongo webhook confirms payment |
+| `new_booking` | vendor | Any booking is inserted — booker app **or kiosk** (AFTER INSERT trigger, so it fires for service-role inserts too) |
+| `payment_confirmed` | vendor | PayMongo webhook confirms payment (booker app and paid kiosk bookings) |
+| `kiosk_booking_confirmed` | booker | The kiosk customer's confirmation (`20260908000001`): written by the webhook for a **paid** kiosk booking, and by the kiosk booking route for a **free** one (2026-09-12). Never for booker-app bookings |
 | `vendor_pending_approval` | command | Vendor self-registers |
 | `new_user_registration` | command | Any user self-registers (source: `booker` or `vendor_admin` in `data`) |
 | `account_deletion_requested` | vendor | A vendor-admin requests account closure |
@@ -1002,7 +1003,8 @@ Persistent in-app alerts for all three portals. Written exclusively by SECURITY 
 - `notify_on_booking_status_change()` trigger: writes `booking_confirmed` / `booking_rejected` / `booking_cancelled` to the booker
 - `vendor/app/api/auth/register/route.ts`: writes `vendor_pending_approval` + `new_user_registration` to all command admins/root
 - `booker/app/api/register/route.ts`: writes `new_user_registration` to all command admins/root
-- `booker/app/api/payment/webhook/route.ts`: writes `payment_confirmed` to all vendor-admin members of the booking's vendor
+- `booker/app/api/payment/webhook/route.ts`: writes `payment_confirmed` to all vendor-admin members of the booking's vendor, and `kiosk_booking_confirmed` to the customer when the paid booking is a kiosk one
+- `vendor/app/api/kiosk/booking/route.ts`: writes `kiosk_booking_confirmed` to the customer for a **free** (₱0) kiosk booking, which never reaches the webhook (2026-09-12)
 
 **Lifecycle:** `is_read` is toggled by the user (bidirectional). `is_archived` hides from main panel; appears in archive view. Delete is permanent (user-initiated, with confirmation). Main panel shows `is_archived = false`; archive view shows `is_archived = true`.
 
