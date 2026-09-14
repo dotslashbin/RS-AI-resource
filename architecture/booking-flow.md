@@ -722,7 +722,21 @@ contract any future provider must satisfy:
 |---|---|---|
 | The customer landed on the kiosk **Welcome** screen, not the confirmation | `KioskShell` initialised `view` to `"home"`, so the return params were parsed by a component that was never rendered | **The URL is the only state that survives the redirect.** `view` initialises *from* it (a lazy `useState` initialiser, matching the `kioskDevice` pattern) rather than being corrected afterwards |
 | The receipt showed a blank service and **"Paid ₱0"** | `StepConfirmation` rendered `k.offering?.name` and `k.total` from destroyed memory; `total` defaults to `0` | **No field may fall back to something that looks like data.** The receipt now re-reads the booking (`getKioskReceipt`), and an unknown value renders an em dash — a `0` appears only when the read returned 0 |
-| Starting a new booking jumped straight back to the confirmation | `?payment=success` was still in the URL, so the next customer inherited the previous one's return | **The params must be cleared on every exit**, both the *Done* button and the idle timeout (`clearPaymentReturn()`) |
+| Starting a new booking jumped straight back to the confirmation | `?payment=success` was still in the URL, so the next customer inherited the previous one's return | **The params must be cleared on every exit**: the *Done* button, the idle timeout and the away-too-long reset (`clearPaymentReturn()`). Clear them with **`window.history.replaceState`**, never `router.replace` (see below) |
+
+> ⚠️ **`router.replace("/kiosk")` does nothing in production** (found 2026-09-14,
+> `.plans/2026-09-14-vendor-kiosk-next-customer-reset.md`). `/kiosk` builds as a static route.
+> A router replace from `/kiosk?payment=success&…` to the same pathname without the query is
+> skipped: no request, and the URL and `useSearchParams` are unchanged. The first version of
+> this fix used it and passed under `next dev`, where the route is rendered on demand. Staging
+> then showed the bug again. The native `history.replaceState` is synced into
+> `useSearchParams` by Next and makes no server round trip, so a fast tap on *Book something*
+> cannot beat it either. It is also how booker and vendor `useAppShell` already clear their
+> params.
+>
+> **Verify kiosk navigation on a production build** (`next build && next start`), not only
+> `next dev`. The two builds treat static routes differently, and the Playwright webServer in
+> `playwright.config.ts` runs dev.
 
 > ⚠️ **"Paid ₱0" is worse than a blank field.** A blank row reads as unfinished; a wrong
 > number reads as fact — and this is the screen the copy tells the customer to show at the

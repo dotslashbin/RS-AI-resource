@@ -3270,6 +3270,14 @@ would be a different question from this fix.
 ---
 
 ### B39 — The PayMongo return never reaches the confirmation, and its params never clear  ✅ DONE (2026-09-07)
+> ⚠️ **Half 2 reopened and replaced, 2026-09-14** (`.plans/2026-09-14-vendor-kiosk-next-customer-reset.md`
+> B1). `router.replace("/kiosk")` below was a **silent no-op on production builds**. `/kiosk`
+> builds as a static route, and a router replace to the same pathname with only the query
+> dropped sends no request and leaves the URL alone. QA reported bug #3 again from staging. It
+> only passed here because `next dev` renders the route on demand, and there the call works.
+> `clearPaymentReturn()` now uses `window.history.replaceState(null, "", "/kiosk")`, which
+> passed on a production build. Half 1 (`view` initialised from the URL) is unaffected. The
+> record below is kept as it was.
 > **Executed — `useKioskShell.ts` only, both halves.**
 > 1. `view` now initialises from the URL: `payment=success` opens directly on `"booking"`, so
 >    the component that owns the return is mounted to handle it.
