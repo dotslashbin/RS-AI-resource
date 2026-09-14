@@ -17,6 +17,8 @@ Two **independent** email paths, both sending via **Resend**, sharing one verifi
 
 > **Local mail UI naming:** the config key in `config.toml` is `[inbucket]`, though the UI at `http://127.0.0.1:54324` may present as **Mailpit** — same service, same port.
 
+**Bespoke templates.** Most types render through the generic title/body template. Two render from `record.data` through their own template in `lib/templates/` and **need the function REDEPLOYED before the type is first written**, or the email silently falls back to generic and drops the detail: `kiosk_booking_confirmed` (the kiosk receipt) and `payout_statement` (2026-09-13 — the vendor payout statement table, printed verbatim from the stored statement). The unit tests run with `deno test --node-modules-dir=none supabase/functions/send-notification-email` from `backbone/` (the flag is required on Deno 2).
+
 **Notification path detail:** one `notifications` row = one email. The trigger (`notifications_dispatch_email`, migration `20260624000003`) posts only the notification `id`; the function re-reads the row, checks the per-portal switch, resolves the recipient, renders a template, sends via Resend, and logs to `notification_emails`. **No Resend code lives in the three apps** — it's centralized in the one function.
 
 **Controls (Command → Notification Settings):**

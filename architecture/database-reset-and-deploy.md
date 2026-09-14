@@ -153,7 +153,7 @@ nor a seed** — they are run by hand, like `bootstrap/production-root.sql`:
 | File | Purpose |
 |---|---|
 | `demo-seed.sql` | Attaches a demo dataset to **one existing vendor** |
-| `demo-teardown.sql` | Removes it again, completely |
+| `demo-teardown.sql` | Removes it again, completely — including demo payouts that were marked paid onto a payout statement (since 2026-09-13; see `schema.md` → `payout_statement_items`) |
 
 What makes it safe on a hosted project:
 

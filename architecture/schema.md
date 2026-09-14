@@ -81,6 +81,7 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260911000001_withholding_tax.sql` | **Withholding tax**, configurable and snapshotted at payment. Two pure functions — `platform_fee_amount()` and `withholding_amount()` — become the ONLY definition of the money maths; `platform_fee_settings` gains `withholding_rate_percent` / `withholding_base_percent` (default 1.00 / 50.00); `booking_transactions` gains the two snapshot percentages, `withholding_amount`, and **generated** `net_payout_amount`, backfilled for existing rows; `create_booking_transaction()` snapshots the rule alongside the fee; `command_payout_bucket_totals()` returns withholding and net sums too. ⚠️ Defaults are **not** 0, unlike `fee_percent` — a tax obligation the business already has, where a zero default would make every "to transfer" figure overstate the transfer |
 | `20260911000002_payout_corrections.sql` | `booking_transaction_corrections` (append-only log) + `preview_booking_transaction_correction()` and `correct_booking_transaction()`, both Command-only definers. **Ends the ledger's absolute immutability**: money figures can change after payment, but only through the RPC, which requires a reason and writes old → new values in the same transaction |
 | `20260911000003_audit_logs_append_only.sql` | `revoke all … from service_role`, then `grant select, insert`, on `booking_status_log`, `vendor_payout_method_log`, `vendor_payout_view_log` and `booking_transaction_corrections`. **Found by a test, not an audit**: a `GRANT` only adds, so the schema's default privileges had been leaving `service_role` with UPDATE, DELETE and TRUNCATE on four logs documented here as append-only |
+| `20260913000001_payout_statements.sql` | **Payout statements** (Command Mark Paid). `payout_statements` + `payout_statement_items` (append-only; `transaction_id` UNIQUE), the internal builder `payout_statement_groups()` with the one money/date format (`payout_statement_peso()` / `payout_statement_amount()`), `preview_payout_statements()` and `release_payouts_with_statements()` (lock → all releasable → no blocking problems → fingerprints equal → release + statements + notifications, one transaction; request-id replay), and the `payout_statement` notification type. **Additive only** — `release_booking_payouts()` stays granted until the separate contract migration (`supabase/pending/retire_release_booking_payouts.sql`, promoted with a fresh timestamp after Command is live in production). Tests: `supabase/tests/payout_statements_test.sql` |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -401,6 +402,8 @@ Index: `vendor_payout_method_log_vendor_idx on (vendor_id, changed_at desc)` —
 Every decrypt of a payout destination by Command staff. **Append-only**; stores **no payout data at all** — not even the mask. What was seen already lives in `vendor_payout_methods`; duplicating it would make the audit trail a second place to leak from.
 
 Exists because Command can now read bank details (`20260816000001`). Reading is the more sensitive event: it is what an insider needs, and it otherwise leaves no trace.
+
+**Two writers, both server routes in Command, both fail closed** (nothing is returned if the row cannot be written): `/api/vendor-payout` (one vendor's details, "Show full details") and, since 2026-09-13, `/api/payout-template` — **one row per vendor in a downloaded PESONet file**, written before the file is returned. A download of five vendors is five rows; the row does not say which of the two routes wrote it.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -897,7 +900,7 @@ Immutable ledger of confirmed payments — one row per booking, created the mome
 | `withholding_base_percent` | `numeric(5,2)` | NOT NULL. Likewise for the base. Both are recorded so a rate change never re-prices history |
 | `withholding_amount` | `numeric(10,2)` | NOT NULL. `withholding_amount(payout_amount, rate, base)`, i.e. `round(payout × rate% × base%, 2)`. CHECK `>= 0 and <= payout_amount`. ⚠️ A **record** of a deduction — the platform transfers nothing; a human sends the money |
 | `net_payout_amount` | `numeric(10,2)` | **GENERATED** `payout_amount - withholding_amount`, stored. What staff actually transfer. Generated so no write path can make it disagree with its inputs |
-| `payout_status` | `text` | NOT NULL, default `'held'`. CHECK in (`held`, `releasable`, `released`, `reversed`). The payout lifecycle — the one mutable part of this row. Moved by the `sync_booking_payout_status()` trigger or the Command-only `release_booking_payouts()` RPC, never by an `authenticated` write |
+| `payout_status` | `text` | NOT NULL, default `'held'`. CHECK in (`held`, `releasable`, `released`, `reversed`). The payout lifecycle — the one mutable part of this row. Moved by the `sync_booking_payout_status()` trigger or a Command-only definer RPC — `release_payouts_with_statements()` since `20260913000001` (formerly `release_booking_payouts()`) — never by an `authenticated` write |
 | `released_at` | `timestamptz` | When the platform recorded the payout as disbursed. Set alongside `payout_status = 'released'`; NULL otherwise |
 | `created_at` | `timestamptz` | Default `now()`. **When payment was confirmed** — this is the transaction date the apps filter and summarise by, *not* `bookings.booked_date` (when the service occurs) |
 
@@ -946,6 +949,40 @@ Exists because the ledger stopped being absolutely immutable. A saved commission
 Index: `(transaction_id, corrected_at desc)` — every read is "this payout's corrections, newest first".
 
 **RLS:** Command admin/root SELECT only. Grants: `authenticated` SELECT, `service_role` SELECT+INSERT, and `20260911000003` **revokes everything else from `service_role`** so append-only is actually enforced rather than merely intended. The definer RPC inserts as the table owner.
+
+---
+
+### `payout_statements`
+One row per vendor per Mark Paid confirmation in Command (`20260913000001`): the payout statement **exactly as the admin reviewed it and as the vendor's admins were emailed it**. Written only by `release_payouts_with_statements()`.
+
+It is a **stored snapshot, not a view over the ledger**, because a paid payout's figures can still be corrected (`correct_booking_transaction()`); a statement already sent must not change with them.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `uuid` | PK |
+| `reference` | `text` | NOT NULL, UNIQUE. `'EZP-'` + first 12 hex chars of `fingerprint`, upper-cased. Known at preview, so the modal and the PESONet file's Remarks carry it before confirming |
+| `vendor_id` | `uuid` | FK → `vendors` ON DELETE RESTRICT (mirrors `booking_transactions.vendor_id`) |
+| `run_id` | `uuid` | NOT NULL. Shared by every statement from one confirmation |
+| `request_id` | `uuid` | NOT NULL. The client's idempotency key for one review; `unique (request_id, vendor_id)` |
+| `fingerprint` | `text` | NOT NULL, CHECK 32 hex. md5 of the statement's vendor, items and totals — excluding `reference` and `issued_on_display` |
+| `snapshot` | `jsonb` | NOT NULL, CHECK object with `version = 1`. `{version, currency, reference, issued_on_display, vendor{id,name}, items[…], totals{…}}`; raw amounts are 2-decimal strings, `*_display` strings are rendered verbatim by Command and by the email |
+| `created_by` | `uuid` | FK → `profiles` ON DELETE SET NULL |
+| `created_at` | `timestamptz` | Default `now()` |
+
+Indexes: `(vendor_id, created_at desc)`, `(created_by)`.
+
+### `payout_statement_items`
+Which payouts each statement covers, in statement order. Figures live once, in the parent's `snapshot`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `statement_id` | `uuid` | FK → `payout_statements` ON DELETE RESTRICT |
+| `transaction_id` | `uuid` | FK → `booking_transactions` ON DELETE RESTRICT, **UNIQUE** — the database backstop for "a payout is never on two statements" |
+| `position` | `integer` | CHECK > 0. PK `(statement_id, position)` |
+
+⚠️ The RESTRICT from `booking_transactions` means deleting a booking whose payout is on a statement fails. `supabase/demo/demo-teardown.sql` removes demo payouts from statements first (and a statement only when no real payout remains on it) for exactly this reason.
+
+**RLS (both tables):** Command admin/root SELECT only. **Grants:** `revoke all` from `anon`, `authenticated`, `service_role`, then `select` to `authenticated` and `service_role` — append-only for everyone, including `service_role` (the `20260911000003` lesson). The definer RPC writes as the table owner.
 
 ---
 
@@ -1315,10 +1352,13 @@ See `auth-and-roles.md` for the full access control model. Schema-level summary:
   | `acknowledge_booking(uuid, boolean)` | the booker | The booker's **only** write path to `bookings.status` (`fulfilled → completed`, `in_progress → returned`, and the `returned → in_progress` undo) |
   | `raise_booking_dispute(uuid, text)` | booker or vendor-admin | Flags a booking and freezes the payout, in one transaction |
   | `resolve_booking_dispute(uuid, text, text)` | Command admin/root | Closes the flag and moves the booking to the outcome |
-  | `release_booking_payouts(uuid[])` | Command admin/root | Bulk `releasable → released`. Takes **`booking_transactions` ids**, not booking ids |
+  | `release_booking_payouts(uuid[])` | Command admin/root | Bulk `releasable → released`. Takes **`booking_transactions` ids**, not booking ids. **Superseded** by `release_payouts_with_statements()` (`20260913000001`); retired for `authenticated` by the pending contract migration once Command is live in production |
+  | `release_payouts_with_statements(uuid[], text[], uuid)` | Command admin/root | Mark Paid. Locks the rows (id order), replays a repeated request id, requires **every** id releasable and **no** blocking problem (no destination / disabled / newer schema / no vendor-admin email), requires the rebuilt statement fingerprints to equal the reviewed ones, then releases, stores one `payout_statements` row per vendor and inserts a `payout_statement` notification per vendor-admin (if the type is enabled) — one transaction, so a refused run emails nobody. ≤ 500 ids |
   | `admin_override_booking_status(...)` | Command admin/root | Third-party override; **reason required**, lands in `booking_status_log.notes` |
 
   Read-only companion, not a writer: **`command_payout_bucket_totals()`** (`20260910000001`) returns count + payout sum per payout bucket for Command's Payouts page. Same caller check as `release_booking_payouts` (Command portal, admin/root) and it **raises** rather than returning an empty set when that check fails — a silent ₱ 0 on a money screen is worse than an error. Its counts are exact regardless of PostgREST's `max_rows` ceiling, which is what lets the page show truncated *lists* without ever showing understated *totals*. Since `20260911000001` it also returns `withholding_total` and `net_total`, so the Ready-to-pay card can show what will actually be transferred.
+
+  **Payout statements (`20260913000001`)** add a read-only companion, **`preview_payout_statements(uuid[])`** (STABLE, same caller check, ≤ 500 ids): what Mark Paid would record and email, from the same internal builder `payout_statement_groups()` the release uses. The builder is not executable by any API role; it groups by `vendor_id`, orders rows, sums exactly, and formats money (`₱ 1,234.50`) and dates (`01 Sep 2026`) **once**, so Command and the email Edge Function render identical strings without sharing code. Preview returns per-vendor `recipient_count` (never addresses) and the email switch states as warnings.
 
   **Corrections (`20260911000002`)** add two more: `preview_booking_transaction_correction()` (STABLE, read-only — returns the figures a correction *would* save, so Command reviews the database's arithmetic rather than its own) and `correct_booking_transaction()`, the **only** way a `booking_transactions` money figure changes after payment. Same Command-only caller check; requires a ≥10-character reason; locks the row; recomputes every amount from the rates via `platform_fee_amount()` / `withholding_amount()`; and writes the before/after values to `booking_transaction_corrections` in the same transaction.
 
