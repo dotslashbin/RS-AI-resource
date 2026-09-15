@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-13
 **App / scope:** `command/` (Payouts page, one new API route), `backbone/` (one migration, `send-notification-email` template). Verify-only: `vendor/` and `ezzy-vendor-mobile` (the bell shows the new notification type). Branch: command `feature/payout_modal_invoice_summary`.
-**Status:** IN PROGRESS — staging B1–B7 ✅, B8 ⏸ parked (moved to C8 by user decision) 2026-09-14; production Phase C next; every build item done: B1 ✅ (local), B2–B6 ✅, I1 ✅, I2 ✅; GCash enabled in the PESONet file 2026-09-14 (A10b; PayMongo acceptance open as F14). Remaining: user commits the A10b change, then rollout Phases B–D. Nothing applied to or deployed on any hosted project.
+**Status:** IN PROGRESS: **deployed to staging and production** (2026-09-14). Remaining work is parked: C7 (first controlled production Mark Paid), C8 (first PayMongo upload = the B8 test), and Phase D (retire the old release function). See **▶ RESUME HERE** below.
+**Renamed 2026-09-14:** `-REVISIT` suffix added (user) so the parked work is easy to find. Code, migration and doc comments still cite the old name without the suffix; that string is a prefix of this filename, so a search for it lands here. The applied migration must not be edited to change it.
 
 > Replace the inline "Record as paid?" confirmation with a modal that previews **one vendor invoice per vendor**. The same stored invoice then drives the vendor's email and the PayMongo PESONet XLSX. Optimise for **one builder, one stored snapshot**: nothing downstream of the builder recalculates or reformats money.
 
@@ -512,6 +513,7 @@ Asked for by the user before running the migration. The ones marked *fixed* chan
 
 ---
 
+- **F17 — The docs are ambiguous about which project ref `backbone/.env` holds.** *(Corrected 2026-09-14: first written as "wrong".)* `backbone/.env` holds BOTH refs: active `SUPABASE_PROJECT_ID` under `# staging` (`fbxbwnfeimzhgxpshdpa`) and a commented-out line under `# prod`. `portals.md:480` says so. But `architecture/email-notifications-guide.md:40,107,168` refer to "the project ref" in `backbone/.env` as if it were one value, and `email-setup-local-and-remote.md:105` calls the staging value "your project ref" beside a Vault secret labelled `'prod'`. The agent misread it the same way before C1 and corrected it before C5. ✅ FIXED 2026-09-14 (docs only): `email-notifications-guide.md` (Project ref row §2, a note under §6 step 2, and the troubleshooting row) and `email-setup-local-and-remote.md` (Part B heading and intro, the B4 SQL comment, the quick-reference row) now say `backbone/.env` holds two refs (active = staging, `# prod` = production), that the CLI is linked to staging, and that production uses `--project-ref`, never un-comment + re-link. No code touched.
 - **F16 — Staging: Citywide's saved payout destination could not be decrypted by staging Command.** Found 2026-09-14 in B7: **Download PESONet file** for a Citywide payout returned the route's fail-closed 500 ("A vendor's payout details could not be decrypted…"). Nothing was recorded, and no view-log row was written (the route stops before logging). Diagnosis: the blob was well-formed (`v2`, 4 parts), so not the refused v1 format. The user re-saved Citywide's GCash details in the staging vendor app, and the download then worked. ⇒ Staging Command's key DOES match staging vendor's; the old blob had been sealed with a different key or for a different vendor row (most likely data carried over from another environment). ✅ RESOLVED for Citywide on staging. Not a code defect: it's the designed refusal, the same `decryptDetails` as "Show full details". **Carry-forward:** any other destination written outside that environment's own vendor app will fail the same way (Summit on staging is unverified until its own download). **Production pre-check added to C7:** before relying on the file, confirm "Show full details" works for the vendors in the first run.
 - **F15 — A literal `₱` in a SQL file can be mangled when pasted into the Supabase SQL Editor from Windows.** Found 2026-09-14 at B3: check #36's expected text arrived as `Γé▒ 1,234,567.89` (UTF-8 bytes read as an OEM code page), so the check failed on its own query text while the database output was correct. Migrations are unaffected (`db push` reads the files as UTF-8, and staging's formatter returned the right sign). ✅ FIXED 2026-09-14: both check files are pure ASCII (`U&'\20B1'` for the peso sign; comment punctuation replaced), re-run locally with #36 ok. **Lesson for any hand-pasted SQL:** keep it ASCII-only.
 - **F14 — PayMongo's docs contradict each other on GCash (and Maya wallet) via PESONet.** *List of available banks & e-wallets* (2026-06-29): `G-Xchange, Inc. (GCash)` and `MAYA PHILIPPINES, INC.` under "Pesonet Provider". *List of Banks* (2026-07-08): "GCash" and "PayMaya" both PESONet Receiver **N**, InstaPay Y. The PESONet template the user downloaded in September 2026 includes G-Xchange. No PayMongo page gives an e-wallet account-number format. Found 2026-09-14. ⏸ OPEN WITH PAYMONGO: **unblocks when** the B8 test upload (with a GCash row) is accepted or rejected, or PayMongo support answers. If rejected: set `PESONET_WALLETS_ENABLED.gcash = false`, restore the Maya-style note for GCash, and update portals.md.
@@ -553,6 +555,29 @@ Asked for by the user before running the migration. The ones marked *fixed* chan
 - Showing invoice history in Command (per payout "Invoiced in EZP-…") or on the vendor Transactions page: the data will exist (`payout_invoice_items`), but the brief doesn't ask for it.
 - Resending a failed invoice email: needs a new notification row and a rule about duplicates. Until then, `notification_emails` records the failure (visible in the delivery-health panel).
 - A PDF attachment of the invoice: not requested; the HTML email is the invoice.
+
+
+## ▶ RESUME HERE (written 2026-09-14 for the next session)
+
+**What is live, and where**
+| | local | staging | production |
+|---|---|---|---|
+| Migration `20260913000001` (expand) | ✅ | ✅ verified 39/39 | ✅ verified 39/39 |
+| `send-notification-email` with the payout statement template | ✅ served | ✅ v18 | ✅ deployed (version bumped) |
+| Command `release/version-0.32.0` (Mark Paid review, statements, PESONet file, GCash on / Maya off) | ✅ | ✅ B7 all working | ✅ deployed, not yet used (C7) |
+| Contract step (`supabase/pending/retire_release_booking_payouts.sql`) | not a migration | not pushed | not pushed |
+
+**Pick up in this order**
+1. **C7:** one controlled production Mark Paid for a vendor you can contact. First confirm "Show full details" works for them (F16). Then mark ONE payout paid and confirm their vendor-admins received the branded statement email. Production has no email override, so real vendors are emailed.
+2. **C8 = the parked B8:** the first PayMongo upload. Run the file through PayMongo's validation before submitting; bank rows first; a GCash row only after a small test to a GCash number you control. The result closes **D3** and **F14**. If only GCash is rejected: `PESONET_WALLETS_ENABLED.gcash = false` in `command/lib/payout/pesonetBanks.ts`, update the four GCash tests, and redeploy Command (staging, then production).
+3. **Phase D** after C7: D1 (agent) copies the pending file into `migrations/` with a FRESH timestamp, then local → staging → production, each followed by a working Mark Paid.
+
+**Do not forget**
+- The `backbone/` CLI is linked to **staging**, and `backbone/.env` `SUPABASE_PROJECT_ID` is also staging (F17). Production commands need `--project-ref` with the production ref confirmed against the dashboard URL (docs record `pdkejyjidrfxksaczvfy`).
+- **Rollback order:** Command first (the old build works against the current DB), then the database. Never the reverse.
+- Check files for hosted runs: `backbone/supabase/checks/20260913_post_deploy_verification.sql` and `20260913_payout_statements_dry_run.sql` (pure ASCII; see F15).
+- Open or parked findings still worth attention: **F14** (PayMongo GCash via PESONet), **F10** (`next@16.2.4` critical/high advisories incl. proxy bypass; schedule a dependency pass), **F17** (docs ref pointer), **F7** (gallery dark mode).
+- Unconfirmed from A14: whether all repos are pushed, and whether Supabase's GitHub integration auto-applies migrations (matters before Phase D).
 
 ## ▶ ORDER OF EXECUTION — the one sequence to follow
 
@@ -614,22 +639,22 @@ Asked for by the user before running the migration. The ones marked *fixed* chan
 ### Phase C — Production
 | # | Who | Step | Detail |
 |---|---|---|---|
-| C1 | 👤 | Parity: `npx supabase migration list --project-ref <prod-ref>`. ⛔ **Production equals staging, apart from `20260913000001`** | rule 5 |
-| C2 | 👤 | `npx supabase secrets list --project-ref <prod-ref>`. ⛔ **No `NOTIFICATION_EMAIL_OVERRIDE_TO`** | G5 |
-| C3 | 👤 | At a quiet time: `db push` to production (the same way you normally push production) | — |
-| C4 | 👤 | Same verification queries as B3. ⛔ **All match** | — |
-| C5 | 👤 | Deploy `send-notification-email` to production (same checkout as B5). ⛔ **New version visible** | G4 |
-| C6 | 👤 | **Only now** deploy Command to production | rule 2 |
-| C7 | 👤 | **First real run:** mark one payout paid for a vendor you can contact. Confirm the email arrived and matches the modal. ⛔ **Confirmed** | G13 | · *Pre-check (F16): in production Command, "Show full details" works for each vendor in this run before downloading the PESONet file*
-| C8 | 👤 | **The first production PayMongo upload IS the parked B8 test** (decision 2026-09-14). 1) Run the downloaded file through PayMongo's upload/validation and read any errors before submitting. 2) Submit bank rows first. 3) Only after a small test transfer to a GCash number you control succeeds, include GCash rows. ⛔ If PayMongo rejects the format: stop using the file (Mark Paid still works) and report the exact error. If only GCash is rejected: set `PESONET_WALLETS_ENABLED.gcash = false` (F14) and redeploy Command. Closes D3 and F14 when accepted | B8, D3, F14 |
+| C1 | 👤 | Parity: `npx supabase migration list --project-ref <prod-ref>`. ⛔ **Production equals staging, apart from `20260913000001`** | rule 5 | ✅ *2026-09-14 (user)*
+| C2 | 👤 | `npx supabase secrets list --project-ref <prod-ref>`. ⛔ **No `NOTIFICATION_EMAIL_OVERRIDE_TO`** | G5 | ✅ *2026-09-14 (user)*
+| C3 | 👤 | At a quiet time: `db push` to production (the same way you normally push production) | — | ✅ *2026-09-14 (user)*
+| C4 | 👤 | Same verification queries as B3. ⛔ **All match** | — | ✅ *2026-09-14 (user): production, 39/39 ok = true, including #36 with the ASCII-fixed file (F15 confirmed on hosted); #2 = 0; #38 = 0; #39 = 0 released payouts so far in production*
+| C5 | 👤 | Deploy `send-notification-email` to production (same checkout as B5). ⛔ **New version visible** | G4 | ✅ *2026-09-14 (user): email function deployed to production; version bump and `unauthorized` smoke test done by the user*
+| C6 | 👤 | **Only now** deploy Command to production | rule 2 | 🔄 *2026-09-14: user deploying Command to production* · ✅ *2026-09-14 (user): Command deployed to production*
+| C7 | 👤 | **First real run:** mark one payout paid for a vendor you can contact. Confirm the email arrived and matches the modal. ⛔ **Confirmed** | G13 | · *Pre-check (F16): in production Command, "Show full details" works for each vendor in this run before downloading the PESONet file* · ⏸ *PARKED 2026-09-14 (user): deferred to a later session, together with C8. Unblocks when the user starts that session. Not a technical blocker: Mark Paid is live in production, and any admin's first real use will email real vendor-admins. C7 exists to make that first use a controlled one*
+| C8 | 👤 | **The first production PayMongo upload IS the parked B8 test** (decision 2026-09-14). 1) Run the downloaded file through PayMongo's upload/validation and read any errors before submitting. 2) Submit bank rows first. 3) Only after a small test transfer to a GCash number you control succeeds, include GCash rows. ⛔ If PayMongo rejects the format: stop using the file (Mark Paid still works) and report the exact error. If only GCash is rejected: set `PESONET_WALLETS_ENABLED.gcash = false` (F14) and redeploy Command. Closes D3 and F14 when accepted | B8, D3, F14 | · ⏸ *PARKED 2026-09-14 (user): waiting for PayMongo testing to be possible (same reason as B8). Unblocks when PayMongo can be tested; closes D3 and F14*
 
 ### Phase D — Contract: retire the old release function (after C7)
 | # | Who | Step | Detail |
 |---|---|---|---|
-| D1 | 🤖 | Copy `pending/retire_release_booking_payouts.sql` into `migrations/` with a **fresh timestamp**, and name the revert file to match | G1, G2 |
-| D2 | 👤 | Apply locally; re-run `payout_statements_test.sql`. ⛔ **Pass** | — |
-| D3 | 👤 | Commit and push. Staging: `migration list` (⛔ only the contract migration pending) → `db push` → Mark Paid on staging still works ⛔ | — |
-| D4 | 👤 | Production: `migration list` (⛔ only the contract migration pending) → `db push` → Mark Paid on production still works ⛔ | — |
+| D1 | 🤖 | Copy `pending/retire_release_booking_payouts.sql` into `migrations/` with a **fresh timestamp**, and name the revert file to match | G1, G2 | · ⏸ *PARKED 2026-09-14: waits for C7 (the contract step ships only after the new Command has been used successfully in production). The old `release_booking_payouts()` stays granted meanwhile; the new Command never calls it*
+| D2 | 👤 | Apply locally; re-run `payout_statements_test.sql`. ⛔ **Pass** | — | · ⏸ *PARKED 2026-09-14: waits for C7 (the contract step ships only after the new Command has been used successfully in production). The old `release_booking_payouts()` stays granted meanwhile; the new Command never calls it*
+| D3 | 👤 | Commit and push. Staging: `migration list` (⛔ only the contract migration pending) → `db push` → Mark Paid on staging still works ⛔ | — | · ⏸ *PARKED 2026-09-14: waits for C7 (the contract step ships only after the new Command has been used successfully in production). The old `release_booking_payouts()` stays granted meanwhile; the new Command never calls it*
+| D4 | 👤 | Production: `migration list` (⛔ only the contract migration pending) → `db push` → Mark Paid on production still works ⛔ | — | · ⏸ *PARKED 2026-09-14: waits for C7 (the contract step ships only after the new Command has been used successfully in production). The old `release_booking_payouts()` stays granted meanwhile; the new Command never calls it*
 
 ### Safe and unsafe states: where you can pause, and what breaks
 | State | Safe to pause? | Why |

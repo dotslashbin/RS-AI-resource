@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **App / scope:** `vendor/` — kiosk (`components/kiosk/KioskShell/`), plus `public/sw.js` (D1: in scope)
 **Branch:** `vendor` `feature/kiosk_navigation_fixes` (clean at plan time)
-**Status:** IN PROGRESS — Stages 1–3 (B1, I1, I2, I3, F1 recorded) ✅ done 2026-09-14. Only the staging live check (Verification 8) remains, after the user deploys
+**Status:** COMPLETE (2026-09-14) — B1, I1, I2, I3 done and F1 recorded. Staging live check (Verification 8) passed, reported by the user. Changes committed by the user
 
 > A QA report says that after a paid kiosk booking, **Done — next customer** returns to Welcome,
 > but **Book something** shows the previous customer's "You're booked" screen again instead of
@@ -67,7 +67,7 @@ this internally was not traced; the behaviour is proven, and the fix below avoid
 
 ## BLOCKERS
 
-### B1 — `clearPaymentReturn()` is a no-op on production builds  ✅ DONE (2026-09-14, machine-verified; staging live check pending)
+### B1 — `clearPaymentReturn()` is a no-op on production builds  ✅ DONE (2026-09-14; machine-verified, and the staging live check passed)
 **File:** `vendor/components/kiosk/KioskShell/useKioskShell.ts:183-185` (called from `:188`,
 `:197` and, via `resetNow`, `:237`)
 
@@ -172,7 +172,7 @@ says `router.replace`), `architecture/booking-flow.md:725`
   differently. Navigation fixes need a `next build && next start` check. Add this to the
   verification notes in the same `booking-flow.md` section.
 
-### I3 — The service worker caches RSC payloads and API GETs, contrary to its own comment  ✅ DONE (2026-09-14, machine-verified; tablet upgrade pending the staging check)
+### I3 — The service worker caches RSC payloads and API GETs, contrary to its own comment  ✅ DONE (2026-09-14; machine-verified, and the staging live check passed)
 
 <!-- ✅ DONE (2026-09-14, Stage 3) — `vendor/public/sw.js`: `OFFLINE_CACHE` "offline-v1" → "offline-v2";
 the cache-first branch now starts with `if (!url.pathname.startsWith("/_next/static/")) return`, and a
@@ -286,6 +286,9 @@ Needs a live environment:
 8. **Staging, on the kiosk tablet:** two real paid bookings in a row (and one free one if a free
    offering exists). Each time, Done, then **Book something** starts at "Choose what to book".
    Also leave one confirmation to time out, then **Book something**.
+   <!-- ✅ PASSED (2026-09-14) — reported by the user after committing and deploying to staging.
+   This closes B1/I1 live, and I3's service worker update on the tablet. The breakdown of the
+   individual sub-checks (paid ×2, free, time-out) was not itemised in the report. -->
 
 <!-- Investigation side effects, for the record: a production `next build` was written to
 vendor/.next (gitignored; dev output lives separately under .next/dev). Servers on 3100/3101

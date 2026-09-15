@@ -37,7 +37,7 @@ Two **independent** email paths, both sending via **Resend**, sharing one verifi
 | Function secrets (`RESEND_API_KEY`, `NOTIFICATION_EMAIL_FROM`, `NOTIFICATION_EMAIL_SECRET`, `NOTIFICATION_EMAIL_OVERRIDE_TO`) | `backbone/supabase/functions/send-notification-email/.env` | `supabase secrets set` |
 | Vault secrets (`edge_function_base_url`, `notification_email_secret`) | SQL on local DB; URL = `http://host.docker.internal:54321`; **wiped by `db reset`** | SQL on hosted; URL = `https://<ref>.supabase.co`; persists |
 | Auth (recovery) email delivery | **Mailpit** (`http://127.0.0.1:54324`) — automatic | Resend **SMTP** (dashboard → Authentication → Emails → SMTP Settings) |
-| Project ref | n/a | `backbone/.env` → `SUPABASE_PROJECT_ID` (gitignored) |
+| Project ref | n/a | `backbone/.env` (gitignored) holds **two**: the active `SUPABASE_PROJECT_ID` under `# staging` — the project the CLI is linked to — and a commented-out line under `# prod`. For production, pass `--project-ref <the # prod value>` (confirm it against the dashboard URL); **never un-comment and re-link**, which silently retargets every later command |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | auto-injected by CLI — **never set by hand** | auto-injected by platform |
 
 ---
@@ -105,6 +105,7 @@ Executed via the cutover checklist `.plans/2026-06-26-email-hosted-cutover.md`:
 
 1. **Domain** — verified **`ezzy.ph`** in Resend; DNS records added in **Hostinger**. From = `Ezzy <no-reply@ezzy.ph>`.
 2. **Link CLI** — `cd backbone && set -a; source .env; set +a && supabase link --project-ref "$SUPABASE_PROJECT_ID"` (ref lives in `backbone/.env`).
+   > ⚠️ **As of 2026-09-14 the active `SUPABASE_PROJECT_ID` in `backbone/.env` is STAGING**, and the CLI is linked to staging. Production's ref is the commented-out line under `# prod`. For production commands use `--project-ref` with that value rather than re-linking — see the "Project ref" row in §2.
 3. **Migrations** — applied automatically by the **Supabase↔GitHub integration** on merge to master (verify with `supabase migration list`; manual `supabase db push` not needed going forward).
 4. **Function** — deployed by the same integration (verify `supabase functions list`). **Verify-JWT must be OFF** (dashboard toggle or `--no-verify-jwt`) or the trigger call gets 401.
 5. **Function secrets** — `supabase secrets set RESEND_API_KEY=… NOTIFICATION_EMAIL_FROM="Ezzy <no-reply@ezzy.ph>" NOTIFICATION_EMAIL_SECRET=… NOTIFICATION_EMAIL_OVERRIDE_TO=<inbox>` (keep override on until verified).
@@ -165,7 +166,7 @@ supabase secrets unset NOTIFICATION_EMAIL_OVERRIDE_TO
 | Reset link lands on the **login form** instead of the set-password form | `LoginPage` seeds its view from `initialView` on first mount only. Fixed by gating the shell on `recoveryResolving` and keying every `LoginPage` branch. |
 | **"Error sending recovery email"** on a hosted project | That project has no Auth SMTP configured (per-project dashboard setting, in no repo file). The built-in mailer only delivers to team members. See `auth-and-roles.md` → Password recovery. |
 | Reset form → **"Auth session missing!"** | The portal access gate signed the recovery session out — fixed by skipping the gate during recovery (`if (isRecoveryDetected()) return`, already in each app). |
-| Unsure whether `supabase secrets` hit local or live | It's **always** the linked remote project. Confirm the link: linked ref (`backbone/supabase/.temp/project-ref`) should equal `SUPABASE_PROJECT_ID` in `backbone/.env`. Local uses the `.env` file, never `supabase secrets`. |
+| Unsure whether `supabase secrets` hit local or live | It's **always** the linked remote project. Confirm the link: linked ref (`backbone/supabase/.temp/project-ref`) should equal the **active** `SUPABASE_PROJECT_ID` in `backbone/.env` — which is **staging**. Production is the commented `# prod` line; reach it with `--project-ref`, not a re-link. Local uses the `.env` file, never `supabase secrets`. |
 
 ---
 

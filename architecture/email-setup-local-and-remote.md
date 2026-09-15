@@ -100,9 +100,9 @@ from net._http_response order by created desc limit 5;
 
 ---
 
-## Part B — Remote / hosted setup (project `fbxbwnfeimzhgxpshdpa`)
+## Part B — Remote / hosted setup (project `fbxbwnfeimzhgxpshdpa` = staging)
 
-> Use **your** project ref — see `backbone/.env` `SUPABASE_PROJECT_ID` (currently `fbxbwnfeimzhgxpshdpa`, mirrored in `backbone/supabase/.temp/project-ref`). Confirm it's the project you intend before running these — they act on it.
+> Use **your** project ref. `backbone/.env` holds **two**: the active `SUPABASE_PROJECT_ID` under `# staging` (`fbxbwnfeimzhgxpshdpa`, mirrored in `backbone/supabase/.temp/project-ref` — the CLI's link) and a commented-out line under `# prod`. The examples below use the **staging** ref. For production, pass `--project-ref <the # prod value>` and substitute that ref in the URLs — never un-comment and re-link. Confirm the ref against the dashboard URL before running these — they act on it.
 
 ### B1. Push the schema to hosted
 ```bash
@@ -131,7 +131,7 @@ supabase functions deploy send-notification-email --no-verify-jwt
 ### B4. Set the Vault secrets (hosted)
 SQL Editor on the hosted project:
 ```sql
-select vault.create_secret('https://fbxbwnfeimzhgxpshdpa.supabase.co', 'edge_function_base_url', 'prod');   -- your project ref, from backbone/.env SUPABASE_PROJECT_ID
+select vault.create_secret('https://fbxbwnfeimzhgxpshdpa.supabase.co', 'edge_function_base_url', 'prod');   -- staging ref shown; use the target project's ref (backbone/.env: active = staging, # prod = production)
 select vault.create_secret('<SAME string as NOTIFICATION_EMAIL_SECRET in B2>', 'notification_email_secret', 'prod');
 ```
 (No `host.docker.internal` here — the real project URL is reachable over HTTPS.)
@@ -154,7 +154,7 @@ select vault.create_secret('<SAME string as NOTIFICATION_EMAIL_SECRET in B2>', '
 | Run the function | `supabase functions serve … --no-verify-jwt` (terminal open) | `supabase functions deploy … --no-verify-jwt` (one-time) |
 | Function secrets | `.env` via `--env-file` | `supabase secrets set …` |
 | Apply schema | `supabase db reset` | `supabase db push` |
-| `edge_function_base_url` (Vault) | `http://host.docker.internal:54321` | `https://fbxbwnfeimzhgxpshdpa.supabase.co` (your ref — `backbone/.env`) |
+| `edge_function_base_url` (Vault) | `http://host.docker.internal:54321` | `https://<ref>.supabase.co` — staging `fbxbwnfeimzhgxpshdpa` (active in `backbone/.env`), production = the `# prod` ref |
 | `SUPABASE_URL` / service key | auto-injected (don't set) | auto-injected (don't set) |
 | Vault persistence | **wiped by `db reset`** — re-add each time | persists |
 | Email recipients | always override inbox | override until verified, then real |
