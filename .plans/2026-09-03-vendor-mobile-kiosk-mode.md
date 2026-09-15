@@ -45,6 +45,19 @@ mobile must preserve its customer workflow and server contracts.
   B33 uses `resolveSiteUrl` instead of localhost fallback; B38 corrects webhook event
   parsing; B39 clears consumed payment-return state; B40 re-reads real receipt values.
   See `architecture/booking-flow.md:622` and `:672` for the updated contracts.
+- **Web kiosk and offerings changed on 2026-09-15; carry forward** (cross-plan note from
+  `.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md` F2). Web
+  `vendor/` now: (1) shows the cover photo **whole**, centred, over a blurred copy of the same
+  image, never cropped; (2) shows the offering's **short code** as a blue monogram when there is
+  no photo **or the photo fails to load**, sized to the tile and stepped down for 5–6 characters;
+  (3) keeps Total/Continue in an action bar that is always on screen below a scrolling list,
+  naming the chosen offering beside the total; (4) limits vendors to **one photo per offering**
+  (`MAX_PHOTOS = 1`, editor only; offerings uploaded earlier may still hold up to 3). Read-only
+  check of mobile commit `f1359cc` (2026-09-15, no mobile code changed): `KioskCatalogue.tsx`
+  renders **every** photo (not the cover), shows "Photo unavailable" text on a failed load and
+  nothing when there is no photo, and has a per-card **Choose** button rather than a bar. These
+  are parity gaps for Stage 3 (I2 → "Carry forward from web"). Also: the Stage table above still
+  reads Stage 3 as ⬜ TODO although that commit contains catalogue code. Not reassessed here.
 - Assessment checks: vendor kiosk test files passed **5/5** and mobile test files passed
   **10/10** on 2026-09-10. No live requests, deployments, builds, or device tests were
   performed in this plan-only pass. These tests do not establish UI parity.
@@ -60,7 +73,9 @@ mobile must preserve its customer workflow and server contracts.
   kiosk gate. All staff destinations, notification taps and recovery deep links must obey
   that gate. Holding only the index redirect is insufficient because direct links bypass it.
 - Match active offering eligibility (time-based session and custody; exclude date-based
-  or unscheduled), ordered photos, seven-day choices, real-time slot order, span capacity
+  or unscheduled), the **cover photo only, shown whole over a blurred fill, with the short-code
+  monogram when there is no photo or it fails to load** (web, 2026-09-15), seven-day choices,
+  real-time slot order, span capacity
   and quantity limits. Keep PH calendar meaning independent of device timezone. Fail
   closed on incomplete availability or attachment reads; do not interpret errors as none.
 - Name and email are required; phone is optional but must validate as PH mobile when
@@ -456,6 +471,28 @@ order. No booking price, end time or fulfilment pattern is derived in mobile cod
 
 **Component separation:** pure rules live in `lib/` for Node tests; only services import
 Supabase; kiosk hooks consume services; render components receive data and callbacks.
+
+**Carry forward from web (added 2026-09-15, source plan
+`.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md` I2, I3, B1, D5):**
+- **Cover only.** Render the first photo by `sort_order`, not every photo
+  (`KioskCatalogue.tsx` maps `o.photos` today). Web reference: `useKioskBooking.ts`
+  `coverUrlFor` / `markPhotoFailed`, `StepOffering.tsx` `Thumb`.
+- **Whole photo, blurred fill.** A fixed-height frame; the image `contain`ed and centred over a
+  blurred `cover` copy of the same URL. `expo-image` is already a dependency; check its SDK 57
+  docs for `contentFit` and blur support before choosing, and add no package. Check scroll
+  smoothness on a low-end Android device. Web fallback if blur is too slow: drop the fill layer.
+- **No photo or a failed load → short-code monogram**, replacing "Photo unavailable". Codes
+  are 1–6 uppercase characters. Web sizes the text to the frame and steps down for 5–6
+  characters, because "MMMMMM" overflows at the full size. In RN, measure the widest code on
+  device. `Text` `numberOfLines={1}` with `adjustsFontSizeToFit` is one candidate; verify it on
+  Android and iOS before relying on it.
+- **Always-visible action.** Web keeps Total and Continue in a bar below a list that scrolls on
+  its own, naming the chosen offering (`KioskBooking.tsx`). Mobile's `ScreenShell` already pins an
+  action row (`ezzy-vendor-mobile/AGENTS.md`, scroll-model plan). Decide whether the catalogue
+  keeps per-card **Choose** or adopts the pinned bar. Treat it as a decision, and keep the tap
+  target ≥44pt either way.
+- The one-photo limit is vendor-editor only. The kiosk must still cope with offerings holding up
+  to 3 photos (show the cover).
 
 **Verification:** Node truth-table tests for eligibility, agreement steps, overnight slot
 date/order and capacity spans; a live overnight schedule confirms that a 00:00 slot is

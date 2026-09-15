@@ -193,6 +193,7 @@ auto-opens once per browser. See "Getting Started guide" below.
 #### Offerings Page (fully wired)
 - List of the vendor's offerings, grouped or filterable by category
 - Add offering form: name, code, category, price **per unit**, duration as a **quantity + unit** (minute/hour/day/week/month), description, requirements. The unit decides how the offering is scheduled and booked; a `month` is stated as 30 days at the point of entry
+- **Attachments while adding (2026-09-15).** The Attachments section (photo + documents) is available in the add form too. **Add Offering** saves and keeps the form open as an edit form, and so does the first photo/document added to a new offering: it saves the offering first through the same create. That needs a name, short code, duration and a non-blank price (`0` is allowed); until then the buttons are disabled with a note saying what is missing. The "add a schedule?" prompt appears when the form is closed. No draft rows and nothing is uploaded ahead of the offering existing (plan `2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md` I6)
 - Edit offering
 - Toggle offering active/inactive (`is_active`)
 - Offering category badges (free-text category; colour from a fixed map + neutral fallback)
@@ -439,8 +440,21 @@ they claim the account created for them, since `disputed` requires `v_booker`.
 - **The vendor sees what was agreed**: kiosk bookings arrive `pending`, badged **Kiosk**, and
   the booking details modal lists the acknowledged documents and shows the signature (see
   Bookings Page above)
-- Photos: up to 3 are allowed but the kiosk shows **only the first (cover)** — a recorded
-  follow-up in `.plans/2026-08-25-vendor-launch-followups.md` (F14)
+- **Fixed-height frame (2026-09-15).** `/kiosk` is exactly one viewport tall
+  (`KioskShell.module.css` `.root { height: 100dvh }`): brand bar, step header, action bar and
+  Staff exit stay on screen and **only the step content scrolls**. The action bar sits in normal
+  flow below the content (never over it) and names the chosen offering beside the total. The
+  signature step fills the frame instead of scrolling. ⚠️ Do not turn `.root` back into
+  `min-height`. The whole document then scrolls and Continue ends up below the offering list
+- Photos: **one per offering, optional** (since 2026-09-15; `MAX_PHOTOS` in
+  `offeringAttachments.service.ts`, planned to return to 3). The editor hides **Add photo** once
+  the limit is reached, and shows reorder arrows and the COVER tag only when an offering holds 2+
+  photos (offerings uploaded under the old limit keep theirs). The kiosk shows **only the first
+  (cover)**, **whole** (`object-fit: contain`, centred, over a blurred copy of the same image;
+  2026-09-15). A tile with no photo, or whose photo fails to load, shows the offering's **short
+  code** as a blue monogram, sized to the tile and stepped down for 5–6 characters. The editor
+  thumbnail also uses `contain`. This was a recorded follow-up in `.plans/2026-08-25-vendor-launch-followups.md` (F14). Plan:
+  `.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md`
 - **The offering step groups by availability (2026-09-12).** "Available today" first (emerald,
   with the next start time and how many times are left), then "Later this week" ("Available
   tomorrow" / "Available on Wednesday", or "Fully booked today"), then "Not available this week"
