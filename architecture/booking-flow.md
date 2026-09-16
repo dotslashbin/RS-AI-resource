@@ -641,6 +641,12 @@ deliberately **no second webhook**: two registered endpoints would race on the s
 | Payment route | `booker/api/payment/create-session`, asserts `booker_id = user.id` | `vendor/api/kiosk/payment/create-session`, asserts caller is a **vendor-admin of `booking.vendor_id`** |
 | The customer's account | they signed up | **created for them** — profile, `booker` portal, `member` role, active status, and a `legal_acceptances` row with `source = 'kiosk_booking'` |
 
+**The kiosk review step shows the summary and the total only.** No payment-method list and no
+"you'll be taken to PayMongo" line (2026-09-15) — same rule as the booker step above: the accepted
+methods are server config passed as `payment_method_types`, and PayMongo's hosted page is where they
+are listed and chosen. A copy in the kiosk would go stale the moment that config changes. A **free**
+(₱0) offering instead shows "Nothing to pay — confirm and you're booked."
+
 > **Why the customer gets a real account rather than a shared "walk-in" profile.** Two
 > walk-ins on one profile is not merely untidy, it is impossible: `bookings_no_duplicate`
 > and the placement trigger's same-booker overlap test would refuse the second one on the

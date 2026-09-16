@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **App / scope:** `vendor/` only: Offerings attachments editor, kiosk booking flow (`components/kiosk/`), guide copy, `architecture/portals.md`
 **Branch at plan time:** `vendor` `feature/kiosk_offering_navigation_fix`
-**Status:** IN PROGRESS. All decisions resolved 2026-09-15. Stages 0–4 built and machine-verified 2026-09-15. **Waiting on the user:** screenshot review (Stage 3 "Baselines"; `kioskoffering-light/-dark` are RED until accepted), Stage 5 live check, F4, and commits. Changes are uncommitted in `vendor/` and the root repo. Candidate screenshots are on the preview Artifact (Version 2).
+**Status:** IN PROGRESS. Stages 0–4 built and machine-verified 2026-09-15, and committed by the user (vendor `da57bf5`, root `7cc2bc5`). Screenshots approved and saved 2026-09-15; F4 done; full vendor Playwright suite **179 passed, 0 failed** (exit 0). Remaining for the user: Stage 5 live check, and committing today's F4/screenshot edits.
 
 > Four vendor-side refinements before launch. (1) Allow only one offering photo for now, controlled
 > by one constant so it can go back to 3 later. (2) Keep the kiosk's total and **Continue** on screen
@@ -315,7 +315,13 @@ new mode `kioskofferingphotos` with inline SVG data-URI photos (600×900, 1200×
 ⚠️ NOT registered in pilot.spec.ts `modes`: registering accepts its baseline, which the user
 reviews first. Existing `kioskoffering-light/-dark` baselines are NOT updated. `playwright test -g
 "kiosk|modal semantics"` → 13 passed, 2 failed (exactly those two; diff 8192px, 1%, confined to the
-tile image areas: icon → code). Candidate screenshots published to the preview Artifact (Version 2). -->
+tile image areas: icon → code). Candidate screenshots published to the preview Artifact (Version 2).
+BASELINES ✅ 2026-09-15: the user approved the candidates; `kioskofferingphotos` added to `modes`
+with an approval comment; `npx playwright test --grep "kioskoffering" --update-snapshots` listed
+exactly 4 tests and wrote kioskoffering-light/dark (re-generated) and kioskofferingphotos-light/dark
+(new); the saved light photo baseline was checked visually against the approved candidate; two
+unpiped re-runs without update: 4 passed, 4 passed (exit 0). Full vendor suite afterwards, unpiped,
+log in node_modules/.cache/f4/pw-full.log: 179 passed, 0 failed, exit 0. -->
 **Files:** `useKioskBooking.ts` (add `coverUrlFor(id): string | null`, which wraps `photoUrl`),
 `StepOffering.tsx` (use it, so no service call happens in render), `app/ui-gallery/page.tsx`
 (`kioskState` returns inline SVG data URIs sized 600×900, 1200×600 and 800×800), and
@@ -526,7 +532,8 @@ schema change that affects every offering read path.
   Visual check on the Stage 1 screenshot pattern still needs a real photo (Stage 5).
 
 ## FINDINGS (pre-existing, not fixed here)
-- **F1 — deleting an offering leaves its files in storage.** `offerings.service.ts:101` deletes the row.
+- **F1 — deleting an offering leaves its files in storage.** ✅ **Closed 2026-09-15 by user decision,
+  not being done now. NOT fixed:** the orphaned files remain possible. `offerings.service.ts:101` deletes the row.
   `offering_attachments` rows cascade, but the objects in `offering-photos` (public) and
   `offering-attachments` remain as unreferenced bytes. Worth its own item. It is the same missing
   sweep that option T would need.
@@ -547,8 +554,11 @@ schema change that affects every offering read path.
 
 - **F4 — offerings over the limit show "3 of 1 used".** Seen in the Stage 1 script (existing
   3-photo offering). The count is accurate and the only effect is an odd-looking counter on offerings
-  uploaded before 2026-09-15. ⬜ Cosmetic, not changed. Ask the user whether to reword it (e.g.
-  "3 photos · limit 1").
+  uploaded before 2026-09-15. ✅ **DONE 2026-09-15 (user: "reword it for now")**: the hook
+  exposes `photoCountLabel` ("3 photos · limit 1" when over the limit, otherwise "n of max used"),
+  replacing the now-unused `maxPhotos`. Verified: tsc and eslint clean; Stage 1 script re-run on
+  next dev (real Edit Offering form): 3-photo offering "3 photos · limit 1"; 0-photo "0 of 1 used";
+  after upload and with 1 photo, "1 of 1 used". Add photo, arrows and COVER states unchanged from I1.
 
 ## Execution order
 0. **Baseline, read-only:** vendor `npx tsc --noEmit`, `npm run lint`, unit tests. Run a throwaway
@@ -576,18 +586,18 @@ schema change that affects every offering read path.
 | [x] | I4 | Guide copy, guide test, `architecture/portals.md` | 1 | Me | ✅ DONE 2026-09-15 |
 | [x] | B1 | Fixed kiosk frame; only content scrolls; Welcome/Finish safe; short screens; signature pad fills frame | 2 | Me | ✅ DONE 2026-09-15 |
 | [x] | D5 | Chosen offering name beside the total | 2 | Me | ✅ DONE 2026-09-15 |
-| [ ] | Commit | Commit Stage 1–4 changes (`vendor/` + root `architecture/`, plan), ideally after Baselines so the suite is green | — | You | ⬜ TODO |
+| [x] | Commit | Commit Stage 1–4 changes | — | You | ✅ DONE 2026-09-15 (vendor `da57bf5`, root `7cc2bc5`); later edits (F4, Baselines, plans) are yours to commit |
 | [x] | I5 | `coverUrlFor` hook seam + gallery fixtures (portrait/landscape/square/no photo/failed) | 3 | Me | ✅ DONE 2026-09-15 (fixture not yet registered) |
 | [x] | I2 | Whole photo on blurred fill; failed photo → code | 3 | Me | ✅ DONE 2026-09-15 (geometry script + real-kiosk 404 fallback) |
 | [x] | I3 | Offering-code monogram for tiles without a photo (+ guide line) | 3 | Me | ✅ DONE 2026-09-15 (length tier added; all codes fit) |
 | [x] | D6 | Editor thumbnail `object-fit: contain` | 3 | Me | ✅ DONE 2026-09-15 |
-| [ ] | Baselines | Review screenshots on the preview Artifact; then I accept `kioskoffering` (currently RED) and register `kioskofferingphotos` | 3 | You (review) → Me (accept) | ⬜ Waiting on your review |
+| [x] | Baselines | Screenshots approved by user; `kioskofferingphotos` registered; saved `--grep kioskoffering --update-snapshots` (2 updated, 2 new); 4/4 passed on 2 re-runs | 3 | You → Me | ✅ DONE 2026-09-15 (full suite 179/179) |
 | [x] | I6 | Save on first upload + stay open after Add | 4 | Me | ✅ DONE 2026-09-15 (script: 7 scenarios incl. race, failure, close mid-create) |
 | [ ] | Live | Staging + real tablet: orientations, themes, flick-scroll, blur smoothness, signature; real uploads incl. save-on-first-upload | 5 | You | ⬜ TODO |
-| [ ] | F1 | Deleting an offering leaves storage files | — | — | ⬜ Out of scope (recorded only) |
+| [x] | F1 | Deleting an offering leaves storage files | — | You | ✅ Closed 2026-09-15 (your decision: not doing now; not fixed) |
 | [x] | F2 | Mobile kiosk should adopt D2/D3 (mobile plan Stage 3) | — | Me | ✅ DONE 2026-09-15 (note + parity gaps written into mobile plan) |
 | [x] | F3 | Blank price saves as Free | — | You | ✖ No action 2026-09-15 (free offerings are needed) |
-| [ ] | F4 | Offerings uploaded under the old limit show "3 of 1 used": reword or leave? | — | You (decide) | ⬜ Waiting on your call |
+| [x] | F4 | Offerings uploaded under the old limit show "3 of 1 used" → "3 photos · limit 1" | — | Me | ✅ DONE 2026-09-15 (script: 3-photo label confirmed) |
 
 ## Verification
 **Machine-verifiable**
