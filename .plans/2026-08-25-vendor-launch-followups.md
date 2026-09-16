@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **App / scope:** `vendor`, `command`, `backbone`, Play Console, `ezzy.ph`
-**Status:** DRAFT — holding document. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
+**Status:** DRAFT — holding document. **2026-09-16:** F19 (no vendor reminder to mark done, parked) and F20 (real-money kiosk end-to-end, user-owned) added. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
 (✅, evidence at each); L3 re-verified still broken; F2 partly overtaken; F5–F14, C2, C3
 carried in from `.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md`.
 Originally the successor to `.plans/2026-08-21-vendor-account-deletion.md` (COMPLETE).
@@ -331,6 +331,30 @@ out of the error detail and map each to its own sentence (no extra query, but it
 to constraint names); (c) soften the wording to "is in use by schedules or bookings" (one line, no
 query, less specific). (a) is the most useful to a vendor; (c) is the cheapest honest fix.
 
+### F19 — Nothing reminds a vendor to mark a kiosk booking done ⏸ PARKED
+**Origin:** `.plans/2026-09-16-vendor-kiosk-finish-booking-status-messages.md` F3, from a staging
+report on 2026-09-16. **Deferred to follow-ups by the user, 2026-09-16.**
+**Unblocks when:** the user wants vendors prompted.
+A session booking moves `confirmed → fulfilled` **only** when the vendor (or Command) taps
+**Mark as done**. If they never do, nothing advances it: `auto_acknowledge_bookings()`
+(`20260801000009`) only completes `fulfilled` / `returned` rows, so the booking stays `confirmed`
+indefinitely and its payout stays `held`. Since 2026-09-16 the kiosk at least tells the customer
+("Your booking is confirmed. Once the vendor marks the service as done, you can finish it here."), but
+nothing tells the **vendor**. Rentals have the same shape at **Hand over** (`confirmed → in_progress`).
+**Fix options:** (a) a "Needs you" surfacing on the vendor dashboard for `confirmed` bookings whose
+service date has passed; (b) an in-app/email notification once the service time has passed and the
+booking is still `confirmed`; (c) accept — vendors are motivated by their payout.
+
+### F20 — Kiosk end-to-end with real money has not been run ⬜ TODO — **user-owned**
+**Origin:** `.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md` Stage 5 and
+`.plans/2026-09-15-vendor-delete-error-placement-and-kiosk-payment-methods.md`, closed on 2026-09-16
+after the user's **staging** testing. The user will do the real-money pass later.
+**What it covers:** on production, with a real card/e-wallet: a kiosk booking paid through PayMongo
+(no method list on the review step), the confirmation email, the vendor approving and marking done,
+the customer finishing it at **Finish a booking**, and the payout becoming releasable. Also worth
+doing on the real tablet: orientations, themes, flick-scroll, blurred-photo smoothness, the signature
+pad, and a real photo upload including save-on-first-upload.
+
 ---
 
 ## COSMETIC
@@ -384,7 +408,7 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
 7. **F2** — its own piece of work; the vendor suite is 123 tests, so this is not small.
 8. **C1** — any time.
 9. **F5, F7, F9, F10, F11, C2, C3** — scheduled 2026-09-12 in `.plans/2026-09-12-vendor-kiosk-hardening.md` (see that plan's execution order).
-   **F6, F8, F12–F18** remain unscheduled; each waits on its own unblock condition.
+   **F6, F8, F12–F19** remain unscheduled; each waits on its own unblock condition. **F20** is the user's real-money pass, whenever they run it.
    *(Original note, 2026-09-12:)* **F5–F14, C2, C3** (added 2026-09-12) — unscheduled; each waits on its own unblock condition.
    Cheapest if ever wanted: **F7** (one line) → **F5a** (eligibility rule + test) → **F9**
    (prop on a shared component) → **F6** (service-side version bump) → **F11** → **F10**

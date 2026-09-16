@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **App / scope:** `vendor/` only: Offerings attachments editor, kiosk booking flow (`components/kiosk/`), guide copy, `architecture/portals.md`
 **Branch at plan time:** `vendor` `feature/kiosk_offering_navigation_fix`
-**Status:** IN PROGRESS. Stages 0–4 built and machine-verified 2026-09-15, and committed by the user (vendor `da57bf5`, root `7cc2bc5`). Screenshots approved and saved 2026-09-15; F4 done; full vendor Playwright suite **179 passed, 0 failed** (exit 0). All changes committed by the user (trees clean 2026-09-16). **Remaining: the Stage 5 live check only** (user).
+**Status:** COMPLETE. Stages 0–4 built and machine-verified 2026-09-15, and committed by the user (vendor `da57bf5`, root `7cc2bc5`). Screenshots approved and saved 2026-09-15; F4 done; full vendor Playwright suite **179 passed, 0 failed** (exit 0). All changes committed by the user. **COMPLETE (2026-09-16):** the Stage 5 live check was run by the user **on staging**; the real-money end-to-end pass is tracked as `.plans/2026-08-25-vendor-launch-followups.md` F20.
 
 > Four vendor-side refinements before launch. (1) Allow only one offering photo for now, controlled
 > by one constant so it can go back to 3 later. (2) Keep the kiosk's total and **Continue** on screen
@@ -593,7 +593,7 @@ schema change that affects every offering read path.
 | [x] | D6 | Editor thumbnail `object-fit: contain` | 3 | Me | ✅ DONE 2026-09-15 |
 | [x] | Baselines | Screenshots approved by user; `kioskofferingphotos` registered; saved `--grep kioskoffering --update-snapshots` (2 updated, 2 new); 4/4 passed on 2 re-runs | 3 | You → Me | ✅ DONE 2026-09-15 (full suite 179/179) |
 | [x] | I6 | Save on first upload + stay open after Add | 4 | Me | ✅ DONE 2026-09-15 (script: 7 scenarios incl. race, failure, close mid-create) |
-| [ ] | Live | Staging + real tablet: orientations, themes, flick-scroll, blur smoothness, signature; real uploads incl. save-on-first-upload. Also covers plan 2026-09-15: a real refused delete and a real payment reaching PayMongo | 5 | You | ⬜ TODO |
+| [x] | Live | Staging + real tablet: orientations, themes, flick-scroll, blur smoothness, signature; real uploads incl. save-on-first-upload. Also covers plan 2026-09-15: a real refused delete and a real payment reaching PayMongo | 5 | You | ✅ DONE 2026-09-16 on **staging** (user); real-money pass → follow-ups F20 |
 | [x] | F1 | Deleting an offering leaves storage files | — | You | ✅ Closed 2026-09-15 (your decision: not doing now; not fixed) |
 | [x] | F2 | Mobile kiosk should adopt D2/D3 (mobile plan Stage 3) | — | Me | ✅ DONE 2026-09-15 (note + parity gaps written into mobile plan) |
 | [x] | F3 | Blank price saves as Free | — | You | ✖ No action 2026-09-15 (free offerings are needed) |

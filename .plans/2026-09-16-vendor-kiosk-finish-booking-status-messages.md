@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-16
 **App / scope:** `vendor/` — kiosk close-out lookup (`app/api/kiosk/close-out/route.ts`, `lib/kioskCloseOut.ts`, `components/kiosk/KioskCloseOut/`), guide copy, `architecture/booking-flow.md`
-**Status:** IN PROGRESS — all decisions resolved 2026-09-16. **COMPLETE (2026-09-16).** I1–I3 and I5 ✅, I4 ✖ (D5), F2 written, full vendor suite 179/179, staging check reported passed by the user, vendor code shipped in `version-0.55.1` (`95d0aa9`). Still open: F3 (user's call) and committing the root-repo docs/plans.
+**Status:** COMPLETE (2026-09-16). I1–I3 and I5 ✅, I4 ✖ (D5), F2 written, full vendor suite 179/179, staging check reported passed by the user, vendor code shipped in `version-0.55.1` (`95d0aa9`). Root-repo docs and plans committed by the user (`ef2d172`). F3 moved to the vendor launch follow-ups as F19. Nothing open.
 
 > A tester paid for a kiosk booking, went to **Finish a booking**, typed the reference and was told
 > *"Nothing found waiting on you. Please check the number…"* The booking existed; it was simply
@@ -219,7 +219,7 @@ assertion covers this line — checked). -->
   must build against. Checked: mobile `src/` has no `close-out` call yet, so nothing breaks today.
 - **F3 — nothing reminds the vendor.** A `confirmed` session that is never marked done stays that way
   forever and its payout stays held. This plan tells the customer why; it does not prompt the vendor.
-  Candidate for the vendor launch follow-ups if you want it tracked.
+  ⏸ **PARKED and MOVED 2026-09-16 (user): now `.plans/2026-08-25-vendor-launch-followups.md` → F19.**
 
 ## Execution order
 1. **I1 + I3** — the stage function and its tests first, then the route (after D1, D3, D4, D2).

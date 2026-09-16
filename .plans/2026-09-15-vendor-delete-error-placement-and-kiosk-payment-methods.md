@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15
 **App / scope:** `vendor/` only — Offerings page delete failure (`components/offerings/`), kiosk review step (`components/kiosk/KioskBooking/StepPayment.tsx`)
-**Status:** COMPLETE (2026-09-15) — I1 and I2 both done and machine-verified; full vendor Playwright suite 179 passed, 0 failed. Left with the user: committing, and the live confirmation that folds into the 2026-09-14 plan's Stage 5. F2 was deferred by the user and moved to the vendor launch follow-ups plan as F18.
+**Status:** COMPLETE (2026-09-15) — I1 and I2 both done and machine-verified; full vendor Playwright suite 179 passed, 0 failed. Committed by the user; the live confirmation (folded into the 2026-09-14 plan's Stage 5) was run on staging by the user on 2026-09-16, with the real-money pass tracked as vendor launch follow-ups F20. F2 was deferred by the user and moved to the vendor launch follow-ups plan as F18.
 
 > Two small, unrelated fixes. (1) When a delete is refused because the offering is used by a
 > schedule or a booking, the explanation renders at the **bottom of the Offerings page**, so the
