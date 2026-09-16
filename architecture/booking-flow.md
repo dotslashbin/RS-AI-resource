@@ -707,6 +707,34 @@ The customer confirms on the tablet in front of them, at `/kiosk` → *Finish a 
 identifying their own booking by phone or reference — never from a list, which on a
 public screen would show every other customer's name.
 
+**The lookup recognises every kiosk booking, but only two can be acted on (2026-09-16).**
+Until then `close-out/route.ts` loaded only `in_progress` / `fulfilled` rows, so a paid booking
+that was merely `pending` or `confirmed` came back as *"Nothing found"* — a staging tester was
+effectively told their paid booking did not exist. Now every matching kiosk booking is returned
+with a stage (`closeOutStage` in `vendor/lib/kioskCloseOut.ts`) and the kiosk says where it
+stands:
+
+| Status | Kiosk shows |
+|---|---|
+| `pending`, unpaid | "This booking hasn't been paid. Please see the front desk." |
+| `pending`, paid | "Your booking is awaiting vendor approval." |
+| `confirmed` | session: "…Once the vendor marks the service as done, you can finish it here." · custody: "…Once the vendor hands it over, you can return it here." |
+| `fulfilled` / `in_progress` | the action — **Yes, all done** / **I've returned it** |
+| `returned` | "You've returned it. The vendor will confirm they got it back." |
+| `disputed` | "This booking is on hold. Please see the front desk." |
+| `completed` / `cancelled` / `refunded` | "already been completed" / "was cancelled" / "cancelled and refunded" |
+
+- **Completion rules did not change.** The confirm route still derives its target through
+  `closeOutTarget`, which only `fulfilled` and `in_progress` satisfy, and the transition trigger
+  is untouched. A unit test pins "a stage has an action exactly when `closeOutTarget` does".
+- **Finished bookings show for 7 days** (by `status_changed_at`). Without a window every lookup
+  would read the vendor's entire kiosk history, and an unpaged PostgREST read stops at 1000 rows
+  without an error. The read is paged, and an incomplete read is an error, never a shorter list.
+- **Date and time go only with an actionable booking.** Anyone who types a phone number would
+  otherwise learn when that person is next due at the venue.
+- Nothing reminds the vendor to mark a booking done: a `confirmed` session stays that way, and its
+  payout held, until they do. The kiosk now tells the customer why; it does not prompt the vendor.
+
 > ⚠️ **The trade, stated plainly.** The database cannot distinguish "the customer tapped
 > it" from "the vendor tapped it" — the session is the vendor's either way. This buys the
 > *shape* of two-party attestation, not the guarantee. What the marker buys is that the

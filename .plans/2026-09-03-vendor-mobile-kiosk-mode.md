@@ -45,6 +45,11 @@ mobile must preserve its customer workflow and server contracts.
   B33 uses `resolveSiteUrl` instead of localhost fallback; B38 corrects webhook event
   parsing; B39 clears consumed payment-return state; B40 re-reads real receipt values.
   See `architecture/booking-flow.md:622` and `:672` for the updated contracts.
+- **Web kiosk "Finish a booking" changed on 2026-09-16; carry forward** (cross-plan note from
+  `.plans/2026-09-16-vendor-kiosk-finish-booking-status-messages.md` F2): the close-out lookup now
+  returns every matching kiosk booking with a `stage` and a message, only `ready` bookings have an
+  action, and date/time are withheld otherwise. The **response shape changed** — details under
+  I4 → "Carry forward from web". Mobile does not call the route yet, so nothing is broken.
 - **Web kiosk and offerings changed on 2026-09-15; carry forward** (cross-plan note from
   `.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md` F2). Web
   `vendor/` now: (1) shows the cover photo **whole**, centred, over a blurred copy of the same
@@ -575,6 +580,28 @@ minimal matching records returned by the server. The confirm request sends only
 `bookingId`; the server derives `in_progress → returned` or `fulfilled → completed`.
 The component clears the identifier and results after confirmation, idle reset, loss of
 access and error dismissal.
+
+**Carry forward from web (added 2026-09-16, source plan
+`.plans/2026-09-16-vendor-kiosk-finish-booking-status-messages.md`):** the shared route's
+**response contract changed**. Mobile does not call it yet (checked 2026-09-16: no `close-out`
+call in `src/`), so nothing is broken; build I4 against the new shape.
+- `POST /api/kiosk/close-out` now returns **every** matching kiosk booking, not only
+  `in_progress` / `fulfilled`: all active statuses, plus `completed` / `cancelled` / `refunded`
+  whose `status_changed_at` is within **7 days**. Each item is
+  `{ id, offeringName, stage, status, bookedDate?, startTime? }`.
+- `stage` ∈ `awaiting_payment`, `awaiting_approval`, `confirmed_session`, `confirmed_custody`,
+  `ready`, `returned`, `on_hold`, `completed`, `cancelled`, `refunded`. **Only `ready` gets a
+  button**, worded by `status` (`fulfilled` → "Yes, all done", `in_progress` → "I've returned it").
+  Every other stage shows a sentence and no button — copy in the web hook
+  `vendor/components/kiosk/KioskCloseOut/useKioskCloseOut.ts` (`MESSAGE`), and the table in
+  `architecture/booking-flow.md` → "Closing a kiosk booking". Reuse it verbatim.
+- ⚠️ `bookedDate` / `startTime` are **absent** unless `stage === "ready"` (deliberate: a typed phone
+  number must not reveal when someone is next due). Type them optional; do not render a blank date.
+- Empty result copy: "We couldn't find a booking for that number or reference. Please check it, or
+  see the front desk." — no longer "Nothing found waiting on you".
+- A 500 now also means **the read was incomplete** (paged, capped); show the error, never an
+  empty list.
+- Unchanged: the confirm route, its derived target, and the transition trigger.
 
 **Verification:** live API tests prove no identifier/short identifier returns a roster;
 other-vendor bearer receives 403; forged target status is impossible; Android visual and

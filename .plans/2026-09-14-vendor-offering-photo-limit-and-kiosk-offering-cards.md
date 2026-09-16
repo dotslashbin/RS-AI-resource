@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **App / scope:** `vendor/` only: Offerings attachments editor, kiosk booking flow (`components/kiosk/`), guide copy, `architecture/portals.md`
 **Branch at plan time:** `vendor` `feature/kiosk_offering_navigation_fix`
-**Status:** IN PROGRESS. Stages 0–4 built and machine-verified 2026-09-15, and committed by the user (vendor `da57bf5`, root `7cc2bc5`). Screenshots approved and saved 2026-09-15; F4 done; full vendor Playwright suite **179 passed, 0 failed** (exit 0). Remaining for the user: Stage 5 live check, and committing today's F4/screenshot edits.
+**Status:** IN PROGRESS. Stages 0–4 built and machine-verified 2026-09-15, and committed by the user (vendor `da57bf5`, root `7cc2bc5`). Screenshots approved and saved 2026-09-15; F4 done; full vendor Playwright suite **179 passed, 0 failed** (exit 0). All changes committed by the user (trees clean 2026-09-16). **Remaining: the Stage 5 live check only** (user).
 
 > Four vendor-side refinements before launch. (1) Allow only one offering photo for now, controlled
 > by one constant so it can go back to 3 later. (2) Keep the kiosk's total and **Continue** on screen
@@ -586,14 +586,14 @@ schema change that affects every offering read path.
 | [x] | I4 | Guide copy, guide test, `architecture/portals.md` | 1 | Me | ✅ DONE 2026-09-15 |
 | [x] | B1 | Fixed kiosk frame; only content scrolls; Welcome/Finish safe; short screens; signature pad fills frame | 2 | Me | ✅ DONE 2026-09-15 |
 | [x] | D5 | Chosen offering name beside the total | 2 | Me | ✅ DONE 2026-09-15 |
-| [x] | Commit | Commit Stage 1–4 changes | — | You | ✅ DONE 2026-09-15 (vendor `da57bf5`, root `7cc2bc5`); later edits (F4, Baselines, plans) are yours to commit |
-| [x] | I5 | `coverUrlFor` hook seam + gallery fixtures (portrait/landscape/square/no photo/failed) | 3 | Me | ✅ DONE 2026-09-15 (fixture not yet registered) |
+| [x] | Commit | Commit Stage 1–4 changes | — | You | ✅ DONE (Stage 1–4: vendor `da57bf5`, root `7cc2bc5`; later edits committed by the user, working trees clean 2026-09-16) |
+| [x] | I5 | `coverUrlFor` hook seam + gallery fixtures (portrait/landscape/square/no photo/failed) | 3 | Me | ✅ DONE 2026-09-15 (fixture registered with Baselines) |
 | [x] | I2 | Whole photo on blurred fill; failed photo → code | 3 | Me | ✅ DONE 2026-09-15 (geometry script + real-kiosk 404 fallback) |
 | [x] | I3 | Offering-code monogram for tiles without a photo (+ guide line) | 3 | Me | ✅ DONE 2026-09-15 (length tier added; all codes fit) |
 | [x] | D6 | Editor thumbnail `object-fit: contain` | 3 | Me | ✅ DONE 2026-09-15 |
 | [x] | Baselines | Screenshots approved by user; `kioskofferingphotos` registered; saved `--grep kioskoffering --update-snapshots` (2 updated, 2 new); 4/4 passed on 2 re-runs | 3 | You → Me | ✅ DONE 2026-09-15 (full suite 179/179) |
 | [x] | I6 | Save on first upload + stay open after Add | 4 | Me | ✅ DONE 2026-09-15 (script: 7 scenarios incl. race, failure, close mid-create) |
-| [ ] | Live | Staging + real tablet: orientations, themes, flick-scroll, blur smoothness, signature; real uploads incl. save-on-first-upload | 5 | You | ⬜ TODO |
+| [ ] | Live | Staging + real tablet: orientations, themes, flick-scroll, blur smoothness, signature; real uploads incl. save-on-first-upload. Also covers plan 2026-09-15: a real refused delete and a real payment reaching PayMongo | 5 | You | ⬜ TODO |
 | [x] | F1 | Deleting an offering leaves storage files | — | You | ✅ Closed 2026-09-15 (your decision: not doing now; not fixed) |
 | [x] | F2 | Mobile kiosk should adopt D2/D3 (mobile plan Stage 3) | — | Me | ✅ DONE 2026-09-15 (note + parity gaps written into mobile plan) |
 | [x] | F3 | Blank price saves as Free | — | You | ✖ No action 2026-09-15 (free offerings are needed) |
