@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-15
 **App / scope:** `vendor/` only — Offerings page delete failure (`components/offerings/`), kiosk review step (`components/kiosk/KioskBooking/StepPayment.tsx`)
-**Status:** COMPLETE (2026-09-15) — I1 and I2 both done and machine-verified; full vendor Playwright suite 179 passed, 0 failed. Left with the user: committing, and the live confirmation that folds into the 2026-09-14 plan's Stage 5. F2 stays open as a separate suggestion.
+**Status:** COMPLETE (2026-09-15) — I1 and I2 both done and machine-verified; full vendor Playwright suite 179 passed, 0 failed. Left with the user: committing, and the live confirmation that folds into the 2026-09-14 plan's Stage 5. F2 was deferred by the user and moved to the vendor launch follow-ups plan as F18.
 
 > Two small, unrelated fixes. (1) When a delete is refused because the offering is used by a
 > schedule or a booking, the explanation renders at the **bottom of the Offerings page**, so the
@@ -167,8 +167,8 @@ lint, unit tests, and the kiosk Playwright tests (no baseline covers this step).
   the Save button inside the dialog. Same treatment, right place. Not changed.
 - **F2 — the refusal says "schedules" even when a booking is the blocker.** `offerings.service.ts:105`
   maps every `23503` to the schedule wording. A vendor whose offering has bookings but no schedules
-  is told something false. ⬜ Not in scope here; worth its own item if you want the message to name
-  the real blocker (which needs a count query, or splitting the FK check).
+  is told something false. ⏸ **PARKED and MOVED 2026-09-15 (user): now `.plans/2026-08-25-vendor-launch-followups.md`
+  → F18**, which carries the fix options. Not tracked here any more.
 - **F3 — a superseded check.** `.plans/2026-09-12-vendor-kiosk-hardening.md` records a browser check
   asserting the methods chips on the paid path. I2 deliberately removes them; that plan's line stays
   as history and this plan is the reason it no longer holds.

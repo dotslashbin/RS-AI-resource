@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **App / scope:** `vendor`, `command`, `backbone`, Play Console, `ezzy.ph`
-**Status:** DRAFT — holding document. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
+**Status:** DRAFT — holding document. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
 (✅, evidence at each); L3 re-verified still broken; F2 partly overtaken; F5–F14, C2, C3
 carried in from `.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md`.
 Originally the successor to `.plans/2026-08-21-vendor-account-deletion.md` (COMPLETE).
@@ -274,6 +274,11 @@ requests may not be at the top of **Needs you**. *Soonest first* remains one pic
 **Unblocks when:** a kiosk gallery is wanted. Vendors may upload 3 photos
 (`MAX_PHOTOS`, `offeringAttachments.service.ts`), but `vendor/components/kiosk/KioskBooking/StepOffering.tsx:33-45`
 renders only `photos[0]` and no other step shows photos. The guide says so.
+> **Update 2026-09-15** (`.plans/2026-09-14-vendor-offering-photo-limit-and-kiosk-offering-cards.md`):
+> `MAX_PHOTOS` is now **1**, a temporary launch limit, so for new offerings there is no second photo
+> to show and this is mostly moot; offerings uploaded earlier may still hold up to 3. The cover is
+> now shown whole over a blurred fill, and an offering with no photo shows its short code. If the
+> limit goes back to 3, this item becomes live again.
 
 ### F15 — The booker app also cannot book a ₱0 offering ⏸ PARKED
 **Origin:** found while planning `.plans/2026-09-12-vendor-kiosk-hardening.md` (2026-09-12).
@@ -309,6 +314,22 @@ booking that no longer exists. Rare (those failure paths only), and pre-existing
 **Fix options:** (a) the route deletes the matching `new_booking` notification rows on rollback
 (the email may already have gone); (b) create kiosk bookings through a single RPC so the whole
 write is one transaction (schema change → approval gate); (c) accept and document.
+
+### F18 — The delete refusal always blames schedules, even when a booking is the blocker ⏸ PARKED
+**Origin:** `.plans/2026-09-15-vendor-delete-error-placement-and-kiosk-payment-methods.md` F2,
+found while moving that message into the offering card. **Deferred by the user, 2026-09-15.**
+**Unblocks when:** the user wants the message to name the real blocker.
+`offerings.service.ts:101-109` maps **every** Postgres `23503` on `offerings` to
+"This offering is used in one or more schedules and cannot be deleted." A booking row references
+the offering too and raises the same code, so a vendor whose offering has bookings but no schedules
+is told something untrue, and may go looking for a schedule that does not exist. Only the wording
+is wrong — the refusal itself is correct, and the message is now shown inside that card's
+confirmation (2026-09-15), so it is at least read at the right moment.
+**Fix options:** (a) on `23503`, count `schedules` and `bookings` for the offering and word the
+message from the result (one extra query, only on the failure path); (b) read the constraint name
+out of the error detail and map each to its own sentence (no extra query, but it couples the copy
+to constraint names); (c) soften the wording to "is in use by schedules or bookings" (one line, no
+query, less specific). (a) is the most useful to a vendor; (c) is the cheapest honest fix.
 
 ---
 
@@ -363,7 +384,7 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
 7. **F2** — its own piece of work; the vendor suite is 123 tests, so this is not small.
 8. **C1** — any time.
 9. **F5, F7, F9, F10, F11, C2, C3** — scheduled 2026-09-12 in `.plans/2026-09-12-vendor-kiosk-hardening.md` (see that plan's execution order).
-   **F6, F8, F12–F17** remain unscheduled; each waits on its own unblock condition.
+   **F6, F8, F12–F18** remain unscheduled; each waits on its own unblock condition.
    *(Original note, 2026-09-12:)* **F5–F14, C2, C3** (added 2026-09-12) — unscheduled; each waits on its own unblock condition.
    Cheapest if ever wanted: **F7** (one line) → **F5a** (eligibility rule + test) → **F9**
    (prop on a shared component) → **F6** (service-side version bump) → **F11** → **F10**
