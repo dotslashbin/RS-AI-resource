@@ -2,16 +2,20 @@
 /**
  * Plugin Name: EZZY Partner Routing
  * Description: Mobile-friendly partner category modal with editable platform/category routing for EZZY.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: EZZY
  * License: GPL-2.0-or-later
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('EZZY_PR_VERSION', '1.2.0');
+define('EZZY_PR_VERSION', '1.3.0');
 define('EZZY_PR_DIR', plugin_dir_path(__FILE__));
 define('EZZY_PR_URL', plugin_dir_url(__FILE__));
+define('EZZY_PR_REFERRAL_PARAM', 'ezzy_referral_code');
+define('EZZY_PR_REFERRAL_OUT_PARAM', 'ref');
+define('EZZY_PR_REFERRAL_COOKIE', 'ezzy_pr_referral');
+define('EZZY_PR_REFERRAL_TTL', 30 * DAY_IN_SECONDS);
 
 function ezzy_pr_activate() {
     if (!get_option('ezzy_pr_platforms')) {
@@ -1160,16 +1164,62 @@ function ezzy_pr_settings() {
     }
     echo '<div class="wrap ezzy-pr-admin"><h1>Settings</h1><form method="post"><table class="form-table"><tr><th>Trigger CSS Class</th><td><input class="regular-text" name="trigger_class" value="'.esc_attr($s['trigger_class']).'"><p class="description">Add this class to your existing Elementor button. Use the class without a leading dot.</p></td></tr><tr><th>Modal Title</th><td><input class="regular-text" name="title" value="'.esc_attr($s['title']).'"></td></tr><tr><th>Subtitle</th><td><input class="large-text" name="subtitle" value="'.esc_attr($s['subtitle']).'"></td></tr><tr><th>Search Placeholder</th><td><input class="regular-text" name="search_placeholder" value="'.esc_attr($s['search_placeholder']).'"></td></tr><tr><th>Fallback Text</th><td><input class="regular-text" name="fallback_text" value="'.esc_attr($s['fallback_text']).'"></td></tr><tr><th>Fallback URL</th><td><input class="large-text" type="url" name="fallback_url" value="'.esc_attr($s['fallback_url']).'"><p class="description">Optional. Leave blank to hide the fallback action.</p></td></tr></table>'.wp_nonce_field('ezzy_pr_settings_save','_wpnonce',true,false).'<p><button class="button button-primary" name="ezzy_pr_save_settings">Save Settings</button></p></form></div>';
 }
+function ezzy_pr_normalise_referral_code($raw) {
+    if (!is_string($raw)) return '';
+    $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', substr($raw, 0, 256)));
+    return preg_match('/^[A-Z0-9]{4,32}$/', $code) ? $code : '';
+}
+
+function ezzy_pr_capture_referral_code() {
+    if (is_admin() || wp_doing_ajax() || wp_doing_cron()) return;
+    if (!isset($_GET[EZZY_PR_REFERRAL_PARAM])) return;
+    $code = ezzy_pr_normalise_referral_code(wp_unslash($_GET[EZZY_PR_REFERRAL_PARAM]));
+    if ($code === '') return;
+    if (!headers_sent()) {
+        setcookie(EZZY_PR_REFERRAL_COOKIE, $code, array(
+            'expires'  => time() + EZZY_PR_REFERRAL_TTL,
+            'path'     => COOKIEPATH ? COOKIEPATH : '/',
+            'domain'   => COOKIE_DOMAIN,
+            'secure'   => is_ssl(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ));
+    }
+    // setcookie() does not populate $_COOKIE for the current request, and the
+    // partner button is most often clicked on the landing page itself.
+    $_COOKIE[EZZY_PR_REFERRAL_COOKIE] = $code;
+}
+add_action('init', 'ezzy_pr_capture_referral_code');
+
+function ezzy_pr_get_referral_code() {
+    if (isset($_GET[EZZY_PR_REFERRAL_PARAM])) {
+        $code = ezzy_pr_normalise_referral_code(wp_unslash($_GET[EZZY_PR_REFERRAL_PARAM]));
+        if ($code !== '') return $code;
+    }
+    if (isset($_COOKIE[EZZY_PR_REFERRAL_COOKIE])) {
+        return ezzy_pr_normalise_referral_code(wp_unslash($_COOKIE[EZZY_PR_REFERRAL_COOKIE]));
+    }
+    return '';
+}
+
 function ezzy_pr_front_assets() {
     $s=ezzy_pr_get('ezzy_pr_settings');
     wp_enqueue_style('ezzy-pr-fontawesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css', array(), '6.7.2');
     wp_enqueue_style('ezzy-pr-front',EZZY_PR_URL.'assets/frontend.css',array('ezzy-pr-fontawesome'),EZZY_PR_VERSION);
     wp_enqueue_script('ezzy-pr-front',EZZY_PR_URL.'assets/frontend.js',array(),EZZY_PR_VERSION,true);
+    $ref=ezzy_pr_get_referral_code();
+    $categories=array_values(array_filter(ezzy_pr_get('ezzy_pr_categories'),fn($x)=>!empty($x['active'])));
+    $fallback_url=$s['fallback_url'] ?? '';
+    if ($ref!=='') {
+        foreach ($categories as &$cat) { if (!empty($cat['url'])) $cat['url']=add_query_arg(EZZY_PR_REFERRAL_OUT_PARAM,$ref,$cat['url']); }
+        unset($cat);
+        if ($fallback_url!=='') $fallback_url=add_query_arg(EZZY_PR_REFERRAL_OUT_PARAM,$ref,$fallback_url);
+    }
     wp_localize_script('ezzy-pr-front','EZZYPartnerRouting',array(
         'triggerClass'=>'.'.sanitize_html_class($s['trigger_class']),
         'title'=>$s['title'],'subtitle'=>$s['subtitle'],'searchPlaceholder'=>$s['search_placeholder'],
-        'fallbackText'=>$s['fallback_text'],'fallbackUrl'=>$s['fallback_url'],
-        'categories'=>array_values(array_filter(ezzy_pr_get('ezzy_pr_categories'),fn($x)=>!empty($x['active']))),
+        'fallbackText'=>$s['fallback_text'],'fallbackUrl'=>$fallback_url,
+        'categories'=>$categories,
         'closeLabel'=>'Close'
     ));
 }
