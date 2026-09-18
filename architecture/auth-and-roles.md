@@ -378,6 +378,53 @@ see.
 
 ---
 
+## Affiliates — a capability, not a role (2026-09-18)
+
+An **affiliate** is a user who holds a referral code, so that vendors who sign up
+through their link are credited to them. It is deliberately **not** a row in `roles`.
+
+**The whole definition is a row in `public.affiliates`** (`user_id` PK → `profiles`,
+plus `referral_code`). There is no `affiliate` role, nothing is added to `profiles`,
+and giving someone a code changes neither their role nor their portals. See
+`schema.md` for the table and `.plans/2026-09-17-affiliate-referral-codes-interim.md`
+(D11) for the decision.
+
+**Why not a role.** `user_roles` is modelled one-role-per-user, and portal access is
+checked *through* the role — `verifyBookerAccess` requires `member`. Making affiliate
+a role would force an existing booker to **surrender the role their access depends
+on** in order to hold a referral code. As a capability, a booker can be an affiliate
+and keep every bit of their booker access, and promoting any existing user later is a
+single INSERT.
+
+**How affiliates are kept out of the portals — with no affiliate-specific check.** A
+person who exists only to be an affiliate is simply a user with **no `user_portals`
+rows**, so every portal gate refuses them by the ordinary rule in this document
+(portal membership first). Nothing in any portal mentions affiliates.
+
+- ⚠️ **Accepted residual risk.** Such a user can still use *Forgot Password* on any
+  portal, set a password and obtain a valid Supabase session; each portal then signs
+  them out at the gate. With the raw JWT, RLS lets an active user with no portals read
+  only public catalogue data — **active vendors** (`20260515000001`, gated on
+  `is_active()` alone), the lookup tables and `divisions`. Judged acceptable; the
+  stronger alternative (a GoTrue ban) was declined as affiliate-specific machinery.
+- **Suspending the user is the off switch.** A referral is credited only when the
+  affiliate's profile is `active` (`vendor/lib/referralLookup.ts`), so suspension stops
+  new attributions while leaving past ones intact.
+- **Who manages them:** admin and root alike — holding a code grants no access, so it
+  is not privilege-adjacent. Writes go through Command's service-role
+  `/api/users` (create-with-code) and `/api/affiliates` (read / assign / change /
+  remove); `authenticated` has **no write grant** on either affiliate table, so a code
+  can never be minted from a browser session.
+- **Deleting an affiliate's account does not delete their referrals.**
+  `vendor_referrals.affiliate_user_id` is `on delete set null`, not `restrict`: a
+  RESTRICT made **account closure** fail at its last, un-undoable step (the auth-user
+  delete in `command/lib/accountDeletion/execute.server.ts`). The referral survives with
+  its `referral_code` snapshot; only the link to the person drops. Command's delete
+  route still refuses to delete an affiliate who has referrals — that check, not the
+  FK, is now the guard against careless deletion.
+
+---
+
 ## RLS Helper Functions
 
 All RLS policies use these `SECURITY DEFINER` functions defined in `20260504000002_schema.sql`. They are `SECURITY DEFINER` to avoid recursion (RLS on `profiles` would otherwise trigger when checking `profiles` inside a policy).

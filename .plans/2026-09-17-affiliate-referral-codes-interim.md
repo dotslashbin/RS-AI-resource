@@ -2,8 +2,13 @@
 
 **Date:** 2026-09-17
 **App / scope:** `backbone/` (migration) · `command/` (create Affiliate users) · `vendor/` (signup captures a referral code)
-**Status:** IN PROGRESS — approved 2026-09-17. S1 files written; awaiting your apply and the
-S1.3 checks. S2–S4 not started.
+**Status:** IN PROGRESS — **all code and documentation are complete and verified on
+local** (2026-09-19). S1–S3 done; a real signup through a real `?ref=` link was credited
+end to end. S4: docs ✅, local reports ✅. **Nothing is committed** — git is yours, and
+commit messages are drafted. **What remains is yours:** S4.3 (commit), I2 (affiliate
+login-block check), S4.1 (migrate staging, then production) and S4.2 (deploy command +
+vendor, after the migration) — then re-run the reports there, and V5 of the companion
+WordPress plan (K10). No open decisions.
 
 > Give Command a way to create **Affiliate** users who each own a unique referral
 > code, let vendor signup capture that code from a `?ref=` link, store who referred
@@ -22,14 +27,20 @@ S1.3 checks. S2–S4 not started.
 
 ## Scope
 
-**In:** Affiliate role · `affiliates` table with an admin-typed referral code ·
-Command can create Affiliates · `?ref=` link captured at vendor signup ·
-server-side validation · `vendor_referrals` attribution table · export SQL.
+**In:** `affiliates` table with an admin-typed referral code · Command can make **any**
+user an affiliate (create-with-code, or assign later) and change or remove it · `?ref=`
+link captured at vendor signup · server-side validation · `vendor_referrals` attribution
+table · a read-only referred-vendors list · export SQL.
 
 **Out (this phase):** affiliate login/portal/dashboard, commissions, payouts,
-analytics UI, self-service, managing multiple codes or links per affiliate,
-editing a code after creation, attributing vendors that Command creates by hand
-(`VendorFormModal`), changing attribution after signup, and any mobile work.
+analytics UI (charts/totals), self-service, managing multiple codes or links per
+affiliate, a dedicated Affiliates page, attributing vendors that Command creates by
+hand (`VendorFormModal`), changing attribution after signup, and any mobile work.
+
+**Added 2026-09-18 (D8–D10):** affiliate management is full CRUD on the Users page —
+the referral code is **editable** after creation, and an affiliate's detail view
+**lists the vendors they referred**. Neither needs a schema change; S1 stands as
+written.
 `ezzy-vendor-mobile` has no registration screen (`src/app/` has sign-in only),
 so it has nothing to change.
 
@@ -40,9 +51,11 @@ so it has nothing to change.
 **End to end**
 
 ```
-Creating the Affiliate
-  Command admin → Users → Add User → role "Affiliate", name, email,
-  referral code TYPED BY THE ADMIN (e.g. JUAN2026), no portals
+Creating the Affiliate  (two ways, same result)
+  a) NEW person:      Users → Add User → name, email, no portals,
+                      referral code TYPED BY THE ADMIN (e.g. JUAN2026)
+  b) EXISTING user:   Users → open them → "Affiliate" → assign a code.
+                      Their role and portals are untouched (D11)
         │
 Storing the code
   POST /api/users → checks the code is free → creates the user → saves the code
@@ -84,12 +97,106 @@ vendor opens https://vendor.ezzy.ph/ → registers normally
 → the vendor simply does not appear in the report
 ```
 
-> ⚠️ **Accepted consequence of D2 + D4:** a mistyped or stale link is invisible to
-> everyone — the vendor, the affiliate and Command — until someone runs the export
-> and notices a vendor missing. Mitigations: codes are admin-chosen and memorable,
+> ⚠️ **Accepted consequence of D2 + D4:** a mistyped or stale link — including one
+> retired by a code change (D9) — is invisible to everyone: the vendor, the affiliate
+> and Command, until someone runs the export and notices a vendor missing. Mitigations: codes are admin-chosen and memorable,
 > Command shows the full share link for copying, and the register route logs a
 > warning whenever a `ref` was present but did not resolve, so it is diagnosable
 > after the fact.
+
+---
+
+## Command walkthrough — what the admin actually does (2026-09-18)
+
+Everything happens on **Command → Users**. There is no separate Affiliates page in this
+phase (D8), and affiliate status never changes a user's role or portals (D11).
+
+### A. Make a brand-new person an affiliate
+
+```
+Users → [+ Add User]
+   Name            Nina Villanueva
+   Email           nina@bookdeck.com
+   Role            Member            (unchanged — affiliate is not a role)
+   Portals         none ticked       (no portal = cannot sign in anywhere)
+   Referral code   NINA2026          ← optional field; filling it makes them an affiliate
+   [Create User]
+        │
+        ├─ code is normalised (NINA2026), format-checked and checked for uniqueness
+        │  BEFORE the account is created — a clash creates nothing
+        │
+        └─ toast: "Nina Villanueva created — referral code NINA2026"
+                  "Share https://vendor.ezzy.ph/?ref=NINA2026"
+```
+
+### B. Make an **existing** user an affiliate — the D11 case
+
+```
+Users → click Liza Cruz (an existing booker) → detail view
+   → [Make affiliate]                      ← footer button, beside "Set password"
+        │
+        Referral code   [ LIZA2026 ]
+        ⚠ shown if she is suspended/pending: her code won't attribute until she's active
+        [Assign]
+        │
+        └─ one INSERT into `affiliates`. Her role stays Member, her booker portal stays,
+           she still signs in to booker exactly as before. Nothing else changes.
+```
+
+### C. Where the code and the link live afterwards
+
+```
+Users → click the affiliate → detail view
+
+   [Active] [Member] [Affiliate]            ← badge row
+
+   Account Details
+     ✉  Email             nina@bookdeck.com
+     🛡  Role              Member
+     ✓  Status            Active
+     🔗 Referral code     NINA2026                        ← here
+     🔗 Share link        https://vendor.ezzy.ph/?ref=NINA2026   ← copyable
+     👥 Referred vendors  3
+
+   Portal Access
+     [vendor]  [booker]  [command]          ← unchanged; see "the affiliate portal" below
+
+   Referred vendors (3)
+     Citywide Sports Center      17 Sep 2026
+     Harbor Sports Complex       21 Sep 2026
+     Summit Athletics Club       03 Oct 2026
+
+   Footer:  [Close] [Affiliate] [Edit User]
+                     └─ change the code, or remove affiliate status
+```
+
+**The code is configured in exactly two places and nowhere else:** the Add User form
+(new person) and the Affiliate modal (existing person). The **link is never configured** —
+it is derived, always `<vendor origin>/?ref=<CODE>`, with the origin coming from
+`PORTAL_URL_VENDOR` per environment, so the same affiliate's link is automatically
+`localhost:3001` locally and `vendor.ezzy.ph` in production. Nobody types a URL, and a
+link can never drift from the code.
+
+### D. Where the affiliate portal slots in later
+
+The detail view's **Portal Access** section renders from `ALL_PORTALS`
+(`UserModal.tsx:100-110`). When the affiliate portal ships, adding an `affiliate` row to
+`portals` + `ALL_PORTALS` + `PORTAL_CFG` makes a fourth chip appear there on its own,
+and granting it becomes an ordinary portal grant — the same control, the same audit
+trail, no rework of this modal. Until then no chip is shown, deliberately: a portal chip
+for a portal nobody can enter would be a lie, and it would collide with the real row.
+
+### E. Changing or removing
+
+```
+detail view → [Affiliate]
+   Change code   NINA2026 → NINAV2026
+      ⚠ "Links already shared using NINA2026 will stop being credited, and nobody
+         will be told." Past signups keep their original code in the report.
+   Remove affiliate
+      ⚠ same warning, and REFUSED outright while they have referred vendors
+        ("Remove the referrals first, or keep the affiliate and suspend the user.")
+```
 
 ---
 
@@ -164,47 +271,391 @@ section keeps the reasoning.
 
 | # | Gap | Category | Where it landed |
 |---|-----|----------|-----------------|
-| G1 | **"Type-check will catch every role map" — false.** `ROLE_CFG` is `Record<string, BadgeConfig>` with a `??` fallback (`command/lib/constants.ts:95-99`, `components/ui/RoleBadge/RoleBadge.tsx:9`). A missing `affiliate` entry compiles fine and renders a grey badge reading "affiliate". | Escalate | B1 — explicit `ROLE_CFG` entry |
+| G1 | ✖ **SUPERSEDED 2026-09-18 (D11)** — no affiliate role, so no role map to update. For the record: **"type-check will catch every role map" — false.** `ROLE_CFG` is `Record<string, BadgeConfig>` with a `??` fallback (`command/lib/constants.ts:95-99`, `components/ui/RoleBadge/RoleBadge.tsx:9`). A missing `affiliate` entry compiles fine and renders a grey badge reading "affiliate". | Escalate | B1 — explicit `ROLE_CFG` entry |
 | G2 | **`useCreateUser` whitelists fields in both directions.** It builds the POST body from six named fields and rebuilds the result object (`command/hooks/mutations/users/useCreateUser.ts:6-27`), so `referralCode` must be added to the body, to `UserFormData` (`lib/types.ts:138-145`) and to the returned object, or it is silently dropped at both ends. | Missed | B1, B4, B6 |
 | G3 | **The ui-gallery `User` fixture breaks.** `USERS: User[]` (`command/app/ui-gallery/page.tsx:426`) is a typed literal, so a required `referralCode` on `User` is a compile error there. | Missed | B1 (nullable field + an Affiliate row added to the fixture) |
 | G4 | **Command visual baselines: verified NOT affected.** The committed specs cover `mode=vendors`, `payouts`, `markpaid`, `withholding`, `seo` (`command/visual-tests/`), and none render `UserModal`. The gallery has user modes but nothing screenshots them. So the UserModal change adds no baseline churn. | False alarm (good news) | S2 verification note |
 | G5 | **`architecture/conventions.md:586-619` was missing from the doc list.** "The shell owns the query string" names the two module-load readers by file; a third one has to be listed there or the next person re-learns it the hard way. | Missed | I1 |
 | G6 | **D4 removes the only observable signal.** The `?division=` deep link is regression-tested through the DOM (`vendor/visual-tests/division-deeplink.spec.ts`) because the selected division is *visible*. A hidden referral code has nothing to assert, and `conventions.md:619` records that this exact class of bug (an effect-ordering regression) survived eleven days behind a green suite. | Escalate | **D7 (OPEN)** + B17, B18 |
 | G7 | **An Affiliate created as `pending_activation` silently attributes nothing** — B9 requires an active profile. The create form defaults to `active`, but the operator can change it. | Missed | B6 (inline hint) |
-| G8 | **Switching an existing user to Affiliate through Edit** would write the role row with no `affiliates` row, producing a role with no code. `useUpdateUser` reconciles roles directly against Supabase (`hooks/mutations/users/useUpdateUser.ts:88-95`), so the UI alone is not a boundary. | Missed | B2 (guard in the shared helper), B7 |
+| G8 | ✖ **VOID 2026-09-18 (D11)** — affiliate is not a role, so no switch can strip access. For the record: **switching an existing user to Affiliate through Edit** would write the role row with no `affiliates` row, producing a role with no code. `useUpdateUser` reconciles roles directly against Supabase (`hooks/mutations/users/useUpdateUser.ts:88-95`), so the UI alone is not a boundary. | Missed | B2 (guard in the shared helper), B7 |
 | G9 | **Vendor account closure keeps the referral.** Closure *scrubs* the vendor row and deletes its `vendor_members` (`command/lib/accountDeletion/execute.server.ts:260-321`); it does **not** delete the vendor and does **not** scrub `vendors.name`. So a closed vendor still appears in the report, with its name and blank user columns. Correct behaviour — the referral happened — but it must be documented, not discovered. | Missed | Export SQL notes |
 | G10 | **PostgREST embed shape is not guaranteed.** `affiliates(referral_code)` embedded from `profiles` is a one-to-one via the child's PK; supabase-js may hand back an object or a single-element array depending on how the relationship is detected. | Missed | B6 (read it defensively) |
 | G11 | **No local seed data for the new tables**, so the export SQL can't be exercised on a fresh `db reset` without hand-writing rows. | Missed | S1.4 |
 | G12 | **`vendor/lib` has no `registration.test.ts`**, so the B10 contract change has no existing unit-test home. Claiming "unit tested" without adding one would be a lie. | Missed | B10 verification — a new test file, or an honest "covered live" |
 
 Also re-checked and **confirmed correct**: `useUpdateUser` already applies
-`commandAccessError` the way B7 assumes (`:36-38`); the role filter is driven by
-`ALL_ROLES` (`components/users/UserToolbar/UserToolbar.tsx:36`), so it picks up
-Affiliate for free; `seed.sql` assigns roles through variables, never literal ids,
-so a new role id breaks nothing; `set_updated_at()` exists
+`commandAccessError` where B7 assumed (`:36-38`) — now moot, B7 is aborted; the role
+filter is driven by `ALL_ROLES` (`UserToolbar.tsx:36`), which under D11 means affiliates
+need their **own** filter control rather than a free role entry (B1); `seed.sql` assigns
+roles through variables, never literal ids; `set_updated_at()` exists
 (`20260504000002_schema.sql:157`); and the vendor login wizard needs **no**
 `LoginPage.tsx` change under D4, so `/ui-gallery?mode=loginregister` baselines are
 untouched.
 
 ---
 
+## Pre-apply review (2026-09-18) — is this migration safe to run?
+
+Asked before executing S1, with staging and production in mind. **One blocker, one
+change needed, five verified-clean.**
+
+### J1 — ⛔ BLOCKER: account closure would half-fail for an affiliate
+
+**Files:** `command/lib/accountDeletion/execute.server.ts:423-431` (Step 6) ·
+`20260917000001_…sql` (`vendor_referrals.affiliate_user_id … on delete restrict`)
+
+Account closure's **Step 6 deletes the auth user** — and its own comment calls it *"the
+last step, and the only one with no undo"*. That delete cascades `auth.users` →
+`profiles` → `affiliates`, and then hits `vendor_referrals.affiliate_user_id`, which is
+**`ON DELETE RESTRICT`**. Postgres raises, and the closure fails **after** steps 1–5 have
+already run: KYC documents purged, vendor scrubbed, vendor suspended, memberships
+revoked, and **the confirmation email already sent**. The person is told their account
+is closed while it still exists, and no step can be undone.
+
+**Zero impact today** (no affiliates exist), and it cannot fire until S2 ships. But D11
+made it *likely* rather than theoretical: affiliate is now a capability, so an ordinary
+booker — the seeded Liza is exactly this — can hold a referral code and then request
+closure like any other user.
+
+**Blocking closure is not an acceptable fix.** Closing your account is a user right; it
+must not be held hostage to referral bookkeeping.
+
+**Fix — ✅ APPLIED to the migration file (2026-09-18, D14):** `affiliate_user_id` is now
+nullable with `ON DELETE SET NULL`. The
+referral row survives with its `referral_code` snapshot intact — the vendor was still
+referred under that code — and only the personal link drops. This is the schema's own
+established pattern for records that must outlive an account:
+`account_deletion_requests.requested_by` (`20260821000001:22-26`: *"This row must SURVIVE
+the deletion it records"*), `legal_acceptances.user_id`, `vendor_status_log.changed_by`.
+
+**Checked and clean:** the other `deleteUser` call sites are all rollback paths for
+just-created accounts (`booker/app/api/register/route.ts`, `vendor/app/api/auth/register/route.ts:167`,
+`vendor/lib/kioskCustomer.ts`) — none can own an affiliates row. Only Command's
+`DELETE /api/users` (covered by B5) and this closure path reach a user who might.
+
+### J2 — Staging is exactly one migration behind: this one
+
+`supabase migration list --linked` (run 2026-09-18) shows every migration through
+`20260913000001` applied remotely, and `20260917000001` as local-only. So a push to
+staging applies **exactly this migration** — no surprise backlog riding along.
+⚠️ **The CLI is linked to STAGING, not production.** Production's state is unverified;
+check it the same way before pushing there.
+
+### J3 — Grants are necessary *and* sufficient  ✔ verified
+
+`20260620000001_api_role_grants.sql:29-30` runs `alter default privileges in schema
+public revoke all on tables from anon / authenticated`, so a new table starts with no
+API-role privileges at all. The migration's explicit `grant select … to authenticated`
+is therefore required, and granting nothing to `anon` leaves anon with nothing.
+
+### J4 — Realtime correctly omitted  ✔ verified
+
+Two migrations add tables to the `supabase_realtime` publication
+(`20260525000002`, `20260718000001`); this one does not, and should not. Command's
+Users page is not Realtime-subscribed — it has a Refresh button (`portals.md`) — and a
+referral appearing live buys nothing.
+
+### J5 — `affiliates.created_by` has no index  ⏸ accepted
+
+Deleting a Command admin's profile does a `SET NULL` pass over `affiliates` without an
+index. On a table with tens of rows that is a sequential scan of nothing. Not added;
+revisit only if affiliates ever number in the thousands.
+
+### J6 — PostgREST schema cache
+
+Supabase reloads the API schema automatically on DDL. If the new tables 404 from the API
+immediately after a push, reload the schema cache from the dashboard rather than
+re-running anything.
+
+### J7 — Hosted environments get no seed data
+
+`db push` never runs `seed.sql`, so nina/liza exist **locally only**. On staging and
+production, S1.3 parts 3 and 4 have no seeded users to assert against — run part 1
+(structure and grants) there, and substitute real uuids if you want the RLS check.
+
+---
+
+## Found during S2 execution (2026-09-18)
+
+### K1 — ⛔ the affiliate embed was ambiguous and broke the WHOLE users query
+
+**File:** `command/services/users.service.ts:14` (the `SELECT` constant)
+
+`affiliates(referral_code)` — exactly as this plan specified it in B6 — is **ambiguous**:
+`affiliates` has **two** foreign keys to `profiles`, `user_id` (who the affiliate is) and
+`created_by` (which admin added them). PostgREST refuses the request with `PGRST201` and
+returns **no rows at all**, so the failure is not a missing affiliate column — it is the
+entire Users page showing a load error.
+
+Caught by querying the live local PostgREST with the app's exact `SELECT` string rather
+than trusting the embed to resolve. **Fixed:** the FK is now named —
+`affiliates!affiliates_user_id_fkey(referral_code)` — and re-verified against the same
+endpoint: 17 rows, no error, Liza and Nina each returning `{ referral_code: … }`.
+
+Two things worth keeping from this:
+- **The embed returns an OBJECT**, measured, not assumed (gap G10 guessed at
+  object-vs-array and guessed the wrong risk). The array branch stays as a cheap guard.
+- **`created_by` is what created the ambiguity.** Any future embed of `affiliates` from
+  `profiles` must name its FK too.
+
+### K7 — the hidden input lives on every registration step, not just step 1  ✅ changed in code
+
+The plan put B16's hidden input on step 1. But a vendor resuming a saved draft is sent
+straight to the step they reached (`goRegister` → `computeResumeStep`), so the input would
+be absent on exactly the path B17's "draft restored" test needs to observe — and absent
+for any support engineer looking at a half-finished application. It now renders once at
+the top of the registration view, so it is present on all six steps. Still invisible, still
+`readOnly`, still not submitted by the form — the hook sends the value itself.
+
+### K10 — the WordPress partner-routing plan is now UNBLOCKED  ⬜ yours to verify
+
+`.plans/2026-09-17-wordpress-partner-routing-referral-code.md` is a companion to this
+plan: the `ezzy.ph` plugin captures a referral code and appends `&ref=CODE` to the
+vendor-signup link it builds. Its final check, **V5 — an actual `vendor_referrals` row**,
+was recorded as *"blocked on affiliate-interim S3/B14, which is unstarted"*. S3 is now
+complete, and the parameter matches: the plugin emits `ref=`, this plan captures `ref`,
+and `referral-deeplink.spec.ts` already covers the `?division=…&ref=…` combination the
+plugin produces. **V5 can be run once staging has this migration and vendor deploy** —
+an `ezzy.ph` link through to a signup, then the export query. That plan's own "blocked"
+line was left untouched; it belongs to that plan's owner to update.
+
+### K9 — "not in a useState initialiser" needed a clarification  ✅ docs
+
+`conventions.md` said an arrival parameter must not be read "in a `useState`
+initialiser" — which K6 appears to contradict. It does not: the rule is about reading
+`window.location`, and K6's initialiser applies a value **already captured at module
+load**. The doc now separates the two steps explicitly, so the next reader does not
+"fix" K6 back into an effect.
+
+### K8 — B17 was mutation-tested, not just run  ✅ verified
+
+A regression spec that has only ever passed proves little, so the mechanism was broken on
+purpose and the spec run against it:
+
+| Mutation | Tests that failed | Should they? |
+|---|---|---|
+| Read `?ref=` inside the hook, not at module load — **the eleven-day `?division=` bug** | 5 of 8 | Yes. The 3 that passed are the no-op, no-param and draft-only cases, which must not depend on capture |
+| Let the saved draft beat the URL — undoing K6 | 1 of 8 | Yes — exactly the test written for it |
+
+The file was restored from a copy and diffed byte-identical afterwards.
+
+### K6 — the deep link applies through initialisers, not an effect  ✅ changed in code
+
+B15 first did what the plan described: an effect that sets the code, switches to the
+registration view, and relies on **being declared after the draft-restore effect** so the
+URL wins. It worked, and `npm run lint` flagged exactly one new error —
+*"Calling setState synchronously within an effect"* — taking the file from 34 problems to
+35.
+
+Rewritten to seed `loginView` and `regForm` from **lazy initialisers**, following
+`loginError` a few lines below, which already reads a module-load value
+(`getAuthUrlError()`) that way. Three things improved, not just the lint count:
+
+- the form never renders a frame without the code;
+- no setState inside an effect (back to the 34-problem baseline, no new errors);
+- **URL-beats-draft became explicit** — the draft restore now keeps whatever the URL
+  supplied (`f.referralCode || (draft.referralCode ?? "")`) instead of depending on which
+  effect happens to be declared first. The original plan called that ordering
+  "guaranteed"; it was, but it was also a tripwire for anyone reordering two effects.
+
+The remaining one-shot `consumeDeepLinkReferral()` effect sets no state, so it stays a
+plain synchronisation effect.
+
+### K5 — storage rows cannot be deleted with SQL  ✅ worked around (no code change)
+
+Cleaning up test data, `delete from storage.objects` was refused by
+`storage.protect_delete()`: *"Direct deletion from storage tables is not allowed. Use the
+Storage API instead."* A good guard — it prevents orphaned bytes — but worth knowing
+because the refusal **aborted the whole multi-statement psql call**, so the vendor and
+user deletes in the same command silently did not run either. Files must go through the
+Storage API (`DELETE /storage/v1/object/<bucket>` with `{prefixes:[…]}`), and row deletes
+belong in their own statement. Relevant to any future cleanup or data-fix script.
+
+### K4 — sibling imports in `vendor/lib` carry the `.ts` extension  ✅ fixed in code
+
+`vendor/lib/referralLookup.ts` first imported `./referralCode` extensionless. That
+type-checks and builds — Next resolves it — but this codebase writes sibling imports
+**with** the extension (`financials.ts:29`, `kioskAvailability.ts:1-4`), which is exactly
+why `tsconfig.json` sets `allowImportingTsExtensions: true`: it lets a module be loaded
+directly by `node --test` or a plain Node script, with no bundler. The extensionless form
+silently gives that up. Caught because the live harness could not load it; corrected to
+`./referralCode.ts`.
+
+### K3 — two design corrections made while building  ✅ resolved in code
+
+- **`AffiliateReferralsPanel` → `AffiliatePanel`.** The plan had the panel rendering only
+  the referred-vendors list, with B21 putting the share link in the Account Details rows.
+  Both need the same `GET /api/affiliates` response, and splitting them meant either two
+  fetches or threading the result through `UserModal`. One component now owns the fetch
+  and renders code, link, count and list as a single "Affiliate" section; B21's badge
+  stays in the badge row, where it needs no fetch at all because the list already carries
+  the code.
+- **The referral count moved into `useAffiliateModal`.** The first pass had the panel
+  reporting its count upward through an `onCount` callback — which fires *during render*,
+  a side effect in the render path. The modal now fetches its own count, and tracks
+  `null` (unknown) separately from `0` so "Remove" is not offered before the answer is
+  known.
+
+### K7 — the hidden input lives on every registration step, not just step 1  ✅ changed in code
+
+The plan put B16's hidden input on step 1. But a vendor resuming a saved draft is sent
+straight to the step they reached (`goRegister` → `computeResumeStep`), so the input would
+be absent on exactly the path B17's "draft restored" test needs to observe — and absent
+for any support engineer looking at a half-finished application. It now renders once at
+the top of the registration view, so it is present on all six steps. Still invisible, still
+`readOnly`, still not submitted by the form — the hook sends the value itself.
+
+### K10 — the WordPress partner-routing plan is now UNBLOCKED  ⬜ yours to verify
+
+`.plans/2026-09-17-wordpress-partner-routing-referral-code.md` is a companion to this
+plan: the `ezzy.ph` plugin captures a referral code and appends `&ref=CODE` to the
+vendor-signup link it builds. Its final check, **V5 — an actual `vendor_referrals` row**,
+was recorded as *"blocked on affiliate-interim S3/B14, which is unstarted"*. S3 is now
+complete, and the parameter matches: the plugin emits `ref=`, this plan captures `ref`,
+and `referral-deeplink.spec.ts` already covers the `?division=…&ref=…` combination the
+plugin produces. **V5 can be run once staging has this migration and vendor deploy** —
+an `ezzy.ph` link through to a signup, then the export query. That plan's own "blocked"
+line was left untouched; it belongs to that plan's owner to update.
+
+### K9 — "not in a useState initialiser" needed a clarification  ✅ docs
+
+`conventions.md` said an arrival parameter must not be read "in a `useState`
+initialiser" — which K6 appears to contradict. It does not: the rule is about reading
+`window.location`, and K6's initialiser applies a value **already captured at module
+load**. The doc now separates the two steps explicitly, so the next reader does not
+"fix" K6 back into an effect.
+
+### K8 — B17 was mutation-tested, not just run  ✅ verified
+
+A regression spec that has only ever passed proves little, so the mechanism was broken on
+purpose and the spec run against it:
+
+| Mutation | Tests that failed | Should they? |
+|---|---|---|
+| Read `?ref=` inside the hook, not at module load — **the eleven-day `?division=` bug** | 5 of 8 | Yes. The 3 that passed are the no-op, no-param and draft-only cases, which must not depend on capture |
+| Let the saved draft beat the URL — undoing K6 | 1 of 8 | Yes — exactly the test written for it |
+
+The file was restored from a copy and diffed byte-identical afterwards.
+
+### K6 — the deep link applies through initialisers, not an effect  ✅ changed in code
+
+B15 first did what the plan described: an effect that sets the code, switches to the
+registration view, and relies on **being declared after the draft-restore effect** so the
+URL wins. It worked, and `npm run lint` flagged exactly one new error —
+*"Calling setState synchronously within an effect"* — taking the file from 34 problems to
+35.
+
+Rewritten to seed `loginView` and `regForm` from **lazy initialisers**, following
+`loginError` a few lines below, which already reads a module-load value
+(`getAuthUrlError()`) that way. Three things improved, not just the lint count:
+
+- the form never renders a frame without the code;
+- no setState inside an effect (back to the 34-problem baseline, no new errors);
+- **URL-beats-draft became explicit** — the draft restore now keeps whatever the URL
+  supplied (`f.referralCode || (draft.referralCode ?? "")`) instead of depending on which
+  effect happens to be declared first. The original plan called that ordering
+  "guaranteed"; it was, but it was also a tripwire for anyone reordering two effects.
+
+The remaining one-shot `consumeDeepLinkReferral()` effect sets no state, so it stays a
+plain synchronisation effect.
+
+### K5 — storage rows cannot be deleted with SQL  ✅ worked around (no code change)
+
+Cleaning up test data, `delete from storage.objects` was refused by
+`storage.protect_delete()`: *"Direct deletion from storage tables is not allowed. Use the
+Storage API instead."* A good guard — it prevents orphaned bytes — but worth knowing
+because the refusal **aborted the whole multi-statement psql call**, so the vendor and
+user deletes in the same command silently did not run either. Files must go through the
+Storage API (`DELETE /storage/v1/object/<bucket>` with `{prefixes:[…]}`), and row deletes
+belong in their own statement. Relevant to any future cleanup or data-fix script.
+
+### K4 — sibling imports in `vendor/lib` carry the `.ts` extension  ✅ fixed in code
+
+`vendor/lib/referralLookup.ts` first imported `./referralCode` extensionless. That
+type-checks and builds — Next resolves it — but this codebase writes sibling imports
+**with** the extension (`financials.ts:29`, `kioskAvailability.ts:1-4`), which is exactly
+why `tsconfig.json` sets `allowImportingTsExtensions: true`: it lets a module be loaded
+directly by `node --test` or a plain Node script, with no bundler. The extensionless form
+silently gives that up. Caught because the live harness could not load it; corrected to
+`./referralCode.ts`.
+
+### K3 — two design corrections made while building  ✅ resolved in code
+
+- **`AffiliateReferralsPanel` → `AffiliatePanel`.** The plan split the share link (B21,
+  in the Account Details rows) from the referred-vendors list (B20, its own panel), but
+  both need the same `GET /api/affiliates` response — splitting them meant two fetches or
+  threading the result through `UserModal`. One component now owns the fetch and renders
+  code, link, count and list as a single "Affiliate" section. B21's badge stays in the
+  badge row and needs no fetch, because the users list already carries the code.
+- **The referral count moved into `useAffiliateModal`.** The first pass had the panel
+  reporting its count upward through an `onCount` callback fired *during render* — a side
+  effect in the render path. The modal now fetches its own count and tracks `null`
+  (unknown) separately from `0`, so "Remove" is never offered before the answer is known.
+
+### K2 — `UserFormData.referralCode` is optional, deliberately  ✅ resolved in code
+
+Making it required would have forced every update path that builds a `UserFormData` —
+including `toggleStatus`, which only wants to flip a status — to carry a field it does
+not own. Optional keeps the create path the only reader, which is what D11 intends.
+
+---
+
+## Gap review #2 (2026-09-18) — after the D11 model change
+
+Re-checked at `file:line`, because a model change is exactly when a plan quietly stops
+matching the code. **One blocker, one design improvement, five smaller items, one false
+alarm.**
+
+| # | Gap | Severity | Where it landed |
+|---|-----|----------|-----------------|
+| H1 | **Command has no vendor origin in the browser — the share link cannot be displayed.** `PORTAL_URL_VENDOR` is server-only *by an explicit documented decision* (`command/lib/portalOrigins.server.ts:16-20`: `NEXT_PUBLIC_*` is inlined at build time and needs a cache-disabled redeploy, which burned two deploys on 2026-08-10). Command's only public config is `APP_NAME` / `APP_DOMAIN` (`lib/constants.ts:122-123`). B4 can return the link at *create* time, but B6/B19/B20 promise it for an affiliate viewed **later**, and nothing in the browser can build it. | **BLOCKER** | **D12 (OPEN)** — blocks B19/B20 |
+| H2 | `resolvePortalOrigin(["vendor"])` — **verified safe**: it resolves by priority from whatever list it is handed, so passing a literal `["vendor"]` returns the vendor origin no matter which portals the *user* holds, and `[]` returns `not_configured` rather than throwing (`portalOrigins.server.ts:101-117`). No gap; recorded so nobody "fixes" B4 into passing the user's portals. | False alarm | B4 note |
+| H3 | **"Affiliates only" filter needs real plumbing**, not a free ride: `useUsers.ts:120` filters on `u.role === usrRole`, and the toolbar builds its options from `ALL_ROLES` (`UserToolbar.tsx:36`). Under D11 affiliates are not a role, so this needs its own state + filter line + prop. | IMPORTANT | B1 |
+| H4 | **`liza` in `send-notification-email/handler.test.ts:14` — false alarm.** It is a hard-coded `liza@example.com` literal in a hermetic Deno test, unrelated to the seed. Giving the seeded Liza an affiliate row breaks nothing. | False alarm | — |
+| H5 | **The detail view already has the right shape for this** — `UserModal.tsx:82-110` renders a badge row, an "Account Details" list of icon rows, and a "Portal Access" section built from `ALL_PORTALS`. The affiliate surface should reuse all three rather than invent a panel style. | IMPORTANT | B21 |
+| H6 | **No per-affiliate totals.** The export SQL returns one row per *vendor*; nothing answers "how many signups did this affiliate bring?" for all affiliates at once, including those with zero. | IMPORTANT | New **Affiliate summary SQL** |
+| H7 | **Remove-affiliate has the same silent-link consequence as changing a code** (D2 + D9), and the earlier draft only warned on change. | IMPORTANT | B19 |
+| H8 | **Assigning a code to a suspended user attributes nothing**, exactly as G7 noted for creation — but the assign path is new, so it needs the same inline hint. | IMPORTANT | B19 |
+
+Also re-verified after D11: deleting an affiliate who has **no** referrals cascades the
+`affiliates` row cleanly through `profiles` and frees the code for reuse; the export SQL
+needs no change; and S3 (the whole vendor side) is **untouched by D11**, because
+`resolveReferralCode` only ever cared about the table row and the profile status, never
+about roles.
+
+---
+
 ## Design
 
-### How Affiliate users are represented
+### How Affiliate users are represented  (rewritten 2026-09-18 — D11)
 
-- A new **`affiliate` role** row in `roles`, assigned through `user_roles` like
-  `member`. It uses the existing role system and needs no new role mechanism.
-- Created **with no portals**. That is what blocks login: every existing gate
-  already refuses a user without the portal (Finding 4). No
-  `if (role === 'affiliate')` login checks anywhere.
-- Guardrail so it stays true: `affiliateAccessError(portals, role)` in
-  `command/lib/userAccess.ts`, next to the existing `commandAccessError` and in
-  the same style. It returns an error if an Affiliate is given any portal. The
-  create route, the edit mutation and the form all use it, the same way B7 did
-  for Command access.
-- `profiles.status_id` stays the on/off switch (D3). **Suspending an Affiliate
-  makes their code stop attributing** — the register route requires an active
-  affiliate profile. No separate flag.
+**Affiliate is a capability, not a role.** A user is an affiliate if and only if
+they have a row in `affiliates`. There is no `affiliate` role, nothing is added to
+`profiles`, and a user's role and portals are never changed by becoming one.
+
+Why not a role, given that was the first design: `user_roles` is modelled
+one-role-per-user, and portal access is checked *through* the role — the booker
+portal requires `member` (Finding 4). Making affiliate a role would therefore force
+an existing booker to **surrender the role their access depends on** in order to
+hold a referral code. That is not a trade anyone should have to make, and it is
+exactly the "assign an existing user" flow this is meant to support.
+
+What follows from the capability model:
+
+- **Any user can be an affiliate**, including one who is also a booker or a vendor
+  admin. Their access is unchanged, and the code is orthogonal to it.
+- **A person who exists only to be an affiliate** is simply a user with no portals.
+  Every portal gate already refuses them (Finding 4) — by the platform's ordinary
+  rule, not one invented for affiliates.
+- **No new access guards.** `affiliateAccessError` and `affiliateRoleChangeError`
+  from the earlier draft are **gone**: with affiliate decoupled from roles and
+  portals there is nothing to guard. So is gap G8, which only existed because a
+  role switch could strip access. Fewer moving parts than the role design.
+- **`profiles.status_id` stays the on/off switch** (D3): suspending the user makes
+  the code stop attributing, because the register route requires an active profile.
+- **Promotion later is one INSERT** — which is what makes the future Affiliates
+  section additive rather than a rework.
 
 ### How referral codes are stored and generated
 
@@ -219,10 +670,11 @@ commission rate, etc.):
 | `created_by` | `uuid` | FK → `profiles(id)` ON DELETE SET NULL. The Command admin who created it |
 | `created_at` / `updated_at` | `timestamptz` | `set_updated_at()` trigger, as elsewhere |
 
-- **Typed by the Command admin (D1).** The create form has a required "Referral
-  code" field when the role is Affiliate. Memorable codes (`JUAN2026`, `EZZYPH01`)
-  make a mistyped link less likely, which matters because D2 means a bad code
-  fails silently.
+- **Typed by the Command admin (D1).** The code is entered in the Add User form
+  (optional — filling it makes the new user an affiliate) or in the Affiliate modal
+  for an existing user (D11). Memorable codes (`JUAN2026`, `EZZYPH01`) make a
+  mistyped link less likely, which matters because D2 means a bad code fails
+  silently.
 - **Normalising:** input is upper-cased and stripped of everything except letters
   and digits before it is stored or looked up. `juan-2026` and ` JUAN 2026 ` both
   become `JUAN2026`. Same forgiving matching as the `?division=` slug.
@@ -234,8 +686,12 @@ commission rate, etc.):
   duplicate case returns "That referral code is already in use — choose another"
   with nothing created. A `23505` from a race is still handled: the just-created
   auth user is deleted and the same message returned.
-- **No editing of a code after creation** in this phase (deferred below).
-  `vendor_referrals` stores the code used, so this stays true if editing is added.
+- **Editable after creation (D9, 2026-09-18)** through a dedicated action, not the
+  main edit form — see B18/B19. `vendor_referrals` snapshots the code used, so past
+  attributions keep reading correctly under the code the vendor actually typed.
+  ⚠️ **Changing a code silently retires every link already in circulation**: an old
+  `?ref=` stops attributing and, under D2, says nothing to anyone. The change dialog
+  must say so before saving.
 
 ### How the vendor-to-affiliate relationship is stored
 
@@ -244,7 +700,7 @@ New table **`vendor_referrals`**, one row per referred vendor:
 | Column | Type | Notes |
 |---|---|---|
 | `vendor_id` | `uuid` PK | FK → `vendors(id)` ON DELETE CASCADE. PK = a vendor has at most one referrer |
-| `affiliate_user_id` | `uuid NOT NULL` | FK → `affiliates(user_id)` **ON DELETE RESTRICT** (D6) · indexed |
+| `affiliate_user_id` | `uuid` (nullable) | FK → `affiliates(user_id)` **ON DELETE SET NULL** (D14/J1) · indexed. NULL = the affiliate's account was deleted; `referral_code` still names who referred the vendor |
 | `referral_code` | `text NOT NULL` | The code as used, normalised. Stored separately so history survives if codes are rotated or split out later |
 | `created_at` | `timestamptz NOT NULL DEFAULT now()` | Time of attribution (= signup) |
 
@@ -309,21 +765,20 @@ and registration continues (D2).
 
 ## Stages and items
 
-### S1 — Migration  🔄 IN PROGRESS  ·  🔒 approval gate (schema + RLS)
+### S1 — Migration  ✅ DONE (2026-09-18, local)  ·  🔒 approval gate (schema + RLS)
 
 **File (new):** `backbone/supabase/migrations/20260917000001_affiliates_and_vendor_referrals.sql`
 ✅ **written 2026-09-17.** The DDL below is what shipped; the file additionally carries a
 header comment explaining the design. Per standing rule, **you** apply migrations.
 
 ```sql
--- Interim affiliate referrals: an `affiliate` role, one referral code per
--- affiliate, and vendor → affiliate attribution captured at self-registration.
+-- Interim affiliate referrals: one referral code per affiliate user, and
+-- vendor → affiliate attribution captured at self-registration. Affiliate is a
+-- CAPABILITY (a row in `affiliates`), not a role — see D11.
 -- See .plans/2026-09-17-affiliate-referral-codes-interim.md.
 
--- ── role ─────────────────────────────────────────────────────────────────────
--- Platform-wide, assigned in user_roles. Affiliates hold NO portal rows, which is
--- what keeps them out of every existing portal until an affiliate portal exists.
-insert into public.roles (name) values ('affiliate');
+-- (No role is inserted — D11: affiliate is a capability, not a role. The file's
+--  header comment carries the full reasoning.)
 
 -- ── affiliates ───────────────────────────────────────────────────────────────
 create table public.affiliates (
@@ -337,7 +792,7 @@ create table public.affiliates (
 );
 
 comment on table  public.affiliates is
-  'One row per affiliate user. Written only by command /api/users (service role). Code is chosen by the Command admin.';
+  'One row per affiliate user — membership of THIS TABLE is what makes someone an affiliate; there is no affiliate role. Any user may be given a row without changing their role or portals.';
 comment on column public.affiliates.referral_code is
   'Upper-case A-Z0-9, 4-32 chars. Stored normalised, so the unique index is effectively case-insensitive.';
 
@@ -399,9 +854,10 @@ grant select, insert, update, delete on public.vendor_referrals to service_role;
 - **Downstream:** hand-written types in `command/lib/types.ts`. The `vendor` app
   writes `vendor_referrals` but never reads it, so it needs no new interface.
   Also `architecture/schema.md` and `auth-and-roles.md`.
-- **Chain effect:** deleting an Affiliate's auth user cascades to `profiles` and
-  then `affiliates`, and the RESTRICT stops it there. That delete **fails** while
-  referrals exist. Intended (D6); S2 adds a friendly check before it.
+- **Chain effect (revised 2026-09-18, D14):** deleting a user cascades to `profiles`
+  and `affiliates`, and `vendor_referrals.affiliate_user_id` is then **set to NULL** —
+  the referral survives, the delete succeeds, and account closure cannot half-fail (J1).
+  Careless admin deletion is stopped one layer up by B5's route check, not by the FK.
 - **Reversible:** yes — see the section below for the exact undo and its two caveats.
 
 #### Reversibility (asked 2026-09-17)
@@ -414,24 +870,25 @@ the database back the way it was, and nothing in the first one is one-way.
 -- Undo migration (write as a NEW file; never edit the applied one).
 drop table if exists public.vendor_referrals;
 drop table if exists public.affiliates;
-delete from public.roles where name = 'affiliate';
 ```
+
+⚠️ **Simpler since D11 (2026-09-18):** the migration no longer inserts a role, so the
+undo is two DROPs and touches no existing table or row. Caveat 2 below is kept for the
+record — it described deleting the role row, which no longer happens.
 
 Two things to know before running it:
 
 1. **Dropping the tables destroys the referral data.** The structure comes back;
    the attribution does not. Before any real referrals exist, the undo is clean.
    Afterwards, dump the two tables first.
-2. **`delete from roles` cascades.** `user_roles.role_id` is
-   `on delete cascade` (`20260504000002_schema.sql:53`), so deleting the role
-   silently removes every Affiliate's role row. That is what you want in a
-   rollback, but it happens without a warning. Also, `roles.id` is
-   `generated always as identity`: a deleted id is never reused, so re-adding
-   `affiliate` later gives it a **different id**, and an environment that rolled
-   back would have a different id from one that didn't. Harmless here — **no app
-   code anywhere references a role by id** (verified by grep across command,
-   vendor and booker; everything looks roles up by name) — but worth knowing
-   before someone writes id-based SQL by hand.
+2. ~~**`delete from roles` cascades.**~~ ✖ **No longer applies (D11, 2026-09-18)** —
+   the migration inserts no role, so the undo touches `roles` not at all. Kept for the
+   record, because the reasoning still matters if a role is ever added: `user_roles.role_id`
+   is `on delete cascade` (`20260504000002_schema.sql:53`), so deleting a role silently
+   removes every assignment of it, and `roles.id` is `generated always as identity`, so a
+   re-added role gets a different id and environments can diverge. Harmless in this
+   codebase — **no app code anywhere resolves a role by id** (verified by grep across
+   command, vendor and booker) — but a trap for hand-written SQL.
 
 Nothing else in the migration is one-way: no column is added to an existing table,
 no type is changed, no data is rewritten, and no constraint is applied to existing
@@ -466,10 +923,26 @@ so a fresh `db reset` can exercise the export SQL and the Command list. Uses the
 existing variable style (never literal role ids). `seed.sql` is local-only and never
 runs on a hosted project.
 
-**Verify:** apply locally, then run the S1.3 script below.
-*(Needs a live local DB — yours to apply.)*
+**Verify:** ✅ **Dry run passed (2026-09-18)** — the migration was executed against the
+local database inside `begin … rollback`, so it ran for real and persisted nothing
+(confirmed afterwards: 0 of the 2 tables exist, migration count still 78). Machine-verified
+in that run: every statement parses and applies; both tables, RLS, one policy each;
+`anon` holds nothing and `authenticated` holds `SELECT` only; a lower-case code and a
+3-character code are rejected by the check constraint; a duplicate code is rejected by
+the unique index; **deleting an affiliate nulls the referral and keeps `referral_code`**
+(the J1/D14 fix, proven rather than assumed); and a booker's JWT sees 0 rows in both
+tables. Still to do on a real apply: `set_updated_at` firing on update, and the seed
+block (S1.4), which the dry run did not execute.
 
-#### S1.3 verification script (written 2026-09-17 — run after applying)
+#### S1.3 verification script — ✅ **all checks passed on local, 2026-09-18**
+
+> Run against the local database after `db reset`. Results: 8/8 structure checks PASS ·
+> lower-case, too-short, duplicate and second-code-per-user all rejected · deleting an
+> affiliate nulls the referral and keeps `NINA2026` (J1/D14) · `updated_at` bumps on
+> update · booker sees 0/0, Command admin sees 2/1, `authenticated` INSERT denied ·
+> seed shows nina (0 portals, 1 referral) and liza (1 portal, 0 referrals) · export and
+> summary SQL both return the expected rows, including Liza's zero.
+
 
 Connect: `psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres"`
 (port from `backbone/supabase/config.toml` `[db]`).
@@ -477,14 +950,14 @@ Connect: `psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres"`
 **1 — Structure: role, tables, policies, grants.** Every row should read `PASS`.
 
 ```sql
-select 'role affiliate exists' as check,
-       case when exists (select 1 from public.roles where name = 'affiliate')
-            then 'PASS' else 'FAIL' end as result
-union all
-select 'both tables exist',
+select 'both tables exist' as check,
        case when (select count(*) from pg_tables
                   where schemaname = 'public'
                     and tablename in ('affiliates','vendor_referrals')) = 2
+            then 'PASS' else 'FAIL' end as result
+union all
+select 'no affiliate role was created (D11)',
+       case when not exists (select 1 from public.roles where name = 'affiliate')
             then 'PASS' else 'FAIL' end
 union all
 select 'RLS enabled on both',
@@ -584,44 +1057,53 @@ user (earliest `vendor_members.granted_at`). Run the **Export SQL** from the
 section below as-is.
 
 ```sql
--- Nina exists, is active, and holds NO portal — the whole login story in one row.
+-- Both affiliate shapes in one row each — the whole D11 story.
 select p.full_name, s.name as status, a.referral_code,
-       (select count(*) from public.user_portals up where up.user_id = p.id) as portal_count
+       (select count(*) from public.user_portals up where up.user_id = p.id) as portal_count,
+       (select count(*) from public.vendor_referrals vr where vr.affiliate_user_id = p.id) as referrals
 from   public.affiliates a
 join   public.profiles p on p.id = a.user_id
-join   public.statuses s on s.id = p.status_id;
--- expect: Nina Villanueva | active | NINA2026 | 0
+join   public.statuses s on s.id = p.status_id
+order  by p.full_name;
+-- expect exactly two rows:
+--   Liza Cruz       | active | LIZA2026 | 1 | 0   <- also a booker, keeps her portal
+--   Nina Villanueva | active | NINA2026 | 0 | 1   <- affiliate only, no portal = no login
+-- The Liza row is the case the role-based design could not have represented.
 ```
 
 ---
 
 ### S2 — Command: create Affiliates  ⬜ TODO
 
-**B1 — Role type, list, badge, fixture.**
-- `command/lib/types.ts:3` `UserRole` adds `"affiliate"`. `User` adds
-  `referralCode: string | null`. `UserFormData` (`:138-145`) adds
-  `referralCode: string` (empty for non-Affiliates). `CreateUserResult` adds
-  `referralCode?: string` and `referralUrl?: string`.
-- `command/lib/constants.ts:35` `ALL_ROLES` adds `"affiliate"` — this also feeds
-  the role filter (`UserToolbar.tsx:36`) with no further change.
-- ⚠️ **G1:** `ROLE_CFG` (`constants.ts:95-99`) is `Record<string, …>` with a `??`
-  fallback in `RoleBadge.tsx:9`, so **the compiler will not flag a missing entry**.
-  Add `affiliate: { … label: "Affiliate" }` explicitly, with colours distinct from
-  member/admin in both themes.
-- ⚠️ **G3:** `command/app/ui-gallery/page.tsx:426` `USERS: User[]` must gain the
-  new field, and gets **one Affiliate row** so the badge, table and filter are
-  visible in the gallery.
+**B1 — Types and fixtures** (re-specified 2026-09-18 — D11).
+- `command/lib/types.ts`: **`UserRole` is NOT touched** — there is no affiliate role.
+  `User` adds `referralCode: string | null` (non-null ⇒ this user is an affiliate).
+  `UserFormData` (`:138-145`) adds `referralCode: string`, used only by the create
+  form. `CreateUserResult` adds `referralCode?: string` / `referralUrl?: string`.
+- `ALL_ROLES` and **`ROLE_CFG` are untouched**, so the earlier gap **G1 no longer
+  applies** — there is no role map to forget. Superseded, not fixed.
+- The list shows affiliate status as its own **chip beside the role badge**, driven
+  by `referralCode`, never by the role. A tiny `AffiliateChip` is *not* warranted —
+  it is one `<span>` with an existing badge class.
+- **Finding 8 is void**: nothing would render an affiliate as "Member", because the
+  role genuinely is Member (or whatever else they hold).
+- ⚠️ **G3 still applies:** `command/app/ui-gallery/page.tsx:426` `USERS: User[]`
+  gains the field, plus two rows worth having — a user who is *only* an affiliate,
+  and a booker who is *also* one (the D11 case).
+- **Filtering (H3):** `UserToolbar` gains a compact "Affiliates only" toggle rather
+  than a fourth dropdown. It needs real plumbing, not a free ride: new state in
+  `useUsers.ts` (beside `usrRole`, `:69`), a filter line at `:120`
+  (`r.filter(u => u.referralCode)`), the dep added at `:123`, the value returned at
+  `:200`, and a prop through `UserToolbar`. Not an entry in the role dropdown, because
+  it is not a role.
 
-**B2 — Access rules (two of them).** `command/lib/userAccess.ts`, in the same pure,
-dependency-free style as `commandAccessError`, with unit tests in
-`command/lib/userAccess.test.ts`:
-- `affiliateAccessError(portals, role)` → `"Affiliates can't have portal access yet — remove the portals, or pick a different role."`
-  when `role === "affiliate"` and any portal is set.
-- ⚠️ **G8:** `affiliateRoleChangeError(currentRole, nextRole)` → `"Affiliate accounts must be created from Add User, because they need a referral code. Create a new Affiliate instead."`
-  when an edit moves a non-Affiliate **to** `affiliate`, and
-  `"An Affiliate's role can't be changed here."` for the reverse. Edits write to
-  Supabase straight from the browser (`useUpdateUser.ts:88-95`), so the modal's
-  disabled select is an affordance, not a boundary — this is the boundary.
+**B2 — ✖ ABORTED (2026-09-18) — D11 removed the need entirely.**
+Both planned guards (`affiliateAccessError`, `affiliateRoleChangeError`) existed only
+because affiliate was a role that could collide with portal access. As a capability it
+collides with nothing: portals and roles are set exactly as they are for any user, and
+being an affiliate neither grants nor withholds access. Gap **G8 is void** for the same
+reason. `command/lib/userAccess.ts` is left untouched.
+*(Kept, not deleted, per the status model: this is the record of why no guard exists.)*
 
 **B3 — Code rule (shared, pure).** New `command/lib/referralCode.ts`:
 `normaliseReferralCode(raw)` (strip non-alphanumerics, upper-case),
@@ -632,29 +1114,34 @@ messages. No `@/` imports, so `node --test` can load it. Test:
 with the DB check constraint.
 
 **B4 — `POST /api/users`** (`command/app/api/users/route.ts:8-127`), in this order:
-- `affiliateAccessError(...)` → 400, **before** `createUser`, like B7.
-- When `role === "affiliate"`: normalise the submitted code; reject empty or
-  malformed with 400; `select 1 from affiliates where referral_code = …` and
-  reject a duplicate with `REFERRAL_CODE_TAKEN` — all still **before** `createUser`,
-  so the common mistakes create nothing.
+- **When a `referralCode` is supplied** (any role, D11): normalise it; reject
+  malformed with 400; `select 1 from affiliates where referral_code = …` and reject
+  a duplicate with `REFERRAL_CODE_TAKEN` — all **before** `createUser`, so the
+  common mistakes create nothing. An empty code simply means "not an affiliate" and
+  the branch is skipped entirely.
 - After the role insert, insert into `affiliates`
-  (`user_id`, `referral_code`, `created_by: caller.user.id`). On failure —
-  including a `23505` from a race — **delete the just-created auth user** and
-  return the matching message. An Affiliate without a code can't be repaired
-  through Edit, and the account has no other data yet, so this rollback is safe.
-  It is limited to the Affiliate branch and changes nothing for other roles.
-- Skip the set-password email for Affiliates and return
+  (`user_id`, `referral_code`, `created_by: caller.user.id`). On failure — including
+  a `23505` from a race — **delete the just-created auth user** and return the
+  matching message: the operator asked for an affiliate and did not get one, and the
+  account has no other data yet, so the rollback is safe and honest. Limited to this
+  branch; creating any user without a code is byte-identical to today.
+- ⚠️ **H2 — the share link passes a literal `["vendor"]`** to `resolvePortalOrigin`,
+  never the user's own portals: the referral URL always points at the vendor app,
+  whoever the affiliate is. Verified safe — the helper resolves by priority from the
+  list it is given (`portalOrigins.server.ts:101-117`).
+- Skip the set-password email **when the new user has no portals** (unchanged logic —
+  `resolvePortalOrigin` already reports `not_configured`) and return
   `{ error: null, emailStatus: "not_configured", referralCode, referralUrl }`,
   where `referralUrl` is `resolvePortalOrigin(["vendor"]) + "/?ref=" + code`, or
   omitted when that origin isn't configured. `emailStatus` stays in the response
   so existing callers keep parsing it.
 - Who may create: admin **and** root (D5); `affiliate` is not in `PRIVILEGED_ROLES`.
 
-**B5 — `DELETE /api/users`** (`route.ts:168-208`): after the bookings check, and
-**only when `targetRoleNames` includes `affiliate`** (the route already fetches
-them at `:178-183`, so this costs nothing), count `vendor_referrals` where
-`affiliate_user_id = id`. Gating it this way keeps every non-Affiliate delete
-byte-identical to today — no extra query on the common path. If any exist, 400:
+**B5 — `DELETE /api/users`** (`route.ts:168-208`): after the bookings check, count
+`vendor_referrals` where `affiliate_user_id = id`. ⚠️ **Changed by D11:** the earlier
+version gated this on the target holding the `affiliate` role, which no longer exists,
+so the count now runs for every delete — one indexed lookup on a PK-joined column,
+negligible, and it is the only way to know. If any exist, 400:
 `"This affiliate has N referred vendor(s) and cannot be deleted. Suspend the account instead to preserve referral history."`
 Mirrors the bookings message and runs before the FK RESTRICT would fail (D6).
 
@@ -691,12 +1178,112 @@ Mirrors the bookings message and runs before the FK RESTRICT would fail (D6).
     skill is applied when built (label, inline error, disabled affordance, both themes).
 - Users page role filter gains "Affiliate" via `ALL_ROLES`.
 
-**B7 — Edit mutation guard.** `command/hooks/mutations/users/useUpdateUser.ts:36-38`
-already calls `commandAccessError` there (verified). Add `affiliateAccessError`
-**and** `affiliateRoleChangeError` (B2) at the same point, before any reconcile.
-The hook needs the user's current role, which `UserFormData` does not carry — pass
-the current `User` (or its role) into `updateUser`, since `useUsers` already holds
-`usrTarget`.
+**B7 — ✖ ABORTED (2026-09-18) — D11.** There is nothing to guard in
+`useUpdateUser`: editing a user never touches their affiliate status, which is
+managed only through B18/B19's dedicated route and modal. The existing
+`commandAccessError` call stays exactly as it is. This also removes the awkward
+signature change the earlier draft needed (passing the current role into
+`updateUser`).
+
+**B18 — `/api/affiliates` route — the affiliate CRUD** (new
+`command/app/api/affiliates/route.ts`) — D9 + D11. `affiliates` has **no
+`authenticated` write grant**, so every write needs a service-role route; a separate
+route from `/api/users`, which exists to manage the *account* (different table,
+different reason to change). All three verbs are `verifyCommandCaller`-gated, admin or
+root (D5), and all three normalise + format-check the code:
+
+| Verb | Body | Does |
+|---|---|---|
+| `POST` | `{ userId, referralCode }` | **Assign** — makes an existing user an affiliate. Refuses if they already have a row (`23505` on the PK → "already an affiliate"), or if the code is taken. Touches nothing else about the user. |
+| `PATCH` | `{ userId, referralCode }` | **Change the code.** Uniqueness checked **excluding their own row** (`referral_code = $1 and user_id <> $2`); `23505` → `REFERRAL_CODE_TAKEN`. |
+| `GET` | `?userId=` | **Read** (D12a) — returns `{ referralCode, referralUrl, referrals: [{ vendorId, vendorName, signedUpAt }] }`. `referralUrl` is built server-side from `resolvePortalOrigin(["vendor"])`, so `PORTAL_URL_VENDOR` never reaches the browser; when that origin is not configured the field is `null` and the UI shows the code alone rather than a broken link. This one call feeds B20's list, B21's link row and the referral count. |
+| `DELETE` | `?userId=` | **Remove** the affiliate capability. Refused while the user has `vendor_referrals` rows — the FK is `RESTRICT`, so the route checks first and returns the same "suspend or keep it" message shape as B5. The user account itself is untouched. |
+
+None of them touch `vendor_referrals`: those rows are historical snapshots, and
+rewriting them would falsify what the vendor actually typed.
+
+**B19 — "Affiliate" action modal** (new
+`command/components/users/AffiliateModal/`: `.tsx` + `useAffiliateModal.ts` +
+`.module.css`) — D9 + D11. One modal covering assign, change and remove, launched
+from the user detail modal's footer (`UserModal.tsx:201-203` is the existing precedent,
+opened via `UsersPage.tsx:106`). Modelled directly on `UserSetPasswordModal/`, the
+established pattern for a single-purpose action on a user.
+
+- Footer button reads **"Make affiliate"** when `user.referralCode` is null, and
+  **"Affiliate"** when it is set.
+- Not a field inside the edit form, for one concrete reason: the edit form saves the
+  profile through `useUpdateUser` (browser + RLS) while this saves through B18's
+  service-role route. One Save spanning both could half-succeed; two deliberate
+  actions cannot.
+- Assign and change share the code input and its validation. Remove is a distinct,
+  confirmed action, and is refused with B18's message when referrals exist.
+- The change path states plainly, **before** saving, that links already shared under
+  the old code will stop attributing and nobody will be told (D2 + D9).
+- ⚠️ **H7:** the **remove** path carries the same warning — removing the capability
+  retires the link just as surely as changing the code does.
+- ⚠️ **H8:** when the target user is not `active`, the modal shows the same inline hint
+  as the create form (G7): *"A suspended or pending user's code won't be attributed to
+  new vendor signups."* Assigning is still allowed — the code simply starts working when
+  they do.
+- Mutation hook `hooks/mutations/users/useAffiliate.ts` exposing
+  `assignAffiliate` / `changeReferralCode` / `removeAffiliate`, alongside
+  `useSetUserPassword`.
+- **Component separation:** all state, validation and handlers in
+  `useAffiliateModal.ts`; `.tsx` is pure render; styling in the co-located module CSS.
+
+**B21 — Affiliate surface in the user detail view** (H5) — reuses the three structures
+`UserModal.tsx:82-110` already has, so it looks native rather than bolted on:
+- **Badge row** (`:83-86`, beside `StatusBadge`/`RoleBadge`): an "Affiliate" badge when
+  `referralCode` is set.
+- **Account Details rows** (`:88-99`, the `[Icon, label, value]` list): add
+  `[Link2, "Referral code", "NINA2026"]` and `[Users, "Referred vendors", "3"]`, plus a
+  copyable share-link row (shape depends on D12).
+- **Portal Access section** (`:100-110`) — **left alone on purpose.** It renders from
+  `ALL_PORTALS`, so when the affiliate portal ships, inserting an `affiliate` row in
+  `portals` + `ALL_PORTALS` + `PORTAL_CFG` makes an affiliate chip appear here
+  automatically, next to vendor/booker/command, with **no rework of this modal**. That
+  is the "where the affiliate portal will slot in" answer, and it is why affiliate
+  status is *not* faked as a portal chip today: a chip for a portal nobody can enter
+  would be a lie, and it would collide with the real row later.
+
+**B22 — Export referrals (CSV)** (D13) — new
+`command/services/affiliates.service.ts` + `command/lib/affiliateCsv.ts` +
+`command/lib/affiliateCsv.test.ts`, and a button in `UserToolbar`.
+- `getAffiliateSummary()` reads `affiliates` with embeds
+  `profiles(full_name, email, status_id)` and
+  `vendor_referrals(vendor_id, vendors(name, created_at, status_id))`, from the browser
+  with the admin's own session. `vendor_referrals.affiliate_user_id` is an FK to
+  `affiliates`, so the nested embed resolves; the S1 policies already permit all three
+  reads. **No new grant, no RPC, no migration** — which is the whole reason D13 was
+  scoped to the summary.
+- Counts are derived in JS (`vendors_referred`, `vendors_now_active`, `last_signup`), so
+  affiliates with **zero** referrals still produce a row — the same property the summary
+  SQL gets from its `left join`, and the most informative line in the file.
+- `affiliateCsv.ts` is **pure**: rows in, RFC 4180 string out, with quote-escaping for
+  names containing commas or quotes and a UTF-8 BOM so Excel does not mangle `₱` or
+  accented names. Unit-tested under `node --test`; this is the piece most likely to be
+  silently wrong.
+- The hook triggers the download with a `Blob` + object URL + a synthesised anchor click,
+  revoking the URL afterwards. Filename `affiliate-referrals-YYYY-MM-DD.csv`.
+- Button sits in `UserToolbar` beside "Affiliates only", disabled with a tooltip when no
+  affiliates exist. **Component separation:** fetch/loading/error and the download
+  handler live in the hook; the toolbar stays a render layer.
+- ⚠️ It exports **every** affiliate, not the filtered view — a filtered export that
+  silently omits rows is how a partial spreadsheet gets mistaken for the whole picture.
+  The button label says "Export all affiliates (CSV)" for that reason.
+
+**B20 — Referred-vendors panel** (new
+`command/components/users/AffiliateReferralsPanel/`: `.tsx` + `useAffiliateReferrals.ts`
++ `.module.css`, plus `command/services/affiliates.service.ts`) — D10. Rendered inside
+`UserModal` view mode when `user.referralCode` is set. **D12(a), resolved 2026-09-18:** the panel, the link and the
+count all come from one `GET /api/affiliates?userId=` call (B18) — a single round trip,
+and the vendor origin never leaves the server. The hook owns loading/empty/error state;
+no `affiliates.service.ts` is needed, since the read goes through the route rather than
+the browser's Supabase client. Shows vendor name + signup date, a count in the heading,
+and an explicit empty state ("No vendors have signed up with this code yet"), which is
+also what a broken link looks like — so it doubles as the diagnostic D2 otherwise lacks.
+Loading and error states handled; the UX skill applies. **Component separation:** own
+hook for fetch/loading/error, `.tsx` pure render, styles in module CSS.
 
 **Verify:** `npm --prefix command run test` (userAccess, referralCode) · `tsc` ·
 lint *(mine)* · **no Playwright baselines are affected — G4 confirmed no committed
@@ -863,6 +1450,58 @@ Nothing above can change the outcome of a signup that carries no code.
 
 ---
 
+## Affiliate summary SQL — "how many signups came from each affiliate" (H6)
+
+One row per affiliate, **including affiliates who have referred nobody** (that zero is
+the most useful number in the table — it is what a broken or never-shared link looks
+like).
+
+```sql
+select
+  p.full_name                                   as affiliate_name,
+  p.email                                       as affiliate_email,
+  a.referral_code                               as current_code,
+  s.name                                        as affiliate_status,
+  count(vr.vendor_id)                           as vendors_referred,
+  count(vr.vendor_id) filter (
+    where v.status_id = (select id from public.statuses where name = 'active')
+  )                                             as vendors_now_active,
+  to_char(max(v.created_at) at time zone 'Asia/Manila', 'YYYY-MM-DD') as last_signup
+from       public.affiliates a
+join       public.profiles   p  on p.id = a.user_id
+join       public.statuses   s  on s.id = p.status_id
+left join  public.vendor_referrals vr on vr.affiliate_user_id = a.user_id
+left join  public.vendors    v  on v.id = vr.vendor_id
+group by   p.full_name, p.email, a.referral_code, s.name
+order by   vendors_referred desc, p.full_name;
+```
+
+`left join` is what keeps the zero-referral affiliates in. ⚠️ **It counts only referrals
+whose affiliate still exists** — rows whose `affiliate_user_id` was nulled by an account
+deletion (D14) belong to nobody and are absent here by design. To see those:
+
+```sql
+select referral_code, count(*) as vendors_referred
+from   public.vendor_referrals
+where  affiliate_user_id is null
+group  by referral_code;
+```
+ `vendors_now_active` is the
+subset that survived review and activation, so a gap between the two columns says the
+signups arrived but did not convert — a different problem from no signups at all.
+
+**For one affiliate**, add `where a.referral_code = 'NINA2026'` before `group by`.
+
+Three ways to get this out, depending on what you are doing:
+
+| Need | Use |
+|---|---|
+| A number, right now, for one affiliate | Command → Users → open them → **Referred vendors (N)** in the detail view (B20/B21) |
+| Every affiliate ranked, into a spreadsheet | This summary query → Supabase SQL editor → **Download CSV** |
+| The per-vendor detail (who, when, which code) | The Export SQL below |
+
+---
+
 ## Export SQL (exact — run after S1–S3 ship)
 
 One row per referred vendor. "Vendor user" = the **primary vendor user**, meaning
@@ -871,7 +1510,7 @@ registered it (Finding 9). Dates shown in Manila time.
 
 ```sql
 select
-  ap.full_name                                                     as affiliate_name,
+  coalesce(ap.full_name, '(closed account)')                       as affiliate_name,
   ap.email                                                         as affiliate_email,
   vr.referral_code                                                 as referral_code,
   v.name                                                           as vendor_name,
@@ -879,8 +1518,10 @@ select
   nullif(trim(owner.email), '')                                    as vendor_user_email,
   to_char(v.created_at at time zone 'Asia/Manila', 'YYYY-MM-DD HH24:MI') as signed_up_at
 from public.vendor_referrals vr
-join public.vendors  v  on v.id  = vr.vendor_id
-join public.profiles ap on ap.id = vr.affiliate_user_id
+join      public.vendors  v  on v.id  = vr.vendor_id
+-- LEFT, not inner (D14): affiliate_user_id is NULL once that account is deleted, and the
+-- referral still happened. An inner join would silently drop those rows from the report.
+left join public.profiles ap on ap.id = vr.affiliate_user_id
 left join lateral (
   select p.full_name, p.email
   from   public.vendor_members vm
@@ -890,12 +1531,14 @@ left join lateral (
   order  by vm.granted_at asc, vm.user_id asc
   limit  1
 ) owner on true
-order by ap.full_name, v.created_at;
+order by affiliate_name, v.created_at;
 ```
 
 Notes:
 - `left join lateral`: a vendor whose admins were all removed still appears, with
   blank user columns.
+- **`(closed account)`** in `affiliate_name` means the affiliate deleted their account
+  (D14). The referral is still real and the code still names it; only the person is gone.
 - `vr.referral_code` is the code **used**. For each affiliate's *current* code,
   join `public.affiliates a on a.user_id = vr.affiliate_user_id`. The two are the
   same until codes can change.
@@ -943,9 +1586,61 @@ Notes:
   leaving silent attribution loss undetectable) and showing it read-only on the
   review step (visible to the vendor, reverses part of D4, changes a baseline).
 
+- **D8 — where affiliate management lives → the Users page** (resolved 2026-09-18).
+  Affiliates stay ordinary users with a role; no new page, no new nav. A dedicated
+  Affiliates page arrives with the affiliate portal, and is purely additive.
+- **D9 — referral code editable after creation → yes** (resolved 2026-09-18), with
+  format + uniqueness re-checked. Needed for a typo, a rebrand or a leaked code.
+  History is safe because `vendor_referrals.referral_code` is a snapshot. Accepted
+  cost: links already shared under the old code stop attributing, silently.
+- **D10 — show an affiliate's referred vendors in Command → yes** (resolved
+  2026-09-18), as a read-only list (vendor name + signup date) in the detail view.
+  Answers the question people actually ask without building analytics. The export
+  SQL remains the reporting path.
+
+- **D11 — affiliate is a CAPABILITY, not a role** (resolved 2026-09-18). Membership of
+  `affiliates` is the whole definition; roles and portals are untouched by it. Chosen so
+  an existing user can be made an affiliate later without surrendering the role their
+  portal access depends on. Consequences recorded through the plan: the migration inserts
+  **no role**, B2 and B7 are aborted outright, G1 and G8 are void, and S2 gains a real
+  assign/change/remove surface (B18/B19) instead of a create-only one. Rejected: keeping
+  both a role and the table, which would give two disagreeing answers to "is this user an
+  affiliate".
+
+- **D12 — the browser gets the vendor origin from a server route → option (a)**
+  (resolved 2026-09-18). `GET /api/affiliates?userId=` returns
+  `{ referralCode, referralUrl, referrals[] }` in one call. `PORTAL_URL_VENDOR` stays
+  server-only, honouring the documented reason it is not `NEXT_PUBLIC_*`
+  (`portalOrigins.server.ts:16-20`: build-time inlining needs a cache-disabled redeploy);
+  it is read at request time, so the link is correct per environment with no rebuild and
+  no third env var to set. B20's panel and B21's link row are fed by the same round trip.
+  Rejected: `NEXT_PUBLIC_VENDOR_URL` (diverges from that decision, three environments to
+  configure) and code-only (admins hand-build URLs — the exact way a mistyped link gets
+  shared under D2's silence).
+
+- **D13 — Command gets its own "Export referrals (CSV)" button** (resolved 2026-09-18),
+  so a referral spreadsheet does not require Supabase dashboard access. **Scoped to the
+  per-affiliate summary** (name, email, code, status, vendors referred, vendors now
+  active, last signup) — deliberately *not* the per-vendor detail, which needs the
+  "primary vendor user" definition and the vendor users' emails. Keeping the button on
+  the summary means it reads what a Command admin can already see under RLS: **no RPC,
+  no `SECURITY DEFINER` function and no second migration**. The per-vendor CSV stays
+  with the Export SQL, which is where that definition already lives, so the two cannot
+  drift.
+
+- **D14 — a deleted affiliate's referrals → `ON DELETE SET NULL`** (resolved 2026-09-18,
+  from pre-apply finding J1). The referral row survives with its `referral_code`
+  snapshot; only the link to the deleted person drops, so account closure completes and
+  "this vendor signed up under NINA2026" stays true. Follows the schema's existing
+  outlive-the-account pattern (`account_deletion_requests.requested_by`,
+  `legal_acceptances.user_id`, `vendor_status_log.changed_by`). Rejected: CASCADE (past
+  exports would silently disagree with new ones) and keeping RESTRICT with a new step
+  inside account closure (referral logic inside the one sequence that has no undo, and
+  it still has to answer this same question). **Consequence:** D6's database backstop is
+  now softer — Command's `DELETE /api/users` guard (B5) is what actually stops careless
+  admin deletion, and the export/summary SQL must `left join` the affiliate.
+
 ## DEFERRED / COSMETIC
-- **Editing a referral code after creation** → deferred; `vendor_referrals` already
-  snapshots the code used, so adding it later doesn't break history.
 - **Affiliate portal, reading own referrals** → later: add an `affiliate` portal row,
   grant it, and add "own rows" SELECT policies on `affiliates` (`user_id = auth.uid()`)
   and `vendor_referrals` (`affiliate_user_id = auth.uid()`). No table changes.
@@ -957,14 +1652,20 @@ Notes:
   rows meaningful.
 - **Command-created vendors with a referrer, and editing attribution** → manual SQL
   for now.
-- **Report UI in Command** → replaced by the export SQL this phase.
+- **Report UI in Command** → the per-affiliate list (D10) covers "who did X refer";
+  totals, charts, date ranges and commissions stay out, and the export SQL remains
+  the reporting path.
 - **An Affiliate who is also a vendor** → blocked today by the shared-email check
   (Finding 10). Revisit with the portal.
 
 ## Execution order
 1. **Decisions D1–D7** — ✅ all resolved 2026-09-17. No open decision blocks execution.
 2. **S1 migration file** (mine) → you review and apply. 🔒
-3. **S2 Command** (B1→B7) — depends on S1. Commit in `command/`.
+3. **S2 Command** (B1, B3→B6, then B18→B22; B2 and B7 aborted) — depends on S1 only.
+   No decision blocks any item. Commit in `command/`.
+   ⚠️ **S2 grew on 2026-09-18** (D8–D11): B18–B21 added, B2 and B7 dropped. If it runs
+   long I will stop after B6 — create-with-code, list and detail all working — and
+   report, rather than half-landing the assign/change/remove path.
 4. **S3 Vendor** (B8→B17) — depends on S1; live testing wants an Affiliate from S2.
    Commit in `vendor/`.
 5. **S4** docs + live checks + report run. Commit in the root repo.
@@ -985,41 +1686,54 @@ One stage per turn by default, with a report and the big table after each.
 ## Big table (all todos, ownership and status)
 
 **Owner:** 🤖 = mine (Claude) · 👤 = yours (Joshua) · 🤝 = shared
+**Status:** ⬜ TODO · 🔄 IN PROGRESS / PARTIAL · ✅ DONE · ⏸ PARKED · ✖ ABORTED
 
-| ID | Stage | Item | Owner | Status |
-|----|-------|------|-------|--------|
-| D1–D6 | S0 | Decisions resolved | 👤 | ✅ DONE (2026-09-17) |
-| G1–G12 | S0 | Gap review of the draft, folded into the items | 🤖 | ✅ DONE (2026-09-17) — 12 gaps: 11 real, 1 false alarm; all traced to `file:line` |
-| D7 | S0 | How the hidden code stays testable | 👤 | ✅ DONE (2026-09-17) — hidden input with a test id |
-| — | S0 | Approve this plan for execution | 👤 | ⬜ TODO |
-| S1.1 | S1 | Write the migration file (role, `affiliates`, `vendor_referrals`, RLS, grants) | 🤖 | ✅ DONE (2026-09-17) — `20260917000001_…sql`; static check only (quote balance, 18 statements). **Not executed** |
-| S1.2 | S1 | Review + apply the migration locally | 👤 | ⬜ TODO |
-| S1.3 | S1 | Verify constraints/uniqueness/RLS in psql | 🤝 | ⬜ TODO — script written below; yours to run after applying |
-| S1.4 | S1 | Seed an affiliate + referral in `seed.sql` (local only) | 🤖 | ✅ DONE (2026-09-17) — Block 10 + header table in `seed.sql`; **not executed** |
-| B1 | S2 | Types, `ALL_ROLES`, **`ROLE_CFG` entry**, `UserFormData`, gallery fixture | 🤖 | ⬜ TODO |
-| B2 | S2 | `affiliateAccessError` **+ `affiliateRoleChangeError`** + unit tests | 🤖 | ⬜ TODO |
-| B3 | S2 | `command/lib/referralCode.ts` (normalise/validate) + unit tests | 🤖 | ⬜ TODO |
-| B4 | S2 | `POST /api/users` — affiliate branch, pre-checks, rollback, share link | 🤖 | ⬜ TODO |
-| B5 | S2 | `DELETE /api/users` — refuse deleting an affiliate with referrals | 🤖 | ⬜ TODO |
-| B6 | S2 | Users list (defensive embed) + `useCreateUser` passthrough + UserModal (code input, status hint, view row, disabled portals) + toast | 🤖 | ⬜ TODO |
-| B7 | S2 | Edit-mutation guards (access + role change) | 🤖 | ⬜ TODO |
-| S2.V | S2 | `npm test` + tsc + lint (no Command baselines affected — G4) | 🤖 | ⬜ TODO |
-| S2.L | S2 | Live: create/duplicate/portal-block/delete-block in Command | 🤝 | ⬜ TODO |
-| B8 | S3 | `vendor/lib/referralCode.ts` + unit tests | 🤖 | ⬜ TODO |
-| B9 | S3 | `resolveReferralCode` lookup (active affiliate only, warn-on-error) | 🤖 | ⬜ TODO |
-| B10 | S3 | `registration.ts` contract — normalise, malformed = absent | 🤖 | ⬜ TODO |
-| B11 | S3 | `prepare` route — inherits contract, no refusal | 🤖 | ⬜ TODO |
-| B12 | S3 | `register` route — resolve early, insert attribution, warn on no-match | 🤖 | ⬜ TODO |
-| B13 | S3 | `kyc.service.ts` — pass `referralCode` | 🤖 | ⬜ TODO |
-| B14 | S3 | `referralDeepLink.ts` — module-load `?ref=` capture | 🤖 | ⬜ TODO |
-| B15 | S3 | `useLoginPage.ts` + `kycDraft.ts` — hold code, draft, URL-beats-draft | 🤖 | ⬜ TODO |
-| B16 | S3 | Hidden testability input on step 1 (D7a) | 🤖 | ⬜ TODO |
-| B17 | S3 | `referral-deeplink.spec.ts` regression test (DOM, hermetic) | 🤖 | ⬜ TODO |
-| S3.V | S3 | `npm test` + tsc + lint + the new deep-link spec | 🤖 | ⬜ TODO |
-| S3.L | S3 | Live: no-code / valid / invalid / suspended / rollback signups | 🤝 | ⬜ TODO |
-| I1 | S4 | Update `schema.md`, `auth-and-roles.md`, `portals.md`, **`conventions.md`** | 🤖 | ⬜ TODO |
-| I2 | S4 | Verify Affiliates can't get into vendor/booker/command/mobile | 👤 | ⬜ TODO |
-| I3 | S4 | Run the export SQL and sanity-check the rows | 🤝 | ⬜ TODO |
-| S4.1 | S4 | Apply migration on staging, then production | 👤 | ⬜ TODO |
-| S4.2 | S4 | Deploy command + vendor (after the migration) | 👤 | ⬜ TODO |
-| S4.3 | S4 | Commits in `command/`, `vendor/`, root repo | 🤖 | ⬜ TODO |
+| ID | Stage | Item | Owner | Status | Why / note |
+|----|-------|------|-------|--------|------------|
+| D1–D6 | S0 | First six decisions | 👤 | ✅ DONE 09-17 | Code typed by admin · invalid ignored · no-portal login block · hidden field · admin+root · delete blocked |
+| G1–G12 | S0 | Gap review of the draft | 🤖 | ✅ DONE 09-17 | 11 real, 1 false alarm, all traced to `file:line` |
+| D7 | S0 | Keeping the hidden code testable | 👤 | ✅ DONE 09-17 | Hidden input with a test id — invisible to vendors, assertable by Playwright |
+| — | S0 | Approve the plan for execution | 👤 | ✅ DONE 09-17 | "plan approved. Do S1" |
+| D8–D10 | S0 | Affiliate CRUD scope | 👤 | ✅ DONE 09-18 | Users page (no separate section) · code editable · referred-vendors list |
+| D11 | S0 | Affiliate = capability, not a role | 👤 | ✅ DONE 09-18 | A role would force an existing booker to surrender `member` — the role their portal access depends on |
+| H1–H8 | S0 | Gap review #2, post-model-change | 🤖 | ✅ DONE 09-18 | 6 real, 2 false alarms; H1 became D12 |
+| D12 | S0 | Where the browser gets the vendor origin | 👤 | ✅ DONE 09-18 | `GET /api/affiliates` returns the link; `PORTAL_URL_VENDOR` stays server-only |
+| D13 | S0 | CSV export in Command | 👤 | ✅ DONE 09-18 | Scoped to the per-affiliate summary, so no RPC and no second migration |
+| J1–J7 | S0 | Pre-apply review | 🤖 | ✅ DONE 09-18 | Caught the closure blocker; confirmed staging was exactly one migration behind |
+| D14 | S0 | Deleted affiliate → referrals | 👤 | ✅ DONE 09-18 | `SET NULL`: RESTRICT made account closure fail at its last, un-undoable step |
+| **S1.1** | S1 | Migration file | 🤖 | ✅ DONE 09-17→18 | Revised twice (D11 dropped the role, D14 loosened the FK) — both **before** it was ever applied |
+| S1.2 | S1 | Apply locally | 👤 | ✅ DONE 09-18 | `db reset`; local now at `20260917000001` |
+| S1.3 | S1 | Verify in psql | 🤝 | ✅ DONE 09-18 | 8/8 structure · 4 constraint probes · SET NULL · trigger · RLS 0/0 vs 2/1 · both report queries |
+| S1.4 | S1 | Local seed data | 🤖 | ✅ DONE 09-18 | nina (0 portals, 1 referral) + liza (booker **and** affiliate — the D11 case) |
+| B1 | S2 | Types, affiliate column, filter toggle, fixtures | 🤖 | ✅ DONE 09-18 | No role plumbing at all — D11 removed the need for it |
+| **B2** | S2 | ~~Access guards~~ | 🤖 | ✖ **ABORTED** 09-18 | **D11.** `affiliateAccessError` + `affiliateRoleChangeError` only existed because affiliate-as-a-role could collide with portal access. As a capability it collides with nothing, so there is nothing to guard. Gap G8 died with it |
+| B3 | S2 | `referralCode.ts` + tests | 🤖 | ✅ DONE 09-18 | 12 tests: normalising, both length bounds, agreement with the DB regex |
+| B4 | S2 | `POST /api/users` affiliate branch | 🤖 | ✅ DONE 09-18 | Validates before `createUser`; rolls back the auth user if the affiliate insert fails. **Not exercised live** |
+| B5 | S2 | `DELETE /api/users` referral guard | 🤖 | ✅ DONE 09-18 | Now the **only** guard — D14 softened the FK, so removing this loses attributions silently. **Not exercised live** |
+| B6 | S2 | List embed, hook passthrough, Add-User field, toast | 🤖 | ✅ DONE 09-18 | ⚠️ **K1** — the planned embed was ambiguous and broke the whole users query; fixed by naming the FK, verified live |
+| **B7** | S2 | ~~Edit-mutation guards~~ | 🤖 | ✖ **ABORTED** 09-18 | **D11.** Editing a user never touches affiliate status — that goes through `/api/affiliates` — so there is nothing to guard, and it avoids changing `updateUser`'s signature |
+| B18 | S2 | `/api/affiliates` GET · POST · PATCH · DELETE | 🤖 | ✅ DONE 09-18 | All four verbs **verified to 403 an unauthenticated caller** on a live dev server; the refused POST wrote nothing (still 2 affiliates). Authorised paths need a Command session — S2.L |
+| B19 | S2 | "Affiliate" modal — assign / change / remove | 🤖 | ✅ DONE 09-18 | Hook owns state and the two-step remove; `.tsx` pure render; own module CSS. Count fetched internally (K3) |
+| B20 | S2 | Referred-vendors panel | 🤖 | ✅ DONE 09-18 | Renamed `AffiliatePanel` (K3) — one fetch feeds link, count and list. Empty state carries the diagnostic |
+| B21 | S2 | Detail-view badge + code/link/count rows | 🤖 | ✅ DONE 09-18 | Badge needs no fetch (the list carries the code); footer gains "Affiliate" / "Make affiliate" |
+| B22 | S2 | Export referrals CSV | 🤖 | ✅ DONE 09-18 | **10 CSV tests pass** (quoting, embedded newline, zero-referral row, BOM). Summary query **verified live under a Command admin's JWT** |
+| S2.V | S2 | Tests · tsc · lint · build | 🤖 | ✅ DONE 09-18 | **128 pass / 0 fail** · `tsc --noEmit` clean · build registers `/api/affiliates` · lint unchanged at 25 problems (20 pre-existing `any`) |
+| S2.L | S2 | Live Command checks | 👤 | ✅ DONE 09-18 | **User-verified click-through** — reported working. Not observed by me, so the record is his report, not a machine result |
+| B8 | S3 | `vendor/lib/referralCode.ts` + tests | 🤖 | ✅ DONE 09-18 | 13 tests, incl. the seeded codes spelled as a URL would carry them. Deliberate duplicate of Command's copy |
+| B9 | S3 | `resolveReferralCode` lookup | 🤖 | ✅ DONE 09-18 | **Run against the live DB, 9/9 cases correct**: exact / lower-case / hyphenated all credit NINA2026; unknown, malformed, empty, absent and a **suspended** affiliate all return no attribution. K4 fixed en route |
+| B10 | S3 | `registration.ts` contract | 🤖 | ✅ DONE 09-18 | Normalises; a malformed code becomes `null` (absent), never a refusal — the only rule in that function that cannot reject |
+| B11 | S3 | `prepare` route | 🤖 | ✅ DONE 09-18 | **No logic, by design** — it creates nothing to attribute, and D2 gives it nothing to refuse. A comment records why, so the next reader doesn't "fix" it |
+| B12 | S3 | `register` route attribution | 🤖 | ✅ DONE 09-18 | **Verified end to end against the live stack — 4 real registrations**: `nina-2026` credited Nina; unknown code, no code and a **suspended** affiliate each produced a vendor with no attribution; the unknown code logged its warning. Test data removed |
+| B13 | S3 | `kyc.service.ts` passes the code | 🤖 | ✅ DONE 09-18 | One field added to `SubmitKycParams.form` and to the posted body |
+| B14 | S3 | `referralDeepLink.ts` | 🤖 | ✅ DONE 09-18 | Module-load capture + one-shot consume, mirroring `divisionDeepLink.ts`. **Browser-verified**: `/?ref=` opens registration and the param is already gone from the URL |
+| B15 | S3 | Wizard hook + draft | 🤖 | ✅ DONE 09-18 | ⚠️ Re-done as **lazy initialisers** (K6) instead of an effect: no setState-in-effect, and URL-beats-draft is now explicit (`f.referralCode \|\| draft…`) rather than dependent on effect order. Code excluded from `hasContent` |
+| B16 | S3 | Hidden testability input | 🤖 | ✅ DONE 09-18 | Placed at the **registration-view level, not step 1** as planned (K7): a resumed draft can open on a later step, where a step-1 input would not exist |
+| B17 | S3 | `referral-deeplink.spec.ts` | 🤖 | ✅ DONE 09-18 | **8 tests, all pass** (plus the 5 division tests, unharmed). **Mutation-tested**: reintroducing the read-too-late bug fails 5 of them; flipping URL-beats-draft fails the 1 test written for it |
+| S3.V | S3 | Tests · tsc · lint · new spec | 🤖 | ✅ DONE 09-18 | 471 unit tests pass · `tsc` clean · lint at the 34-problem baseline · **full visual suite 187/187, Playwright exit 0** — the hidden input moved no screenshot baseline, as the plan predicted |
+| S3.L | S3 | Live vendor signup through a real link | 🤝 | ✅ DONE 09-19 | **You ran it** — and it is **machine-corroborated**: the export query shows the row it wrote ("Tig" by JanCro, credited to Nina via NINA2026, 2026-09-19 03:23) |
+| I1 | S4 | Architecture docs | 🤖 | ✅ DONE 09-19 | `schema.md` · `auth-and-roles.md` · `portals.md` · `conventions.md` (K9) · plus `command/README.md` — `PORTAL_URL_VENDOR` now also drives affiliate share links |
+| I2 | S4 | Affiliate login-block check | 👤 | ⬜ TODO | Vendor, booker, command and the mobile app |
+| I3 | S4 | Run both report queries | 🤝 | ✅ DONE 09-19 (local) | Export: 2 rows, primary vendor user resolved correctly. Summary: Nina 2 referred / 1 active (Tig is pending activation), Jax T and Liza at 0. **Re-run on staging and production after S4.1** |
+| S4.1 | S4 | Migrate staging, then production | 👤 | ⬜ TODO | Production's migration state is still unverified |
+| S4.2 | S4 | Deploy command + vendor | 👤 | ⬜ TODO | **After** the migration — the wrong order loses referrals silently |
+| S4.3 | S4 | Commits in each repo | 👤 | ⬜ TODO — **yours** | Reassigned 09-19 at your request: I drafted one commit message per repo with its exact file list; you commit (signed). Root: stage **only** the listed files — `wordpress_work` also holds unrelated WordPress changes |

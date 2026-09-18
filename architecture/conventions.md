@@ -602,11 +602,25 @@ Two consequences, both learned the expensive way:
    a fetch. It must be captured at **module load**, guarded with
    `typeof window === "undefined"` for prerender, and exposed through a getter.
 
-Two modules already do this, and a third case should follow them rather than invent a
-mechanism: `lib/supabase/client.ts` (`authUrlError`, for the auth error hash) and
-`lib/divisionDeepLink.ts` (`?division=`, for the registration deep link). Both carry
-a comment naming the hazard; keep that habit, because the failure is invisible —
-the parameter simply appears to have never been passed.
+Three modules do this; a fourth case should follow them rather than invent a
+mechanism: `lib/supabase/client.ts` (`authUrlError`, for the auth error hash),
+`lib/divisionDeepLink.ts` (`?division=`, for the registration deep link) and
+`lib/referralDeepLink.ts` (`?ref=`, the affiliate referral code, 2026-09-18). Each
+carries a comment naming the hazard; keep that habit, because the failure is
+invisible — the parameter simply appears to have never been passed. For `?ref=` it is
+more invisible still: an unrecognised code is ignored in silence by design, so a
+broken capture would stop crediting affiliates with no error anywhere.
+`visual-tests/referral-deeplink.spec.ts` is mutation-tested against exactly that.
+
+**Reading the URL and applying the value are different steps — only the first is
+restricted.** "Not in a `useState` initialiser" above means *do not read
+`window.location` there*. Applying a value that was already captured at module load is
+fine in an initialiser, and is the better place for it: `useLoginPage.ts` seeds
+`loginError` from `getAuthUrlError()` and `regForm` / `loginView` from
+`peekDeepLinkReferral()` exactly that way. Compared with applying it from an effect,
+the component never renders a frame without the value, there is no setState inside an
+effect, and precedence over anything restored later (a saved draft) is an explicit
+expression rather than a consequence of which effect happens to be declared first.
 
 If an arrival parameter is a **one-shot instruction** (do this once on landing), make
 it one-shot explicitly. A value read from the URL dies when the URL is rewritten; a
@@ -616,7 +630,8 @@ reason — sign-out is a soft state reset with no page reload, so the login surf
 remounts inside the same page load.
 
 Recorded from `.plans/2026-08-25-vendor-division-deeplink-regression.md`, where an
-in-effect read silently lost `?division=` for eleven days behind a green suite.
+in-effect read silently lost `?division=` for eleven days behind a green suite, and
+extended by `.plans/2026-09-17-affiliate-referral-codes-interim.md` (B14, K6, K8).
 
 ---
 

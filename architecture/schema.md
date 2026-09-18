@@ -82,6 +82,7 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260911000002_payout_corrections.sql` | `booking_transaction_corrections` (append-only log) + `preview_booking_transaction_correction()` and `correct_booking_transaction()`, both Command-only definers. **Ends the ledger's absolute immutability**: money figures can change after payment, but only through the RPC, which requires a reason and writes old → new values in the same transaction |
 | `20260911000003_audit_logs_append_only.sql` | `revoke all … from service_role`, then `grant select, insert`, on `booking_status_log`, `vendor_payout_method_log`, `vendor_payout_view_log` and `booking_transaction_corrections`. **Found by a test, not an audit**: a `GRANT` only adds, so the schema's default privileges had been leaving `service_role` with UPDATE, DELETE and TRUNCATE on four logs documented here as append-only |
 | `20260913000001_payout_statements.sql` | **Payout statements** (Command Mark Paid). `payout_statements` + `payout_statement_items` (append-only; `transaction_id` UNIQUE), the internal builder `payout_statement_groups()` with the one money/date format (`payout_statement_peso()` / `payout_statement_amount()`), `preview_payout_statements()` and `release_payouts_with_statements()` (lock → all releasable → no blocking problems → fingerprints equal → release + statements + notifications, one transaction; request-id replay), and the `payout_statement` notification type. **Additive only** — `release_booking_payouts()` stays granted until the separate contract migration (`supabase/pending/retire_release_booking_payouts.sql`, promoted with a fresh timestamp after Command is live in production). Tests: `supabase/tests/payout_statements_test.sql` |
+| `20260917000001_affiliates_and_vendor_referrals.sql` | **Affiliate referrals (interim).** `affiliates` (one row per affiliate user; admin-chosen `referral_code`, `^[A-Z0-9]{4,32}$`, unique) and `vendor_referrals` (one row per referred vendor). **No role is added** — affiliate is a capability, not a role (see `auth-and-roles.md`). Both tables: Command admin/root SELECT only; **no `authenticated` write grant** — written only by Command's and the vendor app's service-role routes. `vendor_referrals.affiliate_user_id` is `on delete set null` so account closure cannot fail at its last step. Additive: no existing table altered, nothing backfilled |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -134,6 +135,8 @@ auth.users
                          per-channel kill switches read by the two dispatchers)
 
   vendors ──► vendor_status_log (status-change audit trail)
+  profiles ──► affiliates (0..1 per user; the referral code) ──► vendor_referrals ◄── vendors
+                (affiliate is a capability, not a role)          (0..1 per vendor)
   vendors ──► vendor_kyc (1:1 header) ──► vendor_kyc_documents
                   (kyc_type + review state)   (label + storage_path)
   kyc_document_types (per-type suggested-document guidance; no FK)
@@ -1284,6 +1287,91 @@ and no default-privilege rule covers new ones (the gap behind `20260816000002` a
 `20260819000002`). `anon` nothing.
 
 ---
+
+---
+
+### `affiliates`
+
+One row per affiliate user (2026-09-18). **Membership of this table is the whole
+definition of "affiliate"** — there is no affiliate role, and a user's role and portals
+are untouched by having a row here. See `auth-and-roles.md` → *Affiliates*.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `user_id` | `uuid` | PK, FK → `profiles` ON DELETE CASCADE. One code per user, at most |
+| `referral_code` | `text NOT NULL UNIQUE` | `CHECK (~ '^[A-Z0-9]{4,32}$')`. Typed by a Command admin, always stored upper-cased — which is what makes the unique index effectively case-insensitive |
+| `created_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The admin who created it. No index — accepted, the table is tiny |
+| `created_at` / `updated_at` | `timestamptz` | `set_updated_at()` trigger |
+
+**RLS:** Command admin/root SELECT. **Grants:** `authenticated` SELECT only; `service_role`
+full DML; `anon` nothing. Writes go through Command's `/api/users` and `/api/affiliates`.
+
+> ⚠️ **Two FKs to `profiles`** (`user_id`, `created_by`) make any bare embed between the
+> two tables **ambiguous** — PostgREST refuses the entire request with `PGRST201`, not
+> just the embed. Always name the FK: `affiliates!affiliates_user_id_fkey(...)` from
+> `profiles`, `profiles!affiliates_user_id_fkey(...)` from `affiliates`. This broke
+> Command's whole users list once during development.
+
+### `vendor_referrals`
+
+Which affiliate referred a self-registered vendor (2026-09-18). One row per referred
+vendor; a vendor with no referral simply has no row.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `vendor_id` | `uuid` | PK, FK → `vendors` ON DELETE CASCADE. At most one referrer per vendor |
+| `affiliate_user_id` | `uuid` (nullable) | FK → `affiliates(user_id)` **ON DELETE SET NULL**, indexed. NULL means the affiliate's account was deleted — the referral still happened |
+| `referral_code` | `text NOT NULL` | The code as used at signup, **snapshotted**. The only surviving attribution once `affiliate_user_id` is nulled, and what keeps history true if an affiliate's code is later changed |
+| `created_at` | `timestamptz` | Time of attribution. For "when did they sign up", use `vendors.created_at` |
+
+**RLS:** Command admin/root SELECT. **Grants:** as `affiliates`. Written **only** by the
+vendor app's `POST /api/auth/register`, inside the same rollback-safe request that creates
+the vendor, and only when the `?ref=` code resolves to an **active** affiliate.
+
+**Why it is not a column on `vendors`.** The `vendors` UPDATE policy lets a vendor-admin
+update their whole row, so a referral column there would be editable — and erasable — by
+the referred vendor. This table has no `authenticated` write grant at all.
+
+**Why `SET NULL`, not `RESTRICT`.** Account closure deletes the auth user as its final,
+un-undoable step; that cascades through `profiles` → `affiliates`, and a RESTRICT here
+raised at that point, leaving the closure half done after the person had already been
+told it was complete. Command's `DELETE /api/users` and `DELETE /api/affiliates` refuse
+when referrals exist — those checks, not the FK, now stop careless deletion.
+
+**Primary vendor user.** A vendor can have several `vendor-admin`s and there is no owner
+column. The user who registered the vendor is always its first `vendor-admin` membership,
+so reporting defines the primary vendor user as **the vendor-admin with the earliest
+`vendor_members.granted_at`** (ties broken by `user_id`).
+
+**Reporting.** Command exports a per-affiliate summary as CSV (Users → *Export all
+affiliates*). The per-vendor detail is a query, run as `postgres` in the SQL editor:
+
+```sql
+select
+  coalesce(ap.full_name, '(closed account)')                       as affiliate_name,
+  ap.email                                                         as affiliate_email,
+  vr.referral_code                                                 as referral_code,
+  v.name                                                           as vendor_name,
+  owner.full_name                                                  as vendor_user_name,
+  nullif(trim(owner.email), '')                                    as vendor_user_email,
+  to_char(v.created_at at time zone 'Asia/Manila', 'YYYY-MM-DD HH24:MI') as signed_up_at
+from public.vendor_referrals vr
+join      public.vendors  v  on v.id  = vr.vendor_id
+left join public.profiles ap on ap.id = vr.affiliate_user_id
+left join lateral (
+  select p.full_name, p.email
+  from   public.vendor_members vm
+  join   public.roles    r on r.id = vm.role_id and r.name = 'vendor-admin'
+  join   public.profiles p on p.id = vm.user_id
+  where  vm.vendor_id = v.id
+  order  by vm.granted_at asc, vm.user_id asc
+  limit  1
+) owner on true
+order by affiliate_name, v.created_at;
+```
+
+A closed vendor still appears (closure scrubs the vendor row but keeps its name) with
+blank vendor-user columns, because closure deletes its memberships.
 
 ---
 
