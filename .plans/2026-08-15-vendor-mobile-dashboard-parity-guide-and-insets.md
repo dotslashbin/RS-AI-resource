@@ -978,27 +978,25 @@ The following plans were reviewed before adding this extension:
 | Area | What mobile has now | What still needs to change or be confirmed | Evidence |
 |---|---|---|---|
 | Entry and containment | Main-menu Kiosk Mode entry, staff launcher, persisted vendor gate, staff password exit, Android back/deep-link guards and reset behaviour are implemented and Android-verified in the kiosk work. | No parity rebuild. Carry the existing containment rules through the remaining screens and perform the final release checks. | `ezzy-vendor-mobile/src/components/kiosk/KioskLauncher/KioskLauncher.tsx`; `KIOSK-VERIFICATION.md` Stage 2/3/5 |
-| Kiosk shell | Vendor name, Welcome, Book something, a staff exit control and a disabled Finish a booking button. | Add the web-aligned self-service identity treatment and make Finish a booking a real native view. Keep the staff exit available and native-safe rather than copying the desktop footer literally. | Mobile `KioskShell.tsx:17-39`; web `vendor/components/kiosk/KioskShell/KioskShell.tsx:76-156` |
+| Kiosk shell | Vendor name, Welcome, Book something, staff exit, and a native Finish a booking view. | Keep the web-aligned self-service identity treatment and native-safe staff exit through final release checks. | Mobile `KioskShell.tsx`, `KioskCloseOut/`; web `vendor/components/kiosk/KioskShell/KioskShell.tsx:76-156` |
 | Offering discovery | Flat eligible offering cards; every attached photo is rendered; date choices and slots are on the selected-offering screen; availability is read for one selected date at a time. | Read the same seven-day availability window, group offerings as Available today / Later this week / Not available this week, open the first available day, and move day selection to the time step. Preserve PH-date and overnight rules. | Mobile `KioskCatalogue.tsx:18-68`, `useKioskCatalogue.ts:27-66,86-105`; web kiosk plan H8/H9 |
 | Offering media | `contain` photo with “Photo unavailable” on load failure and no-photo empty state. | Use the cover photo only, contained over a blurred same-image fill; use the offering short-code monogram when absent or failed. Verify performance on the Android tablet. | Mobile `KioskCatalogue.tsx:20-24`; web plan `2026-09-14` I2/I3 |
 | Selection/action placement | Quantity and Continue render inline after the selected slot; Refresh availability is a secondary action. | Use a fixed-frame native layout with only the content list scrolling and a safe-area-aware bottom action bar showing the selected offering, duration/total and the single next action. Keep refresh/retry in the content state. | Mobile `KioskCatalogue.tsx:54-68`; web plan `2026-09-14` B1/D1/D5 |
 | Step framing | Native forms, agreements, signature, checkout and receipt exist; the customer can complete the Android flow. | Add consistent step title/subtitle/progress context and matching action hierarchy across catalogue, customer, agreements, signature and checkout without forcing desktop dimensions. | Mobile kiosk components; web `vendor/components/kiosk/KioskBooking/` |
-| Finish a booking | The shell currently sends the customer to staff because the button is disabled; no mobile close-out screen/service is present. | Implement identifier lookup, server-derived status/stage copy, ready-only action, custody/session confirmation, stale/duplicate response handling and reset. Do not expose a staff roster. | Mobile `KioskShell.tsx:28-34`; web `KioskCloseOut`; plan `2026-09-16` F2 |
+| Finish a booking | Native identifier lookup, server-derived status/stage copy, ready-only action, custody/session confirmation, stale/duplicate response handling and reset are implemented. | Complete live Android verification for ready, non-actionable, missing/stale, duplicate and reset paths. Do not expose a staff roster. | Mobile `KioskCloseOut/`, `kioskApi.ts`; web `KioskCloseOut`; plan `2026-09-16` F2 |
 | Checkout and receipt | PayMongo handoff uses the server-provided HTTPS checkout URL, manual browser return, vendor-scoped payment status, polling, idempotent booking creation and a server-read receipt. | No payment-method UI change. Complete live verification for paid/free paths, delayed webhook, browser close/reopen, truthful pending state, actual receipt values and overnight span. | Mobile `KioskCheckout/useKioskCheckout.ts:39-121`; `KIOSK-VERIFICATION.md` Stage 6 |
 | Guide | The staff guide is a full-screen native modal, but its content explicitly excludes kiosk-specific web-only guidance and ends with “Schedules, offerings and staff are managed on the web portal.” | Add a Kiosk Mode item explaining launch/lockdown, customer flow, reset, documents/signature and Finish a booking, while keeping the guide staff-facing. | Mobile `GuideModal/guideItems.ts:7-9,33-138`; web guide plan G1 |
 
 ### Kiosk parity blockers and important items
 
-#### K-B1 — Finish a booking is not available on mobile  ⬜ TODO
+#### K-B1 — Finish a booking is not available on mobile  🔄 CODE COMPLETE (2026-09-17) — device check outstanding
 
-The customer-facing home advertises the action but disables it and tells the customer
-to see staff. This is a direct behavioural mismatch with the web kiosk and leaves the
-new web status contract unused. Implement a native close-out component and hook in
-the kiosk component family, using the existing authenticated kiosk endpoint. The
-response must preserve `stage` and server-provided message semantics: only `ready`
-gets an action, terminal/non-actionable results do not display date/time, and the
-input must be reset after success or return to home. Verify that empty input cannot
-reach a broad lookup and that no staff list is reachable.
+The customer-facing home now opens a native close-out component using the existing
+authenticated kiosk endpoint. The response preserves `stage` and server-provided
+message semantics: only `ready` gets an action, terminal/non-actionable results do not
+display date/time, and the input resets after a successful confirmation or return to
+home. Verify that empty input cannot reach a broad lookup and that no staff list is
+reachable.
 
 **Component separation:** `KioskCloseOut` render, `useKioskCloseOut` state/request
 logic, and a service/parser module for the response contract. No state or request
@@ -1008,7 +1006,7 @@ logic in the `.tsx` render layer.
 ready, pending/non-actionable, fulfilled/in-progress, missing and stale results;
 confirm the current web wording is not replaced by a generic success message.
 
-#### K-B2 — Offering discovery does not match the web availability model  🔄 CODE COMPLETE (2026-09-17) — device check outstanding
+#### K-B2 — Offering discovery does not match the web availability model  ✅ DONE (2026-09-17)
 
 The mobile hook currently derives date choices but fetches occupancy only after one
 offering and one date are selected (`useKioskCatalogue.ts:17-66`). That cannot produce
@@ -1024,7 +1022,7 @@ kiosk catalogue/slot endpoints where their contract is sufficient; if the curren
 endpoint cannot support the read model, stop for an explicit API-contract plan rather
 than widening this mobile-only change implicitly.
 
-#### K-I1 — Kiosk action hierarchy and fixed-frame layout differ  🔄 CODE COMPLETE (2026-09-16) — device check outstanding
+#### K-I1 — Kiosk action hierarchy and fixed-frame layout differ  ✅ DONE (2026-09-17)
 
 The web keeps the step context and primary action visible while the list scrolls. The
 mobile screen puts Refresh availability and Continue in the content flow
@@ -1034,7 +1032,7 @@ action region with `useSafeAreaInsets()`, stable dimensions, and one primary act
 The action region must never cover the last item or the Android gesture/three-button
 inset. This is a mobile adaptation of the web pattern, not a literal desktop clone.
 
-#### K-I2 — Shell identity and step context need the web's information hierarchy  🔄 CODE COMPLETE (2026-09-16) — device check outstanding
+#### K-I2 — Shell identity and step context need the web's information hierarchy  ✅ DONE (2026-09-17)
 
 The web exposes vendor identity, “Self-service booking”, a Kiosk marker, Welcome
 choices, and consistent step framing (`vendor/.../KioskShell.tsx:76-156`). Mobile has
@@ -1083,9 +1081,9 @@ the guide honest about the mobile implementation and avoid claiming OS lockdown.
 | Stage | Status | Work | Items | Gate to leave |
 |---|---|---|---|---|
 | K0 | ✅ DONE | Reviewed the extension and resolved K-D1 to K-D3. No code. | Assessment | ✅ User approved all three decisions 2026-09-16. |
-| K1 | 🔄 IN PROGRESS | Align kiosk shell identity, step framing and native fixed-frame/action-bar structure. | K-I1, K-I2, K-D2 | Machine checks pass; Android device checks remain for long lists, both nav modes, both themes and keyboard/inset behaviour. |
-| K2 | 🔄 IN PROGRESS | Port seven-day availability grouping, day/time selection, capacity and 24-hour/overnight presentation. | K-B2, K-D1 | Machine checks pass; Android catalogue pass remains for labels, ordering, full/empty states and overnight display. |
-| K3 | ⬜ TODO | Implement Finish a booking against the current staged response contract. | K-B1 | Unit contract tests plus Android ready/non-actionable/error/reset pass; no roster or broad lookup. |
+| K1 | ✅ DONE | Align kiosk shell identity, step framing and native fixed-frame/action-bar structure. | K-I1, K-I2, K-D2 | Machine checks and Android emulator checks confirmed the shell, disabled placeholder action, scroll/action-bar layout, themes, and navigation/inset behaviour on 2026-09-17. |
+| K2 | ✅ DONE | Port seven-day availability grouping, day/time selection, capacity and 24-hour/overnight presentation. | K-B2, K-D1 | Machine checks and Android emulator checks confirmed availability grouping, labels, ordering, full/empty states, started-slot exclusion, and overnight/24-hour presentation on 2026-09-17. |
+| K3 | 🔄 IN PROGRESS | Implement Finish a booking against the current staged response contract. | K-B1 | Machine checks pass; Android ready/non-actionable/error/reset verification remains; no roster or broad lookup. |
 | K4 | ⬜ TODO | Replace card media treatment and add the kiosk section to the staff guide. | K-I3, K-I4 | Light/dark and accessibility checks; photo/no-photo/failed-photo cases; guide content matches code. |
 | K5 | ⬜ TODO | Re-run payment/receipt and full kiosk release acceptance after parity changes. | Existing Stage 6 evidence, K-D4 | Android paid/free/manual-return/delayed-webhook/reset/privacy checks; iOS remains deferred; production evidence separate. |
 
@@ -1099,10 +1097,11 @@ Finish-a-booking flow, web app or backbone code was changed in K1.
 
 **K1 machine verification:** mobile `tsc --noEmit` passed; `npm test` passed **23/23**;
 `npm run lint` passed; `npx expo export --platform android` passed with **3,993
-modules**; mobile `git diff --check` passed. **Still required:** Android emulator
-checks for a long catalogue/form, gesture and three-button navigation, keyboard open,
-light/dark themes, large text and confirmation that the last content row remains above
-the action region.
+modules**; mobile `git diff --check` passed. **Android emulator verification completed
+2026-09-17 by the user:** shell identity and Welcome actions were present; catalogue,
+customer and checkout scrolling/action regions behaved correctly; Android navigation
+and insets, keyboard handling, light/dark themes, and kiosk reset behaviour checked out.
+The disabled Finish-a-booking placeholder is expected until K3.
 
 **K2 execution update (2026-09-17):** the mobile kiosk now reads an inclusive
 seven-day booking window for all eligible schedules, computes availability using the
@@ -1117,9 +1116,26 @@ date; no endpoint, schema, RLS, webhook or web change was made.
 **K2 machine verification:** added `kioskAvailability.test.ts`; mobile `npm test`
 passed **24/24** including the existing overnight catalogue tests; `tsc --noEmit`,
 `npm run lint`, Android export (**3,994 modules**) and `git diff --check` passed.
-**Still required:** Android emulator verification of today/later/unavailable ordering,
-labels, full and empty availability, started-slot exclusion, 24-hour/overnight dates,
-and the existing action-bar/inset checks.
+**Android emulator verification completed 2026-09-17 by the user:** the catalogue
+showed the expected available-today/later/unavailable ordering and labels, and the
+availability, full/empty, started-slot, 24-hour and overnight cases checked out.
+
+**K3 execution update (2026-09-17):** added the separated native `KioskCloseOut`
+render/hook/styles component, authenticated lookup and confirmation wrappers in
+`kioskApi.ts`, and a runtime response parser/status-copy module in
+`lib/kioskCloseOut.ts`. The flow accepts a mobile number, email or booking-reference
+prefix, returns only matching kiosk bookings, displays server-derived non-actionable
+messages without schedule details, and exposes confirmation only for `ready` results.
+Successful confirmation clears the match and identifier; API errors remain visible for
+stale or duplicate confirmations. No roster, broad client-side lookup, schema, webhook,
+vendor web, or backbone change was made.
+
+**K3 machine verification:** added five close-out contract/parser tests; mobile
+`npm test` passed **25/25**; `tsc --noEmit`, `npm run lint`, Android export (**3,998
+modules**) and `git diff --check` passed. **Still required:** Android emulator
+verification with live staging bookings for ready custody/session results,
+non-actionable statuses, missing/stale lookup, duplicate confirmation, and reset/no-PII
+behaviour.
 
 ### Kiosk parity verification
 
