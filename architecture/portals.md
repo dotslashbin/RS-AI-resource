@@ -581,6 +581,16 @@ only.
   served), cross-origin requests to Supabase never intercepted. ⚠️ **A registered
   service worker outlives the code that registered it** — reverting these files does
   not unregister it from browsers that already have it.
+  ⛔ **Until 2026-09-19 Command's worker cached every same-origin GET, not just static
+  assets** — its comment said otherwise. That included `/api/vendor-payout`, which returns
+  **decrypted bank details (full account number)**: they stayed in Cache Storage past
+  sign-out, and re-views were served without reaching the server, so they were **never
+  written to `vendor_payout_view_log`**. It also froze `/api/affiliates`,
+  `/api/account-deletion` and `/api/notification-health` at first-seen values. Fixed in
+  `offline-v2` with vendor's exact rule — cache-first for `/_next/static/` only — and the
+  cache-name bump makes `activate` delete `offline-v1` from every admin's device.
+  **Any new same-origin GET route is safe by default now; do not widen that guard.** See
+  `.plans/2026-09-17-affiliate-referral-codes-interim.md` K15.
 - **Persistent Home control** in `AppHeader`, with a chevron trail (`[home] › Section`)
   that renders only when away from Overview. Vendor has the identical control in its
   `TopBar`, where the gap was sharper: four sidebar-only pages render no tab strip at

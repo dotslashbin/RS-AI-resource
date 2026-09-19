@@ -2,13 +2,10 @@
 
 **Date:** 2026-09-17
 **App / scope:** `backbone/` (migration) · `command/` (create Affiliate users) · `vendor/` (signup captures a referral code)
-**Status:** IN PROGRESS — **all code and documentation are complete and verified on
-local** (2026-09-19). S1–S3 done; a real signup through a real `?ref=` link was credited
-end to end. S4: docs ✅, local reports ✅. **Nothing is committed** — git is yours, and
-commit messages are drafted. **What remains is yours:** S4.3 (commit), I2 (affiliate
-login-block check), S4.1 (migrate staging, then production) and S4.2 (deploy command +
-vendor, after the migration) — then re-run the reports there, and V5 of the companion
-WordPress plan (K10). No open decisions.
+**Status:** ✅ **COMPLETE (2026-09-19)** — live in production on vendor and Command, verified by
+probe and by the user's own production signup test. The WordPress companion check (K10) was
+taken out of scope by the user; the local-data incident (K16) is parked with the user. See
+"On completion" at the end of this file.
 
 > Give Command a way to create **Affiliate** users who each own a unique referral
 > code, let vendor signup capture that code from a `?ref=` link, store who referred
@@ -408,7 +405,373 @@ for any support engineer looking at a half-finished application. It now renders 
 the top of the registration view, so it is present on all six steps. Still invisible, still
 `readOnly`, still not submitted by the form — the hook sends the value itself.
 
-### K10 — the WordPress partner-routing plan is now UNBLOCKED  ⬜ yours to verify
+### K11 — ⛔ the deployed vendor app does not contain the referral feature (2026-09-19)
+
+**Symptom (reported):** on staging, an affiliate created in Command with code `TESTREF`
+got no credit for a signup through
+`https://staging-vendor.ezzy.ph/?division=ezzyWell&ref=TESTREF`.
+
+**Diagnosis — read-only headless probes of the live sites, nothing submitted:**
+
+| | Staging (your URL) | Production (`/?ref=PROBE0000`) |
+|---|---|---|
+| Registration opens | yes — but via `?division=`, which is **old** code | **no** — new code opens it for `?ref=` alone |
+| Hidden `referral-code` input (B16) | **absent** | **absent** |
+| `referral-code` in any loaded script | **no** (14 scripts) | **no** (13 scripts) |
+
+The signup page's own code was loaded (registration rendered), so a deployed B16 would
+have shown up. **Staging vendor predates this feature**: the browser never captured
+`?ref=`, never sent it, and the register route had nothing to record. The affiliate, the
+code and the database are not the problem. Command *was* deployed with the feature
+(staging can create affiliates), so this is vendor-specific.
+
+⚠️ **Correction (same day): the production column is NOT a fault.** Production had not
+been deployed at all yet — the app deploy was staging-only — so it lacking the feature is
+expected. Only the **staging** column is a real finding. The probe ran in a fresh
+headless context with no service worker, reading scripts straight from the server, so the
+staging result is the server's build, not a stale client cache.
+
+**Most likely cause** — one of: (1) the staging deploy covered Command but not vendor;
+(2) vendor built from a branch without `feature/referral_codes` (`b3ac33d`) — flagged as
+a risk at S4.3; (3) the vendor build failed and the previous one is still live. The
+staging vendor deployment's commit in the hosting dashboard settles which.
+
+**Narrowed down (2026-09-19, with git access on `vendor` granted for read + fetch):**
+
+| Question | Answer | How it was established |
+|---|---|---|
+| Is the code on the release branch? | **Yes.** `release/version-0.55.1` = `40dae40`, local = remote, contains `b3ac33d` | `merge-base --is-ancestor`; file contents read from `origin/…` |
+| Does it build? | **Yes** — `npm run build` at `40dae40` exits 0 | local production build (dev server alone had not proven this) |
+| What is staging serving? | A **0.55.x build from before `b3ac33d`**: the 0.55 kiosk text is present, `referral-code` is absent. Vercel deployment **`dpl_h83Qk38ib1Jzh6G1XRdRZWSpsPeR`** | fingerprinting 17 served scripts; the `?dpl=` id Vercel appends to static files |
+
+So the push of `40dae40` did not become the live deployment. `40dae40` ("Deploying
+referral stuff") is an **empty commit** — no file changes — which matters if the Vercel
+project has an *Ignored Build Step* that diffs `HEAD^..HEAD`: that sees nothing and
+skips the build. Other possibilities: the deployment went to a preview URL because
+`staging-vendor.ezzy.ph` is bound to a different branch, or it errored on Vercel. All three
+are visible only in Vercel. The fix is a deploy action, not a code change.
+
+**Narrowed further (2026-09-19) — the empty-commit theory was WRONG.** The user then
+pushed two real version bumps (`e54b561` 0.55.2, `4abf681` 0.55.3, both changing
+`package.json`) and Vercel still produced no deployment. A diff-based skip rule would
+have let those through, so the cause is upstream of the build.
+
+Eliminated: the pushes reached GitHub (all three on `origin/release/version-0.55.1`); the
+code builds; the commit author is identical (`thumbtapers@gmail.com`) on the commits that
+deployed and the ones that did not, so it is not Vercel's non-member-author block. GitHub's
+own deployment records could not be read — the repo is private, `gh` is not installed.
+
+**Most likely cause — the staging project deploys from a branch that no longer exists.**
+`0799dc3` ("Merge branch 'release/version-0.55.0'") has `95d0aa9` as its second parent, so
+`release/version-0.55.0` ended at **`95d0aa9`** — which is exactly what staging serves
+(0.55 kiosk text present, `referral-code` absent). That branch was then finished and
+**deleted from origin**. A Vercel project whose production branch is
+`release/version-0.55.0` would behave exactly like this: nothing ever pushes to it again,
+and pushes to `release/version-0.55.1` do not reach the staging domain. The branch names
+`release/staging-0.32.1` ("Deploying staging vendor") and the "deploying version …"
+commits point to a per-release branch convention, which makes this likely rather than
+certain. It is confirmed or refuted in one place: the staging vendor project's
+**Production Branch** setting in Vercel.
+
+**❌ RETRACTED (same day) — the deleted-branch theory is wrong too.** The Vercel vendor
+project's environments (screenshot from the user): **Production** tracks branch
+`production` → `vendor.ezzy.ph`; a custom **staging** environment tracks the pattern
+**`release/*`** → `staging-vendor.ezzy.ph`; Preview takes all other branches. So staging is
+bound to a pattern, not to the deleted `release/version-0.55.0`, and
+`release/version-0.55.1` matches it. The `95d0aa9` match stands (it is still what staging
+serves), but it no longer explains *why* later pushes do not deploy. Two theories have now
+been ruled out by evidence; the next step is the Deployments list, not another theory.
+
+**RESOLVED on staging (2026-09-19) — verified, cause unknown.** After the user promoted a
+deployment (see K12), a probe showed `staging-vendor.ezzy.ph` serving
+**`dpl_5oPYEi3Ft8BrPkBYF6xBDHkSG7zD`** — the Staging deployment of `40dae40` that the Vercel
+list shows as Ready — with `?ref=` opening signup, the hidden input carrying the code,
+`referral-code` in the served scripts, and the bundle and CSP pointing at the **staging**
+project. Why the domain served the older `dpl_h83Qk38…` earlier is **not established**;
+two theories were retracted, and a third is not offered. Still open and minor: the two
+version-bump pushes (`e54b561`, `4abf681`) do not appear as deployments at all —
+**confirmed** by the Deployments list filtered to `release/version-0.55.1`, which holds only the
+`40dae40` Staging deployment and the production rebuild. The code in
+them is identical to `40dae40` apart from the version number, so this does not block
+anything, but the next push to a `release/*` branch should be checked to see whether it
+deploys on its own.
+
+**Side observation for the production deploy:** `origin/master` is still at `2c1359f`
+(0.54.1). The 0.55.0 finish-merge `0799dc3` was never pushed to master, so whatever
+production builds from will need the release actually merged and pushed.
+
+**When retesting:** vendor is a PWA, so the tester's own browser can keep serving the
+old build from its service worker after a correct redeploy. Retest in a private window or
+after clearing the service worker, or a good deploy will look broken.
+
+**Fix:** get `b3ac33d` into vendor's deploy branch and redeploy staging, then production.
+**Verify** by re-running the same probe: the hidden input must read the code.
+
+**Exposure: none.** (Corrected — the first version assumed production was deployed.)
+Production Command has no affiliate UI yet, so no real affiliate code can exist there and
+no real attribution can have been lost. On staging only the test signup is affected, and
+it can be backfilled by hand. Keep the order for production: vendor and Command deployed
+together, after staging passes.
+
+### K14 — staging Command showed "Referred vendors: 0" while the row existed (2026-09-19)  ✅ ROOT-CAUSED → K15
+
+**Symptom:** after "Dance" was credited to `TESTREF` (K13 — row confirmed by staging SQL,
+`affiliate_user_id = b427e8fc-5733-4115-a55a-3fcb7cd00603`) and then activated, REF one's
+detail view on staging Command still shows **Referred vendors 0** with the empty-state
+text. The share link **does** render — and it only comes from `GET /api/affiliates` — so
+that request succeeded and returned `referrals: []` without an error.
+
+**Reproduced locally — the code is correct.** Logged into local Command as an admin in a
+real browser, opened Nina: panel shows **2**, and the captured `GET /api/affiliates`
+response lists both vendors (Tig, Citywide Sports Center). The handler reads
+`vendor_referrals` by `affiliate_user_id` with no vendor-status filter.
+
+**So the fault is specific to staging.** Candidates, each with the evidence that would
+decide it: (1) staging Command serving an older build — deploys were slow today, as K11
+showed for vendor; (2) the response cached between Vercel and the browser — an
+`x-vercel-cache: HIT` header, or a payload older than the Dance signup; (3) the panel not
+refetching — clears on a full reload. Next.js fetch caching was checked and ruled out as a
+likely cause: Command is Next 16.2.4 with no `cacheComponents`/`fetchCache` config, and
+the handler is dynamic (it reads cookies). **Root cause found (same day): Command's service worker.** A hard reload showed the
+correct count (1). A hard reload bypasses the service worker, and `command/public/sw.js`
+serves **every** same-origin non-navigation GET cache-first — including
+`/api/affiliates?userId=…`. The panel's first load (before Dance existed) was cached and
+replayed on every later open. The hard reload's fresh response was never stored, so the
+stale 0 is likely to **come back on the next normal load**. Not a data or code fault in this
+feature — see K15, which is the real finding.
+
+---
+
+### K18 — why the vendor promote did not go live at first  ✅ resolved (2026-09-19)
+
+After the K12 rollback, Vercel stopped assigning `vendor.ezzy.ph` to new production
+deployments. The first production builds from the user's promote and redeploy therefore came
+out **"Production · Staged"**: built, but with only `*.vercel.app` domains attached — and
+probes kept showing the rolled-back `dpl_ETomWCbSx…` live. Using **Promote** on the staged
+`e54b561` deployment attached the domain. Lesson: after an Instant Rollback, *Redeploy*
+produces another staged build; only *Promote* puts one live.
+
+**Production probe after the promote (read-only, nothing submitted):**
+
+| Check | Result |
+|---|---|
+| `vendor.ezzy.ph` deployment | `dpl_8zXk851y8io78zkjHM7eC7ELDQJx` |
+| `/?ref=PROBE0000` | opens signup; hidden input `PROBE0000`; `referral-code` served; param gone from the URL |
+| `/?division=ezzy-well&ref=nina-2026` (the WordPress plugin's link shape) | EzzyWell selected; code normalised to `NINA2026` |
+| `/` with no parameter | login screen untouched |
+| Database | **production** (bundle + CSP) |
+| `command.ezzy.ph` | `sw.js` = `offline-v2` + `/_next/static/` guard; **production** DB |
+
+---
+
+### K17 — ⚠️ production is now ahead of its branches — sync them (2026-09-19)  ✅ DONE by the user
+
+Both apps reached production by **Promote**, not by pushing the `production` branch. Each
+Vercel project's Production environment tracks `production` — for vendor that branch is still
+at **0.52.0** (`0ca90e0`). So git no longer describes what is live, and **the next push to a
+`production` branch rebuilds from it and silently replaces the promoted build.**
+
+For **Command** that is worse than a feature regression: its `production` branch predates the
+K15 fix, so a push there would **put the vulnerable service worker back in production** —
+caching decrypted payout details again and bypassing the view audit.
+
+**Fix:** merge the released code into each app's `production` branch (and `master`, per your
+release flow) and push, so the branch matches what is live. Until then, treat a push to
+either `production` branch as a rollback.
+
+**✅ Done (2026-09-19), on the user's report** — both `production` branches synced to what is
+deployed. Not verified by me: the user handles git. The one property worth confirming is that
+Command's `production` branch has `public/sw.js` at `offline-v2`, since that is what keeps the
+K15 fix from being undone by a future push.
+
+---
+
+### K16 — ⚠️ my verification changed local data it could not revert (2026-09-19)  ⏸ PARKED
+
+While testing D15/K15 against the local database, a harness set the local test vendor
+**Tig** from `pending_activation` to `active`, intending to set it back. It could not:
+`validate_vendor_status_transition()` allows only pending→active/suspended,
+active→suspended and suspended→active — **there is no path back to pending**. The harness
+aborted on the failed restore, so that first attempt produced no test result.
+
+**Left behind (local only — staging and production untouched):** Tig is `active`, and one
+`vendor_status_log` row records it (`2026-09-18 23:38:04 UTC`, pending→active,
+`changed_by` null). The K15 check was then redone with a trigger-free, fully reverted lever
+(a temporary `vendor_referrals` row).
+
+**⏸ PARKED (2026-09-19) — user's decision: leave it.** Local data only, with no effect on
+staging or production; the user will `supabase db reset` when they need a clean local database,
+which removes it. Nothing further to do here.
+**Options, not taken without the user's say:** (1) leave it — local test data, harmless;
+(2) restore exactly: bypass the trigger for one statement and delete that log row, which
+means overriding a guard and deleting audit data, even locally; (3) `supabase db reset` —
+also removes Tig and every other hand-made local record. **Lesson recorded:** check a
+table's triggers before a test mutates it, and prefer a lever that has none.
+
+---
+
+### K15 — ⛔ SECURITY: Command's service worker caches API responses, including decrypted bank details  ✅ FIXED 2026-09-19 (approved)
+
+**Pre-existing — not introduced by this plan — and live in production since 2026-08-18.**
+Found while root-causing K14.
+
+`command/public/sw.js:44-60` is commented *"Cache-first for same-origin static assets
+(JS/CSS/images/fonts) only"* — but the code never checks for a static asset. Every
+same-origin GET that is not a page navigation is served from Cache Storage if present,
+and stored there on first fetch, with no expiry. Command has four GET API routes, and all
+four are affected: `/api/affiliates`, `/api/vendor-payout`, `/api/account-deletion`,
+`/api/notification-health`.
+
+The serious one is **`/api/vendor-payout`**, which returns **decrypted payout details —
+account name and full account number** (`route.ts:~150-160`). Because the service worker
+caches it:
+
+1. **Decrypted bank details persist at rest** in the admin's browser (Cache Storage,
+   `offline-v1`), indefinitely, surviving sign-out — readable by anyone with that browser
+   profile.
+2. **The audit trail is bypassed.** The route deliberately refuses to return details
+   unless the view is written to `vendor_payout_view_log` (`route.ts:122`). A re-view
+   served from cache never reaches the server, so it is **never logged** — the log
+   undercounts exactly the access it exists to record.
+3. **Stale data:** changed payout details, a resolved closure, or a new referral keep
+   showing their first-seen values (K14 was this).
+
+**Scope in the other apps:** `vendor/public/sw.js:50` already does it right —
+`if (!url.pathname.startsWith("/_next/static/")) return` before its cache-first block.
+`booker/public/sw.js` has Command's flaw, but booker has **no** GET API routes, so nothing
+sensitive is exposed there today (latent only).
+
+**Proposed fix — Command only, two lines, following vendor's existing pattern:**
+- add `if (!url.pathname.startsWith("/_next/static/")) return` before the cache-first
+  block, so `/api/*` always goes to the network;
+- bump `OFFLINE_CACHE` from `"offline-v1"` to `"offline-v2"`. The activate handler already
+  deletes every cache whose name is not current (`sw.js:22-24`), so this **purges the API
+  responses — decrypted account numbers included — already sitting on admins' devices**.
+  Without the bump, the fix stops new caching but leaves the old copies in place.
+
+Approval gate: security-related change (AGENTS.md). Booker's latent copy of the flaw is
+recorded, not fixed — different app, nothing exposed.
+
+**✅ Fixed and verified (2026-09-19), approved by the user.** Staging: deployed, and the user
+confirmed counts update without a hard reload. **Production: LIVE and verified** — probe of
+`https://command.ezzy.ph/sw.js` shows `offline-v2` and the `/_next/static/` guard, and the
+page's CSP points at the production project. Each admin's next visit activates the new worker,
+which deletes `offline-v1` and the payout details cached in it. ⚠️ See K17: a push to Command's
+`production` branch would currently bring the vulnerable worker back. `command/public/sw.js`: the
+`/_next/static/`-only guard added (vendor's exact line and reasoning, including the RSC
+`?_rsc=` payloads vendor's plan I3 found), and `OFFLINE_CACHE` bumped to `offline-v2`.
+
+Verified in a real browser against local Command, with the page confirmed to be controlled
+by the service worker, **against both versions of `sw.js`** so the test is known to detect
+the bug: open Nina's panel → add a referral row directly in the DB → reopen the panel
+normally (no reload).
+
+| `sw.js` | cache | 2nd open | `/api/` entries in Cache Storage |
+|---|---|---|---|
+| old | `offline-v1` | **2 → 2, stale** — reproduces K14 exactly | **1** |
+| fixed | `offline-v2` | **2 → 3, fresh** | **0** |
+
+The temporary referral row was deleted in a `finally` block and confirmed gone.
+Machine-verified alongside: 136 tests pass, `tsc` clean, lint unchanged at the 25-problem
+baseline, `npm run build` exit 0. **On deploy**, the new worker installs on each admin's next
+visit (`skipWaiting` + `clients.claim` are already in place), and its `activate` deletes
+`offline-v1` — including any decrypted payout details cached there.
+
+---
+
+### K13 — ✅ staging end-to-end verified with a real signup (2026-09-19)
+
+With staging on the referral build (deployment from `e54b561`, the 0.55.2 bump — code
+identical to `40dae40`), the user signed up through
+`https://staging-vendor.ezzy.ph/?division=ezzyWell&ref=TESTREF`. Staging SQL (user-run):
+
+- **Query 1** — affiliate `TESTREF` ("REF one"), status **`active`**, **`referrals: 1`**.
+- **Query 2** — vendor **"Dance"**, created 23:07 UTC, `pending_activation`, **credited
+  `TESTREF`**, registered by a real self-signup user. Not a backfill: the backfill targets
+  (the two earlier failed attempts) remain uncredited.
+
+This is the full chain on a hosted environment: link → capture at module load → form →
+submit → server resolve → `vendor_referrals` row. It also confirms, on real data, that a
+referral is **credited at signup while the vendor is still pending** — the count does not
+wait for activation.
+
+**Not a defect, but worth knowing:** "Vendor from REF 1" and "Vendor + Ref 2" have **no
+vendor-admin at all** (`registered_by` null). A self-signup always creates one, so these
+were most likely created from Command's Vendors page (or later closed, which removes
+members). Command-created vendors cannot carry a referral — out of scope for this plan.
+
+**The Command "0" the user saw** was a stale view: the Affiliate panel fetches when the
+detail view opens, and the database already held the row.
+
+**D15 — what "Referred vendors" counts → (c) only ACTIVATED vendors** (resolved
+2026-09-19). Implemented as a **display rule only**:
+- `GET /api/affiliates` now returns every referral **with its vendor's status**, still
+  unfiltered — the Affiliate modal's "Remove" guard must see pending referrals too, since a
+  pending signup is still a record that must not be orphaned;
+- `command/lib/affiliateReferrals.ts` holds the rule (`vendorStatus === "active"`), with
+  8 tests including "a fresh pending-only affiliate shows 0 activated";
+- the panel reads **"Referred vendors (activated)"** and lists only activated vendors.
+- **Judgement call, flagged to the user:** when the activated count is 0 but some vendors
+  did sign up, the empty state says so ("N signed up through this code but aren't active")
+  instead of the old text, which would have been false and sent an admin hunting for a
+  broken link. Not counted, not listed.
+- Unchanged: the vendor app (the row is still written at signup) and the CSV export, which
+  already labels both numbers.
+Browser check: the panel renders the new label and count correctly. The *exclusion* of a
+pending vendor could not be shown in the browser locally afterwards — see K16 — so it rests
+on the unit tests.
+
+### K12 — ⚠️ production vendor was promoted ahead of plan (2026-09-19)  ⬜ decision needed
+
+To check the staging build for errors, the user clicked **Promote** on it. In Vercel,
+Promote goes to **Production**: the list shows *"Production rebuild of 5oPYEi3Ft"*, and a
+probe confirms `vendor.ezzy.ph` now serves **`dpl_5YsAmoV671Rumhd7CJZ1UL9z3PDN`** — the
+referral build (`40dae40`, the 0.55.x line).
+
+**What is fine — verified:**
+- It is a *rebuild* with production settings: bundle and CSP point at the **production**
+  project `pdkejyjidrfxksaczvfy`, not staging. No crossover of the 2026-08-10 kind.
+- It works against production: the migration is already there (S4.1), so the register
+  route's lookup finds the tables. Production Command is not deployed, so no production
+  affiliate code can exist yet — every `?ref=` resolves to nothing and signups proceed
+  unattributed, as designed. Nothing breaks, and nothing is lost.
+
+**What is not fine:**
+- **Production is now ahead of its branch.** The Production environment tracks the
+  `production` branch, which is still at **0.52.0** (`0ca90e0`). The next push to
+  `production` rebuilds from there and silently takes `vendor.ezzy.ph` back to 0.52.0 —
+  dropping referral capture and every 0.53–0.55 change with it. Git no longer describes
+  what is live.
+- **It shipped more than referrals.** `40dae40` carries the whole 0.55.x line (the kiosk
+  work included). Whether that was already approved for production is the user's call.
+- Production vendor is now ahead of production Command — harmless, per the above.
+
+**Decision (2026-09-19): ROLL BACK.** Vercel **Instant Rollback** to the production
+deployment that was live before the rebuild, finish the staging signup test, then release
+vendor + Command to production together through the `production` branch, as the plan
+always intended. Rejected: keeping it and syncing the branch — it would have shipped the
+whole 0.55.x line to production before staging had passed its end-to-end test.
+⚠️ After an Instant Rollback, Vercel **stops auto-assigning the production domain** to new
+production deployments until one is promoted (or the rollback is undone). The eventual
+production release must therefore be **promoted**, or `vendor.ezzy.ph` will keep serving
+the rolled-back build while the new one sits ready and unused — the same symptom K11 had
+on staging.
+**✅ Rolled back and verified (2026-09-19).** Probe of `vendor.ezzy.ph`: deployment
+`dpl_ETomWCbSxmtaVMyUYTESxQNhPaX4`, `?ref=` does not open signup, no `referral-code` in the
+12 served scripts, CSP/bundle on the **production** project. Staging in the same probe:
+still the referral build and still the staging DB — but on a **new** deployment,
+`dpl_9NgwVVEq7j7xMvoJCaVwY7QtmgYb`, with **no new commit** on any branch. So something on
+the Vercel side changed staging's live deployment. Which commit that deployment is built
+from would tell whether a version-bump push finally built late (relevant to the open
+"bumps never deployed" question in K11).
+
+### K10 — the WordPress partner-routing plan is now UNBLOCKED  ✖ OUT OF SCOPE (2026-09-19)
+
+> **Descoped by the user on 2026-09-19:** "We don't have to handle the WordPress related thing
+> right now." Kept as a record, not deleted. The vendor side it depends on **is** live and
+> verified: a production probe of `/?division=ezzy-well&ref=nina-2026` — the exact shape the
+> plugin emits — selected the division and captured `NINA2026` (K18). What remains belongs to
+> `.plans/2026-09-17-wordpress-partner-routing-referral-code.md` (its V5), not to this plan.
 
 `.plans/2026-09-17-wordpress-partner-routing-referral-code.md` is a companion to this
 plan: the `ezzy.ph` plugin captures a referral code and appends `&ref=CODE` to the
@@ -505,6 +868,50 @@ be absent on exactly the path B17's "draft restored" test needs to observe — a
 for any support engineer looking at a half-finished application. It now renders once at
 the top of the registration view, so it is present on all six steps. Still invisible, still
 `readOnly`, still not submitted by the form — the hook sends the value itself.
+
+### K11 — ⛔ the deployed vendor app does not contain the referral feature (2026-09-19)
+
+**Symptom (reported):** on staging, an affiliate created in Command with code `TESTREF`
+got no credit for a signup through
+`https://staging-vendor.ezzy.ph/?division=ezzyWell&ref=TESTREF`.
+
+**Diagnosis — read-only headless probes of the live sites, nothing submitted:**
+
+| | Staging (your URL) | Production (`/?ref=PROBE0000`) |
+|---|---|---|
+| Registration opens | yes — but via `?division=`, which is **old** code | **no** — new code opens it for `?ref=` alone |
+| Hidden `referral-code` input (B16) | **absent** | **absent** |
+| `referral-code` in any loaded script | **no** (14 scripts) | **no** (13 scripts) |
+
+The signup page's own code was loaded (registration rendered), so a deployed B16 would
+have shown up. **Staging vendor predates this feature**: the browser never captured
+`?ref=`, never sent it, and the register route had nothing to record. The affiliate, the
+code and the database are not the problem. Command *was* deployed with the feature
+(staging can create affiliates), so this is vendor-specific.
+
+⚠️ **Correction (same day): the production column is NOT a fault.** Production had not
+been deployed at all yet — the app deploy was staging-only — so it lacking the feature is
+expected. Only the **staging** column is a real finding. The probe ran in a fresh
+headless context with no service worker, reading scripts straight from the server, so the
+staging result is the server's build, not a stale client cache.
+
+**Most likely cause** — one of: (1) the staging deploy covered Command but not vendor;
+(2) vendor built from a branch without `feature/referral_codes` (`b3ac33d`) — flagged as
+a risk at S4.3; (3) the vendor build failed and the previous one is still live. The
+staging vendor deployment's commit in the hosting dashboard settles which.
+
+**When retesting:** vendor is a PWA, so the tester's own browser can keep serving the
+old build from its service worker after a correct redeploy. Retest in a private window or
+after clearing the service worker, or a good deploy will look broken.
+
+**Fix:** get `b3ac33d` into vendor's deploy branch and redeploy staging, then production.
+**Verify** by re-running the same probe: the hidden input must read the code.
+
+**Exposure: none.** (Corrected — the first version assumed production was deployed.)
+Production Command has no affiliate UI yet, so no real affiliate code can exist there and
+no real attribution can have been lost. On staging only the test signup is affected, and
+it can be backfilled by hand. Keep the order for production: vendor and Command deployed
+together, after staging passes.
 
 ### K10 — the WordPress partner-routing plan is now UNBLOCKED  ⬜ yours to verify
 
@@ -1683,6 +2090,51 @@ One stage per turn by default, with a report and the big table after each.
 
 ---
 
+## I2 — how to run it (written 2026-09-19)
+
+**What it proves:** that holding a referral code gives nobody a way into any portal —
+and, just as important, that it takes nothing away from someone who already had one
+(D11). No code changes; this only exercises gates that already existed.
+
+**Locally (recommended first — no email needed).** The seed gives Nina a password
+(`nina@bookdeck.com` / `DevSeed@pass16`) and no portals. Liza (`liza@bookdeck.com` /
+`DevSeed@pass2`) is a booker who is also an affiliate. Start each app on its own port
+(`npm run dev -- -p 3000` command, `-p 3001` vendor, `-p 3002` booker) — bare `next dev`
+takes ports in start order.
+
+| # | Surface | Sign in as | Expected |
+|---|---|---|---|
+| 1 | Vendor web — `localhost:3001` | Nina | Refused: **"Your account has no vendor access. Contact support."** — and you stay on the login screen, not a blank app |
+| 2 | Booker web — `localhost:3002` | Nina | Refused: **"You do not have access to RS Booker."** |
+| 3 | Command — `localhost:3000` | Nina | Refused: **"You do not have access to the Command portal."** |
+| 5 | Booker web — `localhost:3002` | **Liza** | **Gets in normally.** This is the D11 guarantee — a code must not cost anyone their existing access |
+| 6 | Any portal, then refresh | Nina | Still refused after a refresh — the session-restore path signs out too, it does not render a blank shell |
+
+A **pass** is 1–3 and 6 refused with those messages, and 5 admitted. Any portal that
+*admits* Nina is a real finding: stop and report it.
+
+**On staging (after S4.1/S4.2) — including the mobile app.** ⚠️ The vendor mobile app
+is **not** testable locally: its `EXPO_PUBLIC_SUPABASE_URL` points at the **staging**
+project (`fbxbwnfeimzhgxpshdpa`), where the seeded Nina does not exist. So:
+
+1. In staging Command, create an affiliate **with no portals**, on an email you control.
+2. A Command-created account has **no password**, so use *Forgot Password* on the vendor
+   web portal → set one from the email. (This is also the residual-risk path an affiliate
+   would actually take.)
+3. Sign in on vendor web, booker web and Command → refused, as in the local table.
+4. Sign in on the **vendor mobile app** → the **"No vendor access on this account"**
+   screen.
+5. Optionally give an existing staging **booker** a code and confirm they still sign in
+   to booker — the staging version of check 5. ⚠️ Auth email on a hosted project needs that project's SMTP
+configured (see `auth-and-roles.md` → Password recovery), and it reaches **real inboxes**
+— use an address you control.
+
+**What I2 deliberately does not cover:** the accepted residual risk that such a session's
+raw JWT can read public catalogue data through the API. That was decided (D3) and is
+documented in `auth-and-roles.md`; I2 checks the portals, not the API.
+
+---
+
 ## Big table (all todos, ownership and status)
 
 **Owner:** 🤖 = mine (Claude) · 👤 = yours (Joshua) · 🤝 = shared
@@ -1731,9 +2183,67 @@ One stage per turn by default, with a report and the big table after each.
 | B17 | S3 | `referral-deeplink.spec.ts` | 🤖 | ✅ DONE 09-18 | **8 tests, all pass** (plus the 5 division tests, unharmed). **Mutation-tested**: reintroducing the read-too-late bug fails 5 of them; flipping URL-beats-draft fails the 1 test written for it |
 | S3.V | S3 | Tests · tsc · lint · new spec | 🤖 | ✅ DONE 09-18 | 471 unit tests pass · `tsc` clean · lint at the 34-problem baseline · **full visual suite 187/187, Playwright exit 0** — the hidden input moved no screenshot baseline, as the plan predicted |
 | S3.L | S3 | Live vendor signup through a real link | 🤝 | ✅ DONE 09-19 | **You ran it** — and it is **machine-corroborated**: the export query shows the row it wrote ("Tig" by JanCro, credited to Nina via NINA2026, 2026-09-19 03:23) |
-| I1 | S4 | Architecture docs | 🤖 | ✅ DONE 09-19 | `schema.md` · `auth-and-roles.md` · `portals.md` · `conventions.md` (K9) · plus `command/README.md` — `PORTAL_URL_VENDOR` now also drives affiliate share links |
-| I2 | S4 | Affiliate login-block check | 👤 | ⬜ TODO | Vendor, booker, command and the mobile app |
-| I3 | S4 | Run both report queries | 🤝 | ✅ DONE 09-19 (local) | Export: 2 rows, primary vendor user resolved correctly. Summary: Nina 2 referred / 1 active (Tig is pending activation), Jax T and Liza at 0. **Re-run on staging and production after S4.1** |
-| S4.1 | S4 | Migrate staging, then production | 👤 | ⬜ TODO | Production's migration state is still unverified |
-| S4.2 | S4 | Deploy command + vendor | 👤 | ⬜ TODO | **After** the migration — the wrong order loses referrals silently |
-| S4.3 | S4 | Commits in each repo | 👤 | ⬜ TODO — **yours** | Reassigned 09-19 at your request: I drafted one commit message per repo with its exact file list; you commit (signed). Root: stage **only** the listed files — `wordpress_work` also holds unrelated WordPress changes |
+| I1 | S4 | Architecture docs | 🤖 | ✅ DONE 09-19 | `schema.md` · `auth-and-roles.md` · `portals.md` · `conventions.md` · `command/README.md` · **plus** `overview.md` + `portals.md` corrected on the service worker (K15) |
+| I2 | S4 | Affiliate login-block check | 👤 | ✅ DONE 09-19 | **Your report:** everything refused / admitted as expected. Recorded as your verification, not observed by me |
+| I3 | S4 | Report queries | 🤝 | ✅ DONE 09-19 | Verified on **local** (2 rows, primary user resolved) and **staging** (Dance ↔ TESTREF). Production not reported separately — same migration, same queries |
+| S4.1 | S4 | Migrate staging, then production | 👤 | ✅ DONE 09-19 | **Staging verified read-only**: `migration list --linked` shows `20260917000001` applied, nothing unapplied. **Production per your report** — the CLI is linked to staging, so I cannot see it |
+| S4.2 | S4 | Production release: vendor + Command | 👤 | ✅ DONE 09-19 | **Probe-verified**: vendor `dpl_8zXk851y…` captures `?ref=` (incl. the WordPress link shape) on the **production** DB; Command runs the fixed SW. Needed a Promote of a *Staged* build (K18) |
+| S4.L | S4 | Production signup test | 👤 | ✅ DONE 09-19 | **User ran it in production**: affiliate created, signup through the link, count 0 → 1 on activation. Passed |
+| K18 | S4 | Vendor promote came out "Staged" | 👤 | ✅ RESOLVED 09-19 | After a rollback, Redeploy makes staged builds; Promote attaches the domain |
+| S4.3 | S4 | Commits in each repo | 👤 | ✅ DONE 09-19 | **Verified read-only.** Root: `wordpress_work` fast-forwarded into `master` at `eaa5e5a`, branch deleted, pushed (`master...origin/master`, nothing ahead); all 7 doc markers present on `master`. backbone `7ff008c`, command `19d4c37`, vendor `b3ac33d` — each clean and pushed on its feature branch. **Those three still need to reach whatever branch deploys** before S4.2 |
+| ~~K10~~ | S4 | ~~WordPress plan V5~~ | 👤 | ✖ **OUT OF SCOPE** 09-19 | **Descoped by the user.** Belongs to the WordPress plan. The vendor side it needs is live — the plugin's link shape was probe-verified in production |
+| K11 | S4 | Staging vendor served a pre-referral build | 👤 | ✅ RESOLVED 09-19 | Cause (user-observed): **Vercel deployment delay** — deployments took a while to appear and go live. Two earlier theories retracted |
+| K12 | S4 | Production vendor was promoted ahead of plan | 👤 | ✅ ROLLED BACK 09-19 | **Verified by probe**: `vendor.ezzy.ph` now serves `dpl_ETomWCbSx…` — no `?ref=` capture, no `referral-code`, **production** DB. Staging unaffected. Next production release must be **Promoted** (auto-assign is off after a rollback) |
+| K13 | S4 | Staging end-to-end with a real signup | 👤 | ✅ DONE 09-19 | "Dance" credited `TESTREF` while still `pending_activation` — the live path works on a hosted environment |
+| K14 | S4 | Staging Command showed 0 referrals while the row existed | 🤖 | ✅ ROOT-CAUSED 09-19 | Not a feature bug: Command's service worker replayed a cached `/api/affiliates` response. → K15 |
+| K15 | S4 | Command SW cached API responses incl. decrypted bank details | 🤖 | ✅ **FIXED IN PRODUCTION** 09-19 | **Verified live**: `command.ezzy.ph/sw.js` = `offline-v2` + `/_next/static/` guard, production DB. ⚠️ K17 |
+| K17 | S4 | Production ahead of its branches | 👤 | ✅ DONE 09-19 | **User synced** both `production` branches to what is deployed (user's report; git is theirs) |
+| K16 | S4 | My test left local vendor Tig `active` | 👤 | ⏸ PARKED 09-19 | **User's decision: leave it** — local only; cleared by the next `db reset` |
+| D15 | S4 | What "Referred vendors" counts | 👤 | ✅ (c) 09-19 | Activated only. **Confirmed on staging**: the count rose as soon as the vendor was activated |
+
+---
+
+## On completion (2026-09-19)
+
+**Shipped — live in production on vendor and Command:**
+- Any user can be made an **affiliate** with an admin-chosen referral code — a capability, not a
+  role, so nobody's access changes (D11). Created, assigned, changed and removed from Command's
+  Users page; the detail view shows the code, a share link, and the activated vendors (D15).
+- A vendor signing up through **`?ref=CODE`** is credited to that affiliate — captured at page
+  load, carried invisibly through the wizard and the draft, and written in the same request that
+  creates the vendor. A bad or missing code never blocks a signup (D2).
+- **Reporting:** Command's "Export all affiliates (CSV)", plus the per-vendor export SQL in
+  `architecture/schema.md`.
+- **A pre-existing security fix (K15):** Command's service worker had been caching every API
+  response since 2026-08-18 — including **decrypted bank details**, which also bypassed the
+  payout view audit. Found while chasing a stale count; fixed, verified against the old and new
+  worker, and live in production.
+
+**Verified by:** unit tests (Command 136, vendor 471 — referral tests included); a mutation-tested
+Playwright spec for the deep link; the full visual suite (187/187); psql checks of the migration
+(constraints, grants, RLS, `SET NULL`); four scripted end-to-end registrations locally; read-only
+probes of every hosted domain (build, capture, database wiring); and the user's own click-throughs
+and signups locally, on staging and in production.
+
+**Aborted, and why:** B2 and B7 — access and role-change guards that only existed while affiliate
+was a role; D11 removed the collision they guarded.
+
+**Out of scope:** K10 — the WordPress plugin's end-to-end check, descoped by the user; it belongs
+to the WordPress plan. Its vendor-side dependency is live and probe-verified.
+
+**Parked:** K16 — local test vendor Tig left `active` by my test harness. The user chose to leave
+it: local only, cleared by their next `db reset`.
+
+**Not verified by me:** the production report queries (run on local and staging only); the
+production-branch sync (K17, the user's report — git is theirs); the vendor mobile app's refusal
+of an affiliate (I2, the user's report).
+
+**Worth carrying forward:**
+- **Booker's service worker still has K15's flaw** — latent only, because booker has no GET API
+  routes today. The first GET route added to booker will be cached forever unless the worker is
+  narrowed to `/_next/static/` first.
+- **After a Vercel Instant Rollback, production deploys come out "Staged"** until one is
+  *Promoted* (K18). A Redeploy only adds another staged build.
+- Any future embed between `profiles` and `affiliates` must name its foreign key — the table has
+  two, and a bare embed fails the whole query (K1).
+
