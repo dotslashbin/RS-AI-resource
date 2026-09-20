@@ -19,6 +19,9 @@ Per `AGENTS.md`'s shared-backend model: one Supabase project, no inter-app API, 
 
 **Local-dev implication worth flagging now:** testing the mobile app's registration flow against a *local* Supabase means booker's `/api/register` also needs to be reachable from the phone/simulator — same problem, same fix, as the PWA ngrok work: either run booker's dev server and tunnel it (`ngrok http 3000` + `allowedDevOrigins`, already proven this session), or point the mobile app at booker's hosted deployment instead. Not a blocker, just worth carrying the lesson forward rather than re-discovering it.
 
+
+> **Superseded in part (2026-09-18).** D1 (NativeWind) and D3 (AsyncStorage for the session) are replaced by `ezzy-vendor-mobile`'s settled choices: `.styles.ts` + `theme/tokens.ts` without NativeWind (vendor-mobile D1-A), and `expo-secure-store` behind a chunking adapter (vendor-mobile D6-A, as `mobile-dev/SKILL.md` §3.2 requires). Ph2 and Ph3 are being re-shaped by the mock-data design prototype in `.plans/2026-09-18-booker-mobile-prototype.md`: 4-tab navigation, an offering page plus a 4-step wizard, and no map. Ph1 (auth) otherwise stands, and will be revisited against that plan before execution.
+
 ---
 
 ## Phase roadmap (full picture, Phase 1 detailed below)

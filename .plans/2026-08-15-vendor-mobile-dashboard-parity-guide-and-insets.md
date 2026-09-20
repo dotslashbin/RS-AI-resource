@@ -3,11 +3,11 @@
 **Date:** 2026-08-15
 **App / scope:** `ezzy-vendor-mobile/` only. No web app change, no `backbone` change, no migration.
 **Status:** IN PROGRESS — the original dashboard work remains machine-complete and
-awaits its device pass. A **kiosk parity extension was added 2026-09-16** after a
-cross-plan/code audit; its decisions are OPEN and its implementation has not started.
-The kiosk extension records the current mobile implementation and the newer web
-behaviour it must carry forward. Existing Android kiosk acceptance is evidence for
-the separate kiosk plan, not completion of this extension.
+awaits its device pass. The **kiosk parity extension**, added 2026-09-16 after a
+cross-plan/code audit, has completed its decisions and K1-K4 Android acceptance.
+K5's mobile code and device acceptance are complete. The kiosk parity extension is
+complete; the plan remains in progress only for the original dashboard work outside this
+extension.
 
 > Three unrelated-looking requests that share one theme: the mobile app has drifted
 > from the vendor portal in *structure* (dashboard grouping), in *discoverability*
@@ -989,7 +989,7 @@ The following plans were reviewed before adding this extension:
 
 ### Kiosk parity blockers and important items
 
-#### K-B1 — Finish a booking is not available on mobile  🔄 CODE COMPLETE (2026-09-17) — device check outstanding
+#### K-B1 — Finish a booking is not available on mobile  ✅ DONE (2026-09-20)
 
 The customer-facing home now opens a native close-out component using the existing
 authenticated kiosk endpoint. The response preserves `stage` and server-provided
@@ -1022,6 +1022,47 @@ kiosk catalogue/slot endpoints where their contract is sufficient; if the curren
 endpoint cannot support the read model, stop for an explicit API-contract plan rather
 than widening this mobile-only change implicitly.
 
+#### K-B3 — A receipt-read failure blocks PayMongo before the browser can open  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/useKioskCheckout.ts:83-113,120-149`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/KioskCheckout.tsx:50-53`,
+`ezzy-vendor-mobile/src/lib/kioskCheckout.ts:48-67`.
+
+**Observed on iOS preview (2026-09-20):** `Create booking` completes, then the
+immediate vendor-scoped Supabase receipt re-read rejects. The broad `create()` catch
+shows "Your booking was created, but its payment status is unavailable"; because no
+`receipt` is retained, `canPay` is false and the PayMongo button is never rendered.
+The browser service and `/api/kiosk/payment/create-session` are therefore never called.
+This is not caused by the agreed no-vendor-change design: the existing server payment
+route independently authorizes the vendor admin, validates the kiosk booking/vendor and
+derives the stored amount before returning its checkout URL.
+
+**Fix approach:** preserve the server's `booking.free` result and distinguish a
+just-created paid booking from a later receipt refresh. For an in-memory, newly created
+non-free booking, make the first PayMongo-session attempt available even if its optional
+direct receipt read failed. Keep the existing single-attempt cache so duplicate taps reuse
+one session; if a subsequent receipt read succeeds and says paid/refunded, do not offer
+payment. Free bookings still require a receipt refresh before showing confirmation and
+must never offer PayMongo. Keep raw PostgREST details off the customer surface; make the
+failure state actionable and preserve "Check payment status" for recovery.
+
+**Data/security boundary:** no vendor route, webhook, redirect/deep-link, schema, RLS,
+or payment-provider change. The fallback is limited to the booking id returned moments
+earlier by the authenticated kiosk API; it never enables payment for an arbitrary id.
+
+**Component separation:** retain `KioskCheckout.tsx` as render-only;
+`useKioskCheckout.ts` owns lifecycle, booking/receipt/payment state and handlers; put any
+new pure eligibility decision in `lib/kioskCheckout.ts` with unit coverage.
+
+**Verify:** unit-test paid/failure, free/failure, settled/refunded and duplicate-session
+decisions; `tsc`, unit tests, lint and iOS export. On an iPhone preview build, create a
+paid booking while the immediate receipt check fails, confirm **Pay with PayMongo** opens
+the hosted browser, close it, then verify the pending/confirmed receipt remains truthful.
+Repeat free booking, successful paid booking, delayed webhook and browser reopen paths.
+
+**Completion (2026-09-20):** verified by the user in the iOS preview build: the paid
+checkout path now reaches PayMongo and the complete booking/payment experience checks out.
+
 #### K-I1 — Kiosk action hierarchy and fixed-frame layout differ  ✅ DONE (2026-09-17)
 
 The web keeps the step context and primary action visible while the list scrolls. The
@@ -1040,7 +1081,7 @@ the vendor name but not the complete identity treatment or step context. Add the
 missing context with existing theme tokens and native typography, keeping the current
 staff exit and kiosk containment behaviour intact.
 
-#### K-I3 — Offering card media fallback is visually incomplete  ⬜ TODO
+#### K-I3 — Offering card media fallback is visually incomplete  ✅ DONE (2026-09-20)
 
 Port the web's cover-only media rule: fixed frame, whole image, blurred same-image
 background, and short-code monogram on no-photo or load failure. Do not render all
@@ -1048,13 +1089,149 @@ attachments as separate customer-facing gallery images. Keep the fallback legibl
 light/dark themes and at large font sizes; if blur causes measurable scroll jank on
 the target tablet, use a low-cost tinted fallback rather than compromising scrolling.
 
-#### K-I4 — Staff guide has no Kiosk Mode section  ⬜ TODO
+#### K-I4 — Staff guide has no Kiosk Mode section  ✅ DONE (2026-09-20)
 
 The mobile guide is already a modal, so this is a content extension rather than a new
 guide surface. Add one concise Kiosk Mode item that tells staff how to launch and exit,
 why Android screen pinning/iOS Guided Access is still required, what customers see,
 how documents/signatures and Finish a booking work, and what reset/timeout does. Keep
 the guide honest about the mobile implementation and avoid claiming OS lockdown.
+
+#### K-I5 — Customer legal links use oversized secondary buttons  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/KioskCustomerForm.tsx:32-34`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/KioskCustomerForm.styles.ts:3-13`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/useKioskCustomerForm.ts:60-67`.
+
+The Terms of Service and Privacy Policy links after customer details currently render as
+two full-width `PrimaryButton` controls. They consume disproportionate kiosk space and
+visually compete with the single Continue action, even though they are reference links.
+
+**Fix approach:** replace them with compact, clearly underlined text-link controls in a
+legal footer row. Each remains a separate labelled link with a minimum 44pt touch target,
+opens through the existing browser handoff, preserves the current failure copy, responds
+to light/dark theme and wraps without overlap at large text sizes. Do not merge them into
+one ambiguous target or make them a prerequisite checkbox; the existing explanatory copy
+and offering-document agreement flow remain unchanged.
+
+**Component separation:** keep the customer form render-only, its browser handlers in
+`useKioskCustomerForm.ts`, and static compact-link styles in the co-located style factory.
+
+**Verify:** light/dark, largest OS text and VoiceOver/TalkBack labels; each link opens the
+right policy and returns without losing entered customer details; Continue remains the
+only full-width primary action.
+
+**Completion (2026-09-20):** verified by the user in the iOS preview build.
+
+#### K-I6 — Welcome actions need a stronger kiosk treatment  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskShell/KioskShell.tsx:34-39`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskShell/KioskShell.styles.ts:3-20`,
+`ezzy-vendor-mobile/src/components/common/PrimaryButton/PrimaryButton.tsx` and its
+co-located hook/style files if a reusable size variant is needed.
+
+The Welcome screen's two customer actions, currently labelled **Book something** and
+**Finish a booking**, use the standard button dimensions. On a standing kiosk these are
+the primary task choices and need stronger visual priority and a more forgiving touch
+target; this does not apply to Staff or Retry.
+
+**Current result:** the initial kiosk-only `large` variant is 64pt high and was verified
+on iOS, but the user found it still too small for the intended standing-kiosk use.
+
+**Fix approach:** increase only these two Welcome choices to the approved kiosk size
+(recommendation: **80pt** high) while preserving one primary/one secondary hierarchy,
+full-width alignment, stable vertical spacing, dynamic-type wrapping and at least 44pt
+targets. Do not enlarge global buttons or change the routing/close-out behaviour.
+
+**Component separation:** `KioskShell.tsx` remains render-only; static kiosk layout
+styles remain in `KioskShell.styles.ts`. If `PrimaryButton` needs a size prop, retain
+its existing render/hook/style split and keep the default visual contract unchanged.
+
+**Verify:** iPhone and Android kiosk Welcome screens in light/dark themes and at largest
+text size; both labels fit without overlap, remain independently accessible, and Staff
+exit stays visually secondary.
+
+**Completion (2026-09-20):** user device acceptance confirmed the approved 80pt kiosk
+actions.
+
+#### K-B4 — iOS keyboard can cover required customer-form controls  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskShell/KioskShell.tsx:15-43`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/KioskCustomerForm.tsx:19-48`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/KioskCustomerForm.styles.ts:3-19`.
+
+On iOS, `KioskShell` leaves `KeyboardAvoidingView.behavior` undefined. The customer form
+scroll view receives keyboard insets, but its fixed Continue action bar is outside that
+scroll view, so the software keyboard can cover form fields and Continue.
+
+**Fix approach:** use the native iOS `KeyboardAvoidingView` padding behaviour at the kiosk
+shell boundary, retain Android's existing height behaviour, and preserve the bounded form
+scroll view. The active field and fixed Continue action must move above the keyboard;
+keyboard dismissal, Back navigation, legal-link browser handoff and safe-area padding must
+remain stable. Do not add a keyboard dependency or change payment/customer data handling.
+
+**Component separation:** keep layout rendering in `KioskShell.tsx` and customer-form
+rendering in `KioskCustomerForm.tsx`; any platform/layout constants belong in the existing
+hook/style modules, with no static inline styles added.
+
+**Verify:** real iPhone with name, email and phone keyboards: focus every field, scroll to
+the last field, ensure Continue stays visible/tappable, dismiss the keyboard, then repeat
+in light/dark and at large Dynamic Type. Repeat a short Android keyboard regression pass.
+
+**Completion (2026-09-20):** user device acceptance confirmed keyboard avoidance keeps the
+customer form and Continue control usable.
+
+#### K-I7 — Kiosk back actions use oversized text buttons  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskCatalogue/KioskCatalogue.tsx:29`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCustomerForm/KioskCustomerForm.tsx:21`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/KioskCheckout.tsx:10`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCloseOut/KioskCloseOut.tsx:10`.
+
+The four kiosk step headers use secondary text buttons for Back. They consume horizontal
+space needed for step context and are visually heavier than the navigation action.
+
+**Fix approach:** introduce one reusable native icon-only Back control using Lucide
+`ArrowLeft`, a visible outlined 48pt target, and a specific accessibility label for its
+destination (for example, "Back to offerings"). Replace only kiosk step-header and
+close-out Back actions; keep action-bar command buttons textual. The icon control must use
+the existing theme tokens and pressed/disabled conventions, not a hand-drawn SVG.
+
+**Component separation:** a pure shared icon-back display component may own its theme/style
+factory; existing kiosk render files only wire their current callbacks and labels.
+
+**Verify:** VoiceOver/TalkBack announces each destination; all four routes navigate as
+before; light/dark, large text and 44pt+ touch-target checks pass.
+
+**Completion (2026-09-20):** user device acceptance confirmed the icon Back controls and
+their routes.
+
+#### K-I8 — Booking creation exposes a visually blank summary state  ✅ DONE (2026-09-20)
+
+**Files:** `ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/KioskCheckout.tsx:14-55`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/useKioskCheckout.ts:81-126`,
+`ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/KioskCheckout.styles.ts`.
+
+After `Create booking`, the review content is intentionally removed before a booking id or
+receipt is available. The current text-only "Creating booking..." status leaves the summary
+surface looking blank during the server request.
+
+**Fix approach:** render a centred, non-success branded loading state using the existing
+Ezzy Vendor app logo (`assets/brand/icon-ios.png`) plus an activity indicator and the
+explicit message "Creating your booking...". Keep the action bar inert while the request is
+in flight; transition directly to the actual booking/receipt state or the existing
+actionable error state. The logo is progress feedback, not a completion confirmation.
+
+**Component separation:** `KioskCheckout.tsx` conditionally renders hook-provided state;
+state transitions remain in `useKioskCheckout.ts`; static loading styles live in
+`KioskCheckout.styles.ts`.
+
+**Verify:** slow-network iPhone and Android test; spinner and accessible live status appear
+immediately, no Create button remains tappable, error recovery remains actionable, and no
+success wording appears before server confirmation.
+
+**Completion (2026-09-20):** user device acceptance confirmed the branded booking-creation
+loading state.
 
 ### Kiosk parity decisions
 
@@ -1075,6 +1252,10 @@ the guide honest about the mobile implementation and avoid claiming OS lockdown.
   per the user's earlier direction.** Android remains the implementation and
   acceptance platform for this execution; iOS-specific visual and browser-return
   evidence must not be claimed until an iOS build is tested.
+- **K-D5 — enlarged Welcome action height** → **RESOLVED: 80pt kiosk actions**
+  (approved by the user 2026-09-20). This gives a materially larger standing-kiosk target
+  while retaining enough vertical room for the vendor identity and both choices on small
+  iPhones.
 
 ### Kiosk parity execution order
 
@@ -1083,9 +1264,9 @@ the guide honest about the mobile implementation and avoid claiming OS lockdown.
 | K0 | ✅ DONE | Reviewed the extension and resolved K-D1 to K-D3. No code. | Assessment | ✅ User approved all three decisions 2026-09-16. |
 | K1 | ✅ DONE | Align kiosk shell identity, step framing and native fixed-frame/action-bar structure. | K-I1, K-I2, K-D2 | Machine checks and Android emulator checks confirmed the shell, disabled placeholder action, scroll/action-bar layout, themes, and navigation/inset behaviour on 2026-09-17. |
 | K2 | ✅ DONE | Port seven-day availability grouping, day/time selection, capacity and 24-hour/overnight presentation. | K-B2, K-D1 | Machine checks and Android emulator checks confirmed availability grouping, labels, ordering, full/empty states, started-slot exclusion, and overnight/24-hour presentation on 2026-09-17. |
-| K3 | 🔄 IN PROGRESS | Implement Finish a booking against the current staged response contract. | K-B1 | Machine checks pass; Android ready/non-actionable/error/reset verification remains; no roster or broad lookup. |
-| K4 | ⬜ TODO | Replace card media treatment and add the kiosk section to the staff guide. | K-I3, K-I4 | Light/dark and accessibility checks; photo/no-photo/failed-photo cases; guide content matches code. |
-| K5 | ⬜ TODO | Re-run payment/receipt and full kiosk release acceptance after parity changes. | Existing Stage 6 evidence, K-D4 | Android paid/free/manual-return/delayed-webhook/reset/privacy checks; iOS remains deferred; production evidence separate. |
+| K3 | ✅ DONE | Implement Finish a booking against the current staged response contract. | K-B1 | Android user acceptance completed 2026-09-20; no roster or broad lookup. |
+| K4 | ✅ DONE | Replace card media treatment and add the kiosk section to the staff guide. | K-I3, K-I4 | Android user acceptance completed 2026-09-20 for photo states and guide content. |
+| K5 | ✅ DONE | Payment fallback, compact legal links, 80pt Welcome actions, iOS keyboard avoidance, icon Back controls and branded booking-creation progress. | K-B3, K-I5, K-I6, K-B4, K-I7, K-I8, K-D5 | User device acceptance completed 2026-09-20; machine checks also passed. |
 
 **K1 execution update (2026-09-16):** `KioskShell` now owns a stable vendor identity
 header with self-service and Kiosk context; the shell no longer owns one global scroll
@@ -1132,10 +1313,70 @@ vendor web, or backbone change was made.
 
 **K3 machine verification:** added five close-out contract/parser tests; mobile
 `npm test` passed **25/25**; `tsc --noEmit`, `npm run lint`, Android export (**3,998
-modules**) and `git diff --check` passed. **Still required:** Android emulator
-verification with live staging bookings for ready custody/session results,
-non-actionable statuses, missing/stale lookup, duplicate confirmation, and reset/no-PII
-behaviour.
+modules**) and `git diff --check` passed. **Android acceptance completed 2026-09-20
+by the user:** ready/non-actionable/error/reset paths checked out with no roster or
+customer data left after reset. iOS remains deferred.
+
+**K4 execution update (2026-09-20):** kiosk offering cards now select only the first
+active photo as their cover, render the complete image over a blurred same-image fill,
+and fall back to the offering code for absent or failed media. The existing staff-guide
+modal now includes Kiosk Mode launch/exit, OS-lockdown limitation, customer flow,
+Finish-a-booking, and reset/privacy guidance. No dependency, vendor-web, backbone,
+schema, or payment-provider change was made.
+
+**K4 verification:** mobile `npm test` passed **25/25**; `tsc --noEmit`, `npm run
+lint`, Android export (**3,998 modules**) and `git diff --check` passed. **Android
+acceptance completed 2026-09-20 by the user:** photo/no-photo/failed-photo, visual
+layout and guide content checked out. iOS remains deferred.
+
+**K5 execution update (2026-09-20):** the agreed manual browser-return model remains
+unchanged: browser closure does not itself assert payment. The native checkout now
+re-reads the vendor-scoped receipt whenever the app returns to the foreground and
+renders a distinct confirmed receipt once payment truth is present. Refunded rows do
+not render as confirmed. No vendor endpoint, webhook, redirect/deep-link, schema, or
+payment-provider change was made.
+
+**K5 machine verification:** mobile `npm test` passed **25/25**; `tsc --noEmit`,
+`npm run lint`, Android export (**3,998 modules**) and `git diff --check` passed.
+**K5 acceptance (2026-09-20):** user device acceptance confirmed the paid checkout and
+compact legal links, then the 80pt Welcome actions, iOS keyboard avoidance, icon Back
+controls and branded booking-creation loader. K5 is complete.
+
+**K5 implementation update (2026-09-20):** the checkout now retains the authenticated
+server response that a newly created booking is non-free, and exposes the first cached
+PayMongo-session attempt if the immediate optional receipt re-read is unavailable. A known
+paid/refunded receipt still suppresses payment, free bookings never receive the fallback,
+and repeat taps still reuse one session. The customer-details step now uses compact,
+separate accessible Terms and Privacy links; the two customer Welcome actions use a
+kiosk-only large `PrimaryButton` variant without changing Staff or global button sizing.
+No vendor, webhook, redirect/deep-link, schema, RLS, or payment-provider change was made.
+
+**K5 implementation verification:** `npm test` passed **25/25**; `tsc --noEmit`,
+`npm run lint` and `git diff --check` passed. Android export was started twice in this
+environment but did not return a completion result before the command runner yielded, so
+it is not claimed as passed for this update. Android and iPhone preview acceptance remain
+required before K-B3, K-I5 and K-I6 can be marked DONE.
+
+**K5 iOS acceptance update (2026-09-20):** the user verified K-B3 paid checkout and K-I5
+compact legal links in the iOS preview build. The initial 64pt Welcome treatment is
+functional but needs to be larger. The same pass found three new mobile-only presentation
+gaps: the iOS keyboard can cover the customer form's fixed Continue bar, Back text buttons
+are too visually heavy, and booking creation looks blank while the server response is
+pending. K-B4, K-I7 and K-I8 record the scoped corrections; no web/backend change is
+needed.
+
+**K5 refinement update (2026-09-20):** increased the kiosk-only large action variant from
+64pt to the approved 80pt; the two Welcome actions are its only callers. `KioskShell` now
+uses iOS `KeyboardAvoidingView` padding while retaining Android height avoidance. Added a
+separated `KioskBackButton` render/hook/style component with a themed 48pt Lucide
+`ArrowLeft` control and specific accessibility labels, replacing all four kiosk Back text
+controls. Checkout now renders the actual Ezzy Vendor app icon, activity indicator and
+"Creating your booking..." while booking creation is pending; its bottom control is
+disabled until a real booking state exists. No vendor, webhook, schema, RLS, dependency or
+payment-provider change was made.
+
+**K5 refinement verification:** `npm test` passed **25/25**; `tsc --noEmit`, `npm run
+lint` and `git diff --check` passed. User device acceptance completed 2026-09-20.
 
 ### Kiosk parity verification
 
@@ -1152,9 +1393,11 @@ insets; customer/agreement/signature/payment receipt; browser close/reopen; dela
 webhook; Finish a booking ready/non-actionable/error/reset paths; and no customer PII
 after reset or process death.
 
-**Later iOS/EAS:** repeat the customer flow, safe-area/action-bar, browser return,
-screen-reader labels and process lifecycle checks on a real iOS build. The Android
-emulator is not evidence for iOS browser or Guided Access behaviour.
+**iOS/EAS:** the main-menu kiosk entry and non-payment flow have now been exercised on a
+real iPhone preview build. After K-I6/K-B4/K-I7/K-I8, repeat the customer flow,
+Welcome-action and compact-link accessibility, keyboard avoidance, safe-area/action-bar,
+browser return, screen-reader labels and process lifecycle checks. The Android emulator is
+not evidence for iOS browser or Guided Access behaviour.
 
 **Out of scope for this extension:** vendor web or backbone changes, a new webhook,
 payment-provider migration, payment-method hardcoding, OS-level kiosk lockdown,

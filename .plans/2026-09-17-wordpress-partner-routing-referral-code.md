@@ -8,6 +8,16 @@ user. **V5 (an actual `vendor_referrals` row) remains outside this plan** — it
 affiliate-interim S3/B14, which is unstarted. The WordPress end emits `ref=` correctly;
 nothing consumes it yet.
 
+> **⚠️ UPDATE 2026-09-19 — that blocker is gone.** The affiliate plan
+> (`.plans/2026-09-17-affiliate-referral-codes-interim.md`) is **COMPLETE and live in
+> production**: the vendor app captures `?ref=` and writes a `vendor_referrals` row at signup.
+> A read-only production probe of this plugin's exact link shape,
+> `/?division=ezzy-well&ref=nina-2026`, selected the division and captured `NINA2026`. **V5 can
+> now be run** — it was deliberately left out of the affiliate plan (its K10) and belongs here.
+> Two facts from that plan V5 depends on: only **active** affiliates are credited, and Command's
+> panel counts **activated** vendors only (its D15) — a pending test signup shows 0 there until
+> activated; check `vendor_referrals` directly for the raw row.
+
 > Capture an affiliate referral code from a link landing on the WordPress marketing
 > site, hold it for the visitor, and append it as `&ref=CODE` to the partner-modal
 > destination URL so a vendor who signs up through `ezzy.ph` is attributed to the
@@ -75,7 +85,7 @@ attributed nothing, with no signal anywhere that it was broken.
         ▼  existing frontend.js redirects to the URL it was handed — unchanged
   https://vendor.ezzy.ph/?division=EzzyWell&ref=JOSH
         │
-        ▼  blocked on affiliate-interim S3 / B14 — not built yet
+        ▼  (was: blocked on affiliate-interim S3 / B14 — BUILT and live 2026-09-19)
   vendor app reads ?ref=, resolves the affiliate, writes vendor_referrals
 ```
 
@@ -301,7 +311,7 @@ Estimated ~40 lines added, ~3 modified.
 | V3a | Injection correctness | ✅ **DONE (2026-09-17)** — `?`-vs-`&` selection, pre-existing `ref` overwritten not duplicated, inactive categories still excluded, fallback URL appended |
 | V3b | Cookie path + tamper resistance | ✅ **DONE (2026-09-17)** — cookie drives append after navigation; `$_GET` beats cookie (last touch, D3); hostile/short cookie re-validated on read; `setcookie()` in-process `$_COOKIE` assignment confirmed |
 | V4 | Live: land on `ezzy.ph/?ezzy_referral=1&ezzy_referral_code=josh`, navigate to another page, open the partner modal, pick a category, confirm the browser lands on `…?division=EzzyWell&ref=JOSH` | 🤝 **needs live site** — also the only way to confirm the live `frontend.js` redirects to the category `url` verbatim (see *Pre-existing condition*) |
-| V5 | End-to-end: the above signup writes a `vendor_referrals` row for the matching affiliate | 🤝 **blocked on affiliate-interim S3/B14** — cannot be run until the vendor app reads `?ref=` |
+| V5 | End-to-end: the above signup writes a `vendor_referrals` row for the matching affiliate | 🤝 ⬜ **UNBLOCKED 2026-09-19** — the vendor app reads `?ref=` in production; ready to run |
 
 V4 was satisfied by the user on the live site (2026-09-17); B1/B2 moved to ✅ on that basis.
 **V5 was not, and cannot be until affiliate-interim S3/B14 ships** — see *Couplings*. Until

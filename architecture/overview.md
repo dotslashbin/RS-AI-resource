@@ -185,6 +185,41 @@ H=https://command.ezzy.ph; curl -s $H \
 
 Name the host once as `$H`. Any version of this that repeats the hostname eventually has one copy go stale and silently reports on the wrong app.
 
+### Which branch goes live where — and how to tell it actually did (2026-09-19)
+
+Learned the expensive way while releasing affiliate referrals
+(`.plans/2026-09-17-affiliate-referral-codes-interim.md` K11, K12, K17, K18).
+
+**Vendor's Vercel project** (read from its Environments settings on 2026-09-19):
+
+| Environment | Tracks branch | Domain |
+|---|---|---|
+| Production | `production` | `vendor.ezzy.ph` |
+| staging *(custom)* | `release/*` | `staging-vendor.ezzy.ph` |
+| Preview | every other branch | `*.vercel.app` only |
+
+Command's project was **not** checked — confirm its mapping before assuming it matches.
+
+**Promoting is not the same as releasing.** *Promote* on a staging deployment rebuilds it with
+Production variables and makes it live — but the `production` **branch** does not move. The
+next push to `production` rebuilds from that branch and silently replaces what you promoted. After
+any promote, bring the branch up to what is live.
+
+**After an Instant Rollback, production deploys come out "Staged".** Vercel stops attaching the
+production domain to new production deployments: the deployment page reads *Production · Staged*
+and lists only `*.vercel.app` domains, and the site keeps serving the rolled-back build. Only
+**Promote** puts one live again — **Redeploy** just adds another staged build.
+
+**Deployments can take minutes to appear and to go live.** Do not read "it's deployed" off the
+dashboard. Read the deployment the domain is actually serving — Vercel stamps its id on every
+static asset URL:
+
+```bash
+H=https://vendor.ezzy.ph; curl -s $H | grep -oE 'dpl=dpl_[A-Za-z0-9]+' | head -1
+```
+
+Compare that id with the deployment you expect in the dashboard. Same `$H` rule as above.
+
 ### The CLI link is a loaded gun
 
 `backbone/supabase/.temp/project-ref` decides which project every `supabase` command hits. **Check it before every command that writes.**
