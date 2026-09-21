@@ -1,8 +1,8 @@
-# Booker: widget Home, better booking status, Explore/search, offering page
+# Booker: widget Home, better booking status, Explore/search, offering page, Payments
 
-**Date:** 2026-09-18
+**Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** DRAFT. Investigation is ✅ DONE. All decisions (D1–D12) resolved 2026-09-18. **Awaiting execution approval.** I14 (backbone migration) additionally needs its own go before the file is written.
+**Status:** DRAFT. Investigation is ✅ DONE. All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. **Awaiting execution approval.** I14 (backbone migration) additionally needs its own go before the file is written.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Everything works in light and dark.
 
@@ -10,7 +10,7 @@
 > **Numbering legend:** F# = finding, D# = decision, I# = implementation item, S# = execution stage. Numbers are plan-local. Qualify cross-plan refs, e.g. "booker-mobile-prototype D5".
 
 **Prototype (mock data, reference only):** https://claude.ai/artifact/DZyasjx3GN8d6EQeAsw9Aj
-- Home (desktop light, phone dark), Explore, and the Offering page.
+- Home (desktop light, phone dark), Explore, the Offering page, and **Payments (desktop light + phone dark)** — the Payments screens were approved 2026-09-20.
 - Per D3, **only the division colours carry over** from the prototype's look. Booker keeps its current `--db-*` surfaces, type and primary blue.
 
 ---
@@ -26,6 +26,7 @@
 - Removing the service-first Steps 1 and 2 and the map.
 - Division colours in light and dark.
 - A dark-mode pass on every touched surface.
+- **The Payments page** (today's Transactions): honest totals, period control, filters, month grouping, receipt, CSV export, 10-per-page (D13–D16).
 - Docs.
 
 **Out:**
@@ -37,6 +38,8 @@
 - A spending widget.
 - Drag-to-arrange widgets.
 - Changes to `vendor` or `command`.
+
+**Why Payments lives in this plan, not its own:** it shares the `getBookings()` shape change (I5), the division colours (I3), the `PageId` union and the tab bar (I16). A separate plan would duplicate every coupling and split one big table in two.
 
 **Cross-app flag:** only D9-A touches another folder, `backbone/`. It is an approval gate (schema + multi-app), and per standing practice the user applies migrations.
 
@@ -102,6 +105,19 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
   - Examples: inline handler bodies at `BookingWizard.tsx:58`, hard-coded hex in `DashboardPage.tsx`, `BookingStatusWidget.tsx`, `TabBar.tsx`.
   - Rule: any component this plan rewrites is brought to the convention. Untouched files are not "cleaned up".
 
+- **F14: "Total Spent" is wrong today. ESCALATED — it is a money figure, and it overstates.**
+  - `components/transactions/TransactionsPage/TransactionsPage.tsx:26` sums `pricePaid` over **every** booking, including ones never paid (`is_paid = false`) and ones `cancelled` or `refunded`.
+  - A booker who abandoned checkout on a ₱2,400 lesson is told they spent it. → I17.
+- **F15: "Method: —" is a permanent dash** (`TransactionsPage.tsx:89`). Booker stores no payment method; PayMongo holds it. Removed, not faked. → X10.
+- **F16: The page breaks three conventions and is rewritten anyway.** No hook (all derivation inline), static inline `style={{}}` objects (`:40-46`, `:71-86`), hard-coded hex, and an empty `OFFERING_CODE_STYLE` lookup that always falls back to indigo (`lib/constants.ts:49`).
+- **F17: `getBookings()` can silently truncate.** `services/bookings.service.ts:77-85` selects with no `.range()` and no `count`. PostgREST caps at `max_rows` 1000 and signals it with a 206 that supabase-js does not raise (`lib/pagedFetch.ts:1-12`, with a measured 19.7% understatement in vendor). A long-standing booker would get a short list and understated totals with no warning. → I5 (paged) + I17 (banner).
+- **F18: "Refunded" must not promise money back.** `portals.md:654` states there is **no refund mechanism in this system**, and `payout_status = 'reversed'` says only that the *vendor* is not paid. A `refunded` booking status therefore must not be worded as "we returned your money". Copy rule in I17. → also X11.
+- **F19: Booker lacks two things vendor already has, and they are copied, not shared** (root AGENTS.md: independent repos).
+  - Manila date-range helpers: `vendor/lib/utils.ts:223,231,303` (`phMonthRange`, `phLastNDays`, `phYearRange`). → I19.
+  - Print styles: `vendor/app/globals.css:218` has an `@media print` block; booker's `globals.css` has none, so a receipt would print the whole app. Vendor's print pattern is a **second, print-only render** of the full filtered set (`TransactionPrintView.tsx:28-38`) precisely because `window.print()` serialises the DOM as it stands and would otherwise print only the current page. → I20.
+- **F20: A CSV pattern already exists — do not invent one.** `command/lib/affiliateCsv.ts` (+ `.test.ts`): pure string builder, RFC 4180 quoting, CRLF, and a UTF-8 BOM so Excel on Windows does not mangle `₱` and `ñ`. Copy its shape. → I18.
+- **F21: `fmtPeso` does not exist in booker** (`lib/utils.ts` has `fmtDate`, `statusLabel`, `showPaymentPending`, no money formatter), so amounts are formatted ad hoc today. One formatter, used by the page, the receipt and the print view. → I17.
+
 ---
 
 ## DECISIONS
@@ -152,6 +168,16 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
     - Hold the Explore query and filters in `useAppShell`, so "Back to results" restores them.
     - The browser Back button and shareable offering links stay unsupported. Parked as P3.
   - **B:** move Explore and Offering to real `app/` routes (`/explore?q=`, `/offering/[id]`). This gives Back support and deep links, but is a structural change to booker's single-page shell.
+
+### Payments decisions (approved with the Payments screens, 2026-09-20)
+
+- **D13: Page name → "Payments"** (resolved 2026-09-20). "Transactions" is accounting language; a customer wants what they paid and what is owed. The `PageId` is renamed to `payments` to match the folder, with `tsc` catching every reference. Grep the string `transactions` before renaming, in case a notification or deep link names it.
+- **D14: CSV export → yes** (resolved 2026-09-20). Client-side only, no dependency, exports the **filtered set** (not the current page). Amounts are plain numbers so a spreadsheet can sum them; the `₱` lives in the header, not the cells.
+- **D15: Pagination → 10 per page, client-side, over one paged fetch** (resolved 2026-09-20).
+  - The shell loads the booker's bookings once and Home's widgets (Needs you, Up next, Book again) need **all** of them, so server-side per-page queries would mean a second, divergent data path.
+  - `getBookings()` therefore becomes a `fetchAllPages` call with an exact count (I5, fixing F17); Payments pages that array 10 at a time.
+  - Page resets to 1 on any filter change, and a page past the end is clamped — vendor learned both (`vendor/components/transactions/TransactionsPage/useTransactionsPage.ts:159-174`).
+- **D16: Receipt + print → keep** (approved with the design 2026-09-20). Needs booker's first `@media print` block, copied from `vendor/app/globals.css:218` (F19).
 
 ---
 
@@ -358,6 +384,51 @@ Blast radius:
   - Fix the login copy (`LoginPage.tsx:71`).
 - **`leaflet`, `react-leaflet`, `@types/leaflet` uninstall:** a dependency change, so **ask at S6** before `npm uninstall`. Leaving them installed but unused is harmless until then.
 
+### Payments page (D13–D16)
+
+#### I17: `lib/payments.ts` + test — the pure money rules  ⬜ TODO
+The one place that decides what a booking means for money. Pure, so `node --test` covers it.
+- `paymentState(booking)` → `"paid" | "due" | "cancelled" | "refunded"`, **exhaustive over all nine `BookingStatus` values** with a `never` check:
+  - `cancelled` → `cancelled`, `refunded` → `refunded`, regardless of `is_paid`;
+  - otherwise `is_paid ? "paid" : "due"`.
+- `paidTotal(rows)` counts **only** `paid`. This is the F14 fix: never-paid and cancelled bookings are excluded from money totals, shown with the amount struck through, and counted in a "N cancelled, not counted in Paid" note.
+- `dueTotal(rows)` sums `due`.
+- `groupByMonth(rows)` → month label + per-month paid subtotal, in the active sort order.
+- `matchesPaymentSearch(row, query)` over offering name, code, vendor and reference.
+- `fmtPeso(n)` (F21): one formatter, two decimals, thousands separators, used by page, receipt and print view.
+- **Copy rule (F18):** wording for `refunded` says *"Marked refunded — Ezzy can confirm the amount"*, never "we refunded you". A unit test asserts the copy table has no "refunded to you" phrasing.
+- Tests: one case per status × `is_paid`, plus totals excluding cancelled/unpaid, month grouping across a year boundary, and search.
+
+#### I18: `lib/paymentsCsv.ts` + test  ⬜ TODO
+Copy the shape of `command/lib/affiliateCsv.ts` (F20): pure, RFC 4180 quoting (`"` doubled, quote when the cell holds `,` `"` or a newline), CRLF, UTF-8 BOM.
+- Columns: `paid_date, service_date, offering_code, offering_name, vendor, amount_php, payment_state, booking_status, reference`.
+- `amount_php` is a plain number — a `₱` in the cell makes it text in every spreadsheet.
+- The download (Blob + anchor + `revokeObjectURL`) lives in `usePaymentsPage`, not in this module and not in the `.tsx`.
+- Filename carries the period, e.g. `ezzy-payments-2026-06-20_2026-09-20.csv`.
+- Tests: a vendor name with a comma and a quote, an empty set (headers only), and the BOM's presence.
+
+#### I19: `lib/phDates.ts` + test  ⬜ TODO
+Copy `phMonthRange`, `phLastNDays`, `phYearRange` from `vendor/lib/utils.ts:223-303` (F19), Asia/Manila, with their tests. Presets: This month · Last 3 months · This year · All time, plus a custom from/to.
+- **Manila, not the browser's zone.** A booker in another timezone must see the same month boundaries the database uses, or a payment near midnight lands in the wrong period.
+
+#### I20: Payments components  ⬜ TODO
+New folder `components/payments/`, mirroring vendor's split (all state in one hook, children controlled and hook-free):
+- **`PaymentsPage`** — `.tsx` (render only) + `usePaymentsPage.ts` (period, custom range, status filter, search, vendor, sort, page, selected receipt, CSV download, print sequence) + `PaymentsPage.module.css`.
+- **`PaymentPeriodBar`** — pure display, above the totals **deliberately**: the range and the figures it produces must be visible together, or the cards read as all-time numbers (vendor's note at `TransactionDateRange.tsx:20-27`).
+- **`PaymentSummaryCards`** — pure display: Paid, Awaiting payment, Bookings shown + exclusion note.
+- **`PaymentFilters`** — pure display: search (`type="search"` + visible label), status chips with counts (`aria-pressed`), vendor `<select>`, sort `<select>`, and a Clear button shown only when something is set.
+- **`PaymentMonthGroup`** / **`PaymentRow`** — pure display; division-coloured code tile via `data-division` (G7); status shown as dot **plus** label, never colour alone; struck-through amount for cancelled/refunded.
+- **`PaymentReceipt`** — the existing shadcn `dialog`; amount, paid-on, service date, booking status, reference (shortened session id), and the state's plain-English note.
+- **`PaymentsPrintView`** — print-only second render of the **full filtered set**, not the current page (F19), with the truncation banner printed too.
+- **States:** loading skeleton, empty account, no-results-for-filters (with Clear), and error. The error state is distinct from empty — a failed fetch must never read as "no payments".
+- Pagination footer: `Showing X–Y of Z`, Previous/Next disabled at the ends, 10 per page (D15).
+- **Delete `components/transactions/`** once replaced.
+
+#### I21: Rename to Payments  ⬜ TODO
+- `lib/types.ts` `PageId`: `transactions` → `payments`; `lib/constants.ts` `MAIN_TABS` label and icon; `TopBar` `TITLES`; `app/page.tsx` lazy import; `AppShell` render prop.
+- Grep `"transactions"` across `booker/` first (notifications, deep links, tests) so the rename does not orphan a string.
+- `globals.css`: add the `@media print` block (D16).
+
 ---
 
 ## Plan review (2026-09-18): gaps found and folded in
@@ -421,6 +492,8 @@ Blast radius:
 - **P3: URL routing for Explore/Offering (D12-A).** Unblocked by a decision to leave booker's single-page shell.
 - **P4: Staff contact over-exposure (F6).** Belongs in a backbone security plan: column-level grants or a view.
 - **P5: Date-granular booking (D11-A).** A separate plan fixes `Step3Schedule` date mode.
+- **P7: A real receipt number.** Today's reference is the PayMongo checkout session id, which is not a receipt number. Unblocked by a decision to store one (schema gate).
+- **P8: Payment method per booking.** Not stored anywhere (F15). Unblocked by capturing it from the PayMongo webhook payload (schema + route change).
 - **P6: Server-side search.** Only if the catalogue outgrows client-side matching. Would need a search function or index, which is a schema gate.
 
 ---
@@ -437,62 +510,77 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
 - **S4: Nav + Explore.** I16 (shell chrome: Sidebar drawer, TopBar, TabBar), I15's nav part, and I13's `ExplorePage` and `BookingsPage`.
 - **S5: Offering page.** I13's `OfferingPage`. Staff per D7/D8.
 - **S6: Wizard entry + removals.** The rest of I15. The Leaflet uninstall is asked for here.
-- **S7: Polish.**
+- **S9: Payments core.** I17, I19, I21, and I20's page, period bar, summary cards, filters, month groups and rows. Depends on S0 (division colours), S1 (paged `getBookings`) and S4 (the tab). Deletes `components/transactions/`.
+- **S9b: Payments receipt, CSV and print.** I18, plus I20's receipt and print view, and the `@media print` block.
+- **S7: Polish** — runs **after S9b**, so the pass covers Payments too.
   - Dark/light pass at 390px and 1280px on every new surface.
   - Contrast check for the `--div-*` pairs, keyboard pass, 44px targets.
   - Regenerate the Playwright baselines (`visual-tests/pilot.spec.ts-snapshots`, which are committed) and review the diffs, not just accept them.
-- **S8: Docs.**
+- **S8: Docs** — last stage.
   - `architecture/portals.md`: booker features, Live-vs-Mock, Known Gaps, Roadmap (D4 supersedes #1), nav.
   - `architecture/booking-flow.md`: the new entry path and removal of Steps 1–2.
   - `architecture/schema.md`: only if I14 lands.
   - Rewrite `booker/AGENTS.md` (F11).
   - Cross-reference booker-mobile-prototype W1/W5 as delivered on web.
+  - Payments: rename in `portals.md` (Transactions → Payments), the corrected totals rule, filters, CSV and pagination.
 
 ---
 
 ## Big table
 
-The single checklist for this plan. It is updated before every stage report. **Who:** Me = Claude, You = the user. Git commits are always yours; I draft the message and the file list.
+The single checklist for this plan, Home **and** Payments. Updated before every stage report. **Who:** Me = Claude, You = the user. Git commits are always yours; I draft the message and the file list.
 
 | Done | ID | What | Who | Status | Why / reason |
 |:-:|---|---|---|---|---|
-| [x] | Proto | Mock-data prototype on a canvas | Me | ✅ DONE 2026-09-18 | Settles the direction before planning. Reference only: it is missing the sidebar (G1) and uses a font we are not adopting (D3) |
-| [x] | D1–D12 | All design decisions | You | ✅ DONE 2026-09-18 | Hard gate: no stage runs while a decision is open |
+| [x] | Proto-1 | Prototype: Home, Explore, Offering | Me | ✅ DONE 2026-09-18 | Settle the direction before planning. Reference only: no sidebar (G1), font not adopted (D3) |
+| [x] | Proto-2 | Prototype: Payments desktop + phone dark | Me | ✅ DONE 2026-09-20 | Approved 2026-09-20 with three answers: name "Payments", add CSV, 10 per page |
+| [x] | D1–D12 | Home / Explore / Offering decisions | You | ✅ DONE 2026-09-18 | No stage runs while a decision is open |
+| [x] | D13–D16 | Payments decisions (name, CSV, pagination, print) | You | ✅ DONE 2026-09-20 | Same gate, Payments half |
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
-| [ ] | Approve | Approve the plan for execution | You | ⬜ TODO | Execution needs your explicit go |
-| [ ] | S0 | Foundations: progress map, auto-confirm countdown, division colours (light + dark), search matcher, with tests (I1–I4) | Me | ⬜ TODO | Pure logic first, so later UI is built on tested rules. No visible change, so no risk |
-| [ ] | S1 | Data layer: bookings fields, status history, catalogue, photos, schedules with staff (I5–I9, G9) | Me | ⬜ TODO | The widgets need these fields. Existing screens keep working |
-| [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail (I10, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping lists. This is what you asked for most |
-| [ ] | S3 | Home side: Book again, Explore by division, compact Resume, guide for new bookers only (I11) | Me | ⬜ TODO | Low-risk widgets built on S1 data |
-| [ ] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ⬜ TODO | Schema change in `backbone/`: an approval gate touching a second folder |
-| [ ] | S3b-2 | Write the migration file | Me | ⬜ TODO | Written only after S3b-1 |
+| [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
+| [ ] | Approve | Approve the plan for execution | You | ⬜ TODO | Nothing is built until you say go |
+| [ ] | S0 | Foundations: progress steps, auto-confirm countdown, division colours (light + dark), search matcher, + tests (I1–I4) | Me | ⬜ TODO | Tested rules first; no visible change, so no risk |
+| [ ] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`** (I5–I9, F17, G9) | Me | ⬜ TODO | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
+| [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail (I10, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping booking lists |
+| [ ] | S3 | Home side: Book again, Explore by division, compact Resume, guide for new bookers only (I11) | Me | ⬜ TODO | Low-risk widgets on S1 data |
+| [ ] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ⬜ TODO | A database change in `backbone/`, a second folder |
+| [ ] | S3b-2 | Write the migration file | Me | ⬜ TODO | Only after S3b-1 |
 | [ ] | S3b-3 | Apply the migration (local, then staging) | You | ⬜ TODO | You apply all migrations yourself |
-| [ ] | S3b-4 | Switch the occupancy count to the new function; build "Open this weekend" (I12) | Me | ⬜ TODO | Fixes Step 3's wrong "spaces left" (F1) and gives the widget honest counts |
-| [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" for the first | You | ⬜ TODO | Needs two real booker accounts in a live environment |
-| [ ] | S4 | Shell (Sidebar drawer, TopBar search + titles, 4-tab TabBar) + Explore + Bookings page (I16, I13, I15 nav) | Me | ⬜ TODO | Search needs somewhere to live. The sidebar and hamburger drawer are kept (G1) |
-| [ ] | S5 | Offering page with photos, assigned staff, next slots; date-based offerings show Book disabled (I13, D7, D8, D11) | Me | ⬜ TODO | The step between search and booking (D1) |
+| [ ] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ⬜ TODO | Fixes Step 3's wrong "spaces left" (F1) and gives the widget honest counts |
+| [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment |
+| [ ] | S4 | Shell (sidebar drawer, TopBar search + titles, 4 tabs) + Explore + Bookings page (I16, I13, I15 nav) | Me | ⬜ TODO | Search needs somewhere to live; the hamburger drawer is kept (G1) |
+| [ ] | S5 | Offering page: photos, assigned staff, next slots; Book disabled for day/week/month offerings (D7, D8, D11) | Me | ⬜ TODO | The step between search and booking (D1) |
 | [ ] | S6 | Wizard starts at Schedule; remove Steps 1–2, map, geolocation (I15, G10) | Me | ⬜ TODO | Booking now starts from an offering, so the old first steps are dead code |
-| [ ] | S6-a | Approve uninstalling `leaflet`, `react-leaflet`, `@types/leaflet` | You | ⬜ TODO | Changing dependencies is an approval gate |
-| [ ] | S6-b | End-to-end on staging: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
-| [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, 44px targets, regenerate visual baselines | Me | ⬜ TODO | You asked for dark mode everywhere. Baselines will change because the screens change |
-| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, and a diff should be looked at, not rubber-stamped |
-| [ ] | S8 | Docs: `portals.md`, `booking-flow.md`, `booker/AGENTS.md` (stale), `schema.md` if I14 lands | Me | ⬜ TODO | Docs must match the shipped app. `booker/AGENTS.md` is already wrong (F11) |
-| [ ] | Git | Commit after each stage | You | ⬜ TODO | You handle git. I give you a message and file list |
-| [ ] | P1 | "Near me" / real map | — | ⏸ PARKED 2026-09-18 | Vendors have no coordinates. Unblocked by a product decision that proximity matters |
-| [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED 2026-09-18 | Today's payment route could charge twice (F3). Unblocked by a reviewed hardening of `create-session` |
-| [ ] | P3 | Real URLs for Explore / Offering (browser Back, shareable links) | — | ⏸ PARKED 2026-09-18 | Keeping booker's single-page shell (D12). Unblocked by a decision to change it |
-| [ ] | P4 | Staff email/phone readable by any active user | — | ⏸ PARKED 2026-09-18 | A backbone security fix, outside booker (F6). This plan reads names only |
-| [ ] | P5 | Booking offerings by the day / week / month | — | ⏸ PARKED 2026-09-18 | Existing Step 3 gap (D11). Unblocked by a separate plan |
-| [ ] | P6 | Server-side search | — | ⏸ PARKED 2026-09-18 | Client-side is enough for today's catalogue. Unblocked if it outgrows that |
-| [ ] | X1 | Spending widget on Home | — | ✖ ABORTED 2026-09-18 | Little value for a customer with a few bookings; Transactions already shows spend (D6) |
-| [ ] | X2 | Drag-to-arrange widgets | — | ✖ ABORTED 2026-09-18 | Over-engineered. Widgets show only when relevant instead (D6) |
-| [ ] | X3 | Placeholder "Certificate" button | — | ✖ ABORTED 2026-09-18 | It does nothing, and a dead button costs trust (D6). Removed in S2 |
+| [ ] | S6-a | Approve uninstalling `leaflet`, `react-leaflet`, `@types/leaflet` | You | ⬜ TODO | Dependency changes are an approval gate |
+| [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
+| [ ] | S9 | **Payments core:** money rules + Manila date presets + rename, period bar, honest totals, filters, month groups, 10-per-page (I17, I19, I21, I20 part) | Me | ⬜ TODO | Today's "Total Spent" counts unpaid and cancelled bookings (F14). Needs S0, S1 and S4 first |
+| [ ] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ⬜ TODO | You approved CSV; the receipt gives a customer something to quote to support |
+| [ ] | S9c | Open an exported CSV in your spreadsheet; print a receipt | You | ⬜ TODO | Encoding and print output can only be judged on real software |
+| [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments too** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |
+| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look |
+| [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships; `booker/AGENTS.md` is already wrong (F11) |
+| [ ] | Git | Commit after each stage | You | ⬜ TODO | You handle git |
+| [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
+| [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |
+| [ ] | P3 | Real URLs (browser Back, shareable links) | — | ⏸ PARKED | Keeping booker's single-page shell (D12) |
+| [ ] | P4 | Staff email/phone readable by any active user | — | ⏸ PARKED | A database security fix outside booker (F6); this plan reads names only |
+| [ ] | P5 | Booking by day / week / month | — | ⏸ PARKED | Existing Step 3 gap (D11); needs its own plan |
+| [ ] | P6 | Server-side search | — | ⏸ PARKED | Client-side is enough for today's catalogue |
+| [ ] | P7 | A real receipt number | — | ⏸ PARKED 2026-09-20 | The reference shown is a PayMongo session id, not a receipt number. Unblocked by a decision to store one (schema gate) |
+| [ ] | P8 | Payment method per payment | — | ⏸ PARKED 2026-09-20 | Not stored anywhere (F15). Unblocked by capturing it from the webhook (schema + route change) |
+| [ ] | X1 | Spending widget on Home | — | ✖ ABORTED 2026-09-18 | Little value for a few bookings, and Payments now carries the money view (D6) |
+| [ ] | X2 | Drag-to-arrange widgets | — | ✖ ABORTED 2026-09-18 | Over-engineered; widgets appear only when relevant |
+| [ ] | X3 | Placeholder "Certificate" button | — | ✖ ABORTED 2026-09-18 | It does nothing, and a dead button costs trust |
 | [ ] | X4 | Map + vendor step in the wizard | — | ✖ ABORTED 2026-09-18 | Only showed the booker's own location; replaced by directions links + city filter (D4) |
-| [ ] | X5 | Prototype's top-bar-only navigation | — | ✖ ABORTED 2026-09-18 | Would have removed Settings, legal links and Sign out on phones (G1) |
-| [ ] | X6 | Waiver upload / "1 of 2 documents" in Up next | — | ✖ ABORTED 2026-09-18 | Uploads aren't saved anywhere, so there's nothing to count (F4) |
-| [ ] | X7 | New font and surfaces from the prototype | — | ✖ ABORTED 2026-09-18 | You chose to carry over only the division colours (D3) |
-| [ ] | X8 | "Team" list of qualified staff | — | ✖ ABORTED 2026-09-18 | Being qualified doesn't mean they'll be the one you get (D7) |
+| [ ] | X5 | Prototype's top-bar-only navigation | — | ✖ ABORTED 2026-09-18 | Would remove Settings, legal links and Sign out on phones (G1) |
+| [ ] | X6 | Waiver upload / "1 of 2 documents" in Up next | — | ✖ ABORTED 2026-09-18 | Uploads aren't saved, so there is nothing to count (F4) |
+| [ ] | X7 | Prototype's new font and surfaces | — | ✖ ABORTED 2026-09-18 | You kept only the division colours (D3) |
+| [ ] | X8 | "Team" list of qualified staff | — | ✖ ABORTED 2026-09-18 | Qualified ≠ who you get (D7) |
 | [ ] | X9 | Hiding day/week/month offerings from search | — | ✖ ABORTED 2026-09-18 | Would hide real vendor catalogue (D11) |
+| [ ] | X10 | "Method: —" row on every payment | — | ✖ ABORTED 2026-09-20 | Booker stores no payment method, so it was a permanent dash (F15). Real methods → P8 |
+| [ ] | X11 | Wording a `refunded` booking as money returned | — | ✖ ABORTED 2026-09-20 | There is no refund mechanism in this system (F18); claiming one would be a false promise about money |
+| [ ] | X12 | "Total Spent" as the sum of every booking | — | ✖ ABORTED 2026-09-20 | It counts unpaid and cancelled bookings and overstates what you paid (F14). Replaced by Paid / Awaiting payment |
+| [ ] | X13 | Fee or payout breakdown on a receipt | — | ✖ ABORTED 2026-09-20 | Booker cannot read `booking_transactions` by design, and a customer pays one amount |
 
 ---
 
@@ -505,6 +593,8 @@ The single checklist for this plan. It is updated before every stage report. **W
 | I5–I9 | `tsc`; the selects compile against hand-written types | Local/staging: staff name appears; photos resolve; a hidden vendor's offerings are absent |
 | I10–I13 | `tsc`, lint, Playwright baselines | Dev server at `localhost` (WSL note), light/dark, 390/1280; all four states forced (empty account, network error) |
 | I14 | Migration lints; `tsc` for the service switch | **Staging:** a second booker's booking reduces "N left" for the first; anon cannot execute |
+| I17–I19 | `npm test`: state per status × `is_paid`; totals exclude cancelled/unpaid; CSV quoting/BOM; Manila month boundaries | — |
+| I20, I21 | `tsc` (the renamed `PageId` forces every reference), lint, Playwright baselines | Both themes at 390/1280: filters narrow the list, totals change with them, CSV opens in a spreadsheet with `₱` intact and amounts summing, receipt prints without the app chrome, pagination clamps |
 | I15 | grep: no imports of the deleted modules; `tsc`; `leaflet` absent from the bundle after uninstall | End-to-end: Explore → Offering → Schedule → Pay on staging (PayMongo test mode) |
 
 Weak-implementation traps to check at review:
@@ -517,4 +607,9 @@ Weak-implementation traps to check at review:
 - (g) error states collapsing into empty states;
 - (h) the Sidebar/hamburger drawer removed or losing Settings, legal links or Sign out (G1);
 - (i) realtime not patching `is_paid` (G5);
-- (j) a fourth tab overflowing a 360px phone (G4).
+- (j) a fourth tab overflowing a 360px phone (G4);
+- (k) Paid totals quietly including unpaid or cancelled bookings (F14);
+- (l) CSV exporting only the current page instead of the filtered set (D14);
+- (m) the print view printing one page of rows (F19);
+- (n) "refunded" worded as money returned (F18);
+- (o) `getBookings()` left unpaged, so totals understate past 1000 rows (F17).
