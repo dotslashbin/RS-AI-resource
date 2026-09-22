@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** APPROVED 2026-09-21 — execution not started (next: S0). **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
+**Status:** APPROVED 2026-09-21. Briefing verified and **D17/D18 resolved 2026-09-22** — no open decisions. **Execution starts at S0**, which now also carries the contrast palette (I22). **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 
@@ -49,6 +49,23 @@ Mobile's component split (`Name.tsx` render / `useName.ts` logic / styles) mirro
 this repo's convention, so the screens are also a useful reference for how the
 widgets were assembled — see `.plans/2026-09-21-booker-mobile-app.md` §7 M1–M9 for
 what each stage built and how it was verified.
+
+### Verification of this briefing (web session, 2026-09-22)
+
+Another session's report is unverified until checked (plan-authoring §4). What I ran and found:
+
+| Claim | Verdict |
+|---|---|
+| The ported rules exist and are tested | ✅ **Confirmed.** 40 files in `ezzy-booker-mobile/src/lib/`; `npm --prefix ezzy-booker-mobile test` → **111 tests, 111 pass, 0 fail** |
+| `slots.ts` byte-identical to booker's | ✅ **Confirmed** by `diff` — no output |
+| Mobile build is complete (M1–M9) | ✅ Its plan reads COMPLETE 2026-09-22 with every stage ✅. ⚠️ **The app is uncommitted**: `ezzy-booker-mobile` still has one commit (`55a5c64`) and **272 changed files**. The copy-back depends on files that exist only in the working tree |
+| **N3** Inter named but never loaded | ✅ **Confirmed.** `AppShell.tsx:62` sets `fontFamily: "'Inter',…"`; grep for `next/font`, `@font-face`, `fonts.googleapis` across `app/`, `components/`, `public/` → **no hits** |
+| **N10** overnight slots mis-sorted | ✅ **Confirmed.** `schedules.service.ts:214` sorts `a.start.localeCompare(b.start)` — clock text, so a window crossing midnight lists `00:00` before `23:00` |
+| **N5** dark muted text under 4.5:1 | ✅ **Confirmed, and worse than reported.** `#64748b` is **4.13:1** on the dark page and **3.93:1** on a dark card (the report only gave the page). Mobile's `#94a3b8`: 7.66 |
+| **N6** Pets division pair fails | ✅ **Confirmed.** `#b45309` on `#fdf0dc` = **4.47:1**. Mobile's `#92400e` = 6.3. **The other 7 canvas pairs all pass** (4.83–9.15), so I3 fixes one pair, not all |
+| **N9** light badges fail as text | ⚠️ **Confirmed with a correction.** Failing: pending **2.90**, disputed **3.08**, fulfilled **3.29**, returned **3.34**, confirmed **3.37**, refunded **4.14**. **Passing:** completed 4.50, in_progress 4.90 — the report's "2.9–3.8" range understated the spread and implied all of them fail. Light `--db-text` `#64748b` on the page is **4.33:1** (report said 4.26; the gradient varies) — under 4.5 either way |
+
+**Consequence for this plan:** the contrast failures are in tokens **D3 kept deliberately** (`--db-*`, `.db-badge-*`) and in one approved division colour. Fixing them changes colours the user approved, so it is a decision, not a silent edit → **D17**.
 
 ### N1–N10 — what mobile found, for web to settle
 
@@ -179,6 +196,12 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 - **F20: A CSV pattern already exists — do not invent one.** `command/lib/affiliateCsv.ts` (+ `.test.ts`): pure string builder, RFC 4180 quoting, CRLF, and a UTF-8 BOM so Excel on Windows does not mangle `₱` and `ñ`. Copy its shape. → I18.
 - **F21: `fmtPeso` does not exist in booker** (`lib/utils.ts` has `fmtDate`, `statusLabel`, `showPaymentPending`, no money formatter), so amounts are formatted ad hoc today. One formatter, used by the page, the receipt and the print view. → I17.
 
+- **F22: Contrast failures in tokens D3 kept, measured 2026-09-22** (see the briefing's verification table).
+  - Light `.db-badge-*` text: 6 of 8 below 4.5:1 (worst `pending` `#d97706` at 2.90 on its own tint).
+  - `--db-text` `#64748b`: 4.33:1 light on the page, 4.13:1 dark on the page, **3.93:1 dark on a card**.
+  - Canvas Pets division pair `#b45309` on `#fdf0dc`: 4.47:1. The other seven pairs pass.
+  - These are pre-existing for the badges and muted text; only the division pair is new work. → D17, and the S7 contrast pass.
+
 ---
 
 ## DECISIONS
@@ -239,6 +262,23 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
   - `getBookings()` therefore becomes a `fetchAllPages` call with an exact count (I5, fixing F17); Payments pages that array 10 at a time.
   - Page resets to 1 on any filter change, and a page past the end is clamped — vendor learned both (`vendor/components/transactions/TransactionsPage/useTransactionsPage.ts:159-174`).
 - **D16: Receipt + print → keep** (approved with the design 2026-09-20). Needs booker's first `@media print` block, copied from `vendor/app/globals.css:218` (F19).
+
+### Open after the mobile briefing (2026-09-22)
+
+- **D17: Accessibility fixes that change approved colours (F22) → A, adopt the phone app's tested values** (resolved 2026-09-22). App-wide, including screens this plan does not otherwise touch; guarded by a new test (I22) so it cannot silently regress.
+  - **A (chosen):** adopt mobile's already-tested values — light badge text one shade darker (Tailwind -700, amber/orange -800), `--db-text` `#5b6576` light and `#94a3b8` dark, Pets `#92400e`. All are guarded by `statusPalette.test.ts` / `divisions.test.ts` in the phone app, so the numbers are known rather than eyeballed. It changes colours across every booker screen, including ones this plan does not touch.
+  - **B:** fix only the surfaces this plan rewrites, and leave the rest failing. Cheaper, but leaves two palettes in one app.
+  - **C:** keep every approved colour and accept the failures. Not recommended: six badge styles and the muted text are below the minimum the `ux-design` skill sets, and the same text is what carries booking status.
+- **D18: N1–N10 → all resolved 2026-09-22.** Per item:
+  - **N1 Call vendor on the booking detail → yes** (I10). `vendors.phone` is already in I5's select.
+  - **N2 Photos + description on the booking detail → yes** (I10, using I8).
+  - **N3 Inter → drop the name, use the system font** (I16): remove the `fontFamily` inline style at `AppShell.tsx:62`, which is also a static inline style the conventions forbid. Nobody loses a font, because none was ever loaded.
+  - **N4 Delete account → out of scope here.** Needs a service-role route in booker plus UI; blocks the phone app's store submission only. Tracked as the mobile real-data plan's W5.
+  - **N5, N6, N9 → covered by D17.**
+  - **N7 Pending wording → the phone app's line**, "Waiting for the vendor to accept your booking." The approved line ("You have not been charged for a booking they decline") is **false**: the booker pays at checkout, before the vendor accepts, and no refund mechanism exists (F18, `portals.md:654`). Copy ports from mobile's `statusExplain.ts` (I10).
+  - **N8a Price unit → always name the block** ("₱ 1,200 / 60 min"), both clients (I24).
+  - **N8b Division-name search → keep** (resolved 2026-09-22 on the approved board's own behaviour: "court" returning an EzzyCourt vendor's paddle rental is a feature). Say the word to narrow it to names and categories only.
+  - **N10 Overnight slot sort → fix in S1** (I23). A real bug, independent of this redesign.
 
 ---
 
@@ -431,7 +471,7 @@ Blast radius:
   - `lib/constants.ts:38-42` `MAIN_TABS` becomes Home (id `dashboard`, label "Home"), Explore, Bookings, **Payments** (id `payments`, per D13/I21 — if S4 runs before S9, S4 does the rename).
   - `useAppShell` holds the selected `{vendorId, offeringId}`, the Explore query and filters (D12), and the cached catalogue (I7).
   - `app/page.tsx` adds lazy `ExplorePage` / `OfferingPage` / `BookingsPage` renders the way it already does for the others (`app/page.tsx:5-8`).
-  - Sidebar, TopBar and TabBar changes are specified in **I16**. The hamburger drawer is kept.
+  - Sidebar, TopBar and TabBar changes are specified in **I16**, which also drops the unloaded-Inter `fontFamily` inline style at `AppShell.tsx:62` (**N3**).
 - **Wizard** (`useBookingWizard.ts`, `BookingWizard.tsx`, `BookingStepperHeader`, `lib/constants.ts:29-36` `PROG_STEPS`):
   - Requires an initial `{ offering, vendor, slot? }`. `offering` is the per-vendor `DbOffering`.
   - Steps become Schedule → Documents → Review → Pay.
@@ -489,6 +529,26 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 - `lib/types.ts` `PageId`: `transactions` → `payments`; `lib/constants.ts` `MAIN_TABS` label and icon; `TopBar` `TITLES`; `app/page.tsx` lazy import; `AppShell` render prop.
 - Grep `"transactions"` across `booker/` first (notifications, deep links, tests) so the rename does not orphan a string.
 - `globals.css`: add the `@media print` block (D16).
+
+### Added by the mobile briefing (2026-09-22)
+
+#### I22: Contrast palette + a test that guards it (D17, F22)  ⬜ TODO
+**Files:** `app/globals.css` (light `.db-badge-*` at `:199-211`, `--db-text` in both `:root` and `.dark`), new `lib/palette.test.ts`
+- Port the phone app's tested values: light badge text one shade darker (Tailwind -700; amber and orange -800), `--db-text` `#5b6576` light and `#94a3b8` dark, Pets `#92400e` (I3).
+- Values come from `ezzy-booker-mobile/src/theme/statusPalette.ts` and `theme/divisionPalette.ts`, both already test-covered there.
+- **The test is the point.** `lib/palette.test.ts` parses `globals.css`, composites each badge tint over its surface and asserts **every** text/surface pair ≥ 4.5:1 in both themes — the check mobile's `contrast.ts` performs. Without it the numbers drift again the next time a colour is picked by eye.
+- Token values only: the badges already read `.db-badge-*` and `text-db-text`, so no component edits.
+- Dark badge text (`:212` onward) measured fine and is left alone.
+
+#### I23: Overnight slot ordering (N10)  ⬜ TODO
+**File:** `services/schedules.service.ts:214`
+`getSlotsForDate()` ends with `.sort((a, b) => a.start.localeCompare(b.start))`, which orders slot **labels**, so a 22:00–02:00 window lists `00:00`, `01:00`, `23:00`.
+**Fix approach:** sort by the slot's offset from its schedule's `startTime` in minutes (via the existing `toMinutes`), not by the label. Put the comparison in `lib/slots.ts` so it gets a `node --test` case with an overnight window; the service calls it.
+**Coupling:** the phone app already sorts by instant, so this closes a real difference instead of creating one.
+
+#### I24: Price always names its block (N8a)  ⬜ TODO
+**Files:** `lib/utils.ts` (beside I17's `fmtPeso`), then the Explore result cards and the Offering page (I13)
+`offerings.price` is per unit of duration, never per booking (`schema.md` → `offerings`), so a bare "₱ 1,200" is ambiguous. One helper turns `(price, durationMinutes, durationUnit)` into "₱ 1,200 / 60 min", "₱ 350 / hr", "₱ 300 / day", ported from mobile's `format.ts`, with a test per unit.
 
 ---
 
@@ -563,9 +623,9 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 
 One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noEmit`, `npm run lint` and `npm test` in `booker/`, and a report.
 
-- **S0: Foundations.** I1, I2, I3, I4. Pure modules and tests, no UI change. *Safe now.*
-- **S1: Data layer.** I5, I6, I8, I9, I7. Types and services only. Existing screens keep working.
-- **S2: Home core.** I10. Deletes `BookingStatusWidget/` and `BookingCard/`.
+- **S0: Foundations.** I1, I2, I3, I4, **I22**. Largely a **copy-back** from `ezzy-booker-mobile/src/lib/` — take the file, drop the `.ts` import extensions, keep the tests (see the briefing). No UI change beyond D17's token values. *Safe now.*
+- **S1: Data layer.** I5, I6, I8, I9, I7, **I23**, **I24**. Types, services and pure helpers only. Existing screens keep working.
+- **S2: Home core.** I10, including **N1** Call vendor, **N2** photos + description and **N7**'s corrected status wording. Deletes `BookingStatusWidget/` and `BookingCard/`.
 - **S3: Home side.** I11. I12 waits for S3b (D9-A).
   - **S3b (D9-A, coupled):** write the I14 migration on approval → you apply it → switch `getSlotOccupancy()` → verify Step 3 and I12 together against staging.
 - **S4: Nav + Explore.** I16 (shell chrome: Sidebar drawer, TopBar, TabBar), I15's nav part, and I13's `ExplorePage` and `BookingsPage`.
@@ -600,17 +660,19 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
 | [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
 | [x] | Approve | Approve the plan for execution | You | ✅ DONE 2026-09-21 | Approved; execution starts with S0 |
-| [ ] | Brief | Read the ezzy-booker-mobile briefing: what to copy back, N1–N10, and the three items mobile waits on (W1/W2/W6) | Me | ⬜ TODO | Added 2026-09-22 after the phone app shipped on mock data |
-| [ ] | S0 | Foundations: progress steps, auto-confirm countdown, division colours (light + dark), search matcher, + tests (I1–I4) | Me | ⬜ TODO | Tested rules first; no visible change, so no risk |
-| [ ] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`** (I5–I9, F17, G9) | Me | ⬜ TODO | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
-| [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail (I10, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping booking lists |
+| [x] | Brief | Read and **verify** the ezzy-booker-mobile briefing | Me | ✅ DONE 2026-09-22 | 111/111 mobile tests pass; `slots.ts` diff identical; N3, N5, N6, N9, N10 confirmed by code read and computed contrast (N9 corrected) |
+| [x] | D17 | Contrast fixes → adopt the phone app's tested values | You | ✅ DONE 2026-09-22 | Six badge styles and the grey text were below 4.5:1, and status colour carries meaning |
+| [x] | D18 | N1–N10 answered | You | ✅ DONE 2026-09-22 | Call vendor + photos added, price unit named, slot sort fixed, Inter name dropped, false "not charged" line replaced; N4 parked |
+| [ ] | S0 | Foundations: progress steps, countdown, division colours, search matcher, **contrast palette + guard test** (I1–I4, I22) | Me | ⬜ TODO | Mostly a copy-back from the phone app's tested files; D17's colour change lands here |
+| [ ] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`**, **overnight sort fix**, **price-unit helper** (I5–I9, I23, I24, F17, G9) | Me | ⬜ TODO | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
+| [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail with **Call vendor**, **photos** and corrected status wording (I10, N1, N2, N7, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping booking lists; N7's old line was false about money |
 | [ ] | S3 | Home side: Book again, Explore by division, compact Resume, guide for new bookers only (I11) | Me | ⬜ TODO | Low-risk widgets on S1 data |
 | [ ] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ⬜ TODO | A database change in `backbone/`, a second folder |
 | [ ] | S3b-2 | Write the migration file | Me | ⬜ TODO | Only after S3b-1 |
 | [ ] | S3b-3 | Apply the migration (local, then staging) | You | ⬜ TODO | You apply all migrations yourself |
 | [ ] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ⬜ TODO | Fixes Step 3's wrong "spaces left" (F1) and gives the widget honest counts |
 | [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment |
-| [ ] | S4 | Shell (sidebar drawer, TopBar search + titles, 4 tabs) + Explore + Bookings page (I16, I13, I15 nav) | Me | ⬜ TODO | Search needs somewhere to live; the hamburger drawer is kept (G1) |
+| [ ] | S4 | Shell (sidebar drawer, TopBar search + titles, 4 tabs, **drop the unloaded Inter style**) + Explore + Bookings page (I16, I13, I15 nav) | Me | ⬜ TODO | Search needs somewhere to live; the hamburger drawer is kept (G1) |
 | [ ] | S5 | Offering page: photos, assigned staff, next slots; Book disabled for day/week/month offerings (D7, D8, D11) | Me | ⬜ TODO | The step between search and booking (D1) |
 | [ ] | S6 | Wizard starts at Schedule; remove Steps 1–2, map, geolocation (I15, G10) | Me | ⬜ TODO | Booking now starts from an offering, so the old first steps are dead code |
 | [ ] | S6-a | Approve uninstalling `leaflet`, `react-leaflet`, `@types/leaflet` | You | ⬜ TODO | Dependency changes are an approval gate |
@@ -656,6 +718,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | I5–I9 | `tsc`; the selects compile against hand-written types | Local/staging: staff name appears; photos resolve; a hidden vendor's offerings are absent |
 | I10–I13 | `tsc`, lint, Playwright baselines | Dev server at `localhost` (WSL note), light/dark, 390/1280; all four states forced (empty account, network error) |
 | I14 | Migration lints; `tsc` for the service switch | **Staging:** a second booker's booking reduces "N left" for the first; anon cannot execute |
+| I22 | `npm test`: `palette.test.ts` asserts every badge/muted pair ≥ 4.5:1 in both themes | Both themes eyeballed in S7 |
+| I23, I24 | `npm test`: an overnight window orders 23:00 before 00:00; the price unit per duration unit | Slot grid checked against a real overnight schedule |
 | I17–I19 | `npm test`: state per status × `is_paid`; totals exclude cancelled/unpaid; CSV quoting/BOM; Manila month boundaries | — |
 | I20, I21 | `tsc` (the renamed `PageId` forces every reference), lint, Playwright baselines | Both themes at 390/1280: filters narrow the list, totals change with them, CSV opens in a spreadsheet with `₱` intact and amounts summing, receipt prints without the app chrome, pagination clamps |
 | I15 | grep: no imports of the deleted modules; `tsc`; `leaflet` absent from the bundle after uninstall | End-to-end: Explore → Offering → Schedule → Pay on staging (PayMongo test mode) |
