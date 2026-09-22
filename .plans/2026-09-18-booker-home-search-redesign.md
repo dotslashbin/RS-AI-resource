@@ -2,9 +2,9 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** DRAFT. Investigation is ✅ DONE. All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. **Awaiting execution approval.** I14 (backbone migration) additionally needs its own go before the file is written.
+**Status:** APPROVED 2026-09-21 — execution not started (next: S0). **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
 
-> Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Everything works in light and dark.
+> Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
 > **Numbering legend:** F# = finding, D# = decision, I# = implementation item, S# = execution stage. Numbers are plan-local. Qualify cross-plan refs, e.g. "booker-mobile-prototype D5".
@@ -12,6 +12,67 @@
 **Prototype (mock data, reference only):** https://claude.ai/artifact/DZyasjx3GN8d6EQeAsw9Aj
 - Home (desktop light, phone dark), Explore, the Offering page, and **Payments (desktop light + phone dark)** — the Payments screens were approved 2026-09-20.
 - Per D3, **only the division colours carry over** from the prototype's look. Booker keeps its current `--db-*` surfaces, type and primary blue.
+
+---
+
+## Briefing from ezzy-booker-mobile (added 2026-09-22 — read this before S0)
+
+The phone app in `.plans/2026-09-21-booker-mobile-app.md` was built **to these
+designs and this plan's decisions**, on mock data, and is complete (M1–M9). It
+ported the rules this plan's S0/S1 describe, from booker's own code, and **tested
+them**. Two consequences for whoever executes this plan:
+
+1. **S0 and parts of S1 are largely a copy back, not a fresh build.** Take the
+   mobile file, drop the `.ts` extension imports (they exist because mobile's
+   tests run under `node --test` with strip-types), and keep the tests.
+2. **The mobile build found ten things wrong or undecided in web** (N1–N10 below).
+   They are cheapest to fix while these screens are being written.
+
+### What already exists, tested, in `ezzy-booker-mobile/src/lib/`
+
+| Mobile file | What it is | Web item it serves | Tests |
+|---|---|---|---|
+| `slots.ts` | **Byte-identical** to `booker/lib/slots.ts` — proven by `diff` on 2026-09-22 | — | `slots.test.ts` (booker's own suite) |
+| `occurrence.ts` | Which dates a schedule runs: none/weekly/biweekly/monthly, date bounds, date-granular. Ported from `booker/services/schedules.service.ts` `isOccurrence` | I9, and the fifth copy of the rule `check_booking_placement()` owns | `occurrence.test.ts` — vendor-mobile's fixtures **plus a year-long cross-check against a verbatim copy of booker's function**, all recurrences, both granularities |
+| `bookingProgress.ts` | Progress steps for **all nine statuses**, cancelled/refunded/disputed as terminal tracks, with a runtime fallback | **I1** | `bookingProgress.test.ts` |
+| `autoConfirm.ts` | Auto-confirm date with the service-date gate: `max(changedAt + 3d, service day start)`, Manila | **I2** | `autoConfirm.test.ts` |
+| `search.ts` | The matcher: lower-cased, every token must match, grouped into services and vendors, no fuzzy library; plus cities, popular categories, recent searches, the result line | **I4** | `search.test.ts` |
+| `payments.ts`, `paymentsFilter.ts`, `paymentsCsv.ts`, `receiptHtml.ts` | Money states, paid-only totals, Manila month groups and period presets ("Last 3 months" = the same day three months back), CSV of the **filtered** set, receipt HTML with escaping | **I17, I19, I20, I21** | four test files |
+| `statusPalette.ts` + `contrast.ts` | Status colours per theme **and a contrast test** for every text/surface pair | I3, and **N9** | `statusPalette.test.ts` |
+| `divisions.ts`, `theme/divisionPalette.ts` | 13 division slugs + `none`, light and dark, slug-keyed, unknown → neutral | **I3** | `divisions.test.ts` (every pair ≥ 4.5:1) |
+| `homeRules.ts` | Needs you / Up next / the four booking groups / Book again (by offering **id**) / show-the-guide | **I10, I11** | `homeRules.test.ts` |
+| `statusExplain.ts`, `bookingTimeline.ts` | Plain explanation per status; timeline steps with the real `booking_status_log` times | I6, I10 | `bookingDetail.test.ts` |
+| `manila.ts`, `format.ts` | Manila calendar days with fixed +08:00 arithmetic (never the device zone); day, time, range, price-suffix and relative-day formatting | I19 and every date on screen | `format.test.ts` |
+| `bookingActionCopy.ts` | **Copied verbatim from `booker/lib/bookingActionCopy.ts`** — unchanged, listed so nobody re-invents it | I10 | — |
+
+Mobile's component split (`Name.tsx` render / `useName.ts` logic / styles) mirrors
+this repo's convention, so the screens are also a useful reference for how the
+widgets were assembled — see `.plans/2026-09-21-booker-mobile-app.md` §7 M1–M9 for
+what each stage built and how it was verified.
+
+### N1–N10 — what mobile found, for web to settle
+
+- **N1** Mobile has **Call vendor** on the booking detail (`vendors.phone`); web doesn't. Add it?
+- **N2** Mobile shows **offering photos and description** on the booking detail; web's modal doesn't.
+- **N3** Web **names Inter but never loads it** (`booker/components/layout/AppShell/AppShell.tsx:62`; no `@font-face`, no Google Fonts link, no `next/font` anywhere in `app`, `components` or `public`). Either load it or drop the name — most visitors currently see their system font.
+- **N4** Booker has **no Delete account**, which the Privacy Policy expects, and Apple requires for the phone app (mobile G4/W5).
+- **N5** Web's **dark** muted text `#64748b` is ~4.1:1 on the dark page — under 4.5:1. The approved phone board uses `#94a3b8`; mobile matches the board.
+- **N6** The canvas's **Pets** division colour (`#b45309` on `#fdf0dc`) is **4.47:1**. Mobile uses `#92400e`. I3 must check every pair, not only this one.
+- **N7** The design's pending line, "You have not been charged for a booking they decline", may be **false**: bookers pay before the vendor accepts and there is no refund mechanism (F18). Mobile says "Waiting for the vendor to accept your booking." Confirm the true wording before it ships on either client.
+- **N8** Two search details: (a) the board prints some prices with no unit ("₱ 1,200", "₱ 950"), but `offerings.price` is per booked block, so mobile always names the block ("/ hr", "/ 60 min"); pick one rule for both clients. (b) Per I4 the division **name** is searchable, so "court" also returns everything at an EzzyCourt vendor (e.g. "Paddle Set Rental") — the board behaves the same; confirm it's wanted.
+- **N9** Web's **light** badge colours (`.db-badge-*`, the Tailwind -600 shades `#059669`, `#d97706`, …) are **2.9–3.8:1 as text**, on their own tint and on white alike. Mobile uses one shade darker (-700; amber and orange -800) in light only — see `ezzy-booker-mobile/src/theme/statusPalette.ts`, guarded by `statusPalette.test.ts`. Web's light `--db-text` `#64748b` is 4.26:1 on the page gradient; mobile uses the canvas's own `#5b6576`.
+- **N10** `booker/services/schedules.service.ts` `getSlotsForDate` sorts slots by clock text, so a window running past midnight lists "00:00" **before** "23:00". Mobile sorts by instant.
+
+### What mobile is waiting on from this plan
+
+`.plans/2026-09-22-booker-mobile-real-data.md` (the phone app's real-data plan)
+blocks on three items here — its W1, W2 and W6:
+
+- **W1 ← P2 / F3.** `booker/app/api/payment/create-session/route.ts:31-33` authenticates the SSR cookie only. Mobile needs a **Bearer-token** path, and the route must refuse a booking that is already paid.
+- **W2 ← I14 / S3b.** The counts-only occupancy function. Until it exists, mobile shows no counts rather than wrong ones (D9-B), exactly as this plan chose for web.
+- **W6 ← I5 / S1.** Paged `getBookings`. Mobile inherits the same 1000-row cap.
+
+Three more mobile gaps sit outside this plan: uploads with somewhere to store them (W3), a booker write path for `booking_acknowledgements` (W4), and the account-deletion route (W5, also N4).
 
 ---
 
@@ -30,7 +91,7 @@
 - Docs.
 
 **Out:**
-- `ezzy-booker-mobile`. It has its own plan, `2026-09-18-booker-mobile-prototype.md`. This plan converges with its D2-A, D5-A and D6-A.
+- `ezzy-booker-mobile`. It has its own plan, `2026-09-21-booker-mobile-app.md` (which replaced `2026-09-18-booker-mobile-prototype.md` on 2026-09-21; built in another session). That plan follows this one's designs; its **§4 "Web → native differences"** lists every difference between these designs and native mobile, and why. Mobile's S0 and S5 are already built (uncommitted), so web changes to shared rules (progress steps, auto-confirm, payment states, division colours) should be noted there.
 - Persisting document uploads (existing known gap).
 - Cancellation or reschedule.
 - Reviews and ratings (no `reviews` table).
@@ -58,13 +119,13 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 | Theme | `next-themes`, `class` attribute, `defaultTheme="dark"` (`app/layout.tsx:78`), with `:root` / `.dark` blocks in `globals.css` | `--div-*` defined in both blocks |
 | Icons / toasts | lucide-react 0.468, sonner | Unchanged |
 | Data | `@supabase/supabase-js` browser client (`lib/supabase/client`), paged fetches (`lib/pagedFetch.ts`) | Services only. RLS is the boundary |
-| Tests | `node --test` (`lib/**/*.test.ts`), Playwright visual (`visual-tests/`) | I1, I2, I4 tests. Baselines regenerated in S7 |
+| Tests | `node --test` (`lib/**/*.test.ts`), Playwright visual (`visual-tests/`) | I1, I2, I4, I17, I18, I19 tests. Baselines regenerated in S7 |
 
-⚠️ `booker/AGENTS.md` still says "Next.js 15.1" and "single-file `app/page.tsx`". Both are stale (F11). S8 corrects them from `package.json`.
+✅ `booker/AGENTS.md` said "Next.js 15.1" and "single-file `app/page.tsx`" (F11). **Rewritten 2026-09-21** from `package.json` and the real tree, and `booker/CLAUDE.md` now just imports it (`@AGENTS.md`, as the mobile apps do). S8 updates it again for what ships.
 
 ---
 
-## Findings (verified 2026-09-18 by reading the cited code)
+## Findings (F1–F13 verified 2026-09-18, F14–F21 on 2026-09-20, by reading the cited code)
 
 - **F1: "Spaces left" is wrong for bookers today. ESCALATED: this is an existing bug, not just a constraint on this plan.**
   - `services/schedules.service.ts:227-273` `getSlotOccupancy()` counts rows in `bookings`.
@@ -95,7 +156,7 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
   - The login page advertises "Map view with distance sorting" (`components/auth/LoginPage/LoginPage.tsx:71`), which does not exist.
 - **F9: No division colours exist anywhere** (grep of vendor/command libs).
   - `offering_code` badges use an empty `OFFERING_CODE_STYLE` map with one indigo fallback (`lib/constants.ts:49-51`).
-  - Division is reachable as `vendors.division_id → divisions(slug, name)`. Divisions are readable by `authenticated` (`20260724000004_divisions.sql:53`), and the 8 slugs are seeded at `:29-37`.
+  - Division is reachable as `vendors.division_id → divisions(slug, name)`. Divisions are readable by `authenticated` (`20260724000004_divisions.sql:53`), and **13** slugs are seeded at `:29-42` (corrected 2026-09-21: this line said 8, which stopped at `ezzy-pets`; the mobile plan's N5 caught it).
 - **F10: Offering photos are available but unused by booker.**
   - `offering_attachments` `kind='photo'`, public bucket `offering-photos`, readable by active users (`20260829000001_offering_attachments.sql:129`).
   - Vendor resolves URLs at `vendor/services/offeringAttachments.service.ts:253`.
@@ -132,7 +193,7 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 - **D4: Remove the map → yes** (resolved 2026-09-18, accepted with the prototype review).
   - Removes Step 2 and `MapWidget`. Directions become a Maps link built from the address. Location is a city filter in Explore.
   - ⚠️ **Architecture conflict, resolved by this decision:** `portals.md` Roadmap #1 ("lat/lng → vendor markers on Step 2 map") and Known Gap "Vendor map has no vendor markers" are superseded. S8 updates `portals.md` and records "near me" as parked.
-- **D5: Navigation → Home · Explore · Bookings · Transactions** (resolved 2026-09-18). "Booking" stops being a tab, because the wizard starts from an offering. Settings stays in the sidebar.
+- **D5: Navigation → Home · Explore · Bookings · Transactions** (resolved 2026-09-18). *The fourth tab is renamed **Payments** by D13 (2026-09-20); I15/I16 use the new name via I21.* "Booking" stops being a tab, because the wizard starts from an offering. Settings stays in the sidebar.
 - **D6: Home trims → accepted** (resolved 2026-09-18).
   - No spending widget. No drag-to-arrange.
   - Remove the placeholder **Certificate** button.
@@ -208,7 +269,7 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 
 #### I3: Division colours  ⬜ TODO
 - `app/globals.css`:
-  - `--div-<slug>-fg` / `--div-<slug>-bg` for the 8 seeded slugs, plus `--div-none-*`, in both `:root` and `.dark`.
+  - `--div-<slug>-fg` / `--div-<slug>-bg` for all **13** seeded slugs (corrected 2026-09-21 from 8), plus `--div-none-*`, in both `:root` and `.dark`.
   - Dark values are lighter foregrounds on translucent backgrounds, like the existing dark `--db-*` style.
   - Check 4.5:1 text contrast against `--db-card-bg` in both themes.
 - `lib/divisionStyle.ts`: `slug | null → { fg: "var(--div-…-fg)", bg: … }` with a neutral fallback for null or unknown slugs. This is the only place slugs are named.
@@ -366,8 +427,8 @@ Blast radius:
 
 #### I15: Nav + wizard entry + removals  ⬜ TODO
 - **Nav:**
-  - `lib/types.ts:3` `PageId` becomes `"dashboard" | "explore" | "bookings" | "offering" | "booking" | "transactions" | "settings"`.
-  - `lib/constants.ts:38-42` `MAIN_TABS` becomes Home (id `dashboard`, label "Home"), Explore, Bookings, Transactions.
+  - `lib/types.ts:3` `PageId` becomes `"dashboard" | "explore" | "bookings" | "offering" | "booking" | "payments" | "settings"` (`transactions` → `payments`, D13).
+  - `lib/constants.ts:38-42` `MAIN_TABS` becomes Home (id `dashboard`, label "Home"), Explore, Bookings, **Payments** (id `payments`, per D13/I21 — if S4 runs before S9, S4 does the rename).
   - `useAppShell` holds the selected `{vendorId, offeringId}`, the Explore query and filters (D12), and the cached catalogue (I7).
   - `app/page.tsx` adds lazy `ExplorePage` / `OfferingPage` / `BookingsPage` renders the way it already does for the others (`app/page.tsx:5-8`).
   - Sidebar, TopBar and TabBar changes are specified in **I16**. The hamburger drawer is kept.
@@ -520,7 +581,7 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
   - `architecture/portals.md`: booker features, Live-vs-Mock, Known Gaps, Roadmap (D4 supersedes #1), nav.
   - `architecture/booking-flow.md`: the new entry path and removal of Steps 1–2.
   - `architecture/schema.md`: only if I14 lands.
-  - Rewrite `booker/AGENTS.md` (F11).
+  - Update `booker/AGENTS.md` for what shipped (rewritten ahead of time on 2026-09-21, F11).
   - Cross-reference booker-mobile-prototype W1/W5 as delivered on web.
   - Payments: rename in `portals.md` (Transactions → Payments), the corrected totals rule, filters, CSV and pagination.
 
@@ -538,7 +599,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | D13–D16 | Payments decisions (name, CSV, pagination, print) | You | ✅ DONE 2026-09-20 | Same gate, Payments half |
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
 | [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
-| [ ] | Approve | Approve the plan for execution | You | ⬜ TODO | Nothing is built until you say go |
+| [x] | Approve | Approve the plan for execution | You | ✅ DONE 2026-09-21 | Approved; execution starts with S0 |
+| [ ] | Brief | Read the ezzy-booker-mobile briefing: what to copy back, N1–N10, and the three items mobile waits on (W1/W2/W6) | Me | ⬜ TODO | Added 2026-09-22 after the phone app shipped on mock data |
 | [ ] | S0 | Foundations: progress steps, auto-confirm countdown, division colours (light + dark), search matcher, + tests (I1–I4) | Me | ⬜ TODO | Tested rules first; no visible change, so no risk |
 | [ ] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`** (I5–I9, F17, G9) | Me | ⬜ TODO | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
 | [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail (I10, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping booking lists |
@@ -558,7 +620,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | S9c | Open an exported CSV in your spreadsheet; print a receipt | You | ⬜ TODO | Encoding and print output can only be judged on real software |
 | [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments too** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look |
-| [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships; `booker/AGENTS.md` is already wrong (F11) |
+| [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships. Pre-work done 2026-09-21: see Docs-0 |
+| [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
 | [ ] | Git | Commit after each stage | You | ⬜ TODO | You handle git |
 | [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
 | [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |

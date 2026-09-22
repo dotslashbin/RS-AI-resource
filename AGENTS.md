@@ -8,7 +8,7 @@ workspace/
 ├── booker/                # Bookdeck Booker — customer-facing booking portal; booking wizard, wallet, schedule, document upload
 ├── vendor/                # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
 ├── backbone/              # shared Supabase project — migrations, types, seed data
-├── ezzy-booker-mobile/    # Expo/React Native counterpart to booker — scaffold only, see .plans/2026-07-21-ezzy-booker-mobile-buildout.md
+├── ezzy-booker-mobile/    # Expo/React Native counterpart to booker — mock-data build in progress, see .plans/2026-09-21-booker-mobile-app.md
 ├── ezzy-vendor-mobile/    # Expo/React Native counterpart to vendor — built out, running on Android
 ├── architecture/          # ecosystem documentation (schema, portals, auth, conventions) — the shared source of truth
 └── .plans/                # dated plan documents for multi-phase work

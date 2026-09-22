@@ -49,7 +49,7 @@ Two Expo/React Native apps sit alongside the portals. They share the Supabase pr
 A deliberately narrow companion, not a port. It covers the jobs that are urgent and time-sensitive — approving or rejecting an incoming booking, seeing today's numbers, reading notifications — and leaves offerings, schedules, staff and printing on the web, where they belong. A vendor who only ever used the phone would still need the portal.
 
 ### Ezzy Booker Mobile (`./ezzy-booker-mobile`)
-Scaffold only — no app code. Its buildout plan (`.plans/2026-07-21-ezzy-booker-mobile-buildout.md`) predates the vendor app and still carries decisions the vendor app later resolved differently (notably NativeWind vs `StyleSheet`, and AsyncStorage vs SecureStore for the session). Treat the vendor app as the reference implementation and revisit that plan's decisions before starting.
+A mock-data prototype is in progress (`.plans/2026-09-21-booker-mobile-app.md`): no auth or real Supabase calls yet. It follows the web booker redesign (`.plans/2026-09-18-booker-home-search-redesign.md`) for look and behaviour, and uses the vendor app as the reference implementation (`StyleSheet` + `Name.styles.ts`). The earlier buildout plan was deleted 2026-09-21; its still-relevant notes live in the prototype plan.
 
 ### Why the mobile apps are separate repos too
 

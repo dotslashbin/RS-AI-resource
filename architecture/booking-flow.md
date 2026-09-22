@@ -169,7 +169,14 @@ the tempting wrong implementation: the database checks the worst-case slot, so t
 would offer a span that is refused at the final step.
 
 **Occupancy** comes from a count query keyed by overlap, not equality — an existing
-2-unit booking occupies its second slot too. It is fetched asynchronously, and until it
+2-unit booking occupies its second slot too.
+
+> ⚠️ **In the booker app this count is wrong (found 2026-09-18).** The query reads
+> `bookings`, and the only booker SELECT policy is `booker_id = auth.uid()`, so it sees
+> **only the booker's own** bookings. Every slot reads nearly free until the placement
+> trigger refuses the insert as full. The database still prevents overbooking; the UI just
+> can't warn. Fix planned as a counts-only RPC in `.plans/2026-09-18-booker-home-search-redesign.md` (F1, I14). Vendor and kiosk
+> read under vendor RLS and are unaffected. It is fetched asynchronously, and until it
 lands every slot reads as available: the DB refuses an overbooking regardless, whereas
 greying out a free slot on a slow network would block a legitimate booking.
 

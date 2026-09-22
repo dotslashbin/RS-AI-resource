@@ -33,7 +33,7 @@ A 6-step guided flow:
 - **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`, filtered to the booker's own `booker_id`) patches the status in place when a vendor confirms/rejects/cancels, no refresh needed.
 - Click-to-open booking detail modal
 - `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
-- **Offering Status** widget (`BookingStatusWidget`): shows the booker's completed bookings as individual cards (2-column grid). Each card has a coloured left border, an offering code badge, vendor name, date, price paid, and a Certificate button (placeholder, via `handleCertificate`). Shows up to 4 most recent completed bookings. Section is visually distinct from "Current Bookings" below it.
+- **Offering Status** widget (`BookingStatusWidget`): up to 4 bookings in any status from `pending` to `completed` (plus `disputed`), unfinished ones first. Each row shows the offering code, vendor, status, date and a "Payment pending" note, plus the booker's acknowledgement action ("Yes, all done" / "I've returned it" / Undo) with its auto-confirm countdown, "Something's wrong" with an inline reason, and a Certificate button on completed rows (a placeholder toast). *Corrected 2026-09-21 — this line previously described a 2-column grid of completed bookings only.*
 
 #### Transactions Page
 - Wired to the booker's real bookings (`TransactionsPage`)
@@ -47,8 +47,8 @@ A 6-step guided flow:
 - Logout
 
 #### Navigation
-- Bottom tab bar (Dashboard, Booking, Transactions)
-- Sidebar with Settings (hamburger toggle)
+- Tab bar under the top bar (Dashboard, Booking, Transactions) — *corrected 2026-09-21: it is not a bottom bar*
+- Sidebar: persistent from `lg` up; below `lg` a drawer opened by the TopBar hamburger. Holds the main tabs, Settings, About & Legal and the account menu with Sign out
 - Light/dark theme toggle
 
 #### Legal & policy links (2026-08-19)
@@ -77,7 +77,7 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 | Booking written to DB on confirm | ✅ Supabase-wired (Step 6) |
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
 | Booking history on dashboard | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
-| Offering Status widget | ✅ Live — completed bookings as individual cards |
+| Offering Status widget | ✅ Live — up to 4 bookings with acknowledgement / flag actions |
 | Booking acknowledgement ("Yes, all done" / "I've returned it") + flag | ✅ Live (2026-08) — via the `acknowledge_booking()` and `raise_booking_dispute()` RPCs, the booker's only write paths to `bookings.status`. See `booking-flow.md` |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install, and specifically the PayMongo checkout round-trip in standalone mode, still need physical-hardware verification |
@@ -93,9 +93,19 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 - **Vendor map has no vendor markers.** `vendors` table has no `lat`/`lng` columns. The map shows the user's location only.
 - **PWA install/payment behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors), but an actual home-screen install-and-launch on real Android/iOS hardware, and specifically **the PayMongo checkout round-trip from an installed standalone app**, still need physical-device testing before this is considered fully done.
 
+- **Found 2026-09-18/20 while planning the redesign, not yet fixed** (details and fixes in `.plans/2026-09-18-booker-home-search-redesign.md`):
+  - **Step 3's "spaces left" ignores other bookers.** `getSlotOccupancy()` reads `bookings`, but a booker can only read their own rows, so every slot looks nearly free until the insert is refused (plan F1).
+  - **The auto-confirm countdown ignores the service-date gate** — it shows a flat 3 days, while the DB never auto-confirms before the booked date (plan F2).
+  - **`/api/payment/create-session` does not check `is_paid` or status**, so two checkouts for one booking could both be paid (plan F3). Nothing in the UI retries payment today, which keeps this latent.
+  - **Transactions' "Total Spent" counts unpaid and cancelled bookings** (plan F14).
+  - **`getBookings()` is unpaged**, so a booker past 1000 bookings would get a silently short list (plan F17).
+
+### In flight
+`.plans/2026-09-18-booker-home-search-redesign.md` — approved 2026-09-21, not yet executed. Replaces the dashboard with a widget Home, adds Explore/search and a vendor-specific Offering page (booking starts there, at the Schedule step), renames Transactions to **Payments** with filters/CSV/paging, and removes the map. Update this section as its stages ship (its S8).
+
 ### Roadmap (Approximate Priority)
 
-1. Add lat/lng to `vendors` table; show vendor markers on Step 2 map
+1. ~~Add lat/lng to `vendors` table; show vendor markers on Step 2 map~~ **Superseded 2026-09-21** by the redesign plan's D4: the map is removed; directions become a Maps link and location a city filter. "Near me" is parked there (P1)
 2. Implement real document uploads (Supabase Storage + `booking_documents`)
 3. Add booking cancellation flow (booker sets status to `cancelled` while still `pending`)
 4. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
@@ -527,7 +537,7 @@ they claim the account created for them, since `disputed` requires `v_booker`.
 
 ### Roadmap (Approximate Priority)
 
-1. ~~Schedule capacity view: show booking count vs. max_capacity per occurrence~~ **Done (2026-08-04)** — both sides now show spaces remaining per slot: the booker in Step 3's grid, the vendor in the schedule day panel (`09:00–10:00 · 2 of 5 left`). Capacity is `capacity_per_slot`, counted by overlap so a multi-unit or multi-day booking consumes every slot it covers
+1. ~~Schedule capacity view: show booking count vs. max_capacity per occurrence~~ **Done (2026-08-04)** — both sides now show spaces remaining per slot (⚠️ **the booker's count is wrong** — it only sees the booker's own bookings under RLS; see booker Known Gaps, 2026-09-21): the booker in Step 3's grid, the vendor in the schedule day panel (`09:00–10:00 · 2 of 5 left`). Capacity is `capacity_per_slot`, counted by overlap so a multi-unit or multi-day booking consumes every slot it covers
 2. ~~Booking status: add `completed` transition~~ **Done (2026-08)** — the whole dual-acknowledgement model shipped, not just `completed`. See `booking-flow.md`
 3. Booking documents: allow vendor admin to view uploaded documents
 4. Vendor logo/photo upload (Supabase Storage)
@@ -868,7 +878,7 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 
 ## Ezzy Booker Mobile (`./ezzy-booker-mobile`)
 
-Scaffold only — no app code. Its plan (`.plans/2026-07-21-ezzy-booker-mobile-buildout.md`) predates the vendor app and resolved two decisions the vendor app later went the other way on: **NativeWind** for styling (vendor uses `StyleSheet` + `Name.styles.ts`) and **AsyncStorage** for the session (vendor uses SecureStore, because it carries approval authority and payout figures). Revisit both before writing code — treat `ezzy-vendor-mobile` as the reference implementation.
+A mock-data prototype is in progress (`.plans/2026-09-21-booker-mobile-app.md`): no auth or real Supabase calls yet. Styling follows `ezzy-vendor-mobile` (`StyleSheet` + `Name.styles.ts`); look and behaviour follow the web booker redesign. Session storage (AsyncStorage vs SecureStore with vendor's chunking adapter) is still open for the real-data plan. The earlier buildout plan was deleted 2026-09-21.
 
 ---
 
@@ -881,7 +891,7 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Booking creation | ✅ Done | — | — |
 | Booking status update | ✅ Acknowledge + flag (via RPC) | ✅ Approve/reject + full fulfilment + flag | ✅ Resolve flags, release payouts, reasoned override |
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
-| Transactions / payouts | ✅ Live — booker's own spend, from bookings | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
+| Transactions / payouts | ✅ Live — booker's own spend, from bookings (⚠️ total overstated, see booker Known Gaps; becomes **Payments** in the redesign plan) | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
 | Platform fee configuration | — | Read-only (shown per transaction) | ✅ Live — sets the global rate |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ⚠️ Placeholder | — | — |

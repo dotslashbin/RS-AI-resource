@@ -547,6 +547,8 @@ Unique index: `staff_vendor_email_key on (vendor_id, email) where email is not n
 
 The offerings a staff member is qualified to deliver live in the `staff_specialties` junction table (below), not on this table.
 
+> ⚠️ **RLS returns whole rows to any active user** (noted 2026-09-21). "active users can read active staff" (`20260507000001_staff.sql:59-66`) exists for the booker, but RLS gates rows, not columns, so any active user can read every active staff member's `email` and `phone`. Booker code should select names only (`.plans/2026-09-18-booker-home-search-redesign.md` F6); closing it properly needs column grants or a view (parked there as P4).
+
 ---
 
 ### `staff_specialties`
