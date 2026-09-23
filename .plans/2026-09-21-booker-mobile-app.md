@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 **App / scope:** `./ezzy-booker-mobile` only. Every other folder is read-only reference. Web changes are requested through **Sync notes (N#)**, never made from here.
-**Status:** COMPLETE 2026-09-22 for the build scope (M1–M9). **Approved 2026-09-21** with the order M1 → … → M8, M9 added 2026-09-21 at the user's request. Every stage ✅ (M8 on the user's acceptance after their emulator checks). **Carried forward, not done:** G1–G6 (including device storage for the draft, I7) → the real-data plan (§12); N1–N9 with the user for the web session; commits with the user. Next: the real-data plan, written 2026-09-22 → `.plans/2026-09-22-booker-mobile-real-data.md` (DRAFT; decisions D1–D7 open). It carries G1–G6 as dependencies W1–W6.
+**Status:** COMPLETE 2026-09-22 for the build scope (M1–M9). **Approved 2026-09-21** with the order M1 → … → M8, M9 added 2026-09-21 at the user's request. Every stage ✅ (M8 on the user's acceptance after their emulator checks). **Carried forward, not done:** G1–G6 (including device storage for the draft, I7) → the real-data plan (§12); N1–N9 with the user for the web session; commits with the user. Next: the real-data plan, written 2026-09-22 → `.plans/2026-09-22-booker-mobile-real-data.md` (DRAFT; decisions D1–D7 open). It carries G1–G6 as dependencies W1–W6. **Parity review 2026-09-22 (web session): §4b added — five differences found, three owned by web, and two actions here (gate the agreements step; re-copy the now-final division colours).**
 **Replaces:** `2026-09-18-booker-mobile-prototype.md`, deleted 2026-09-21 at the user's request. That plan had absorbed three design directions and contradicted itself. Everything still true is here. What it built, M0 and the first Payments screen, is recorded under *What exists today*.
 
 > **Goal:** the booker mobile app **looks and behaves like the approved web booker redesign** (`2026-09-18-booker-home-search-redesign.md`) in light and dark, on mock data that can be swapped for real Supabase calls. Where native differs from web, the difference is deliberate and listed with its reason.
@@ -101,6 +101,28 @@ Booker's look, not the prototype's: `--db-*` surfaces, booker's primary blue, an
 
 ---
 
+## 4b. Parity contract with the web plan (added 2026-09-22 by the web session)
+
+The web plan (`2026-09-18-booker-home-search-redesign.md`) now carries the same contract under **"Parity contract with ezzy-booker-mobile"**. In short: **§4 above is the complete list of allowed differences.** Anything else that differs between the two clients is a bug in one of the plans.
+
+**A parity review on 2026-09-22 compared this plan's P1–P8 against the web plan item by item and found five differences.** Three are the web plan's to close; two are this plan's:
+
+| # | Difference | Owner | Resolution |
+|---|---|---|---|
+| 1 | Vendor screen from a vendor search result (P4) — web had never said what a vendor card opens | web | Web adds the same page (its **D19-A / I25**). Keep P4's screen; they stay in step |
+| 2 | Agreement acceptance + typed signature during booking (P5) — web collects nothing, and **nothing records it on either client** | **mobile** | Web **D20-A, resolved by the user 2026-09-22: parked on both.** A tick that records no consent ships on neither client. **Action here: hide the agreements step and the signature until `booking_acknowledgements` has a booker write path** (this plan's G6; web's P9). Keep the built code behind that gate rather than deleting it |
+| 3 | Category + granularity chips, `operating_hours`, "All N services" on the offering page (P5) | web | Web adds them (its **I26**) |
+| 4 | A notification opens its booking (P8) | web | Web adds it (its **I27**) |
+| 5 | 13 division shortcuts on Home (P2.7) and "Last 3 months" as the Payments default (P6.1) | web | Web adopts both (its **I28**) — the prototype drew 8 shortcuts and never stated a default |
+
+**Also now settled, and this plan's to apply:**
+- **Division colours are no longer provisional.** Web's I3 landed on 2026-09-22: 13 slugs + `none`, light and dark, in `booker/app/globals.css` (`--div-<slug>-fg/-bg`), with Pets at `#92400e` and the five undrawn divisions on the neutral pair — the same shape M1 used. **Re-copy the values verbatim** and drop the "provisional" note in `tokens.ts`.
+- **Status badge colours and muted text** in web now match what M8 shipped (web D17/I22), so `tokens.ts` needs no change there — but a diff is worth running once.
+- **Web keeps a `lib/palette.test.ts`** that reads `globals.css` and asserts every pair ≥ 4.5:1, the same job `statusPalette.test.ts` and `divisions.test.ts` do here. If a value changes on either side, both suites must be re-run.
+
+**Web items that unblock this app's real-data plan** are unchanged: its I5 (paged bookings → W6), I14 (occupancy RPC → W2) and P2 (payment retry → W1).
+
+
 ## 5. Screens and features (P#) — every one must exist on mobile
 
 Data key: ✅ supported by schema + RLS today · ⚠️ gap, see §9 · 🧪 mock only in this plan.
@@ -152,12 +174,12 @@ Every widget has four states — loading, empty (hidden or a CTA), error, popula
 
 ### P5 Offering page + booking steps (web I13, I15, `Offering` board)
 - Back to results; photo gallery ✅ (`offering_attachments` photos, public bucket); category + granularity chips; name, vendor · area, description.
-- "You'll need to upload" (requirements) and "You'll be asked to agree to" (active `document` attachments) ✅.
+- "You'll need to upload" (requirements) and "You'll be asked to agree to" (active `document` attachments) ✅ — **listing them is fine; collecting acceptance is not, until it can be recorded** (§4b item 2, web D20-A).
 - Vendor block: address, opening hours ✅, Get directions, "All N services".
 - **"Who you'll see"**: the distinct assigned staff. Each slot shows "with ‹name›" (web D7).
 - Next open slots with "N left" (G2 🧪) → a sticky bottom bar: price · selected slot · **Book this slot**.
 - **Date-granular offerings** (day/week/month) are shown, but Book reads "Booking by date isn't available yet" (web D11).
-- Booking steps as a modal stack: **Schedule → Documents → Review → Pay** (web I15), with the offering, vendor and optional slot preselected. Documents are in-memory (G3); Pay is mock (G1). Slot logic is copied from `booker/lib/slots.ts` + `services/schedules.service.ts`, keyed on **offering id** (web I9, T2).
+- Booking steps as a modal stack: **Schedule → Documents → Review → Pay** (web I15), with the offering, vendor and optional slot preselected. Documents are in-memory (G3); Pay is mock (G1). **The agreements tick and typed signature are gated off** until a booker write path exists (G6, web P9) — a consent nothing records ships on neither client (§4b item 2). Slot logic is copied from `booker/lib/slots.ts` + `services/schedules.service.ts`, keyed on **offering id** (web I9, T2).
 
 ### P6 Payments (web D13–D16, I17–I21, `MobilePayments` board)
 In `MobilePayments` order:

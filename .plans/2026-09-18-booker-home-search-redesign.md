@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** APPROVED 2026-09-21. Briefing verified and **D17/D18 resolved 2026-09-22** — no open decisions. **Execution starts at S0**, which now also carries the contrast palette (I22). **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
+**Status:** IN PROGRESS. **S0–S3, S3b, S4, S5 ✅ DONE 2026-09-22** (100/100 tests, `tsc` clean, `next build` passes; the occupancy fix proved against the local database). F24 folded into `20260922000001`, so **one** migration goes to hosted — awaiting a local `db reset` to re-sync history. Next: S4. No open decisions. **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 
@@ -140,6 +140,39 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 
 ✅ `booker/AGENTS.md` said "Next.js 15.1" and "single-file `app/page.tsx`" (F11). **Rewritten 2026-09-21** from `package.json` and the real tree, and `booker/CLAUDE.md` now just imports it (`@AGENTS.md`, as the mobile apps do). S8 updates it again for what ships.
 
+## Parity contract with ezzy-booker-mobile (2026-09-22)
+
+The two clients must end up with the same look and the same feature set, differing only where a phone genuinely differs. Neither plan owns that alone, so the contract is written into both.
+
+**Who decides what**
+- **This plan owns look and behaviour.** Mobile follows it (its §2, §3, D2).
+- **Mobile's `§4 Web → native differences` is the allowed-divergence list.** Nothing outside that table may differ. It covers: the drawer becoming an Account screen, bottom tabs, where the theme switch lives, the search entry, one-column layout, detail as a pushed screen, sheet pickers instead of `<select>`, presets-only date range, "Load more" instead of page buttons, CSV via the share sheet, printing via `expo-print`, receipt as a sheet, the sticky booking bar, native maps links, and no hover or keyboard hints.
+- **Anything else that differs is a bug in one of the plans.** Five were found on 2026-09-22 and are closed below.
+
+**Look: settled and identical on both**
+| Token group | Value | Where |
+|---|---|---|
+| Surfaces, text, borders | booker `--db-*`, light and dark | web `globals.css`; mobile `theme/tokens.ts`, ported verbatim |
+| Status badges | the darkened light set + web's dark set (D17) | web I22 ✅; mobile M8 |
+| Muted text | `#5b6576` light, `#94a3b8` dark (D17) | both ✅ |
+| Division colours | 13 slugs + `none`, light and dark; Pets `#92400e` | web I3 ✅ — **now the source of truth**; mobile re-copies from `globals.css`, replacing its provisional values |
+| Font | the system stack; Inter's name dropped (N3, mobile D9) | web I16; mobile M1 ✅ |
+| Primary button, accent | `linear-gradient(135deg,#2563eb,#1d4ed8)`, `#2563eb` / `#60a5fa` | both ✅ |
+
+**Functional gaps found 2026-09-22, and how each closes**
+| # | Gap | Resolution |
+|---|---|---|
+| 1 | **Vendor page.** Mobile opens a vendor's services from a vendor search result; this plan never said what a vendor card does | **D19-A:** web gets the same page → **I25** |
+| 2 | **Agreements at booking.** Mobile collects acceptance and a typed signature; nothing records it, and web collects nothing | **D20-A:** parked on **both** until `booking_acknowledgements` has a booker write path → **P9**; mobile hides the step it built (its G6) |
+| 3 | **Offering page details.** Mobile shows category + granularity chips, opening hours and "All N services"; I13 never named them | **I26** adds all three to web |
+| 4 | **Notifications.** Mobile opens the booking a notification refers to; web's panel has no such action | **I27** |
+| 5 | **Unstated numbers that drifted.** Division shortcuts (the prototype drew 8; there are 13) and the Payments default period | **I28**: 13 shortcuts, and "Last 3 months" as the default |
+
+**Both clients are equally missing** — parked, not divergences: payment retry (P2 / mobile G1), honest slot counts until I14 lands (mobile G2), upload persistence (F4 / mobile G3), delete account (D18-N4 / mobile G4), agreement recording (P9 / mobile G6), receipt numbers (P7), payment method (P8), "near me" (P1), date-granular booking (P5).
+
+**Keeping it true:** every stage of this plan ends by checking its screens against mobile's matching P# section. A new difference is either added to mobile's §4 table with a reason, or fixed. Mobile's sync protocol does the same in reverse.
+
+
 ---
 
 ## Findings (F1–F13 verified 2026-09-18, F14–F21 on 2026-09-20, by reading the cited code)
@@ -196,6 +229,13 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 - **F20: A CSV pattern already exists — do not invent one.** `command/lib/affiliateCsv.ts` (+ `.test.ts`): pure string builder, RFC 4180 quoting, CRLF, and a UTF-8 BOM so Excel on Windows does not mangle `₱` and `ñ`. Copy its shape. → I18.
 - **F21: `fmtPeso` does not exist in booker** (`lib/utils.ts` has `fmtDate`, `statusLabel`, `showPaymentPending`, no money formatter), so amounts are formatted ad hoc today. One formatter, used by the page, the receipt and the print view. → I17.
 
+- **F24: A stray `anon` EXECUTE on the new function** (found 2026-09-22, immediately after applying I14). ✅ **FIXED by condensing (2026-09-22)** — see the resolution note below.
+  - `20260922000001` ended `revoke all … from public`, copying `get_booker_contacts`'s style. This project's `pg_default_acl` grants EXECUTE on new functions **directly to `anon`**, and revoking from PUBLIC does not touch a direct grant — so `anon` kept EXECUTE. The plan's approved draft said `from public, anon`; dropping `anon` was my transcription error. `command_payout_bucket_totals` (`20260910000001:72`) does it correctly.
+  - **Nothing was exposed:** an `anon` call raises `42501` at the `is_active()` gate, confirmed by calling it as `anon`. This closes it at the privilege layer instead of relying on that single check.
+  - **Same gap exists on `get_booker_contacts(uuid)`** — a vendor-portal function outside this plan. Its own `has_vendor_role` check likewise refuses anon. Recorded here for a backbone security pass rather than changed from a booker stage.
+  - **Resolution, 2026-09-22 (user's call): condensed rather than corrected forward.** Neither migration had reached staging or prod, so the one-line fix was folded into `20260922000001` and `20260922000002` was deleted. Hosted therefore receives **one** correct migration with no trace of the slip, and the `anon` default-grant trap is documented in that file's header for every future function.
+  - **Editing an applied migration is normally forbidden** — the rule protects against applied history drifting from the files. Here it was applied **locally only**, and a `supabase db reset` restores exactly that match; hosted history, which the rule exists for, never saw either version. Had staging been pushed, the two-migration path would have been the only safe one.
+- **F23: `onBookingConfirmed` was never called** (found 2026-09-22 during S2). `useBookingWizard(onBookingConfirmed)` takes the callback and never invokes it, so the shell's optimistic insert never ran and a new booking appeared only after a reload. ✅ Fixed in S2: the shell refetches instead (plan G10). The unused parameter stays until S6 rewrites the wizard's entry, where it is removed with the rest of the old flow.
 - **F22: Contrast failures in tokens D3 kept, measured 2026-09-22** (see the briefing's verification table).
   - Light `.db-badge-*` text: 6 of 8 below 4.5:1 (worst `pending` `#d97706` at 2.90 on its own tint).
   - `--db-text` `#64748b`: 4.33:1 light on the page, 4.13:1 dark on the page, **3.93:1 dark on a card**.
@@ -253,6 +293,9 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
     - The browser Back button and shareable offering links stay unsupported. Parked as P3.
   - **B:** move Explore and Offering to real `app/` routes (`/explore?q=`, `/offering/[id]`). This gives Back support and deep links, but is a structural change to booker's single-page shell.
 
+- **D19: What a vendor search result opens → A, a vendor page on web** (resolved 2026-09-22). Mobile already has one, and a vendor-name search otherwise has nowhere to land. → I25.
+- **D20: Agreement acceptance at booking → A, parked on both clients** (resolved 2026-09-22). `booking_acknowledgements` is written only by Vendor Kiosk Mode, so a booker's tick and signature would leave no record of consent. Neither client asks until the write path exists → P9; mobile hides the step it already built (its G6).
+
 ### Payments decisions (approved with the Payments screens, 2026-09-20)
 
 - **D13: Page name → "Payments"** (resolved 2026-09-20). "Transactions" is accounting language; a customer wants what they paid and what is owed. The `PageId` is renamed to `payments` to match the folder, with `tsc` catching every reference. Grep the string `transactions` before renaming, in case a notification or deep link names it.
@@ -292,7 +335,8 @@ Every component item states its render/hook/style split, per `.claude/skills/com
 
 ### Foundations (pure, testable)
 
-#### I1: `lib/bookingProgress.ts` + test  ⬜ TODO
+#### I1: `lib/bookingProgress.ts` + test  ✅ DONE (2026-09-22)
+<!-- Ported from ezzy-booker-mobile; 7 test cases covering every status × pattern, the terminal tracks and the unknown-status fallback. Verified: `npm test` 70/70, `tsc --noEmit` clean. -->
 Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|current|todo`) plus a tone.
 - Session: Requested → Confirmed → Done → Completed.
 - Custody: Requested → Confirmed → Picked up → Returned → Completed.
@@ -302,12 +346,14 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
   - This is a weak spot: a map that only covers the happy path would silently drop these.
 - Test: `node --test` (the existing `npm test` glob `lib/**/*.test.ts`), one case per status × pattern.
 
-#### I2: `lib/autoConfirm.ts` + test (F2)  ⬜ TODO
+#### I2: `lib/autoConfirm.ts` + test (F2)  ✅ DONE (2026-09-22) — module only
+<!-- Module + 11 cases (no timer for in_progress, null status_changed_at, the 3-day window, the Manila service-date gate) ported and passing. ⚠️ The two flat `AUTO_ACK_DAYS = 3` copies in useBookingStatusWidget.ts:19 and useBookingDetailModal.ts:8 are NOT yet replaced: that is a behaviour change in components S2 rewrites, and S0 was scoped to leave the UI alone. S2 must delete both. -->
 - Copy `vendor/lib/autoConfirm.ts` + test, adapted to booker's `Booking` type. This needs `bookedDate`, which the type already has.
 - Replace both `AUTO_ACK_DAYS` copies (`useBookingStatusWidget.ts:19`, `useBookingDetailModal.ts:8`).
 - Only `fulfilled` gets a countdown. `in_progress` never does. `returned` is the vendor's move, so the booker sees no timer.
 
-#### I3: Division colours  ⬜ TODO
+#### I3: Division colours  ✅ DONE (2026-09-22)
+<!-- `--div-<slug>-fg/-bg` for 13 slugs + `--div-none-*` in both themes (globals.css), and `lib/divisions.ts` (slug normaliser + the 13-entry list) with 4 tests. Deviation: no `lib/divisionStyle.ts` returning `var()` strings — G7 settled on a `data-division` attribute plus module CSS, so TypeScript never names a colour. Contrast for all 14 pairs per theme is asserted by `lib/palette.test.ts`. -->
 - `app/globals.css`:
   - `--div-<slug>-fg` / `--div-<slug>-bg` for all **13** seeded slugs (corrected 2026-09-21 from 8), plus `--div-none-*`, in both `:root` and `.dark`.
   - Dark values are lighter foregrounds on translucent backgrounds, like the existing dark `--db-*` style.
@@ -316,7 +362,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 - **Keyed on `slug`, not `name`**, because names are display text.
 - The division badge replaces the unused `OFFERING_CODE_STYLE` for the code tile. Remove the map and its fallback once nothing reads them (`lib/constants.ts:49-51`).
 
-#### I4: `lib/search.ts` + test  ⬜ TODO
+#### I4: `lib/search.ts` + test  ✅ DONE (2026-09-22)
+<!-- Ported with structural `SearchOffering`/`SearchVendor` types declared in the module, so it is testable before S1's catalogue exists; any row carrying those fields satisfies it. 6 cases: tokenising, every-token matching across service+vendor+city+division, vendors only for a typed query and only when they have something to book, filters, the When filter over known openings only, cities/popular/recent/result line. The opening-label and price-suffix cases from mobile's suite belong to S1's I24 and were left out. -->
 - A pure matcher: lower-cased, whitespace tokens, every token must appear in `name + category + vendor name + city + division name`.
 - Results are grouped into Services and Vendors, then sorted.
 - No fuzzy library (no new dependency).
@@ -324,18 +371,21 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 
 ### Data layer (`services/`, hand-written types per root AGENTS.md)
 
-#### I5: `getBookings()` shape  ⬜ TODO
+#### I5: `getBookings()` shape  ✅ DONE (2026-09-22)
+<!-- Paged via fetchAllPages with an exact count (F17); returns {data,error,complete}; added offering/vendor ids, address, city, phone, division, staff name (names only, F6), requirements, end time/date, quantity and payment_reference. Callers updated. Verified: tsc, build, 95 tests. -->
 **File:** `services/bookings.service.ts:77-110`
 - Add `offering_id`, `vendor_id`, `end_time`, `end_date`, `quantity`.
 - Add `offerings(requirements)` and `vendors(name, address, city, phone, divisions(slug, name))`.
 - Add `schedules(staff(first_name, last_name))`. **Names only** (F6, D8).
 - Extend `Booking` in `lib/types.ts`. The staff name is nullable (F5).
 
-#### I6: `getBookingStatusLog(bookingId)`  ⬜ TODO
+#### I6: `getBookingStatusLog(bookingId)`  ✅ DONE (2026-09-22)
+<!-- ⚠️ CORRECTION: the columns are `from_status`/`to_status`, not `new_status` as first written — caught by reading 20260516000006 before shipping. Loaded when the detail opens, and again when the status changes. -->
 - Reads `booking_status_log` (F12) for the detail timeline's timestamps.
 - It is loaded when the detail opens, not with the list.
 
-#### I7: Catalogue for Explore  ⬜ TODO
+#### I7: Catalogue for Explore  ✅ DONE (2026-09-22)
+<!-- `getCatalogue()` added beside `getActiveOfferings()` rather than replacing it: Step 1 still calls the old one until S6 deletes that step, and a stage should leave the tree green. Returns per-vendor offerings + deduped vendors, paged, with divisions joined. -->
 **File:** `services/offerings.service.ts:47-81`
 - Replace the service-first `getActiveOfferings()` with `getCatalogue()`: per-vendor active offerings with `vendor_id, fulfilment_pattern` and `vendors!inner(id, name, city, province, tagline, divisions(slug, name))`.
 - Keep the paging, `.order("code").order("id")` and `complete` flag exactly as they are now. The comments at `:35-46` and `:59-63` explain why.
@@ -343,7 +393,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 - `getVendorsForOffering()` (`vendors.service.ts`) becomes unused after S6. Remove it then.
 - **Loaded once per session** when Explore first opens, then cached in `useAppShell`. Not refetched on every keystroke.
 
-#### I8: Offering photos  ⬜ TODO
+#### I8: Offering photos  ✅ DONE (2026-09-22)
+<!-- `services/offeringPhotos.service.ts`: getCoverPhotos (chunked .in()) and getPhotos. A failed chunk falls back to the division placeholder, never a broken <img>. -->
 - New `services/offeringPhotos.service.ts`:
   - `getCoverPhotos(offeringIds)` returns the first active `photo` by `sort_order`.
   - `getPhotos(offeringId)` returns all of them.
@@ -351,7 +402,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 - Chunk `.in()` lists so a large catalogue does not build an oversized URL.
 - A missing photo means a division-coloured placeholder, never a broken `<img>`.
 
-#### I9: Schedules with staff  ⬜ TODO
+#### I9: Schedules with staff  ✅ DONE (2026-09-22)
+<!-- staff(first_name,last_name) added to both selects; `getSchedulesForOffering(vendorId, offeringId)` keyed on id, not code. -->
 **File:** `services/schedules.service.ts:40-58`
 - Add `staff_id, staff(first_name, last_name)` to the select.
 - Add a nullable `staffName` to `BookerSchedule`.
@@ -359,7 +411,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 
 ### Home
 
-#### I10: Dashboard layout + Needs you + Up next + My bookings  ⬜ TODO
+#### I10: Dashboard layout + Needs you + Up next + My bookings  ✅ DONE (2026-09-22)
+<!-- NeedsYouCard, UpNextCard, BookingList + BookingProgress, DivisionBadge, rewritten DashboardPage, rewritten BookingDetailModal (timeline, staff, photos, Call vendor, Certificate removed). BookingStatusWidget/ and BookingCard/ trashed. Rules ported from the phone app as lib/{homeRules,statusExplain,bookingTimeline,directions}.ts with their suites. All four states per widget, error distinct from empty. -->
 - **`DashboardPage`** (modify: `.tsx` + `useDashboardPage.ts` + new `DashboardPage.module.css`).
   - Two-column grid on `xl`, one column below.
   - Show the guide only when `bookings.length === 0` (D6).
@@ -386,7 +439,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
   - Keep it a modal. No drawer rewrite, because it adds nothing a modal lacks.
 - **All four states** in every widget: loading skeleton, empty (hidden, or a CTA), error, populated. `getBookings()` currently returns `[]` on error (`bookings.service.ts:92`), which makes an error look like "no bookings". Return `{ data, error }` as `offerings.service` does, and show an error state.
 
-#### I11: Book again + Explore by division + compact Resume  ⬜ TODO
+#### I11: Book again + Explore by division + compact Resume  ✅ DONE (2026-09-22)
+<!-- BookAgainCard (grouped by offering id), DivisionShortcuts (all 13, I28), InProgressCard gained Discard, GuidePanel lost its Hide button and shows only at zero bookings (D6). Book again and the division chips route to the booking flow until S4/S5 exist — stated in the code, not silently inert. -->
 - **`BookAgainCard`** (new: `.tsx` / `useBookAgainCard.ts` / `.module.css`).
   - Derived from completed bookings, grouped by `offering_id` (not code), newest 3.
   - Opens the Offering page (I13).
@@ -395,7 +449,8 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
   - Compact version with a progress bar.
   - Draft keys change in I15, so a draft in the old format is discarded, not crashed on.
 
-#### I12: Open this weekend  ⬜ TODO (depends on D9)
+#### I12: Open this weekend  ✅ DONE (2026-09-22)
+<!-- OpenSlotsCard + hook + module.css, and lib/weekend.ts (+5 tests) for the Manila weekend. Counts print only when getSlotOccupancy reports them `known`; otherwise the slot shows a time and no number. Fan-out capped at 4 past vendor/offering pairs. -->
 - **`OpenSlotsCard`** (new: `.tsx` / `useOpenSlotsCard.ts` / `.module.css`).
   - Takes the booker's distinct past `(vendor_id, offering_id)` pairs, capped at 4.
   - Calls `getSchedulesForOffering` for each, then derives slots for the next Sat/Sun with the existing `getSlotsForDate` and the occupancy from I14 (or no counts, under D9-B).
@@ -405,7 +460,9 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
 
 ### Explore, Offering, Bookings
 
-#### I13: Explore page + Offering page + Bookings page  ⬜ TODO
+#### I13: Explore page + Offering page + Bookings page  ✅ DONE (2026-09-22)
+<!-- S4: ExplorePage (+ hook + module.css), OfferingResultCard, VendorResultCard,
+     BookingsPage. S5: OfferingPage (+ hook + module.css). -->
 - **`ExplorePage`** (new: `.tsx` / `useExplorePage.ts` / `.module.css`).
   - Search input with a visible `<label>`.
   - Division chips (`aria-pressed`) and a city `<select>` built from the distinct `vendors.city` values in the catalogue.
@@ -422,8 +479,24 @@ Maps `(status, fulfilmentPattern)` to ordered steps (`label`, `state: done|curre
   - The date-granular case follows D11.
 - **`BookingsPage`** (new, pure: renders `BookingList` without a limit).
 
-#### I14: Occupancy RPC (D9-A). Approval gate, `backbone/`  ⬜ TODO
-Draft only. **Do not write the file until approved.**
+#### I14: Occupancy RPC (D9-A). Approval gate, `backbone/`  ✅ DONE (2026-09-22)
+**Approved 2026-09-21. Written and applied 2026-09-22** (`20260922000001_slot_occupancy_rpc.sql`, applied by the user).
+
+**Verified against the local database, as a real booker** (read-only, in a rolled-back transaction):
+- Acting as booker `…003` on a date whose booking belongs to booker `…016`: RLS shows that booker **0** rows, and `get_slot_occupancy` returns **1**. That is the fix — the count is now true while the booking itself stays unreadable.
+- As `anon`: raises `get_slot_occupancy: not permitted` (the `is_active()` gate).
+- A 12-month window: raises the range error rather than returning rows.
+
+**`anon` EXECUTE (F24):** folded into this same file on 2026-09-22 (`revoke … from public, anon`), so there is one migration, not two. Its header documents why `from public` alone is not enough in this project.
+
+**One deviation from the draft below, deliberate:** the caller and range checks `raise`
+instead of sitting in the `WHERE` clause. In `WHERE`, a refused caller or an oversized
+request returns **zero rows**, and zero rows is what this feature reads as "every slot is
+free" — the exact bug being fixed, now silent. `command_payout_bucket_totals()`
+(`20260910000001`) raises for the same reason. An empty `p_schedule_ids` still returns no
+rows, because asking about no schedules is a normal case, not an error.
+
+Draft as approved (the shipped file carries the raises plus the comments):
 
 ```sql
 -- backbone/supabase/migrations/2026MMDD000001_slot_occupancy_rpc.sql
@@ -532,7 +605,8 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 
 ### Added by the mobile briefing (2026-09-22)
 
-#### I22: Contrast palette + a test that guards it (D17, F22)  ⬜ TODO
+#### I22: Contrast palette + a test that guards it (D17, F22)  ✅ DONE (2026-09-22)
+<!-- Light badge foregrounds darkened, `--db-text` → #5b6576 light / #94a3b8 dark, Pets → #92400e. `lib/palette.test.ts` reads globals.css itself (not a copy) and asserts ≥4.5:1 for: 9 badges × tint-and-bare × 2 panel surfaces, `--db-text`/`--db-strong` on every page stop and panel, and 14 division pairs — per theme. -->
 **Files:** `app/globals.css` (light `.db-badge-*` at `:199-211`, `--db-text` in both `:root` and `.dark`), new `lib/palette.test.ts`
 - Port the phone app's tested values: light badge text one shade darker (Tailwind -700; amber and orange -800), `--db-text` `#5b6576` light and `#94a3b8` dark, Pets `#92400e` (I3).
 - Values come from `ezzy-booker-mobile/src/theme/statusPalette.ts` and `theme/divisionPalette.ts`, both already test-covered there.
@@ -540,15 +614,111 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 - Token values only: the badges already read `.db-badge-*` and `text-db-text`, so no component edits.
 - Dark badge text (`:212` onward) measured fine and is left alone.
 
-#### I23: Overnight slot ordering (N10)  ⬜ TODO
+#### I23: Overnight slot ordering (N10)  ✅ DONE (2026-09-22)
+<!-- `compareSlotStarts()` in lib/slots.ts sorts by each slot's offset from its own window; 4 new test cases including the 22:00–02:00 case that used to list 00:00 first. -->
 **File:** `services/schedules.service.ts:214`
 `getSlotsForDate()` ends with `.sort((a, b) => a.start.localeCompare(b.start))`, which orders slot **labels**, so a 22:00–02:00 window lists `00:00`, `01:00`, `23:00`.
 **Fix approach:** sort by the slot's offset from its schedule's `startTime` in minutes (via the existing `toMinutes`), not by the label. Put the comparison in `lib/slots.ts` so it gets a `node --test` case with an overnight window; the service calls it.
 **Coupling:** the phone app already sorts by instant, so this closes a real difference instead of creating one.
 
-#### I24: Price always names its block (N8a)  ⬜ TODO
+#### I24: Price always names its block (N8a)  ✅ DONE (2026-09-22)
+<!-- `priceSuffix()` + `granularityLabel()` in lib/duration.ts (not lib/utils.ts: they are duration renderings and UNIT_MINUTES already lives there), `fmtPeso()` in lib/utils.ts, 8 test cases. Removed `pricePerUnit()`, which had no callers and could only say "per minute" for a 90-minute block. -->
 **Files:** `lib/utils.ts` (beside I17's `fmtPeso`), then the Explore result cards and the Offering page (I13)
 `offerings.price` is per unit of duration, never per booking (`schema.md` → `offerings`), so a bare "₱ 1,200" is ambiguous. One helper turns `(price, durationMinutes, durationUnit)` into "₱ 1,200 / 60 min", "₱ 350 / hr", "₱ 300 / day", ported from mobile's `format.ts`, with a test per unit.
+
+### S0 execution notes (2026-09-22)
+
+- **The briefing's copy-back instruction was wrong on one detail.** It said to drop the `.ts` import extensions. Booker sets `allowImportingTsExtensions: true` (`tsconfig.json:16`) and its existing `slots.test.ts` already imports `./slots.ts`, so the extensions **stay**. Nothing was changed in the copied files' imports.
+- **`slots.ts` needed no work at all** — booker's copy and mobile's are byte-identical (verified by `diff`), which is what let the rest port cleanly.
+- **The first version of `palette.test.ts` failed, and the test was wrong, not the colours.** It checked badge contrast against the page gradient's lightest stop, where three badges land at 4.33–4.43:1. Badges only ever render inside `.db-card` or `.db-sub`, where every one passes (4.60–6.47:1). The test now checks badges on those two panel surfaces and text tokens on the page stops as well. Recorded because the tempting alternative — lowering the threshold to 4.3 — would have left the guard asserting nothing.
+- **Lint:** 23 pre-existing problems (18 errors) in `app/`, `components/` and `services/`, none in the new files. They are the inline-handler and `any` violations F13 already names; the stages that rewrite those files fix them.
+- **Not run:** the Playwright visual suite. The `--db-text` and badge changes will move every committed baseline, and regenerating them is S7's job — running it now would either fail or bake in snapshots that later stages invalidate again.
+
+### Added by the parity review (2026-09-22)
+
+#### I25: Vendor page (D19)  ✅ DONE (2026-09-22)
+<!-- components/explore/VendorPage/ (display + module.css). Offerings come from the cached
+     catalogue filtered by vendor_id, so no new query. Reached from a vendor search result and
+     from "All N services" on the Offering page; covers fetched for that vendor only. -->
+**New:** `components/explore/VendorPage/` — `VendorPage.tsx` (render) + `useVendorPage.ts` (state) + `VendorPage.module.css`
+- Reached from a `VendorResultCard` in Explore, and from "All N services" on the Offering page (I26).
+- Shows name, division badge, city, tagline, `operating_hours`, address with a directions link, and that vendor's active offerings as `OfferingResultCard`s.
+- Data: the cached catalogue (I7) filtered by `vendor_id` — no new query, no new service.
+- `PageId` gains `vendor`; `useAppShell` holds the selected vendor id beside the offering id (D12, I15).
+- Mirrors mobile P4's vendor screen; the two stay in step.
+
+#### I26: Offering page details for parity (gap 3)  ✅ DONE (2026-09-22)
+<!-- Category chip, granularity chip, operating_hours in the Where card, and "All N services". -->
+**File:** the `OfferingPage` in I13
+Adds what mobile P5 shows and I13 never named: a **category** chip and a **granularity** chip ("Booked by the hour" / "Booked in 90-min sessions" / "Booked by the week", from `duration_unit` + `duration_minutes`, ported from mobile's `format.ts` beside I24), the vendor's **`operating_hours`**, and an **"All N services"** link to I25.
+
+#### I27: A notification opens its booking (gap 4)  ✅ DONE (2026-09-22)
+<!-- lib/notificationTarget.ts reads data.booking_id; the title becomes a button only when one is present. The open-booking id moved to useAppShell so a notification can open a booking from any page. -->
+**Files:** `components/layout/NotificationPanel/NotificationItem.tsx`, `components/layout/AppShell/useAppShell.ts`
+`notifications.data` carries the booking id for booking-related types, but the panel only offers read, archive and delete. Make the row's title area a button that closes the panel and opens that booking's detail, as mobile P8 does. A row whose `data` holds no booking id stays plain text rather than a dead button.
+
+#### I28: The numbers that drifted (gap 5)  ⬜ TODO
+- `DivisionShortcuts` (I11) shows **all 13** divisions from `lib/divisions.ts`, not the prototype's 8.
+- Payments (I20) defaults to **Last 3 months** — the default the approved `MobilePayments` board shows, and what mobile ships.
+
+### S1–S3 execution notes (2026-09-22)
+
+- **A wrong column name, caught before it shipped.** I6 was written against `new_status`; `booking_status_log` has `from_status` / `to_status` (`20260516000006:17-24`). Reading the migration rather than trusting the draft is the only reason this didn't reach a runtime error.
+- **`onBookingConfirmed` was dead code.** The wizard takes the callback and never calls it (`useBookingWizard.ts:35`, and the lint warning that named it), so the shell's `setBookings(p => [b, ...p])` never ran — a new booking only appeared after a reload. Replaced with a refetch (plan G10), which is what S6 was going to do anyway. → **F23**.
+- **Status colours are now one token set, not two.** The progress track needs the same colour as the status pill, and defining it twice would let them drift. `--st-<status>-bg/-fg` per theme now back both `.db-badge-*` and `.db-progress-*`, the separate `.dark .db-badge-*` rules are gone (one rule, two token sets), and `palette.test.ts` learned to resolve `var()` so it still checks real values. A new case asserts the track reads the shared token.
+- **`pricePerUnit()` deleted.** No callers, and it could only ever say "per minute" for a 90-minute block. `priceSuffix()` replaces it in the same change.
+- **The `statuswidget` gallery pane keeps its name** so its committed Playwright baseline keeps its filename; it renders `NeedsYouCard` now. A new `upnext` pane was added.
+- **Lint went from 24 problems to 23** (17 errors, 6 warnings), none in the new files: the old `useDashboardPage` effect that ESLint flagged is gone, because the open booking is derived during render instead of stored (plan G8).
+- **Not run:** the Playwright visual suite (S7 regenerates the baselines, which every colour and layout change here invalidates) and any check in a browser — nothing on these screens has been *looked at* yet.
+
+### S4 execution notes (2026-09-22)
+
+- **`as never` casts were a symptom, and removing them exposed a real inconsistency.** The
+  result cards need full catalogue rows, but `searchCatalogue` returned its own narrow types,
+  so the first version cast with `as never`. Making the matcher **generic** removed every
+  cast — and the compiler then surfaced the actual problem: `SearchVendor` called the
+  division's display name `division` while `CatalogueVendor` called it `divisionName`. Two
+  names for one field, which the casts had hidden. Renamed to `divisionName` throughout.
+- **Explore has no "When" filter (Any / Today / This weekend).** It needs each result's next
+  opening, i.e. one schedules query per offering. I13 allowed dropping it rather than fanning
+  out (trap c). → **P10**, so it is parked rather than quietly missing.
+- **Recent searches are read in the state initialiser, not an effect.** Explore is lazily
+  loaded on a click, so it never server-renders with that state. Guarded for a private window
+  and for a stored value that is not an array.
+- **Explore's entry values are initial state, not synced props.** A division chip from Home
+  arrives as `initialDivision`, and the page remounts when it opens, so no effect copies props
+  into state.
+- **`transactions` → `payments` happened here**, not in S9, because S4 owns the tab list (I15's
+  note). The old Transactions screen still renders; its heading now reads "Payments" so the tab
+  and the page do not contradict each other for a stage.
+- **Offering and vendor results currently continue into the existing booking flow.** The choice
+  is remembered in the shell (`selection`); S5 renders the real pages. Sending someone to the
+  flow that still works beats a dead button.
+- **Not run:** the Playwright visual suite, and nothing has been looked at in a browser.
+
+### S5 execution notes (2026-09-22)
+
+- **Slot counts stay honest here too.** The Offering page lists the next open times across 14
+  days and prints "N left" **only** when the occupancy function reports the count as known
+  (plan F1). Where it does not, the time is offered with no number rather than an invented one.
+- **Date-granular offerings are shown, and say what they are.** A day/week/month offering gets
+  its granularity chip and price per block, plus a disabled "Booking by date isn't available
+  yet" pointing at the vendor — not an empty slot grid (plan D11/P5).
+- **Agreements are listed, never collected.** `getAgreements()` reads active `document`
+  attachment titles so the page can say what will be asked for. No tick and no signature: the
+  booker write path does not exist, so consent would be recorded nowhere (plan D20/P9). The
+  service carries a warning that a document's file lives in the PRIVATE bucket and must never be
+  resolved with `getPublicUrl`.
+- **"Who you'll see" is the schedules' assigned staff**, deduplicated, names only (D7/D8, F6). A
+  schedule with no staff, or staff no longer readable, contributes nothing.
+- **A missing offering or vendor falls back to Explore** rather than rendering a page with blanks
+  — both are read from the cached catalogue, which a reload or a deactivated vendor can empty.
+- **`catalogueRef` added to the shell**, for the same reason `bookingsRef` exists: the vendor
+  page's photo fetch runs after an await, where reading state would see the pre-fetch value.
+- **Book again now opens the offering directly** (in S4 it seeded an Explore search as a stopgap).
+- **Still not wired:** "Book this slot" enters the existing flow rather than the wizard at
+  Schedule with the slot preselected — S6's work (I15). The selection is already held in the shell.
+- **Not run:** the Playwright visual suite; nothing looked at in a browser.
 
 ---
 
@@ -586,7 +756,12 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
   - Result count announced through an `aria-live="polite"` region. → I13.
 - **G12: Branding strings are inconsistent (out of scope, noted).** The Sidebar says "RS Booker / RS Client Portal" (`Sidebar.tsx:33-34`) while `APP_NAME` is used elsewhere. Not changed here. Flagged for a branding pass.
 
-### I16: App shell chrome (Sidebar drawer, TopBar, TabBar)  ⬜ TODO
+### I16: App shell chrome (Sidebar drawer, TopBar, TabBar)  ✅ DONE (2026-09-22)
+<!-- Sidebar keeps the drawer and now reads its colours from a Sidebar.module.css instead of
+     inline gradients and hex; TopBar has a title for every page plus the search entry (field
+     at md+, icon button below); TabBar rebuilt with 4 tabs and the phone icon-over-label
+     layout (G4); a pushed page keeps its parent tab lit via TAB_FOR_PAGE (G3); the unloaded
+     Inter font name is gone from AppShell, the gallery and LoginPage.module.css (D18/N3). -->
 **Files:** `components/layout/Sidebar/Sidebar.tsx`, `TopBar/TopBar.tsx`, `TabBar/TabBar.tsx`, `AppShell/AppShell.tsx`, `lib/constants.ts:38-46`
 - **Sidebar stays.**
   - It stays persistent at `lg`, and is a hamburger drawer below `lg` with the backdrop. `goPage()` still closes it (`useAppShell.ts:188-191`).
@@ -614,6 +789,8 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 - **P4: Staff contact over-exposure (F6).** Belongs in a backbone security plan: column-level grants or a view.
 - **P5: Date-granular booking (D11-A).** A separate plan fixes `Step3Schedule` date mode.
 - **P7: A real receipt number.** Today's reference is the PayMongo checkout session id, which is not a receipt number. Unblocked by a decision to store one (schema gate).
+- **P9: Agreement acceptance at booking (D20).** ⏸ PARKED 2026-09-22 — `booking_acknowledgements` is written only by Vendor Kiosk Mode, so a booker's tick would record nothing. Unblocked by a booker write path (RPC or route; backbone + booker), after which **both** clients add the step together.
+- **P10: Explore's "When" filter (Any / Today / This weekend).** ⏸ PARKED 2026-09-22 — it needs each result's next opening, one schedules query per offering; I13 allowed dropping it rather than fanning out across the catalogue. Unblocked by a bounded "openings for the visible page" fetch, or a server-side view. The Offering page (S5) shows real openings for the offering someone actually picks.
 - **P8: Payment method per booking.** Not stored anywhere (F15). Unblocked by capturing it from the PayMongo webhook payload (schema + route change).
 - **P6: Server-side search.** Only if the catalogue outgrows client-side matching. Would need a search function or index, which is a schema gate.
 
@@ -623,13 +800,13 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 
 One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noEmit`, `npm run lint` and `npm test` in `booker/`, and a report.
 
-- **S0: Foundations.** I1, I2, I3, I4, **I22**. Largely a **copy-back** from `ezzy-booker-mobile/src/lib/` — take the file, drop the `.ts` import extensions, keep the tests (see the briefing). No UI change beyond D17's token values. *Safe now.*
-- **S1: Data layer.** I5, I6, I8, I9, I7, **I23**, **I24**. Types, services and pure helpers only. Existing screens keep working.
-- **S2: Home core.** I10, including **N1** Call vendor, **N2** photos + description and **N7**'s corrected status wording. Deletes `BookingStatusWidget/` and `BookingCard/`.
-- **S3: Home side.** I11. I12 waits for S3b (D9-A).
-  - **S3b (D9-A, coupled):** write the I14 migration on approval → you apply it → switch `getSlotOccupancy()` → verify Step 3 and I12 together against staging.
-- **S4: Nav + Explore.** I16 (shell chrome: Sidebar drawer, TopBar, TabBar), I15's nav part, and I13's `ExplorePage` and `BookingsPage`.
-- **S5: Offering page.** I13's `OfferingPage`. Staff per D7/D8.
+- **S0: Foundations** ✅ DONE 2026-09-22. I1, I2 (module only), I3, I4, **I22**. Largely a **copy-back** from `ezzy-booker-mobile/src/lib/` — take the file, drop the `.ts` import extensions, keep the tests (see the briefing). No UI change beyond D17's token values. *Safe now.*
+- **S1: Data layer** ✅ DONE 2026-09-22. I5, I6, I8, I9, I7, **I23**, **I24**.
+- **S2: Home core** ✅ DONE 2026-09-22. I10 with **N1**, **N2**, **N7** and **I27**. Deletes `BookingStatusWidget/` and `BookingCard/`.
+- **S3: Home side** ✅ DONE 2026-09-22. I11 with **I28**. I12 still waits for S3b (D9-A).
+  - **S3b (D9-A, coupled):** ✅ DONE 2026-09-22 — migration written, applied by the user, `getSlotOccupancy()` switched to the RPC, I12 built, and the fix proved locally as a real booker. ⬜ Remaining: apply F24's follow-up migration, and the staging check (S3b-5).
+- **S4: Nav + Explore** ✅ DONE 2026-09-22. I16, I15's nav part, I13's `ExplorePage` + `BookingsPage`, and the `payments` rename.
+- **S5: Offering page** ✅ DONE 2026-09-22. I13's `OfferingPage`, **I26**, **I25** (vendor page). Staff per D7/D8.
 - **S6: Wizard entry + removals.** The rest of I15. The Leaflet uninstall is asked for here.
 - **S9: Payments core.** I17, I19, I21, and I20's page, period bar, summary cards, filters, month groups and rows. Depends on S0 (division colours), S1 (paged `getBookings`) and S4 (the tab). Deletes `components/transactions/`.
 - **S9b: Payments receipt, CSV and print.** I18, plus I20's receipt and print view, and the `@media print` block.
@@ -657,23 +834,26 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | Proto-2 | Prototype: Payments desktop + phone dark | Me | ✅ DONE 2026-09-20 | Approved 2026-09-20 with three answers: name "Payments", add CSV, 10 per page |
 | [x] | D1–D12 | Home / Explore / Offering decisions | You | ✅ DONE 2026-09-18 | No stage runs while a decision is open |
 | [x] | D13–D16 | Payments decisions (name, CSV, pagination, print) | You | ✅ DONE 2026-09-20 | Same gate, Payments half |
+| [x] | D19, D20 | Parity: vendor page on web; agreements parked on both | You | ✅ DONE 2026-09-22 | From the 2026-09-22 parity review |
+| [ ] | Parity | Per-stage check against mobile's matching P# section | Me | ⬜ TODO | A new difference is justified in mobile §4 or fixed |
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
 | [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
 | [x] | Approve | Approve the plan for execution | You | ✅ DONE 2026-09-21 | Approved; execution starts with S0 |
 | [x] | Brief | Read and **verify** the ezzy-booker-mobile briefing | Me | ✅ DONE 2026-09-22 | 111/111 mobile tests pass; `slots.ts` diff identical; N3, N5, N6, N9, N10 confirmed by code read and computed contrast (N9 corrected) |
 | [x] | D17 | Contrast fixes → adopt the phone app's tested values | You | ✅ DONE 2026-09-22 | Six badge styles and the grey text were below 4.5:1, and status colour carries meaning |
 | [x] | D18 | N1–N10 answered | You | ✅ DONE 2026-09-22 | Call vendor + photos added, price unit named, slot sort fixed, Inter name dropped, false "not charged" line replaced; N4 parked |
-| [ ] | S0 | Foundations: progress steps, countdown, division colours, search matcher, **contrast palette + guard test** (I1–I4, I22) | Me | ⬜ TODO | Mostly a copy-back from the phone app's tested files; D17's colour change lands here |
-| [ ] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`**, **overnight sort fix**, **price-unit helper** (I5–I9, I23, I24, F17, G9) | Me | ⬜ TODO | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
-| [ ] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail with **Call vendor**, **photos** and corrected status wording (I10, N1, N2, N7, G5, G6, G8) | Me | ⬜ TODO | Replaces the two overlapping booking lists; N7's old line was false about money |
-| [ ] | S3 | Home side: Book again, Explore by division, compact Resume, guide for new bookers only (I11) | Me | ⬜ TODO | Low-risk widgets on S1 data |
-| [ ] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ⬜ TODO | A database change in `backbone/`, a second folder |
-| [ ] | S3b-2 | Write the migration file | Me | ⬜ TODO | Only after S3b-1 |
-| [ ] | S3b-3 | Apply the migration (local, then staging) | You | ⬜ TODO | You apply all migrations yourself |
-| [ ] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ⬜ TODO | Fixes Step 3's wrong "spaces left" (F1) and gives the widget honest counts |
+| [x] | S0 | Foundations: progress steps, countdown, division colours, search matcher, **contrast palette + guard test** (I1–I4, I22) | Me | ✅ DONE 2026-09-22 | Copy-back from the phone app + D17 colours. Verified: `npm test` **70/70** (was 36), `tsc --noEmit` clean, no new lint. Wiring the countdown into the two widgets is S2's |
+| [x] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`**, **overnight sort fix**, **price-unit helper** (I5–I9, I23, I24, F17, G9) | Me | ✅ DONE 2026-09-22 | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
+| [x] | S2 | Home core: Needs you, Up next, My bookings + progress, booking detail with **Call vendor**, **photos** and corrected status wording (I10, N1, N2, N7, G5, G6, G8, I27) | Me | ✅ DONE 2026-09-22 | Replaces the two overlapping booking lists; N7's old line was false about money |
+| [x] | S3 | Home side: Book again, 13 division shortcuts, compact Resume + Discard, guide for new bookers only (I11, I28) | Me | ✅ DONE 2026-09-22 | Low-risk widgets on S1 data |
+| [x] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ✅ DONE 2026-09-22 | Approved after the index check (`bookings_schedule_id_idx` exists) |
+| [x] | S3b-2 | Write the migration file | Me | ✅ DONE 2026-09-22 | `20260922000001_slot_occupancy_rpc.sql`. Verified by reads only: every referenced object and column type exists; `get_slot_occupancy` not already defined. **Not executed** |
+| [x] | S3b-3 | Apply the migration (local, then staging) | You | ✅ DONE 2026-09-22 | Applied; function confirmed live, `security definer`, `stable` |
+| [x] | S3b-3b | `supabase db reset` so history matches the condensed `20260922000001` (F24) | You | ✅ DONE 2026-09-22 | Verified after: no `anon` EXECUTE, history shows one migration, and the occupancy proof re-ran on the fresh seed |
+| [x] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ✅ DONE 2026-09-22 | Proved locally: a booker who sees 0 rows via RLS gets a count of 1 from the function. Fixes F1. Unknown counts now print no number at all |
 | [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment |
-| [ ] | S4 | Shell (sidebar drawer, TopBar search + titles, 4 tabs, **drop the unloaded Inter style**) + Explore + Bookings page (I16, I13, I15 nav) | Me | ⬜ TODO | Search needs somewhere to live; the hamburger drawer is kept (G1) |
-| [ ] | S5 | Offering page: photos, assigned staff, next slots; Book disabled for day/week/month offerings (D7, D8, D11) | Me | ⬜ TODO | The step between search and booking (D1) |
+| [x] | S4 | Shell (sidebar drawer kept, TopBar search + titles, 4 tabs, Inter name dropped) + Explore + Bookings page + `payments` rename (I16, I13 part, I15 nav) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc` clean, build passes, lint at baseline. Nothing seen in a browser yet |
+| [x] | S5 | Offering page **+ vendor page**: photos, staff, next open times, category/granularity chips, hours, agreements listed (D7, D8, D11, I25, I26) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean, lint at baseline. Closes parity gaps 1 and 3. "Book this slot" still enters the old flow until S6 |
 | [ ] | S6 | Wizard starts at Schedule; remove Steps 1–2, map, geolocation (I15, G10) | Me | ⬜ TODO | Booking now starts from an offering, so the old first steps are dead code |
 | [ ] | S6-a | Approve uninstalling `leaflet`, `react-leaflet`, `@types/leaflet` | You | ⬜ TODO | Dependency changes are an approval gate |
 | [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
@@ -684,7 +864,9 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look |
 | [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships. Pre-work done 2026-09-21: see Docs-0 |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
-| [ ] | Git | Commit after each stage | You | ⬜ TODO | You handle git |
+| [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |
+| [ ] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ⬜ TODO | F24 is folded into that single migration |
+| [ ] | Git | Commit each later stage | You | ⬜ TODO | You handle git |
 | [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
 | [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |
 | [ ] | P3 | Real URLs (browser Back, shareable links) | — | ⏸ PARKED | Keeping booker's single-page shell (D12) |
@@ -692,6 +874,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | P5 | Booking by day / week / month | — | ⏸ PARKED | Existing Step 3 gap (D11); needs its own plan |
 | [ ] | P6 | Server-side search | — | ⏸ PARKED | Client-side is enough for today's catalogue |
 | [ ] | P7 | A real receipt number | — | ⏸ PARKED 2026-09-20 | The reference shown is a PayMongo session id, not a receipt number. Unblocked by a decision to store one (schema gate) |
+| [ ] | P9 | Agreement acceptance at booking | — | ⏸ PARKED 2026-09-22 | Nothing records consent: `booking_acknowledgements` is written only by Vendor Kiosk Mode. Unblocked by a booker write path; mobile gates off the step it built (D20) |
+| [ ] | P10 | Explore's "When" filter (Today / This weekend) | — | ⏸ PARKED 2026-09-22 | Needs one schedules query per result. Unblocked by a bounded per-page openings fetch or a server-side view; the Offering page shows real openings instead |
 | [ ] | P8 | Payment method per payment | — | ⏸ PARKED 2026-09-20 | Not stored anywhere (F15). Unblocked by capturing it from the webhook (schema + route change) |
 | [ ] | X1 | Spending widget on Home | — | ✖ ABORTED 2026-09-18 | Little value for a few bookings, and Payments now carries the money view (D6) |
 | [ ] | X2 | Drag-to-arrange widgets | — | ✖ ABORTED 2026-09-18 | Over-engineered; widgets appear only when relevant |
