@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S3, S3b, S4, S5 ✅ DONE 2026-09-22** (100/100 tests, `tsc` clean, `next build` passes; the occupancy fix proved against the local database). F24 folded into `20260922000001`, so **one** migration goes to hosted — awaiting a local `db reset` to re-sync history. Next: S4. No open decisions. **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
+**Status:** IN PROGRESS. **S0–S3, S3b, S4, S5, S6 ✅ DONE 2026-09-22**, including S6-a (Leaflet uninstalled). Next: S9 (Payments) or S7. (100/100 tests, `tsc` clean, `next build` passes; the occupancy fix proved against the local database). F24 folded into `20260922000001`, so **one** migration goes to hosted — awaiting a local `db reset` to re-sync history. Next: S4. No open decisions. **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 
@@ -538,7 +538,12 @@ Blast radius:
 
 ### Navigation and wizard
 
-#### I15: Nav + wizard entry + removals  ⬜ TODO
+#### I15: Nav + wizard entry + removals  ✅ DONE (2026-09-22)
+<!-- Nav in S4; the wizard and removals in S6. Four steps (Schedule → Documents → Review →
+     Pay) starting from the Offering page's choice; Step1Offering, Step2Vendor, MapWidget,
+     useGeolocation, vendors.service.ts, getActiveOfferings, getSchedulesForVendor, the
+     Leaflet CSS and the BookerVendor/LatLng/LocStatus types all removed; draft shape now
+     carries vendorId + offeringId; login-page map claim replaced. -->
 - **Nav:**
   - `lib/types.ts:3` `PageId` becomes `"dashboard" | "explore" | "bookings" | "offering" | "booking" | "payments" | "settings"` (`transactions` → `payments`, D13).
   - `lib/constants.ts:38-42` `MAIN_TABS` becomes Home (id `dashboard`, label "Home"), Explore, Bookings, **Payments** (id `payments`, per D13/I21 — if S4 runs before S9, S4 does the rename).
@@ -720,6 +725,39 @@ Adds what mobile P5 shows and I13 never named: a **category** chip and a **granu
   Schedule with the slot preselected — S6's work (I15). The selection is already held in the shell.
 - **Not run:** the Playwright visual suite; nothing looked at in a browser.
 
+### S6 execution notes (2026-09-22)
+
+- **The flow is four steps and starts with a real offering at a real vendor.** `branch` is
+  gone: it held `vendor.address` under a misleading name (plan F7), and the review screen now
+  reads the address directly.
+- **Schedules are fetched by offering id.** The code-keyed `getSchedulesForVendor` existed only
+  for the dedupe-by-code path and went with it (plan I9).
+- **Removed, because nothing references them any more:** `Step1Offering/`, `Step2Vendor/`,
+  `MapWidget/`, `hooks/useGeolocation.ts`, `services/vendors.service.ts`,
+  `getActiveOfferings()` + its `DbRow`/`OfferingsResult`, `getSchedulesForVendor()`, the
+  `.leaflet-*` CSS overrides, and the `BookerVendor` / `LatLng` / `LocStatus` types. Verified by
+  grep and a clean `tsc`, not by assumption.
+- **`examName` → `offeringName`.** The draft and the resume card carried exam vocabulary from
+  this app's origins. The draft's shape changed anyway (it now needs `vendorId`), and
+  `useDashboardPage` **discards** a pre-S6 draft rather than resuming it into a dead end.
+- **Resume reopens the offering**, rather than dumping the booker at the start of a flow.
+- **The login page no longer advertises a map** ("Map view with distance sorting", which never
+  existed — plan F8). It now describes the search that does.
+- **The wizard's primary button lost its inline gradient and opacity** to a
+  `BookingWizard.module.css` (component separation).
+- **Lint fell from 23 problems to 19** (14 errors), because the deleted files carried four of
+  them. Nothing new was introduced.
+- **Date-granular offerings are still a dead end inside this flow** (plan D11/P5) — Step 1
+  cannot pass without a time. The Offering page refuses to start the flow for them, so it is not
+  a trap a booker can reach.
+- **Not run:** the Playwright visual suite. It will fail loudly now: the `step1` and `step2`
+  gallery panes are gone, so their committed baselines have no source. S7 regenerates.
+- **S6-a done the same day (2026-09-22):** `leaflet`, `react-leaflet` and `@types/leaflet`
+  uninstalled on the user's approval. Re-verified after: `tsc` clean, 100/100 tests,
+  `next build` succeeds, `npm ls leaflet` empty. `npm prune` leaves an **empty**
+  `node_modules/@react-leaflet/` directory behind — no files in it, absent from the lockfile,
+  and it disappears on a fresh `npm ci`.
+
 ---
 
 ## Plan review (2026-09-18): gaps found and folded in
@@ -807,7 +845,7 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
   - **S3b (D9-A, coupled):** ✅ DONE 2026-09-22 — migration written, applied by the user, `getSlotOccupancy()` switched to the RPC, I12 built, and the fix proved locally as a real booker. ⬜ Remaining: apply F24's follow-up migration, and the staging check (S3b-5).
 - **S4: Nav + Explore** ✅ DONE 2026-09-22. I16, I15's nav part, I13's `ExplorePage` + `BookingsPage`, and the `payments` rename.
 - **S5: Offering page** ✅ DONE 2026-09-22. I13's `OfferingPage`, **I26**, **I25** (vendor page). Staff per D7/D8.
-- **S6: Wizard entry + removals.** The rest of I15. The Leaflet uninstall is asked for here.
+- **S6: Wizard entry + removals** ✅ DONE 2026-09-22, with S6-a (Leaflet uninstalled on the user's go).
 - **S9: Payments core.** I17, I19, I21, and I20's page, period bar, summary cards, filters, month groups and rows. Depends on S0 (division colours), S1 (paged `getBookings`) and S4 (the tab). Deletes `components/transactions/`.
 - **S9b: Payments receipt, CSV and print.** I18, plus I20's receipt and print view, and the `@media print` block.
 - **S7: Polish** — runs **after S9b**, so the pass covers Payments too.
@@ -854,8 +892,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment |
 | [x] | S4 | Shell (sidebar drawer kept, TopBar search + titles, 4 tabs, Inter name dropped) + Explore + Bookings page + `payments` rename (I16, I13 part, I15 nav) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc` clean, build passes, lint at baseline. Nothing seen in a browser yet |
 | [x] | S5 | Offering page **+ vendor page**: photos, staff, next open times, category/granularity chips, hours, agreements listed (D7, D8, D11, I25, I26) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean, lint at baseline. Closes parity gaps 1 and 3. "Book this slot" still enters the old flow until S6 |
-| [ ] | S6 | Wizard starts at Schedule; remove Steps 1–2, map, geolocation (I15, G10) | Me | ⬜ TODO | Booking now starts from an offering, so the old first steps are dead code |
-| [ ] | S6-a | Approve uninstalling `leaflet`, `react-leaflet`, `@types/leaflet` | You | ⬜ TODO | Dependency changes are an approval gate |
+| [x] | S6 | Wizard starts at Schedule from the Offering page; Steps 1–2, map, geolocation, vendors service and dead types removed (I15, G10) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean; lint 23 → 19 problems. Visual suite will fail until S7 (two gallery panes are gone) |
+| [x] | S6-a | `npm uninstall leaflet react-leaflet @types/leaflet` | You approved · Me ran | ✅ DONE 2026-09-22 | Three dependencies gone from `package.json` and the lockfile; `npm ls leaflet` empty; `tsc`, 100/100 tests and `next build` all clean afterwards. An empty `node_modules/@react-leaflet/` folder survives `npm prune` — no files, not in the lockfile, harmless |
 | [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
 | [ ] | S9 | **Payments core:** money rules + Manila date presets + rename, period bar, honest totals, filters, month groups, 10-per-page (I17, I19, I21, I20 part) | Me | ⬜ TODO | Today's "Total Spent" counts unpaid and cancelled bookings (F14). Needs S0, S1 and S4 first |
 | [ ] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ⬜ TODO | You approved CSV; the receipt gives a customer something to quote to support |

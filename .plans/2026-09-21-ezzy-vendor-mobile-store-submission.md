@@ -72,6 +72,10 @@ Source configuration specifies identifiers, a phone-only iOS app, privacy manife
 
 **Progress (2026-09-21):** User published the staging release to the Google Play Internal testing track and created an internal tester list containing their own Google account. The track can have up to 100 testers and the list can be changed without rebuilding. The first internal rollout may require Play publishing review before the opt-in link works; no installed-device or Play pre-launch evidence exists yet.
 
+**Progress (2026-09-22):** The user installed the store-signed staging candidate on both a physical Android device (Play Internal testing) and a physical iPhone (TestFlight internal testing). Distribution and device installation are verified. Functional, accessibility, kiosk-payment, and Play pre-launch-report evidence are still outstanding.
+
+**Finding (2026-09-23):** User reports the iPhone Home Screen and in-app sign-in label for the installed TestFlight build is `Ezzy Vendor`, not the expected `Ezzy Vendor Staging`. `ezzy-vendor-mobile/app.config.js:6-31` makes both depend on `EXPO_PUBLIC_APP_NAME` at build time, so the staging display-name override was absent or not consumed during this build. The user verified the build is nevertheless staging-backed: its portal link opens `staging-vendor.ezzy.ph`, and a staging account signs in successfully. This is a display-name packaging defect only, not evidence of a production backend target. Functional staging testing may continue, but a future staging rebuild must correct the name before this candidate is accepted as fully labelled.
+
 ### B3 — Enable and prove remote push on both platforms  ⬜ TODO
 **Files:** `ezzy-vendor-mobile/src/services/push.service.ts:20-135`; `ezzy-vendor-mobile/src/hooks/usePushRegistration.ts:42-156`; `backbone/supabase/migrations/20260728000001_device_push_tokens.sql:47-192`; `backbone/supabase/functions/send-push-notification/`.
 
@@ -136,6 +140,7 @@ The submission document has a known stale B6 claim and must become an accurate o
 - D3 — First release scope → **include kiosk in the release candidate, initially against staging** (resolved 2026-09-21) — this makes kiosk’s browser/payment/receipt acceptance testing mandatory. Staging is limited to internal/TestFlight/Play testing; before store review or public release, a stable review environment and then production must be selected and fully re-tested. No public binary may point at staging.
 - D4a — Target age audience → **adults only** (resolved 2026-09-21) — configure the content-rating and target-audience questionnaires consistently for a business-facing adult vendor app.
 - D4b — Launch storefront countries/regions → **Philippines only** (resolved 2026-09-21) — initial App Store and Google Play availability will be limited to the operating market. Expansion requires a deliberate later review of service readiness, privacy, payments, support, and local obligations.
+- OPEN: D5 — Should kiosk ship in the first public build? **Recommended: no, unless it is required for the Philippines launch.** Keeping it off reduces the first-review surface; including it requires the full live payment/receipt checklist below against production before public submission. D3 remains valid: kiosk is included in the current staging candidate for testing.
 
 ## DEFERRED / COSMETIC
 
@@ -145,21 +150,123 @@ The submission document has a known stale B6 claim and must become an accurate o
 
 ## Execution order
 
-**Safe prefix once decisions are resolved (no application or backend mutation):**
+**Current safe prefix — staging-only validation, no application or backend mutation:**
 
-1. **Stage 1 — B1:** choose publisher/account setup; create the two app records; begin Play closed testing immediately if required.
-2. **Stage 2 — B2:** configure production public values, make signed release candidates, and inspect/validate the final AAB and iOS archive.
-3. **Stage 3 — B4 (core flows):** run cross-platform candidate testing and record results; do not enable kiosk unless D3 selects it.
+1. **Stage 1 — B2 staging artefact/distribution check:** inspect the Play pre-launch report and confirm the installed builds identify as the staging candidate; record device/OS/build number. The signed builds are already installed. No Store review or public availability starts here.
+2. **Stage 2 — B4 staging core-flow test pass:** follow the release-owner checklist below on both phones. Record pass/fail only; do not include credentials, customer data, tokens, or payment details in the log. A defect returns the work to a staging fix/build/test cycle.
+3. **Stage 3 — I1/D5 release-scope decision:** decide whether kiosk is in the first public binary. This is an explicit public-release gate; do not configure production kiosk values or submit a public build before it is resolved.
+4. **Stage 4 — production candidate preparation:** create the controlled production reviewer vendor/data set, set production-safe public EAS values, build new signed production candidates, and repeat the applicable Stage 2 checks. The current staging binaries must never be promoted.
 
 **Coupled batch — requires separate shared-backend approval:**
 
-4. **Stage 4 — B3:** deploy the existing token/function work, configure push credentials, then prove push on both physical platforms. B3 and B4’s push acceptance must ship/test together.
+5. **Stage 5 — B3:** deploy the existing token/function work, configure push credentials, then prove push on both physical platforms. B3 and B4’s push acceptance must ship/test together.
 
 **Release assembly:**
 
-5. **Stage 5 — B5:** create reviewer account, final screenshots/listings, privacy/data declarations, and reviewer instructions against the accepted final build.
-6. **Stage 6 — I2:** reconcile operational documentation with the verified release record.
-7. **Stage 7 — submission:** submit to TestFlight and Play internal/closed testing, resolve store feedback, then request public release only after every blocker is ✅ DONE.
+6. **Stage 6 — B5:** create reviewer account, final screenshots/listings, privacy/data declarations, and reviewer instructions against the accepted production build.
+7. **Stage 7 — I2:** reconcile operational documentation with the verified release record.
+8. **Stage 8 — public submission:** submit the production binary to App Review and Play Production, resolve store feedback, then release only after every blocker is ✅ DONE. Apple manual release and Google managed publishing/control settings must be selected before submission.
+
+## Release-owner checklist
+
+Use this in order. A checkbox becomes complete only after it has a result in a release log. A failure is useful evidence: record the scenario, platform, build, and symptom, then stop that path and fix/rebuild the **staging** candidate before continuing.
+
+### Stage 1 — Current staging build distribution and artefact evidence  🔄 IN PROGRESS
+
+**Why:** `eas.json:22-32` makes `store-staging` a store-signed build with preview/staging configuration; `constants.ts:1-44` confirms that public configuration is compiled into the binary. Installing it proves distribution, not functionality.
+
+- [x] iPhone: install TestFlight build `0.12.0 (2)` through the internal A-Team group.
+- [x] Android: install version code `2` through the Play Internal testing opt-in link.
+- [ ] On each phone, open the app and record: date, phone model, OS version, platform, and app build number. Confirm the visible name is **Ezzy Vendor Staging**, not a production label.
+- [ ] Android console: Play Console → **Testing → Internal testing → Releases** → open the release → **Pre-launch report**. Record its status and any crash, compatibility, target-API, 16 KB, or permission finding. A missing/not-yet-ready report is not a pass; check again later.
+- [ ] iOS console: App Store Connect → **Apps → Ezzy Vendor → TestFlight → build 0.12.0 (2) → Build Metadata**. Confirm no unresolved processing/compliance notice is shown. `app.json:9-27` is the source expectation for bundle ID, encryption declaration, and privacy manifest.
+
+**Expected:** both apps open successfully and remain private to invited testers. Google/Apple are not conducting public-release review at this stage.
+
+### Stage 2 — Staging vendor and resilience test pass  ⬜ TODO
+
+**Setup:** use an already active staging vendor. The mobile app is deliberately post-KYC: `constants.ts:35-38` routes registration/KYC to the vendor web portal, so do not attempt to make a store tester complete KYC here.
+
+**Progress (2026-09-23):** On iPhone 12 Pro Max / iOS 26.6.2, the user signed in with a staging account and confirmed the expected dashboard/vendor data loaded. Opening a test booking, completing a booking approve/reject action, and loading Transactions each passed. This is iOS-only evidence for the primary workflow; Android parity, the opposite booking action where applicable, session/recovery, accessibility, legal-link, and kiosk checks remain open.
+
+**Progress (2026-09-23):** On the same iPhone, sign-out followed by sign-in with the staging account passed. In Airplane Mode, an in-app pull-to-refresh did not visibly change data or show an error, but closing/reopening the app did not crash; after connectivity returned, the app resumed normally without an error. This verifies iOS stability and reconnect recovery only. It does not yet verify a distinct offline/error/retry state because the tested refresh did not produce an observable failed request.
+
+**Progress (2026-09-23):** On the same iPhone, Settings → Privacy Policy opened `https://ezzy.ph/privacy-policy/` in the browser, and Settings → Account & Data Deletion opened `https://ezzy.ph/account-data-deletion/` in the browser. Both iOS in-app legal-link checks passed.
+
+**Progress (2026-09-23):** On the same iPhone, system Dark appearance was applied and the staging app dashboard, a booking, and Transactions remained readable and usable; no colour or button-visibility issue was reported. The user restored Light appearance afterwards. iOS dark-theme coverage for the primary screens passed; large-text and VoiceOver remain open.
+
+**Progress (2026-09-23):** On the same iPhone, maximum Larger Accessibility Sizes was enabled. Dashboard, booking details/actions, Transactions, and Settings remained functional; text grew but was not reported clipped or unusable. The user restored their normal text size. iOS largest-text coverage passed; VoiceOver remains open.
+
+**Progress (2026-09-23):** On the same iPhone, VoiceOver navigation and activation were tested across the app menu, Dashboard, a booking/action, Transactions, and Settings. The user reported that labels and controls were understandable and functional. iOS VoiceOver coverage for the primary vendor paths passed.
+
+- [ ] **Core access — both phones:** sign in; verify the correct vendor/dashboard data; sign out; sign in again; test password recovery if it is enabled. Record the behaviour of a deliberately empty or blocked vendor account if a safe staging fixture exists.
+- [ ] **Primary vendor work — both phones:** open a booking, exercise approve and reject using test data, and view transaction information. Test vendor switching if the test user has more than one permitted vendor.
+- [ ] **Lifecycle/recovery — both phones:** background then return; disable connectivity and retry after reconnecting; verify a sensible offline/error/retry state rather than stale success. Test an expired session only with a safe staging fixture.
+- [ ] **Accessibility — both phones:** test light and dark themes, largest system text, keyboard on sign-in/recovery, and the primary state-changing paths with VoiceOver (iOS) or TalkBack (Android). `mobile-dev` requires device-specific proof; source checks cannot substitute for this.
+- [ ] **Legal links — both phones:** Settings → Privacy Policy and Account & Data Deletion open the live HTTPS pages. The fixed URLs are `constants.ts:69-119`; do not replace them with a staging-only legal URL.
+- [ ] **Notifications:** record permission prompt/denial behaviour only. Do not count delivery as passed: remote push is B3 and requires a separately approved shared-backend deployment.
+
+**Expected:** each scenario works on both platforms, or produces clear, recoverable copy. A crash, invisible primary action at large text, cross-vendor data, or a blocked recovery path is a release blocker.
+
+### Stage 2A — Staging kiosk acceptance  ⬜ TODO
+
+**Why:** D3 includes kiosk in the staging candidate. `KIOSK-VERIFICATION.md:196-229` confirms code-level checkout/receipt coverage, but live payment and iOS evidence remain open.
+
+**Progress (2026-09-23):** On iPhone 12 Pro Max / iOS 26.6.2, kiosk containment passed: staff tabs, Settings, and staff booking surfaces remained inaccessible while in kiosk; background/return and close/reopen restored kiosk without exposing staff UI; the staff-password exit returned to the dashboard; reopening remained outside kiosk. iOS customer journey, payment/receipt, accessibility/privacy, and all Android kiosk evidence remain open.
+
+**Progress (2026-09-23):** On the same iPhone, the kiosk customer flow passed from offering selection through date/time, quantity, fictional customer details, applicable agreements/signature, and the review screen. Back/Continue controls and the review details were reported correct. No booking or payment was submitted in this check; iOS payment/receipt verification remains open.
+
+**Progress (2026-09-23):** On the same iPhone, the user reported the successful staging/sandbox kiosk-payment flow passed: payment handoff/return worked and the app showed the expected confirmed receipt. No card data, credentials, payment reference, or customer data was recorded. A cancelled-payment, pending/delayed-webhook, duplicate-action, and Android-equivalent check remain open; test-email delivery was not separately evidenced in the release log.
+
+**Progress (2026-09-23):** On the same iPhone, the user cancelled a staging/sandbox checkout. The app did not falsely show a paid receipt, but remained on the payment/pending page. This is a partial cancellation pass: false-success is excluded, while safe exit, explicit status refresh, and no-duplicate behaviour remain to be verified.
+
+**Progress (2026-09-23):** On the same iPhone, the user returned from the cancelled checkout, safely exited the pending state, and confirmed the attempt stayed unpaid after refresh/wait. A fresh kiosk flow had no duplicate booking or stale customer details. The iOS cancelled-payment, safe-exit, and duplicate-state checks passed.
+
+**Progress (2026-09-23):** On the same iPhone, fictional customer details and a test signature were entered, then the flow returned to kiosk start/slot selection. A subsequent customer flow, and a flow after staff exit/re-entry, had blank customer, agreement, and signature state. iOS kiosk cross-customer reset/privacy passed; kiosk accessibility remains open.
+
+**Progress (2026-09-23):** On the same iPhone, kiosk screens/actions were checked in Dark appearance, at maximum Larger Accessibility Sizes, and with VoiceOver. The user reported that controls, including kiosk buttons, remained readable and usable. iOS kiosk accessibility passed.
+
+**iOS staging-test position (2026-09-23):** Core vendor access, a booking action, Transactions, session sign-out/sign-in, legal links, dark appearance, maximum text, VoiceOver, kiosk containment, customer journey, successful/cancelled staging payments, receipt safety, and kiosk reset/accessibility have user-reported iOS evidence. Still open: an observable failed-network error/retry state, explicit staging test-email evidence, notification permission behaviour (push delivery is separately parked), Android parity, Play pre-launch report, and correction of the staging display-name packaging defect before accepting a final staging candidate.
+
+- [ ] **Containment — iPhone:** enter kiosk, relaunch/background it, attempt navigation gestures/deep links where safe, and confirm staff tabs/settings never appear until the staff password exit succeeds. Android containment was user-accepted earlier; re-run only if the store build behaves differently.
+- [ ] **Customer journey — both phones:** catalogue → date/time → quantity → customer details → agreement/signature when required → review. Use only fictional staging customer data.
+- [ ] **Payment — both phones:** complete one approved sandbox/staging payment and one cancelled payment. Never use a real customer card or record payment details in the log.
+- [ ] **Receipt and recovery — both phones:** return manually from the payment browser, wait for any delayed webhook, verify receipt amount/status/reference, then test pending/error/retry and duplicate-tap protection. Confirm exactly one customer email is sent if staging email delivery is enabled.
+- [ ] **Kiosk accessibility/privacy — both phones:** verify theme, largest text, screen reader, background/idle reset, and that the next customer cannot see prior customer/signature data.
+
+**Expected:** payment truth comes from the server/receipt, never merely from closing the browser. Any incorrect amount, status, duplicate booking/charge, or cross-customer data exposure stops kiosk from public scope.
+
+### Stage 3 — Decide first-public-release kiosk scope  ⬜ TODO
+
+- [ ] Resolve D5 before any production EAS configuration or public submission.
+- [ ] If **excluded**, production `EXPO_PUBLIC_KIOSK_ENABLED` remains unset/false and the public listing/reviewer notes do not claim kiosk functionality.
+- [ ] If **included**, repeat Stage 2A against production using sandbox/test payment methods, confirm production browser/payment/receipt behaviour, and make the kiosk journey available to the reviewer demo vendor.
+
+### Stage 4 — Production candidate and reviewer environment  ⬜ TODO
+
+**Approval boundary:** creating production accounts/data or changing shared-backend state is outside this mobile app and needs separate explicit approval at execution time. Do not put reviewer credentials in this document.
+
+- [ ] Create one reusable, fully activated production demo vendor; no KYC, email confirmation, OTP, or manual approval may block sign-in. Seed fictional pending and paid bookings, a transaction, and the data required by every public feature. `STORE-SUBMISSION.md:125-137` defines the minimum reviewer state.
+- [ ] Set only safe `EXPO_PUBLIC_*` production EAS values: production Supabase URL, anon key, vendor portal URL, app name, and the resolved kiosk flag. Never use a service-role key or payment/APNs/FCM private credential.
+- [ ] Build fresh Android AAB and iOS IPA with the `production` EAS profile. New monotonic build numbers are required. Do not repurpose the current staging artefacts.
+- [ ] Upload the production candidates to private tracks, install them on both physical phones, and repeat all applicable Stage 1/Stage 2 checks against production before completing any public submission form.
+
+### Stage 5 — Optional push batch  ⏸ PARKED
+
+**Parked (2026-09-22):** requires a separate, explicit approval for the shared Supabase migration/Edge Function and provider credentials. It is not part of the current staging test pass. Unblock only when the shared-backend change is approved and non-production notification testing can be performed.
+
+### Stage 6 — Store submission assembly  ⬜ TODO
+
+- [ ] Create screenshots from the verified production candidate, with fictional data. Apple screenshots show real in-app use, not only login/splash.
+- [ ] Apple: complete listing/privacy/age-rating fields and App Review Information. Provide the demo vendor login plus concise instructions: post-KYC vendor app; KYC is completed on the web; kiosk instructions only if D5 includes it; no digital goods are sold.
+- [ ] Google: complete Store listing, Data safety, content rating/target audience, privacy/deletion URLs, ads declaration, and **Policy and programmes → App content → Sign-in details** using the same active demo vendor. Credentials must work from any reviewer location and remain valid.
+- [ ] From a clean browser/device session, verify both legal URLs and reviewer access. A second person should follow the reviewer instructions without help.
+
+### Stage 7 — Submit, review, and controlled launch  ⬜ TODO
+
+- [ ] Apple: attach the verified production build to the App Store version, select **Manual release**, then submit for App Review. Monitor App Store Connect email/messages and keep the demo account/backend live.
+- [ ] Google: upload the verified production AAB to **Production**, use Managed publishing (or the equivalent current publication control) and a controlled rollout, then send changes for review. Monitor Play Console policy/review inbox and keep the demo account/backend live.
+- [ ] If either store asks a question or rejects the app, answer only through the relevant console, fix the stated issue, make a new production build if code/config changed, re-test, and resubmit. Never edit a shipped artefact in place.
 
 ## Verification
 
