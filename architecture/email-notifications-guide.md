@@ -130,7 +130,7 @@ Executed via the cutover checklist `.plans/2026-06-26-email-hosted-cutover.md`:
    >
    > Note the **"Minimum interval per user"** field (set to 60s): a retry inside that
    > window is rejected without feedback. Wait the minute before concluding it is broken.
-8. **URL config** (for recovery redirects) — dashboard → Auth → URL Configuration: Site URL + add each deployed app URL to the redirect allow-list. *(Pending real app URLs — the deployed apps must also point `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` at this project.)*
+8. **URL config** (for recovery redirects) — dashboard → Auth → URL Configuration: Site URL + add each deployed app's **bare origin** (no trailing `/`, no `/*`) to the redirect allow-list — the apps send `window.location.origin`. An address that doesn't match is silently replaced by the Site URL, so the link lands on the wrong app or `localhost` (see `supabase-production-setup.md` → Auth URL settings). The deployed apps must also point `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` at this project.
 
 ---
 
@@ -164,6 +164,7 @@ supabase secrets unset NOTIFICATION_EMAIL_OVERRIDE_TO
 | Recovery link → **black page** on `127.0.0.1:3000` | WSL2: Next's HMR websocket doesn't bind on 127.0.0.1. Use **`localhost`**; Supabase `site_url`/redirect allow-list use `localhost` locally. |
 | Recovery link → **"invalid code"** / dashboard instead of reset form | PKCE mismatch. ⚠️ **`flowType: "implicit"` does NOT fix this** — `@supabase/ssr` discards that option and the client is always PKCE. The real handling is `readHashTokens()` + `setSession()` in each app's `client.ts`, gated by `recoverySessionReady()` in `useAppShell.ts`. See `auth-and-roles.md` → "Two link shapes". |
 | Reset link lands on the **login form** instead of the set-password form | `LoginPage` seeds its view from `initialView` on first mount only. Fixed by gating the shell on `recoveryResolving` and keying every `LoginPage` branch. |
+| Reset link opened in **another browser / phone mail app** → plain login screen, no message | The `?code=` (PKCE) link only works where it was requested. **Vendor:** fixed 2026-09-25 (implicit-flow requester, plus a "can't be used in this browser" message for leftover `?code=` links). **Booker/Command:** still open. See `auth-and-roles.md` → "A `?code=` link only works in the browser that requested it". |
 | **"Error sending recovery email"** on a hosted project | That project has no Auth SMTP configured (per-project dashboard setting, in no repo file). The built-in mailer only delivers to team members. See `auth-and-roles.md` → Password recovery. |
 | Reset form → **"Auth session missing!"** | The portal access gate signed the recovery session out — fixed by skipping the gate during recovery (`if (isRecoveryDetected()) return`, already in each app). |
 | Unsure whether `supabase secrets` hit local or live | It's **always** the linked remote project. Confirm the link: linked ref (`backbone/supabase/.temp/project-ref`) should equal the **active** `SUPABASE_PROJECT_ID` in `backbone/.env` — which is **staging**. Production is the commented `# prod` line; reach it with `--project-ref`, not a re-link. Local uses the `.env` file, never `supabase secrets`. |

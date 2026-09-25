@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S3, S3b, S4, S5, S6 ✅ DONE 2026-09-22**, including S6-a (Leaflet uninstalled). Next: S9 (Payments) or S7. (100/100 tests, `tsc` clean, `next build` passes; the occupancy fix proved against the local database). F24 folded into `20260922000001`, so **one** migration goes to hosted — awaiting a local `db reset` to re-sync history. Next: S4. No open decisions. **Read the ezzy-booker-mobile briefing below first** (added 2026-09-22): S0 and parts of S1 already exist, ported and tested, in the phone app, and it found ten things for web to settle (N1–N10). All decisions resolved: D1–D12 on 2026-09-18, D13–D16 (Payments) on 2026-09-20. I14 (backbone migration) and the Leaflet uninstall still need their own go when their stages arrive.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. Remaining: S9b (receipt/CSV/print), S7 (polish + visual baselines), S8 (docs), and the user-owned checks S3b-5, S6-b, S7-a, S9c. No open decisions.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 
@@ -565,7 +565,11 @@ Blast radius:
 
 ### Payments page (D13–D16)
 
-#### I17: `lib/payments.ts` + test — the pure money rules  ⬜ TODO
+#### I17: `lib/payments.ts` + test — the pure money rules  ✅ DONE (2026-09-25)
+<!-- Ported from ezzy-booker-mobile with its suite. paymentState exhaustive over all nine
+     statuses; paid-only totals; month grouping in Manila; reference search; the refunded
+     copy rule with a test that fails if the wording promises money back (F18). fmtPeso is
+     re-exported from lib/utils.ts, where S1 put it. -->
 The one place that decides what a booking means for money. Pure, so `node --test` covers it.
 - `paymentState(booking)` → `"paid" | "due" | "cancelled" | "refunded"`, **exhaustive over all nine `BookingStatus` values** with a `never` check:
   - `cancelled` → `cancelled`, `refunded` → `refunded`, regardless of `is_paid`;
@@ -586,11 +590,18 @@ Copy the shape of `command/lib/affiliateCsv.ts` (F20): pure, RFC 4180 quoting (`
 - Filename carries the period, e.g. `ezzy-payments-2026-06-20_2026-09-20.csv`.
 - Tests: a vendor name with a comma and a quote, an empty set (headers only), and the BOM's presence.
 
-#### I19: `lib/phDates.ts` + test  ⬜ TODO
+#### I19: Manila date presets + test  ✅ DONE (2026-09-25)
+<!-- Landed as `lib/paymentsFilter.ts` (ported with `lib/manila.ts` from S2) rather than a
+     separate phDates.ts: the presets, their labels and the range arithmetic are only used
+     by Payments, and splitting them across two modules would have added a file without a
+     second caller. "Last 3 months" is the same day three months back, clamped to month end. -->
 Copy `phMonthRange`, `phLastNDays`, `phYearRange` from `vendor/lib/utils.ts:223-303` (F19), Asia/Manila, with their tests. Presets: This month · Last 3 months · This year · All time, plus a custom from/to.
 - **Manila, not the browser's zone.** A booker in another timezone must see the same month boundaries the database uses, or a payment near midnight lands in the wrong period.
 
-#### I20: Payments components  ⬜ TODO
+#### I20: Payments components  🔄 IN PROGRESS
+<!-- ✅ 2026-09-25 (S9): PaymentsPage + usePaymentsPage, PaymentPeriodBar,
+     PaymentSummaryCards, PaymentFilters, PaymentMonthGroup, all four states, 10-per-page
+     with Previous/Next and clamping. ⬜ S9b: the receipt sheet, CSV and the print view. -->
 New folder `components/payments/`, mirroring vendor's split (all state in one hook, children controlled and hook-free):
 - **`PaymentsPage`** — `.tsx` (render only) + `usePaymentsPage.ts` (period, custom range, status filter, search, vendor, sort, page, selected receipt, CSV download, print sequence) + `PaymentsPage.module.css`.
 - **`PaymentPeriodBar`** — pure display, above the totals **deliberately**: the range and the figures it produces must be visible together, or the cards read as all-time numbers (vendor's note at `TransactionDateRange.tsx:20-27`).
@@ -603,7 +614,9 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
 - Pagination footer: `Showing X–Y of Z`, Previous/Next disabled at the ends, 10 per page (D15).
 - **Delete `components/transactions/`** once replaced.
 
-#### I21: Rename to Payments  ⬜ TODO
+#### I21: Rename to Payments  ✅ DONE (2026-09-22 S4, completed 2026-09-25 S9)
+<!-- S4 renamed the PageId, tab and titles; S9 replaced the page itself and deleted
+     components/transactions/. The `@media print` block is S9b's. -->
 - `lib/types.ts` `PageId`: `transactions` → `payments`; `lib/constants.ts` `MAIN_TABS` label and icon; `TopBar` `TITLES`; `app/page.tsx` lazy import; `AppShell` render prop.
 - Grep `"transactions"` across `booker/` first (notifications, deep links, tests) so the rename does not orphan a string.
 - `globals.css`: add the `@media print` block (D16).
@@ -758,6 +771,31 @@ Adds what mobile P5 shows and I13 never named: a **category** chip and a **granu
   `node_modules/@react-leaflet/` directory behind — no files in it, absent from the lockfile,
   and it disappears on a fresh `npm ci`.
 
+### S9 execution notes (2026-09-25)
+
+- **Ported from the phone app, which had shipped these rules first:** `lib/payments.ts` and
+  `lib/paymentsFilter.ts` with both suites (14 new cases; 114 total). Money meaning is decided
+  in one place, so a total and a row cannot disagree about what "paid" means.
+- **I19 landed differently from the plan's wording.** The plan named a `lib/phDates.ts`; the
+  presets, their labels and the range arithmetic live in `lib/paymentsFilter.ts` instead, since
+  Payments is their only caller and `lib/manila.ts` (ported in S2) already holds the Manila day
+  arithmetic. A second module would have been a file without a second reason to exist.
+- **Paging differs from the phone app on purpose** (plan D15): web pages with Previous/Next, so
+  `nextPageSize` became `pageOf`/`pageCount`, with a test for the case that bites — tightening a
+  filter while on page 3 must clamp, not render an empty list (vendor learned this).
+- **The figures describe the filtered set, not the history.** This is the F14 fix: the old page
+  summed `pricePaid` over every booking, unpaid and cancelled included, and called it "Total
+  Spent". Cancelled and refunded rows are listed with the amount struck through and excluded
+  from Paid, with a count saying so.
+- **Chip counts are computed against the other filters**, so a chip never promises rows that
+  tapping it will not deliver.
+- **`components/transactions/` is deleted.** The `transactions` gallery mode keeps its name so
+  its committed baseline keeps its filename; it renders `PaymentsPage` now.
+- **A row opens the booking's detail** for now — the reference, timeline and status explanation
+  already live there. The receipt sheet is S9b.
+- **Not run:** the Playwright visual suite (S7 regenerates; it already fails from S6's removed
+  panes), and nothing has been looked at in a browser in any stage.
+
 ---
 
 ## Plan review (2026-09-18): gaps found and folded in
@@ -895,7 +933,7 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S6 | Wizard starts at Schedule from the Offering page; Steps 1–2, map, geolocation, vendors service and dead types removed (I15, G10) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean; lint 23 → 19 problems. Visual suite will fail until S7 (two gallery panes are gone) |
 | [x] | S6-a | `npm uninstall leaflet react-leaflet @types/leaflet` | You approved · Me ran | ✅ DONE 2026-09-22 | Three dependencies gone from `package.json` and the lockfile; `npm ls leaflet` empty; `tsc`, 100/100 tests and `next build` all clean afterwards. An empty `node_modules/@react-leaflet/` folder survives `npm prune` — no files, not in the lockfile, harmless |
 | [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
-| [ ] | S9 | **Payments core:** money rules + Manila date presets + rename, period bar, honest totals, filters, month groups, 10-per-page (I17, I19, I21, I20 part) | Me | ⬜ TODO | Today's "Total Spent" counts unpaid and cancelled bookings (F14). Needs S0, S1 and S4 first |
+| [x] | S9 | **Payments core:** money rules, Manila presets, honest totals, filters, month groups, 10-per-page (I17, I19, I20 part, I21) | Me | ✅ DONE 2026-09-25 | 114/114 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Fixes F14. Old Transactions page deleted |
 | [ ] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ⬜ TODO | You approved CSV; the receipt gives a customer something to quote to support |
 | [ ] | S9c | Open an exported CSV in your spreadsheet; print a receipt | You | ⬜ TODO | Encoding and print output can only be judged on real software |
 | [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments too** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |

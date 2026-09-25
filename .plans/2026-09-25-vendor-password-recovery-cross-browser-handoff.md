@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25
 **App / scope:** `vendor/` Next.js web app only — self-service password-recovery link handling.
-**Status:** DRAFT — investigation complete; implementation is deliberately not planned or started here.
+**Status:** COMPLETE (2026-09-25) — the investigation was verified and implemented by [`2026-09-25-vendor-password-recovery-cross-browser-fix.md`](2026-09-25-vendor-password-recovery-cross-browser-fix.md), which is COMPLETE and signed off in production by you. Closed at your request.
 
 > One-line framing: a Vendor user who opens a self-service password-reset email in a browser context different from the one that requested it lands on the ordinary sign-in screen instead of the set-new-password screen. Optimise for a secure, intelligible recovery flow that works in the supported email-opening contexts.
 
@@ -43,7 +43,9 @@ Do not paste a live reset URL, access token, refresh token, or code into issues,
 
 ## BLOCKERS
 
-### B1 — Select and implement a supported cross-browser recovery design  ⬜ TODO
+### B1 — Select and implement a supported cross-browser recovery design  ✅ DONE (2026-09-25)
+
+> ✅ DONE 2026-09-25, as fix-plan B1. The design chosen was the implicit-flow requester (fix-plan D2), vendor-only, with no Supabase configuration change. Verified by headless live runs (same browser and other browser) and signed off in production by you.
 
 **Primary files to investigate:** `vendor/services/auth.service.ts:16-20`, `vendor/lib/supabase/client.ts:22-139`, `vendor/components/layout/AppShell/useAppShell.ts:204-210,286-299`, `vendor/components/auth/LoginPage/useLoginPage.ts:356-365`.
 
@@ -63,7 +65,9 @@ The first two may require a Supabase email-template or Auth URL-configuration ch
 
 **Verification:** automated coverage for URL classification and callback/error routing; then live Supabase tests in same-browser and different-browser contexts, including mobile email-app opening where supported.
 
-### B2 — Never silently degrade an unprocessable recovery callback to login  ⬜ TODO
+### B2 — Never silently degrade an unprocessable recovery callback to login  ✅ DONE (2026-09-25)
+
+> ✅ DONE 2026-09-25, as fix-plan B2. It was revised: the check now reads the verifier cookie at page load, because the URL is rewritten after load (fix-plan K1). Verified with real PKCE links in live runs, plus unit tests.
 
 **Primary files:** `vendor/lib/supabase/client.ts:54-65,141-178`; `vendor/components/auth/LoginPage/useLoginPage.ts`; `vendor/components/auth/LoginPage/LoginPage.tsx:225-259`.
 
@@ -75,11 +79,11 @@ The first two may require a Supabase email-template or Auth URL-configuration ch
 
 ## Decisions the planner must resolve before execution
 
-- **OPEN — Product requirement:** Must a user be able to request reset on one device/browser and set the password on another? **Recommendation: yes.** Recovery emails are routinely opened in mobile mail apps, so same-browser-only behaviour is a poor fit for a public Vendor portal.
-- **OPEN — Auth design:** Which supported Supabase recovery mechanism is appropriate for cross-browser use with the installed versions and deployed email templates? Evaluate the alternatives in B1; record the security properties and exact deployment/configuration changes.
-- **OPEN — Scope:** Is an actionable fallback message sufficient for the current release if the robust cross-browser solution needs Supabase configuration changes? If yes, make it an explicit staged delivery decision, not an accidental partial fix.
+- **RESOLVED 2026-09-25 (fix-plan D1–D3) — Product requirement:** Must a user be able to request reset on one device/browser and set the password on another? **Recommendation: yes.** Recovery emails are routinely opened in mobile mail apps, so same-browser-only behaviour is a poor fit for a public Vendor portal.
+- **RESOLVED 2026-09-25 (fix-plan D1–D3) — Auth design:** Which supported Supabase recovery mechanism is appropriate for cross-browser use with the installed versions and deployed email templates? Evaluate the alternatives in B1; record the security properties and exact deployment/configuration changes.
+- **RESOLVED 2026-09-25 (fix-plan D1–D3) — Scope:** Is an actionable fallback message sufficient for the current release if the robust cross-browser solution needs Supabase configuration changes? If yes, make it an explicit staged delivery decision, not an accidental partial fix.
 
-No implementation stage may begin while these decisions are open.
+All three were resolved on 2026-09-25 in the fix plan: cross-browser reset required, implicit-flow requester, and the fallback message shipped in the same delivery.
 
 ## Existing related work
 

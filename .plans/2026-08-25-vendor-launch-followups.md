@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **App / scope:** `vendor`, `command`, `backbone`, Play Console, `ezzy.ph`
-**Status:** DRAFT — holding document. **2026-09-16:** F19 (no vendor reminder to mark done, parked) and F20 (real-money kiosk end-to-end, user-owned) added. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
+**Status:** DRAFT — holding document. **2026-09-25:** F21–F25 added from `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` (its K4 and F1–F4). **2026-09-16:** F19 (no vendor reminder to mark done, parked) and F20 (real-money kiosk end-to-end, user-owned) added. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
 (✅, evidence at each); L3 re-verified still broken; F2 partly overtaken; F5–F14, C2, C3
 carried in from `.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md`.
 Originally the successor to `.plans/2026-08-21-vendor-account-deletion.md` (COMPLETE).
@@ -355,6 +355,63 @@ the customer finishing it at **Finish a booking**, and the payout becoming relea
 doing on the real tablet: orientations, themes, flick-scroll, blurred-photo smoothness, the signature
 pad, and a real photo upload including save-on-first-upload.
 
+### F21 — 28 pre-existing ESLint errors across vendor ⬜ TODO — **pre-existing, planned**
+**Origin:** `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` K4, found 2026-09-25 and
+carried here by the user on 2026-09-25.
+**Plan:** `.plans/2026-09-25-vendor-eslint-cleanup.md` (DRAFT, 2026-09-25). It has 4 stages; both decisions
+were resolved 2026-09-25, and it is awaiting your approval to execute.
+**What:** `npx eslint .` in `vendor/` reports **28 errors and 3 warnings in 20 files**:
+- errors: 16 `react-hooks/set-state-in-effect`, 6 `@typescript-eslint/no-explicit-any`,
+  2 `react/no-unescaped-entities`, and 1 each of `ban-ts-comment`, `react-hooks/purity`,
+  `react-hooks/static-components` and `@next/next/no-html-link-for-pages`;
+- warnings: 2 `no-unused-vars`, 1 `react-hooks/exhaustive-deps`.
+
+The three that were in `useLoginPage.ts` were fixed under the recovery plan's K2.
+**Unblocks when:** the plan's decisions are resolved and you approve it.
+
+### F22 — Booker and Command web reset links only work in the browser that requested them ⬜ TODO — **cross-app**
+**Origin:** `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` F1 (2026-09-25).
+**What:** `booker/services/auth.service.ts:35` and `command/services/auth.service.ts:16` request the
+reset through the `@supabase/ssr` browser client, which forces PKCE. The emailed `?code=` link then
+works only where the verifier cookie lives. Opened in another browser or a phone's mail app, the user
+gets a plain login screen with no message. Vendor had the identical bug.
+**Fix direction:** port vendor's fix, one app at a time:
+- `lib/supabase/recoveryRequestClient.ts` + `resetPassword` (the implicit-flow requester);
+- `lib/authCodeCallback.ts` + the `codeCallback` guard in `client.ts`;
+- the `pkce_verifier_missing` copy.
+
+This also brings each app's `client.ts` back in line with vendor's (see that plan's K3).
+**Unblocks when:** the user approves each app (a cross-app change; AGENTS.md approval gate).
+
+### F23 — `ezzy-vendor-mobile` password reset works on the same device only ⏸ PARKED — **user decision**
+**Origin:** `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` F2 (2026-09-25).
+**What:** `useForgotPasswordForm.ts:22` requests a deep-link reset (`/reset-password`) and
+`useResetPasswordForm.ts:49` calls `exchangeCodeForSession`. The PKCE verifier lives on the device
+that asked, so a reset requested in the app but opened on a desktop cannot complete.
+**Unblocks when:** the user decides whether a mobile-requested reset must be completable elsewhere
+(e.g. on the web portal). If yes, it needs its own plan together with the mobile redirect URLs still
+missing from Auth config (`architecture/portals.md:853`).
+
+### F24 — Consider `token_hash` recovery links platform-wide ⏸ PARKED — **user decision**
+**Origin:** `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` F3 / D2 (2026-09-25).
+**What:** Supabase's documented SSR pattern is a recovery email template with
+`{{ .TokenHash }}`, plus a server `/auth/confirm` route calling `verifyOtp`. The recovery template is
+**project-wide**, so adopting it changes every client at once: vendor, booker, Command browser, Command
+server onboarding, and vendor mobile. It also means hand-editing hosted templates on staging and prod.
+Vendor chose the implicit-flow requester instead (vendor-only, no config).
+**Unblocks when:** the user wants one recovery mechanism across all clients. That would be one
+coordinated plan.
+
+### F25 — Check that booker shows offering prices with centavos correctly ⬜ TODO — **cross-app**
+**Origin:** `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` F4, following that plan's B3 (2026-09-25).
+**What:** since 2026-09-25 vendors can save prices like ₱1,499.50; before that, `parseInt` made every
+price whole. Vendor's own surfaces (offering card, kiosk) now render 2 decimals via
+`vendor/lib/price.ts` `fmtOfferingPrice`. Booker's displays were never checked and may show "₱1,499.5".
+Payments are unaffected: both payment routes use `Math.round(price_paid * 100)`.
+**Fix direction:** grep booker for price rendering and apply the same whole-peso-unchanged,
+centavos-as-2-digits rule.
+**Unblocks when:** the user approves a booker change.
+
 ---
 
 ## COSMETIC
@@ -408,7 +465,7 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
 7. **F2** — its own piece of work; the vendor suite is 123 tests, so this is not small.
 8. **C1** — any time.
 9. **F5, F7, F9, F10, F11, C2, C3** — scheduled 2026-09-12 in `.plans/2026-09-12-vendor-kiosk-hardening.md` (see that plan's execution order).
-   **F6, F8, F12–F19** remain unscheduled; each waits on its own unblock condition. **F20** is the user's real-money pass, whenever they run it.
+   **F6, F8, F12–F19** remain unscheduled; each waits on its own unblock condition. **F20** is the user's real-money pass, whenever they run it. **F21–F25** (added 2026-09-25) are unscheduled: F21 needs its own plan; F22 and F25 are cross-app and need approval; F23 and F24 wait on your decisions.
    *(Original note, 2026-09-12:)* **F5–F14, C2, C3** (added 2026-09-12) — unscheduled; each waits on its own unblock condition.
    Cheapest if ever wanted: **F7** (one line) → **F5a** (eligibility rule + test) → **F9**
    (prop on a shared component) → **F6** (service-side version bump) → **F11** → **F10**

@@ -169,14 +169,26 @@ https://<command-production-domain>
 ```
 
 Add exact redirect URLs for every production app flow that Supabase Auth may
-redirect to. At minimum, include the production web origins or the specific
-callback/reset URLs your apps use:
+redirect to. The web apps' Forgot Password sends the **bare origin** as
+`redirectTo` (`window.location.origin` — no trailing slash, no path), so list each
+bare origin:
 
 ```text
-https://<command-production-domain>/*
-https://<vendor-production-domain>/*
-https://<booker-production-domain>/*
+https://<command-production-domain>
+https://<vendor-production-domain>
+https://<booker-production-domain>
 ```
+
+> ⚠️ **A missing or non-matching entry fails silently.** GoTrue does not reject the
+> request; it swaps the address for the **Site URL**. The reset email still arrives
+> and its link still works, but it lands on the wrong app (Command, with the Site URL
+> above) or on `localhost:3000` (a project whose Site URL was never changed). Staging
+> had exactly this on 2026-09-25: vendor reset links opened `localhost:3000` until
+> the bare `staging-vendor.ezzy.ph` origin was added.
+>
+> Do not rely on a `https://<domain>/*` pattern alone to cover the bare origin. The
+> address the app sends has no `/`, so add the bare origin explicitly; a `/**`
+> pattern can be added alongside it if deeper callback paths are ever needed.
 
 If mobile password reset or auth redirects are supported, add the exact Expo
 scheme/deep-link URLs used by each mobile app. Do not guess these values. Check

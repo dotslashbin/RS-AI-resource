@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-22
 **App / scope:** `./vendor` only. Audit/investigation only — **no code changed.** Findings are queued for the user to tackle one at a time later, not executed as part of this plan.
-**Status:** DRAFT — re-checked 2026-09-24: B1 still live (`useOfferingForm.ts:99` `parseInt(ofPrice)`), B2 fixed (`useCalendarPage.ts:36-37`), I5 obsolete (`lib/supabase/server.ts` is now used). Last recorded: investigation complete. Nothing approved for execution yet.
+**Status:** DRAFT — B1 ✅ DONE 2026-09-25 (see B1). Re-checked 2026-09-24: B2 fixed (`useCalendarPage.ts:36-37`), I5 obsolete (`lib/supabase/server.ts` is now used). Last recorded: investigation complete. Nothing approved for execution yet.
 
 > **Goal:** act as a reviewer on the existing vendor codebase — find real bugs, correctness gaps, and reliability issues (not style nits), grounded in `file:line`, so they can be triaged and fixed one by one.
 
@@ -22,7 +22,9 @@
 
 ## BLOCKERS
 
-### B1 — Offering price silently truncated to whole pesos  ⬜ TODO
+### B1 — Offering price silently truncated to whole pesos  ✅ DONE (2026-09-25)
+
+> ✅ DONE 2026-09-25, closed at your request. Fixed as B3 in `2026-09-25-vendor-password-recovery-cross-browser-fix.md`: `lib/price.ts` `parsePrice` (rounded to 2 dp) replaced `parseInt`, the input got `step={0.01}`, and prices with centavos now display with 2 decimals. The fix also covers the case where editing any other field truncated an existing price. Verification: 6 unit tests, 484/484 total; the full Playwright suite 187/187 with baselines unchanged; a live local save of ₱850.50, a reload and a rename all kept `850.50` in the database.
 **File:** `components/offerings/OfferingFormModal/useOfferingForm.ts:52`
 
 ```ts

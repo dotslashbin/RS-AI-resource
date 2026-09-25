@@ -58,7 +58,8 @@ Recovery (auth) emails are separate from notification emails — they are sent b
 
 | Requested by | Link shape | Consumed how |
 |---|---|---|
-| The **browser** (Forgot Password) | `?code=…`, **no fragment** | PKCE client stores a `code-verifier` locally, exchanges the code. Request and consumption are the same client, so it matches. |
+| The **browser** (Forgot Password) — **booker, command** | `?code=…`, **no fragment** | PKCE client stores a `code-verifier` locally, exchanges the code. Request and consumption are the same client, so it matches — **but only in the browser that requested it** (see below). |
+| The **browser** (Forgot Password) — **vendor**, since 2026-09-25 | `#access_token=…&type=recovery` | Requested through a separate implicit-flow client (`vendor/lib/supabase/recoveryRequestClient.ts`), so it gets the same shape as the server's links and is consumed the same way. |
 | The **server** (Command creating a user) | `#access_token=…&type=recovery` | The admin client is plain `@supabase/supabase-js`, sends no `code_challenge`, so GoTrue emails an *implicit* link. |
 
 `resetPasswordForEmail` only attaches a `code_challenge` when the requesting client is
@@ -76,10 +77,10 @@ No session was created, yet the set-password form still rendered (it was gated o
 string match for `type=recovery` in the fragment), so submitting produced
 **`Auth session missing!`**.
 
-**The fix, in all three portals** (`lib/supabase/client.ts`, kept byte-identical):
+**The fix, in all three portals** (`lib/supabase/client.ts` — byte-identical until 2026-09-25; vendor has since diverged, see below):
 `readHashTokens()` pulls the pair out of the fragment and `client.auth.setSession()`
 establishes the session auth-js declined to — `setSession` is flow-agnostic, so this works
-under PKCE. A `?code=` link puts nothing in the fragment, so the path is **inert for
+under PKCE. A `?code=` link puts nothing in the fragment, so the path is **inert for PKCE
 Forgot Password**. `recoverySessionReady()` exposes when that has settled; a rejected token
 routes into the existing `authHashError` path (see below) rather than a second one.
 
@@ -92,6 +93,34 @@ render on `recoveryResolving` until the fragment is consumed, **plus a `key` on 
 `LoginPage` branch** so a view switch always remounts. The `key` also removes a
 pre-existing race in the *PKCE* path, which had the same latent bug and only worked
 because the code exchange usually beat the component mount.
+
+#### A `?code=` link only works in the browser that requested it
+
+The PKCE code-verifier lives in the requesting browser (the `<storageKey>-code-verifier`
+cookie). auth-js treats `?code=` as a callback only when that verifier is present
+(`GoTrueClient._isPKCECallback`). Opened in another browser, a phone's mail app, or after
+site data was cleared, the URL is **silently ignored**: no session, no event, no error, just
+a plain login screen. Supabase's docs state the same limit for the PKCE link.
+
+- **Vendor (fixed 2026-09-25):**
+  - Forgot Password now requests the reset through an implicit-flow client, so the link
+    works in any browser.
+  - Any `?code=` that still arrives (old emails, expired links) is classified at load by
+    `vendor/lib/authCodeCallback.ts`, *before* auth-js runs. We can't check afterwards,
+    because `useAppShell`'s URL sync rewrites the query on mount.
+  - A missing verifier routes to the `pkce_verifier_missing` copy, and a rejected
+    exchange to the generic copy; both go through the existing `authHashError` path.
+  - Plan: `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md`.
+- **Booker and Command web still have this limit.** Tracked as F22 in `.plans/2026-08-25-vendor-launch-followups.md`.
+  Until it is done, their `lib/supabase/client.ts` is **no longer byte-identical** to
+  Vendor's. Vendor adds the `codeCallback` guard and a parameterised `failRecovery`.
+- **Why an implicit link is acceptable here:** any reset link that works across browsers
+  can be used by anyone who holds it; that is inherent, and already true of every Command
+  onboarding link. The tokens are in the fragment, which is never sent to a server, and
+  `client.ts` drops them with `replaceState` right after `setSession`.
+- **The alternative** is a `token_hash` email template plus a server `/auth/confirm`
+  route. The template is project-wide, so that change would touch every client, including
+  mobile (follow-ups F24).
 
 > **Do not "simplify" any of this.** Every clause above is load-bearing and each one
 > corresponds to a production failure: `.plans/2026-08-17-command-new-user-password-onboarding.md`
