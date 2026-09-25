@@ -110,6 +110,9 @@ After **every** stage — default or overridden, success or partial — show all
    itself in the same breath, with dates and how each ✅ was verified — a report
    that disagrees with the plan file means the plan file is now wrong, which is
    the failure mode the status model exists to prevent.
+   If the plan's overall `**Status:**` line (or its title or scope line)
+   changed, re-run `python3 scripts/plans-index.py` so `.plans/INDEX.md` stays
+   current, and say so in the report.
 
 Findings discovered mid-stage — including pre-existing problems and anything you
 fixed that the plan did not anticipate — get written into the plan as numbered

@@ -104,6 +104,7 @@ Other context:
 **Fix approach:** one bullet: "check `.plans/INDEX.md` for predecessor or overlapping plans before writing a new one; re-run `scripts/plans-index.py` after creating or closing a plan".
 **Verification:** machine: diff the two skill copies after editing to confirm they are identical.
 <!-- ✅ DONE (2026-09-24) — bullet added to §2 of both copies; `diff` confirms they are still identical. -->
+<!-- Follow-on (2026-09-24, user-approved): plan-authoring loads mainly when a plan is written, but plans are usually closed during execution, so the same reminder was added to `developerboss` §"Always report after execution" item 3 (both copies, `diff` identical): re-run the script whenever a plan's Status, title or scope line changes. -->
 
 ### I5 — `rs-docsearch` MCP server, keyword-only (FTS5)  ⬜ TODO  *(approval gate: installs the `mcp` Python SDK in an isolated venv; depends on S1 go)*
 **Location:** `~/.local/share/rs-docsearch/` (outside every repo): `server.py`, `.venv/`, `index.sqlite`, `allowlist.txt`.
