@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-24
 **App / scope:** root repo only — `.plans/`, `architecture/`, `AGENTS.md`, `scripts/`; plus user-level config (`~/.claude.json`, `~/.codex/config.toml`) and a new folder outside every repo, `~/.local/share/rs-docsearch/`. **No app repo is touched.**
-**Status:** IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). S1 trial running. S2 ✅ COMPLETE 2026-09-24: I5 built early at the user's choice (D7 = stdlib-only) and installed at `~/.local/share/rs-docsearch/`, not registered with any agent. S3 registration still gated on the I7 evaluation: run 1 (2026-09-24) scored search 10/10 vs rg 8/10, only 2 search-only wins, so NO-GO under the ≥3 rule; re-run with S1 trial questions.
+**Status:** IN PROGRESS — S0 ✅ and S2 ✅ COMPLETE (2026-09-24); S4 runs 1–2 = NO-GO (search 15 vs rg 14 of 20). **S1 formal trial running 2026-09-25 → ~2026-10-09** (user decision 2026-09-25): log hard-to-find questions in §8, then re-run S4 (run 3). Server installed at `~/.local/share/rs-docsearch/`, not registered. To resume, see §8.
 
 > **Goal:** make "has this already been decided / where was this discussed?" answerable across ~125 plans and 15 architecture docs, for both Claude Code and Codex. Start with the cheapest fix that could work, and add semantic retrieval only if measurement shows it is needed. Every step must be removable without trace.
 
@@ -139,7 +139,7 @@ Other context:
 - Back up both config files to `~/.local/share/rs-docsearch/backup/` before editing.
 **Verification:** live: `/mcp` in Claude Code shows the server as connected and the tools as listed. Codex lists the tool in a fresh session. One query returns hits in each.
 
-### I7 — Measure before adopting  🔄 IN PROGRESS  *(run 1 done 2026-09-24 via CLI, before I6; see §6)*
+### I7 — Measure before adopting  ✅ DONE (2026-09-25)  *(runs 1 and 2 via CLI, before I6; see §6: NO-GO)*
 **Fix approach:**
 - The user supplies ~10 real questions from recent sessions, e.g. "what did we decide about withholding the EZZY fee on payouts?"
 - For each, record whether the correct plan/section lands in the top 3 for (a) `rg` over `.plans/` + `INDEX.md` and (b) `search_docs`.
@@ -242,9 +242,47 @@ The safe prefix is **I1**. It has no decision dependency and can start once the 
 - Biases: the questions came from this session, so the answer locations were known; each `rg` pattern was a single try, where an agent would retry a failed grep (that favours search); ranking `rg` by match count is generous to `rg`.
 - Next: re-run with the user's S1 trial questions (fresh, unknown answers) before deciding S3.
 
+**Run 2 (2026-09-25), questions from the user's past Codex sessions** (S1 shortened by the user). Source: the user's own messages in the 14 Codex sessions run in `/home/joshua/RS` (402 messages → 21 question-like → 10 standalone, reworded, all approved by the user). Answer key from each session's outcome: doc paths in Codex's tool calls and replies, then the session's main plan by tool-call paths; each key file was checked to still contain the answer. Q4's key is judgement (session cited nothing; the companion plan's B3 answers it directly). Nothing from the logs was written to disk. Method as run 1, except `rg` now searches exactly the server's file list (+ INDEX.md); run 1's `rg` list missed the mobile apps' top-level Markdown.
+
+| # | Question | `rg` + INDEX | search |
+|---|---|---|---|
+| 1 | Why does mobile push need Firebase, and is there an option that doesn't? | ✅ | ✅ |
+| 2 | Can Expo Go open this SDK 57 app on an iPhone? | ✅ | ✅ |
+| 3 | How do I trigger a test push notification on staging? | ✖ | ✅ |
+| 4 | Can I run an iOS simulator in this environment? | ✅ | ✅ |
+| 5 | Why can't the mobile kiosk call the backend directly, like vendor web does? | ✅ | ✖ |
+| 6 | Was it decided that kiosk payments need no vendor web changes? | ✖ | ✖ |
+| 7 | Why doesn't the booking-complete screen show after paying in the browser? | ✅ | ✖ |
+| 8 | Why doesn't kiosk mode appear in the iOS menu? | ✖ | ✖ |
+| 9 | What does fulfilled mean for a booking? | ✖ | ✖ |
+| 10 | Do reviewers need a production vendor account, and do they go through KYC? | ✅ | ✅ |
+
+- **Result: rg + INDEX 6/10, search 5/10. Search-only wins: 1 (Q3); rg-only wins: 2 (Q5, Q7).**
+- Key strictness cut both ways: on Q9 both methods returned the dual-acknowledgement plan, which also defines "fulfilled"; on Q8 search returned `KIOSK-VERIFICATION.md` and the kiosk-mode plan. Loosening the key would add hits to both, not separate them.
+- Search's misses were long natural-language questions whose words appear across many kiosk/payment plans; BM25 without meaning-matching spreads across them.
+- **Combined (20 questions): search 15, rg + INDEX 14; search-only 3, rg-only 2.** No clear advantage either way.
+- **Go/no-go: NO-GO for S3.** Neither run met the ≥3 search-only wins rule, and run 2, the less biased set, favoured `rg` slightly. Semantic embeddings (I8) are not indicated either: the misses are ranking spread, not a missing concept match that embeddings would clearly fix.
+
 ## 7. Risks
 - **Stale or legacy results returned with confidence.** This is the main risk. Mitigated by I2/D1 status metadata, legacy exclusion by default, and the "open the file, check Status" rule.
 - **Snippet over-trust.** Plans often reverse decisions in later sections, so a snippet can be wrong about the outcome. Mitigated by pointer-only results and the I9 wording.
 - **Maintenance:** a venv, a pinned SDK, and config in two tools that may change their MCP formats. Mitigated by keyword-only first (stdlib FTS5) and user-scope registration.
 - **Secret leakage into the index.** Mitigated by allowlist plus denylist and the I5 fixture test. The index stays local, but it is a second copy of everything indexed.
 - **Low payoff at this scale.** Mitigated by the S1 checkpoint and the I7 go/no-go.
+
+## 8. S1 trial (2026-09-25 → ~2026-10-09) and how to resume
+
+**Decision (2026-09-25, user):** run the formal 1–2 week trial before closing, rather than closing now. Nothing is registered during the trial; sessions on every account behave as with S0 alone.
+
+**During the trial (any account, any agent):** when a "was this decided / where did we discuss X?" question is hard to answer, add a row below. Fill in the last column once you find the answer; it becomes the answer key, so nobody (including the evaluating agent) chooses it after the fact. Rows with no answer found are still useful; keep them.
+
+| Date | Question (as you'd naturally ask it) | What happened (agent grepped a lot / missed it / you dug) | Where the answer turned out to be (file, section) |
+|---|---|---|---|
+
+**To resume (after ~2026-10-09, or once the table has ~10 rows):** open a new session in `/home/joshua/RS` from any account and give it the resume prompt below. The conversation that ran runs 1–2 is not needed; this plan holds everything.
+
+Resume prompt:
+
+> Resume `.plans/2026-09-24-local-docs-search-rag.md` at §8: the S1 trial is over. Re-run the S4 evaluation as run 3 using the questions in the §8 trial table, following the run-2 method in §6 exactly: lock in each question's answer key (from the table's last column) and one `rg` pattern before running anything; `rg -c -i` over exactly the files the server indexes (import `candidate_files()` from `~/.local/share/rs-docsearch/server.py`) plus `.plans/INDEX.md`, files ranked by matching-line count; search via `python3 ~/.local/share/rs-docsearch/server.py --search "<question>" --k 15`, deduplicated to files; score "an expected file in the top 3". Record run 3 in §6. Then apply the I7 rule: register (S3) only if search has ≥3 search-only wins; otherwise propose the close-out (I6/I8/I9 ✖ ABORTED, plan COMPLETE) and ask me whether to keep or remove the installed server. Do not register anything or edit my Claude Code or Codex config without asking.
+
+**If fewer than ~5 rows were logged:** that is itself the result. S0 was enough in practice; propose the close-out above without a run 3.
