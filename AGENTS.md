@@ -118,6 +118,7 @@ If two instructions conflict, follow the higher-priority instruction. If uncerta
 - Never restart, shutdown, or reload any service unless explicitly authorized for that specific action
 - Never run destructive commands without asking first
 - Never implement custom authentication — Supabase Auth is the only auth mechanism
+- Never close, resolve, or mark done a follow-up item or issue surfaced during work (e.g. entries in a follow-ups plan) — report it and leave its status for the user to close
 
 ### Ask Before / Approval Gates
 
