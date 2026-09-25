@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-18
 **App / scope:** `./command` + `./backbone` (RLS migration). Cross-cutting approval gate: schema/RLS change **and** a security change — both require explicit go-ahead per AGENTS.md.
-**Status:** ⏸ **SUPERSEDED (2026-08-07)** by `.plans/2026-08-07-command-root-only-command-access.md`, which resolves this plan's D1–D4, corrects its B1 (see the amendment banner below), and is now the execution document. Unpinned; kept as the record of where the tiering approach originated. Do not execute from this file.
+**Status:** ✖ ABORTED — **superseded (2026-08-07)** by `.plans/2026-08-07-command-root-only-command-access.md`, which resolves this plan's D1–D4, corrects its B1 (see the amendment banner below), and is now the execution document. Unpinned; kept as the record of where the tiering approach originated. Do not execute from this file.
 
 > **Goal:** today any active command `admin` can fully CRUD *any* user, including other admins and `root`. Restrict it so that **only `root` may create, update, or delete users who are (or would become) `admin`/`root`.** Ordinary `admin`s keep full CRUD over `member`-level users only.
 

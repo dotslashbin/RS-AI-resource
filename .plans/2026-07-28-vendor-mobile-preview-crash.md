@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-28
 **App / scope:** `ezzy-vendor-mobile` (+ EAS project config). No `backbone` or web-app changes.
-**Status:** IN PROGRESS — B1 and I1 executed 2026-07-28; awaiting rebuild to confirm on device
+**Status:** IN PROGRESS — re-checked 2026-09-24: only I4 remains (the user confirmed dev seed logins are still on an internet-reachable project); B1/I1 superseded by later device builds. Last recorded: B1 and I1 executed 2026-07-28; awaiting rebuild to confirm on device
 
 > A release APK from EAS build `b4aa4602` installs, shows the splash, and dies after a
 > couple of seconds with no on-screen error. Root cause is identified with high confidence

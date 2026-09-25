@@ -1,7 +1,7 @@
 # Fulfilment — manual test script
 
 **Date:** 2026-08-01
-**Status:** READY TO RUN — nothing here has been executed
+**Status:** DRAFT — test script, not a plan; no record of it being run. Last recorded: READY TO RUN — nothing here has been executed
 **Covers:** `.plans/2026-07-31-booking-fulfilment-dual-acknowledgement.md`
 
 > Everything in that plan was verified by type-check, build, and SQL against the

@@ -1,5 +1,7 @@
 # Plan: DriveBook Learner — Supabase Auth Implementation
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 **Date:** 2026-05-14
 **Scope:** `./learner` only
 

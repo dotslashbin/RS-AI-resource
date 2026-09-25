@@ -4,7 +4,7 @@
 **App / scope:** `ezzy-vendor-mobile` only. `vendor` is read as the reference for
 guide content and legal URLs; no `vendor`, `command`, `backbone`, or `ezzy.ph`
 implementation happens in this plan.
-**Status:** IN PROGRESS — stages 1-3 code-complete and machine-verified on 2026-08-24;
+**Status:** COMPLETE (2026-09-24) — Stage 4: the user confirmed the guide popup and legal links on an Android device. Last recorded: IN PROGRESS — stages 1-3 code-complete and machine-verified on 2026-08-24;
 Android device visual/link verification remains open in Stage 4.
 
 > One-line framing: bring the mobile vendor guide and Settings legal links back into

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-20
 **App / scope:** `backbone` (RLS migration) + `vendor` (service, types, UI) — user has branched both
-**Status:** ✅ IMPLEMENTED (2026-06-20) — B1 + I1–I3 executed and verified (RPC allow/deny test + vendor build green). **User action remaining:** `supabase db reset` to apply the migration locally.
+**Status:** ✅ COMPLETE (2026-06-20) — B1 + I1–I3 executed and verified (RPC allow/deny test + vendor build green). **User action remaining:** `supabase db reset` to apply the migration locally.
 
 > Make the vendor portal's bookings show *who* booked: the booker's full name, email, and phone. Today the name renders blank and there is no contact info, because RLS blocks a vendor-admin from reading booker profiles and the query/UI don't fetch or display email/phone.
 

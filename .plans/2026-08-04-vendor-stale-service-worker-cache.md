@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04
 **App / scope:** `vendor/` — `public/sw.js`, `components/layout/AppShell/useAppShell.ts`, `components/offerings/OfferingsPage/useOfferingsPage.ts`
-**Status:** DRAFT — **diagnosis CONFIRMED by the user 2026-08-04**: clearing the
+**Status:** DRAFT — re-checked 2026-09-24: B1 fixed by `.plans/2026-08-18-command-vendor-nav-branding-responsive.md` I5 (activate evicts old caches; only `/_next/static/` is cached); B2 still open (`vendor/components/layout/AppShell/useAppShell.ts:198-202` registers in dev); D1 still open. Last recorded: **diagnosis CONFIRMED by the user 2026-08-04**: clearing the
 browser cache restored both the offerings list and the create form. **One decision
 OPEN (D1), which blocks execution.**
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 **App / scope:** `ezzy-vendor-mobile` — plus **one new `backbone` migration** (approval gate, B3a) and documentation updates
-**Status:** IN PROGRESS — approved 2026-08-06; stage 1 of 5 coded, awaiting device
+**Status:** IN PROGRESS — re-checked 2026-09-24: stage 1 (B1) confirmed on a device by the user; B3 (fee rate, needs a migration) deferred by the user to revisit later; stages 2–5 not built. Last recorded: approved 2026-08-06; stage 1 of 5 coded, awaiting device
 verification. Stage 3 (B3a, the migration) still needs its own explicit go.
 
 > Stop pinning half the screen: everything except a slim action row scrolls. Move

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-26
 **Scope:** Take the notification-email + password-recovery features live on the hosted Supabase project, sending real mail via Resend from `ezzy.ph`.
-**Status:** DRAFT — ready to execute once `ezzy.ph` is verified in Resend.
+**Status:** COMPLETE (2026-09-24, user-confirmed) — `NOTIFICATION_EMAIL_OVERRIDE_TO` is off on production; the other steps were done by the 2026-08-10 production launch. Last recorded: DRAFT — ready to execute once `ezzy.ph` is verified in Resend.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE.
 > Detail lives in the runbooks — this is the execution checklist. See:

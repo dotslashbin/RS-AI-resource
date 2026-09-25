@@ -1,5 +1,7 @@
 # `ezzy.ph/account-data-deletion/` — section-by-section edits
 
+**Status:** COMPLETE — edits published to ezzy.ph (confirmed by the user 2026-09-24).
+
 **Date:** 2026-08-23 (supersedes the earlier draft of replacement copy)
 **Page:** `https://ezzy.ph/account-data-deletion/` — 20 numbered sections
 **Companion to:** `.plans/2026-08-21-vendor-account-deletion.md` (B7 / B8 / I14)

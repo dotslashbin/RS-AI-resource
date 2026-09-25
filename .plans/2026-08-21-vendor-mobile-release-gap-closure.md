@@ -4,7 +4,7 @@
 **App / scope:** `ezzy-vendor-mobile`. Two items land outside it and are flagged as external
 dependencies with their own approval gates, not implemented here: the account-deletion web
 resource (`ezzy.ph` / `vendor`) and the privacy-policy wording gap (`ezzy.ph`).
-**Status:** IN PROGRESS — audit complete, **D1 resolved 2026-08-21** (see
+**Status:** COMPLETE (2026-09-24, user-approved) — closed; remaining release work is owned by `.plans/2026-09-21-ezzy-vendor-mobile-store-submission.md`. Several items below are stale (e.g. N5: the version is now 0.12.0). Last recorded: IN PROGRESS — audit complete, **D1 resolved 2026-08-21** (see
 `.plans/2026-08-21-vendor-account-deletion.md`). **Stage A closed for now
 (2026-08-24):** N1 executed and machine-verified; N3 intentionally deferred by
 the user with a close-out guide recorded below.

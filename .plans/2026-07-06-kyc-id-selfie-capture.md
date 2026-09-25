@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-06
 **Scope:** `vendor` app only — a new identity-verification step in the KYC onboarding flow. **Frontend-only** (no migration, no backend change — see below).
-**Status:** ✅ BUILT (2026-07-06) — code complete + `tsc` clean; item 6 = manual/device testing (user to run).
+**Status:** ✅ COMPLETE (2026-07-06) — code complete + `tsc` clean; item 6 = manual/device testing (user to run).
 
 > **Marker correction (2026-07-28).** D-1 to D-4 were still carrying `⬜ TODO` even though the
 > feature shipped on 2026-07-06 — the plan's own status line already said BUILT, so the

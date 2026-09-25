@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **App:** `./learner`
-**Status:** IN PROGRESS — B1, B2, B4, I1–I4, I6 executed (2026-06-12, build-verified). B3 (uploads) pending approval; I5 is a deployment-env item.
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: IN PROGRESS — B1, B2, B4, I1–I4, I6 executed (2026-06-12, build-verified). B3 (uploads) pending approval; I5 is a deployment-env item.
 
 > ⚠️ **Pre-pivot plan (annotated 2026-07-29).** This plan predates the 2026-06-12 platform pivot: the `learner` app was renamed to **`booker`** and no `learner/` directory exists any more. Every file path below is stale by name. Open items were **not** re-verified against `booker/` during the staleness audit — treat any remaining ⬜ TODO here as *unconfirmed*, and check `booker/` before acting on it. See `.plans/2026-06-12-platform-pivot-vendor-booker.md`.
 

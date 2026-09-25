@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-03  
 **App / scope:** `ezzy-vendor-mobile`, with a narrow authenticated API-contract change in `vendor`  
-**Status:** IN PROGRESS — Stage 1 is complete (2026-09-10); stages 2–8 remain.
+**Status:** COMPLETE (2026-09-24, user-approved) — the mobile kiosk is built (`src/app/kiosk.tsx`, `src/components/kiosk/*`, shipped in 0.12.0), including B2's browser payment return (`kioskBrowser.service.ts`, `kioskPayment.service.ts`); live payment/settlement acceptance (B3, I8) is owned by `.plans/2026-09-21-ezzy-vendor-mobile-store-submission.md` Stage 2A and I1. Markers below stopped being updated on 2026-09-16. Last recorded: IN PROGRESS — Stage 1 is complete (2026-09-10); stages 2–8 remain.
 
 **Reassessed:** 2026-09-10 — implementation paused for review of this revised plan,
 at the user's request. Existing code is retained; this assessment changes this plan only.

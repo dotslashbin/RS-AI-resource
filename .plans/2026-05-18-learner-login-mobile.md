@@ -1,5 +1,7 @@
 # Learner Login — Mobile Responsive Fix
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Context
 
 The login page uses a two-column layout (marketing left panel + form right panel). On mobile, the marketing panel sits above the form, forcing users to scroll to reach the login inputs. No changes should be made to the desktop layout.

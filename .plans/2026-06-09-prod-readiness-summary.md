@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **Scope:** learner, academy, command, backbone
-**Status:** Audit complete. Execution in progress (academy + learner blockers landing).
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: Audit complete. Execution in progress (academy + learner blockers landing).
 
 > Index document. Full detail lives in the per-app plans:
 > - `.plans/2026-06-09-prod-readiness-command.md`

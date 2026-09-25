@@ -1,5 +1,7 @@
 # Plan: command — Component Breakdown
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 **Date:** 2026-05-07  
 **Scope:** `./command` only — break `app/page.tsx` into granular components following SOLID principles and Next.js best practices. No shared code with `learner` or `academy`.
 

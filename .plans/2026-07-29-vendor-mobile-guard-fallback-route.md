@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-29
 **App / scope:** `ezzy-vendor-mobile` (`src/app/_layout.tsx`, `src/components/auth/ResetPasswordForm/`)
-**Status:** IN PROGRESS — B1 and I1 executed and machine-verified 2026-07-29;
+**Status:** COMPLETE (2026-09-24) — device verification of guard and sign-out confirmed by the user. Last recorded: IN PROGRESS — B1 and I1 executed and machine-verified 2026-07-29;
 device verification outstanding (see Verification)
 
 > A successful sign-in throws the user onto `/reset-password`, which reports

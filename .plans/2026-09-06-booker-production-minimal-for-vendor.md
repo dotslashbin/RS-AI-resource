@@ -3,7 +3,7 @@
 **Date:** 2026-09-06
 **App / scope:** `booker` (deployment + configuration only), one ordered variable change in
 production `command`.
-**Status:** IN PROGRESS — configuration COMPLETE and measured on the deployed hosts
+**Status:** COMPLETE (2026-09-24) — the user confirmed production has bookable data (I1) and that a real-money payment has gone through end to end (B34). Last recorded: IN PROGRESS — configuration COMPLETE and measured on the deployed hosts
 (2026-09-07). Only two things remain: **I1** (production has data to serve) and the live
 payment that closes kiosk **B34**.
 

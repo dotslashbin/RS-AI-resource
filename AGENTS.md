@@ -22,6 +22,25 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 - Package and toolchain commands are **not** root-relative. Run them against the target app, e.g. `npm --prefix ezzy-vendor-mobile run start`, or from inside the app folder. `tsconfig.json`, `node_modules/`, and `@/*` path aliases are all app-local.
 - Git commits for an app must be made inside that app's folder — this root repo does not contain their history.
 
+### Where to look
+
+`.plans/INDEX.md` lists every plan with its scope and status — check it for predecessor or overlapping plans before reading plan bodies. `architecture/` answers:
+
+| Doc | Answers |
+|-----|---------|
+| `overview.md` | What the platform is, the portals and mobile clients, which app talks to which database, scope limits |
+| `portals.md` | Per-app feature inventory, gaps and roadmap (all five apps), cross-portal parity |
+| `schema.md` | Tables, columns, relationships, storage buckets, delete behaviour, migration history |
+| `auth-and-roles.md` | Portals, roles, affiliates, RLS helpers and policy patterns, table grants, what each portal can see |
+| `conventions.md` | Service layer, hook-as-controller, Supabase client use, env vars, TypeScript/component/styling rules, migration and Expo conventions |
+| `booking-flow.md` | The 6-step booking wizard, payment provider surface, kiosk-origin bookings |
+| `vendor-kyc.md` | Vendor verification: onboarding, command review, data model |
+| `database-reset-and-deploy.md` | Which migration/seed command is safe in which environment, drift checks, rollback |
+| `supabase-production-setup.md` | Runbook for standing up a new Supabase project (production done 2026-08-10) |
+| `production-env-checklist.md` | Per-variable Vercel env requirements and post-deploy probes |
+| `email-notifications-guide.md` | Master reference for the notification-email system, local and hosted |
+| `email-local-run-quickstart.md` · `email-setup-local-and-remote.md` · `email-secrets-setup.md` · `email-sending-domain.md` | Email: run locally, set up per environment, secret inventory, changing the From domain |
+
 ---
 
 ## Shared Tech Stack

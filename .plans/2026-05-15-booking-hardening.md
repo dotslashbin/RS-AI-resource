@@ -3,7 +3,7 @@
 **Reference name:** `booking-hardening`  
 **Date:** 2026-05-15  
 **Scope:** `./backbone` (schema) · `./academy` (service layer + UI wiring) · `./learner` (service layer)  
-**Status:** Planning — not started
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: Planning — not started
 
 ---
 

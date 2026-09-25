@@ -3,7 +3,7 @@
 **Date:** 2026-08-02
 **App / scope:** `ezzy-vendor-mobile` only. No changes to `vendor`, `booker`,
 `command`, or `backbone` — the backbone is **read-only reference** for this plan.
-**Status:** IN PROGRESS — stages 1–4 code complete (2026-08-02). **Every item is
+**Status:** COMPLETE (2026-09-24) — the user confirmed on a device that new bookings arrive live; B1's root cause was never recorded, and I1–I5 were not executed (open follow-ups if the gaps recur). Last recorded: IN PROGRESS — stages 1–4 code complete (2026-08-02). **Every item is
 🔄, not ✅: none of it has run on a device, and B1's root cause is still
 unknown.** Stage 5 (the device pass) is the only remaining work, and it is the
 work that decides whether any of this is correct.

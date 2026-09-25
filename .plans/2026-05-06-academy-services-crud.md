@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-06  
 **App:** `./academy`  
-**Status:** Planning
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: Planning
 
 ---
 

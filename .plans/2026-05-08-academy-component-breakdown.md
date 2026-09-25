@@ -1,5 +1,7 @@
 # Plan: academy — Component Breakdown
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 **Date:** 2026-05-08  
 **Scope:** `./academy` only — break the 1,674-line `app/page.tsx` monolith into granular components following SOLID principles and Next.js best practices. No shared code with `learner` or `command`.
 

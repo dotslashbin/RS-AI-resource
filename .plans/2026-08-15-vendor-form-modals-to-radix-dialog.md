@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-15
 **App / scope:** `vendor/` only. No backbone, booker, command or mobile changes.
-**Status:** IN PROGRESS — **every code item is done.** B1–B6, I4, I5, **I6**, I7, I9, I10 all ✅ (I6's marker was corrected on 2026-08-16 — it had been implemented and never flipped)
+**Status:** COMPLETE (2026-09-24, user-approved) — I2 and I3 (edge cases) and B6a (watch only) carried as open follow-ups; I3 not re-verified (`window.confirm` still used at `vendor/components/schedule/SchedulePage/useSchedulePage.ts:149`). Last recorded: IN PROGRESS — **every code item is done.** B1–B6, I4, I5, **I6**, I7, I9, I10 all ✅ (I6's marker was corrected on 2026-08-16 — it had been implemented and never flipped)
 (2026-08-15). `ModalOverlay` is deleted and `grep -rn ModalOverlay` over the code returns 0.
 
 **What remains cannot be done from a terminal.** Stage 7 is a browser-and-camera pass:

@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-11
 **App / scope:** `vendor` (primary), `command`, `backbone`, `ezzy-vendor-mobile` — all **read-only** for this document
-**Status:** RESEARCH ONLY — **not a plan.** No code, schema, config or doc was changed. Written so the
+**Status:** COMPLETE — research only — **not a plan.** No code, schema, config or doc was changed. Written so the
 topic can be picked up later without re-deriving it. If it is revisited, turn §9 into a plan via
 `.claude/skills/plan-authoring/SKILL.md`.
 

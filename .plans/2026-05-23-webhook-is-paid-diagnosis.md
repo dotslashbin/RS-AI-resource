@@ -1,5 +1,7 @@
 # Webhook Diagnosis: `is_paid` Not Updating After PayMongo Payment
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Status
 
 Parked — to be executed later.

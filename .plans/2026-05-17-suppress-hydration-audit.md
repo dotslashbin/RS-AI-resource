@@ -1,5 +1,7 @@
 # Hydration Fix: `suppressHydrationWarning` Audit — All Three Apps
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Context
 
 Three apps (`learner`, `command`, `academy`) all throw React hydration errors caused by **browser extensions** modifying the DOM before React reconciles server-rendered HTML:

@@ -1,5 +1,7 @@
 # Login Modal Parity — academy + command
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Context
 
 Two UX improvements were applied to the learner login modal and need to be ported identically to academy and command:

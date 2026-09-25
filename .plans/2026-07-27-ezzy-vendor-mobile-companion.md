@@ -5,7 +5,7 @@
 `create-expo-app` template with zero app code). Phases 0–6 are additive to that project
 only. **Ph7 (push notifications) touches `backbone`** — new table + Edge Function +
 trigger — and is a cross-app approval gate.
-**Status (2026-07-28):** **Ph0–Ph6 code complete; Ph7 and Ph8 in progress.** All 13
+**Status:** COMPLETE (2026-09-24, user-confirmed) — build plan closed; several ⬜ markers below are stale (e.g. B2 shipped as `20260728000001_device_push_tokens.sql`), and release work continued in `.plans/2026-08-16-vendor-mobile-store-release-readiness.md`, `.plans/2026-08-21-vendor-mobile-release-gap-closure.md` and `.plans/2026-09-21-ezzy-vendor-mobile-store-submission.md`. Last recorded (2026-07-28): **Ph0–Ph6 code complete; Ph7 and Ph8 in progress.** All 13
 decisions resolved and the dependency list approved (2026-07-27); B2 approved and written
 (2026-07-28).
 

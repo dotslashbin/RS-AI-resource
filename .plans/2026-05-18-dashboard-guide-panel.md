@@ -1,5 +1,7 @@
 # Dashboard — Two-Column Layout with Guide Panel
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Context
 
 Redesign the learner dashboard from its current layout (left: bookings/in-progress, right: notifications widget) to a new two-column layout:

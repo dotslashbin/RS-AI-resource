@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-22
 **App / scope:** `./vendor` only. Audit/investigation only — **no code changed.** Findings are queued for the user to tackle one at a time later, not executed as part of this plan.
-**Status:** DRAFT — investigation complete. Nothing approved for execution yet.
+**Status:** DRAFT — re-checked 2026-09-24: B1 still live (`useOfferingForm.ts:99` `parseInt(ofPrice)`), B2 fixed (`useCalendarPage.ts:36-37`), I5 obsolete (`lib/supabase/server.ts` is now used). Last recorded: investigation complete. Nothing approved for execution yet.
 
 > **Goal:** act as a reviewer on the existing vendor codebase — find real bugs, correctness gaps, and reliability issues (not style nits), grounded in `file:line`, so they can be triaged and fixed one by one.
 

@@ -4,7 +4,7 @@
 **App / scope:** `./ezzy-vendor-mobile` **only**. Findings that land in `vendor` (web) or
 `backbone` are *identified* as external dependencies and **not implemented here** — they
 each need their own plan and their own approval gate.
-**Status:** **IN PROGRESS** — all 5 decisions resolved 2026-08-16.
+**Status:** COMPLETE (2026-09-24, user-approved) — closed; remaining release work (push, reviewer access, store listings, release testing) is owned by `.plans/2026-09-21-ezzy-vendor-mobile-store-submission.md`, which verified the privacy and deletion links live on 2026-09-21. Several ⬜ markers below are stale. Last recorded: IN PROGRESS — all 5 decisions resolved 2026-08-16.
 **Stage 1 ✅ COMPLETE (2026-08-16)** — I4, I9, I10 executed and machine-verified.
 **Stage 2 ✅ COMPLETE (2026-08-20)** — X1 executed in `backbone` and statically verified.
 **Stage 3 🔄 PARTIAL** — the FCM half of step 4 landed (`google-services.json` + wiring);

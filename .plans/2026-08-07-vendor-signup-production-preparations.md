@@ -3,7 +3,7 @@
 **Date:** 2026-08-07
 **App / scope:** `vendor/` (registration + KYC), `command/` (approval queue),
 `backbone/` (notification types, hosted auth + email config)
-**Status:** 🔄 **IN PROGRESS — executed 2026-08-08.** 18 of 22 items ✅ DONE,
+**Status:** ✅ COMPLETE (2026-09-24) — A-B6 resolved: the user confirmed registering vendors now receive an email (type defined in `20260808000001_vendor_lifecycle_notification_types.sql`); A-B7's regression was fixed by `.plans/2026-08-08-csp-blocks-supabase-connections.md`; A-B3/A-B4/A-B5 remain ⏸ PARKED. Last recorded: 🔄 IN PROGRESS — executed 2026-08-08. 18 of 22 items ✅ DONE,
 **1 shipped with a regression (A-B7)**, 3 ⏸ PARKED (A-B3 by user decision; A-B4 and
 A-B5 are hosted-dashboard only, with no code to write).
 

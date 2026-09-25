@@ -857,17 +857,14 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 
   | Unverified work | Plan | State |
   |---|---|---|
-  | Guard fallback route | `.plans/2026-07-29-vendor-mobile-guard-fallback-route.md` | IN PROGRESS — device verification outstanding |
   | Hidden action bar | `.plans/2026-08-02-vendor-mobile-hidden-action-bar.md` | IN PROGRESS — none of it seen on a device |
-  | Live reload | `.plans/2026-08-02-vendor-mobile-live-reload.md` | IN PROGRESS — root cause still unknown |
-  | The B1 scroll/header refactor (`ScreenShell` split) | `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md` | IN PROGRESS — coded 2026-08-06, needs a screenshot |
 
-  Stages 2–5 of that last plan are **not built at all**: the show-guide header icon (B2), the `platform_fee_settings` scalar accessor and its approval gate (B3a), the fee-rate summary card (B3b), and the `StaleBanner` scroll check (I2).
+  Stage 1 of `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md` (the `ScreenShell` scroll/header split) was confirmed on a device on 2026-09-24. Its stages 2–5 are **not built at all**: the show-guide header icon (B2), the `platform_fee_settings` scalar accessor and its approval gate (B3a), the fee-rate summary card (B3b), and the `StaleBanner` scroll check (I2).
 - **The notification swipe fix is unverified on device.** `.plans/2026-07-30-vendor-mobile-ui-fixes.md` B1 corrected an inversion where the Archive panel prompted a delete and the Delete panel archived with no confirmation at all. Code complete, never run on hardware — and the swap compiles either way, so no machine check can confirm it.
 
 ### Roadmap (Approximate Priority)
 
-1. Clear the device-verification backlog in the Known Gaps table above — four plans are coded but unseen on hardware, and nothing below can be trusted until they are
+1. Clear the device-verification backlog in the Known Gaps table above — plans listed there are coded but unseen on hardware, and nothing below can be trusted until they are
 2. Finish `.plans/2026-08-05-vendor-mobile-scroll-header-and-fee.md` stages 2–5: show-guide header icon, the `platform_fee_settings` accessor (**schema approval gate**), the fee-rate summary card, the `StaleBanner` check
 3. FCM credentials + deploy the push Edge Function → prove push end to end
 4. Mobile redirect URLs in `config.toml` → unblock password reset

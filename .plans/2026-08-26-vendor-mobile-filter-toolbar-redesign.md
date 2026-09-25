@@ -4,7 +4,7 @@
 **App / scope:** `ezzy-vendor-mobile` only. Target screens are Bookings and
 Transactions. Dashboard is documented as a coupling because it also uses
 `PeriodFilter`, but is not in scope unless explicitly approved.
-**Status:** IN PROGRESS (2026-09-02) — Stage 3 Android verification is confirmed; a
+**Status:** COMPLETE (2026-09-24) — the user confirmed the final filter-header spacing (I3) on an Android device. Last recorded: IN PROGRESS (2026-09-02) — Stage 3 Android verification is confirmed; a
 final Stage 2 spacing correction is required before closeout.
 
 > One-line framing: make mobile filtering readable and discoverable without stacking

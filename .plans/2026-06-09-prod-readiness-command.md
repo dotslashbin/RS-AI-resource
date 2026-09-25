@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **App:** `./command`
-**Status:** IN PROGRESS — B1 (auth gate), B3 (boundaries), I1 (mutation errors), I2 (loading states) executed (2026-06-12, build-verified). I3 (school-delete) pending decision; B2 (SMTP) deferred.
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: IN PROGRESS — B1 (auth gate), B3 (boundaries), I1 (mutation errors), I2 (loading states) executed (2026-06-12, build-verified). I3 (school-delete) pending decision; B2 (SMTP) deferred.
 
 > Command is an internal ops tool for a handful of staff. The bar is "no privilege holes, no silent data loss" — not polish.
 

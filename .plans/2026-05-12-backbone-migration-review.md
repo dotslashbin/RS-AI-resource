@@ -1,5 +1,7 @@
 # Backbone Migration Review Notes
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 Date: 2026-05-12
 
 Scope: static review of `backbone/supabase/migrations/*.sql`. No migrations were executed and no Supabase local reset was run.

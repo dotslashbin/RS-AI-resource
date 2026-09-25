@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **App:** `./backbone` + deployment/infra
-**Status:** TRIAGED — nothing executed. Blocked on: B1 depth decision (⏸ PARKED), schema/storage approvals (B3, I1, I2), and deferred SMTP/deployment work. No privilege-escalation blockers found in the audit.
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: TRIAGED — nothing executed. Blocked on: B1 depth decision (⏸ PARKED), schema/storage approvals (B3, I1, I2), and deferred SMTP/deployment work. No privilege-escalation blockers found in the audit.
 
 > A full RLS/trigger audit found **no privilege-escalation blockers**: all 19 tables have RLS, all 18 SECURITY DEFINER functions pin `search_path`, and a learner cannot self-grant a role/portal/academy-membership or self-activate. The items below are the remaining gaps plus the shared infra work that gates all three apps.
 

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-12
 **Scope:** all apps + backbone + architecture docs
-**Status:** DECISIONS LOCKED — all resolved (**D1–D6**, 2026-06-18). Brand = **Bookdeck** (`bookdeck.com`, pending `.com` check). **Execution plan drafted → `.plans/2026-06-18-platform-pivot-execution.md`** (awaiting approval to run). Folder/git rename done; no other code changes yet.
+**Status:** COMPLETE — decisions plan; executed via `.plans/2026-06-18-platform-pivot-execution.md`. Last recorded: DECISIONS LOCKED — all resolved (**D1–D6**, 2026-06-18). Brand = **Bookdeck** (`bookdeck.com`, pending `.com` check). **Execution plan drafted → `.plans/2026-06-18-platform-pivot-execution.md`** (awaiting approval to run). Folder/git rename done; no other code changes yet.
 
 > Pivot the platform from a driving-school-specific product into a general booking marketplace: **vendors** create offerings they sell; **bookers** browse and book them; **command** stays the platform ops center. First target vertical beyond driving: businesses renting sports facilities / coaching (pickleball courts, etc.).
 

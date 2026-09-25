@@ -23,7 +23,7 @@
 `booker/` findings are recorded here but **parked to their own plan** — see B2 and I3.
 Overnight-window support is **not in scope** — split out to
 `.plans/2026-08-27-overnight-schedule-windows.md`.
-**Status:** DRAFT — all decisions resolved (2026-08-27); awaiting execution approval.
+**Status:** ✖ ABORTED — superseded by `.plans/2026-08-27-overnight-schedule-windows.md` (2026-08-27). Last recorded: DRAFT — all decisions resolved (2026-08-27); awaiting execution approval.
 
 > One-line framing: the vendor's Schedule day panel showed the same schedule three
 > times. This plan establishes why, and what stops it recurring — optimising for

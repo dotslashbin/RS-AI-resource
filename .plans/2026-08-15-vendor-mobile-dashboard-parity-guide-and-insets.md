@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-15
 **App / scope:** `ezzy-vendor-mobile/` only. No web app change, no `backbone` change, no migration.
-**Status:** IN PROGRESS — the original dashboard work remains machine-complete and
+**Status:** COMPLETE (2026-09-24) — the original dashboard work (insets, grouping, header guide) was confirmed on an Android device by the user; the kiosk parity extension was already complete. Last recorded: IN PROGRESS — the original dashboard work remains machine-complete and
 awaits its device pass. The **kiosk parity extension**, added 2026-09-16 after a
 cross-plan/code audit, has completed its decisions and K1-K4 Android acceptance.
 K5's mobile code and device acceptance are complete. The kiosk parity extension is

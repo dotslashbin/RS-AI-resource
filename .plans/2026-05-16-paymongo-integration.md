@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-16
 **Scope:** `./learner` (primary) · `./backbone` (one migration — needs approval gate)
-**Status:** Plan only — not yet executed
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: Plan only — not yet executed
 
 ---
 

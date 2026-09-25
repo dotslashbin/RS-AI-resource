@@ -3,7 +3,7 @@
 **Date:** 2026-08-02
 **App / scope:** `ezzy-vendor-mobile` (primary) + a single approved change in
 `vendor` for D6 — see Scope.
-**Status:** IN PROGRESS (2026-08-02) — stages 1–11 done (B4 ✅ · B2+B1 ✅ ·
+**Status:** COMPLETE (2026-09-24) — the remaining visual/runtime checks were confirmed on a device by the user. Last recorded: IN PROGRESS (2026-08-02) — stages 1–11 done (B4 ✅ · B2+B1 ✅ ·
 B3 ✅ · I1 ✅ · I7 ✅ · I8 ✅ · I2+I3 ✅ · I5+I6 ✅ · I4 ✅ · I9 ✅). All 5 decisions resolved.
 **The vendor can hand over, mark as done, confirm a return and undo — with an
 honest payout countdown, an unpaid warning, and a tap-to-explain sheet.**

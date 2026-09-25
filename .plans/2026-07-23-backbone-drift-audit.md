@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-23
 **App / scope:** `backbone/supabase/migrations/` cross-checked against `architecture/*.md`
-**Status:** IN PROGRESS — B1, B2, I1, I2 ✅ DONE (fixes landed 2026-07-24; **statuses were
+**Status:** COMPLETE (2026-09-24, user-confirmed) — I3 and I4 (`pg_net` still in `public`) accepted as deferrals. Last recorded: IN PROGRESS — B1, B2, I1, I2 ✅ DONE (fixes landed 2026-07-24; **statuses were
 stale and corrected 2026-07-28** during a cross-plan audit). Remaining: I3 (accepted, not
 actionable) and I4 (`pg_net` schema).
 

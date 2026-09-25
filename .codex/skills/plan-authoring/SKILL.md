@@ -53,6 +53,9 @@ Rules:
   a baseline, run the build/tests to know the current state before proposing
   changes.
 - Locate existing patterns to follow before inventing new ones.
+- Check `.plans/INDEX.md` for predecessor or overlapping plans before writing a
+  new one. Re-run `python3 scripts/plans-index.py` after creating or closing a
+  plan (the index is generated — never hand-edit it).
 - Cross-check the plan's scope against `./architecture/*.md` (schema,
   conventions, portals, booking-flow, overview) — these are the project's own
   documented decisions and system design. A plan that silently diverges from

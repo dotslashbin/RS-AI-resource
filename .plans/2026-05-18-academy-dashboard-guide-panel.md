@@ -1,5 +1,7 @@
 # Academy Dashboard — Guide Panel
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 ## Context
 
 Add the same user-guide panel to the academy dashboard that was built for learner. The panel teaches new academy admins how to use the portal. It is collapsible and its state persists in localStorage.

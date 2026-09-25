@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-18
 **Scope:** backbone + booker + vendor + command + architecture docs
-**Status:** ✅ EXECUTED (2026-06-18) — P1–P4 + D4 + seed-content pass all DONE and build/grep-verified. **P5 (env/deploy) ⬜ deferred** to launch (gated on `bookdeck.com`). Outstanding user action: **`supabase db reset`** to load the P1b category change, P4 renamed migration files, the rewritten seed, and the API-role-grants fix (`20260620000001`, see Post-pivot fix below) — no `gen types` needed for the seed/grants themselves.
+**Status:** ✅ COMPLETE (2026-06-18) — P1–P4 + D4 + seed-content pass all DONE and build/grep-verified. **P5 (env/deploy) ⬜ deferred** to launch (gated on `bookdeck.com`). Outstanding user action: **`supabase db reset`** to load the P1b category change, P4 renamed migration files, the rewritten seed, and the API-role-grants fix (`20260620000001`, see Post-pivot fix below) — no `gen types` needed for the seed/grants themselves.
 **Decisions reference:** `.plans/2026-06-12-platform-pivot-vendor-booker.md` (D1–D6 all resolved). This file is the *how*; that file is the *why*.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.

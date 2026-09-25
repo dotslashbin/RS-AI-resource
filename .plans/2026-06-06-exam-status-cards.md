@@ -1,5 +1,7 @@
 # Exam Status Cards Redesign
 
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Outcome not recorded.
+
 **Date:** 2026-06-06  
 **Scope:** `learner` only — `BookingStatusWidget` component
 

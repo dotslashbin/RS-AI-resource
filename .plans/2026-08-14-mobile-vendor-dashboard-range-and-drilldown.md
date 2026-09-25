@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-14
 **App / scope:** `ezzy-vendor-mobile/` only. No backbone migration, no web apps.
-**Status:** IN PROGRESS — all decisions resolved 2026-08-14 (D1–D5 plus D6, D7).
+**Status:** COMPLETE (2026-09-24) — the period picker and drill-down were confirmed on an Android device by the user; the D5 >1000-row live check stays tracked on `.plans/2026-08-11-mobile-vendor-unbounded-queries.md`. Last recorded: IN PROGRESS — all decisions resolved 2026-08-14 (D1–D5 plus D6, D7).
 **Stage 0 code complete** (the D5 prerequisite: its live >1000-row check is still
 outstanding and carried as debt on
 `.plans/2026-08-11-mobile-vendor-unbounded-queries.md`). **All code stages (0–6) complete

@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-09
 **App:** `./academy`
-**Status:** IN PROGRESS — B1, B2 (route layer), B4 + Settings cleanup executed (2026-06-12, build-verified). B2's DB backstop (backbone B3) + IMPORTANT items (I1, I2, I5 doc-viewing) pending.
+**Status:** ABORTED — legacy: pre-pivot DriveBook plan, retired by the 2026-06-18 platform pivot. Last recorded: IN PROGRESS — B1, B2 (route layer), B4 + Settings cleanup executed (2026-06-12, build-verified). B2's DB backstop (backbone B3) + IMPORTANT items (I1, I2, I5 doc-viewing) pending.
 
 > ⚠️ **Pre-pivot plan (annotated 2026-07-29).** This plan predates the 2026-06-12 platform pivot: the `academy` app was renamed to **`vendor`** and no `academy/` directory exists any more. Every file path below is stale by name. Open items were **not** re-verified against `vendor/` during the staleness audit — treat any remaining ⬜ TODO here as *unconfirmed*, and check `vendor/` before acting on it. See `.plans/2026-06-12-platform-pivot-vendor-booker.md`.
 

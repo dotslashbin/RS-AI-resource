@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-02
 **App / scope:** `vendor/`, `booker/`, `command/`, `backbone/` (config + migrations)
-**Status:** DRAFT — investigation complete; all 4 decisions closed; second review
+**Status:** DRAFT — re-checked 2026-09-24: partly superseded (items moved to `.plans/2026-08-07-vendor-signup-production-preparations.md`; production launched 2026-08-10); per-item status not re-verified. Last recorded: investigation complete; all 4 decisions closed; second review
 done. **📌 PINNED / not scheduled (2026-08-03).** No code is to be written from
 this plan until the user unpins it. Pinned in a *ready* state, not a blocked one:
 nothing is outstanding on the plan's side.
