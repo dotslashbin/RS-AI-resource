@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-24
 **App / scope:** root repo only — `.plans/`, `architecture/`, `AGENTS.md`, `scripts/`; plus user-level config (`~/.claude.json`, `~/.codex/config.toml`) and a new folder outside every repo, `~/.local/share/rs-docsearch/`. **No app repo is touched.**
-**Status:** IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). Now at S1: a 1–2 week trial of the index and routing table before deciding on S2 (D6).
+**Status:** IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). S1 trial running. S2 ✅ COMPLETE 2026-09-24: I5 built early at the user's choice (D7 = stdlib-only) and installed at `~/.local/share/rs-docsearch/`, not registered with any agent. S3 registration still gated on the I7 evaluation.
 
 > **Goal:** make "has this already been decided / where was this discussed?" answerable across ~125 plans and 15 architecture docs, for both Claude Code and Codex. Start with the cheapest fix that could work, and add semantic retrieval only if measurement shows it is needed. Every step must be removable without trace.
 
@@ -106,8 +106,8 @@ Other context:
 <!-- ✅ DONE (2026-09-24) — bullet added to §2 of both copies; `diff` confirms they are still identical. -->
 <!-- Follow-on (2026-09-24, user-approved): plan-authoring loads mainly when a plan is written, but plans are usually closed during execution, so the same reminder was added to `developerboss` §"Always report after execution" item 3 (both copies, `diff` identical): re-run the script whenever a plan's Status, title or scope line changes. -->
 
-### I5 — `rs-docsearch` MCP server, keyword-only (FTS5)  ⬜ TODO  *(approval gate: installs the `mcp` Python SDK in an isolated venv; depends on S1 go)*
-**Location:** `~/.local/share/rs-docsearch/` (outside every repo): `server.py`, `.venv/`, `index.sqlite`, `allowlist.txt`.
+### I5 — `rs-docsearch` MCP server, keyword-only (FTS5)  ✅ DONE (2026-09-24)  *(D7: standard library only, no dependencies; approval gate: writing to `~/.local/share/rs-docsearch/`, outside the workspace)*
+**Location:** `~/.local/share/rs-docsearch/` (outside every repo): `server.py`, `allowlist.txt`, `test_server.py`, `index.sqlite` (no venv, per D7).
 **Design:**
 - **Allowlist (globs, relative to `/home/joshua/RS`):** `.plans/*.md`, `architecture/*.md`, `AGENTS.md`, `*/AGENTS.md`, `ezzy-vendor-mobile/*.md`, `ezzy-booker-mobile/*.md`, plus root notes per D5.
 - **Denylist applied on top, as a backstop:** `.env*`, `*.json`, `node_modules`, `.git`, `supabase/`, `test-db/`, `*.backup`. A file must match the allowlist **and** miss the denylist.
@@ -126,6 +126,10 @@ Other context:
 **Verification:**
 - Machine: unit smoke test with a fixture dir. A denied file (e.g. a fake `.env`) is never indexed, even if the allowlist is widened. Touching one plan re-indexes exactly one file. A no-change reindex takes under 1 s.
 - Machine: `sqlite3 index.sqlite 'select distinct path'` contains no path outside the allowlist.
+<!-- 🔄 2026-09-24 — built and tested in the session scratchpad (not yet installed). Design as above, plus: only `.md`/`.txt` are ever indexed; symlinks and paths resolving outside the root are skipped; `.plans/INDEX.md` is excluded (generated); H1–H3 split, ignoring fenced code; a short stopword list keeps question words from dominating BM25; chunks with no words are skipped; the schema version forces a rebuild when chunking changes. CLI for evaluation without registering: `server.py --reindex`, `server.py --search "q" [--legacy] [--k N]`.
+  Verified by machine: `test_server.py`, 6/6 pass — the denylist holds with a `**/*` allowlist (`.env*`, `.json`, `node_modules`, root `supabase/`, `test-db/`, `.backup`, `.tsx` and an outside-root symlink all excluded); edit one file → 1 changed; delete → 1 removed; no-op reindex <1 s; legacy excluded by default; a full MCP exchange works (initialize, notification gets no reply, tools/list, search_docs, reindex, unknown method → -32601); the DISABLED file exposes no tools and creates no index.
+  Real workspace (index in the scratchpad): 157 files, 4,744 chunks, 13 MB; full build 0.56 s, no-op 0.014 s; `git status` unchanged. 4 sample questions (payout fee withholding, overnight schedules, refunds, kiosk in first release) each put the right plan or doc in the top results.
+  ✅ Installed 2026-09-24 (user-approved): `server.py`, `allowlist.txt`, `test_server.py` copied to `~/.local/share/rs-docsearch/`. The installed copy passes 6/6 tests, built its own `index.sqlite` (157 files, 0.82 s; no-op 0.012 s) and answered a live initialize + search_docs exchange. Not registered with Claude Code or Codex. Remove with `trash ~/.local/share/rs-docsearch`. -->
 
 ### I6 — Register with both agents  ⬜ TODO  *(approval gate: edits user-level config; depends on I5, D4)*
 **Fix approach:**
@@ -178,7 +182,8 @@ Other context:
   - (a) Test reports and `notes.txt` only *(recommended)*
   - (b) All of them.
   - (c) None.
-- **D6** — Stop after S1 if I1–I4 prove sufficient? → **(a) yes, S1 is a real go/no-go** (resolved 2026-09-24 — user accepted recommendation)
+- **D6** — Stop after S1 if I1–I4 prove sufficient? → **(a) yes, S1 is a real go/no-go** (resolved 2026-09-24 — user accepted recommendation). **Amended 2026-09-24 (user):** build I5 early, without registering it, so it can be evaluated from the command line; S3 registration remains gated on the I7 evaluation.
+- **D7** — How is the server built? → **(B) standard library only**: a hand-written MCP stdio subset (`initialize`, `ping`, `tools/list`, `tools/call`) plus stdlib `sqlite3` FTS5; no packages installed (resolved 2026-09-24 — user choice). Rejected: (A) the official `mcp` SDK in a venv (28 packages, about a third of them HTTP/auth code this tool never uses); (C) a Docker container (real read-only isolation, but a container per agent session and an image to maintain). Tradeoff accepted: protocol changes must be handled by editing `server.py`, not by an SDK update.
   - **(a) Yes: S1 is a real go/no-go, and I5–I9 are ABORTED if the user reports no remaining pain after 1–2 weeks** *(recommended)*
   - (b) Proceed to the proof of concept regardless, for evaluation's sake.
 
@@ -188,7 +193,7 @@ Other context:
 |---|---|---|---|---|
 | **S0** | I1, then I2 → I3 → I4 | root repo files (user commits) | plan approval | revert the files in the root repo |
 | **S1** | Checkpoint: use S0 for 1–2 weeks | — | D6 | — |
-| **S2** | I5 | `~/.local/share/rs-docsearch/` only | **Approval:** install `mcp` into the venv | `trash ~/.local/share/rs-docsearch` |
+| **S2** | I5 | `~/.local/share/rs-docsearch/` only | **Approval:** writing outside the workspace (no dependencies, per D7) | `trash ~/.local/share/rs-docsearch` |
 | **S3** | I6 | `~/.claude.json` (via CLI), `~/.codex/config.toml` | **Approval:** user config edits; D4 | `claude mcp remove rs-docsearch`; delete the Codex block (or restore the backup) |
 | **S4** | I7 | this plan (§6) | — | — |
 | **S5** | I9, and I8 only if unparked | `AGENTS.md` (user commits) | I7 go; I8 needs its own approval | revert the `AGENTS.md` hunk |

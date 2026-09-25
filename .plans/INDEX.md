@@ -9,7 +9,7 @@ Status and scope come from each plan's own header; open the plan before relying 
 
 | Date | Plan | Status | Scope | Related |
 |---|---|---|---|---|
-| 2026-09-24 | [Local docs search (optional RAG) for the workspace](2026-09-24-local-docs-search-rag.md) | IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). Now at S1: a 1–2 week trial of the index and routing table before deci… | root repo only — .plans/, architecture/, AGENTS.md, scripts/; plus us… |  |
+| 2026-09-24 | [Local docs search (optional RAG) for the workspace](2026-09-24-local-docs-search-rag.md) | IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). S1 trial running. S2 ✅ COMPLETE 2026-09-24: I5 built early at the user… | root repo only — .plans/, architecture/, AGENTS.md, scripts/; plus us… |  |
 | 2026-09-24 | [Ezzy Vendor Mobile: kiosk welcome and action-bar polish](2026-09-24-ezzy-vendor-mobile-kiosk-welcome-and-action-bar-polish.md) | IN PROGRESS | ezzy-vendor-mobile kiosk mode only. |  |
 | 2026-09-23 | [Mobile UI Polish: Transactions, Booking Navigation, and Flow Footer](2026-09-23-mobile-ui-polish.md) | IN PROGRESS | ezzy-vendor-mobile and ezzy-booker-mobile |  |
 | 2026-09-22 | [Ezzy Booker Mobile — real data: sign-in, Supabase, payment](2026-09-22-booker-mobile-real-data.md) | DRAFT — decisions D1–D7 are OPEN. No stage may execute while an OPEN decision remains. | ./ezzy-booker-mobile. Reads booker, backbone and ezzy-vendor-mobile a… | predecessor 2026-09-21 |
