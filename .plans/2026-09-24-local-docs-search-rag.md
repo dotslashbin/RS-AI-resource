@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-24
 **App / scope:** root repo only — `.plans/`, `architecture/`, `AGENTS.md`, `scripts/`; plus user-level config (`~/.claude.json`, `~/.codex/config.toml`) and a new folder outside every repo, `~/.local/share/rs-docsearch/`. **No app repo is touched.**
-**Status:** IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). S1 trial running. S2 ✅ COMPLETE 2026-09-24: I5 built early at the user's choice (D7 = stdlib-only) and installed at `~/.local/share/rs-docsearch/`, not registered with any agent. S3 registration still gated on the I7 evaluation.
+**Status:** IN PROGRESS — S0 ✅ COMPLETE 2026-09-24 (I1–I4 done). S1 trial running. S2 ✅ COMPLETE 2026-09-24: I5 built early at the user's choice (D7 = stdlib-only) and installed at `~/.local/share/rs-docsearch/`, not registered with any agent. S3 registration still gated on the I7 evaluation: run 1 (2026-09-24) scored search 10/10 vs rg 8/10, only 2 search-only wins, so NO-GO under the ≥3 rule; re-run with S1 trial questions.
 
 > **Goal:** make "has this already been decided / where was this discussed?" answerable across ~125 plans and 15 architecture docs, for both Claude Code and Codex. Start with the cheapest fix that could work, and add semantic retrieval only if measurement shows it is needed. Every step must be removable without trace.
 
@@ -139,7 +139,7 @@ Other context:
 - Back up both config files to `~/.local/share/rs-docsearch/backup/` before editing.
 **Verification:** live: `/mcp` in Claude Code shows the server as connected and the tools as listed. Codex lists the tool in a fresh session. One query returns hits in each.
 
-### I7 — Measure before adopting  ⬜ TODO  *(depends on I6)*
+### I7 — Measure before adopting  🔄 IN PROGRESS  *(run 1 done 2026-09-24 via CLI, before I6; see §6)*
 **Fix approach:**
 - The user supplies ~10 real questions from recent sessions, e.g. "what did we decide about withholding the EZZY fee on payouts?"
 - For each, record whether the correct plan/section lands in the top 3 for (a) `rg` over `.plans/` + `INDEX.md` and (b) `search_docs`.
@@ -224,6 +224,23 @@ The safe prefix is **I1**. It has no decision dependency and can start once the 
 
 | # | Question | `rg` + INDEX top-3? | `search_docs` top-3? | Miss reason |
 |---|---|---|---|---|
+| 1 | Did the vendor registration email ever get fixed? | ✖ | ✅ | rg: 'registration email' matches 12 files; the right plan says 'registering vendor receives no email' |
+| 2 | Who owns the kiosk live payment test on mobile? | ✅ | ✅ |  |
+| 3 | Did push notifications reach the backend, with a device token table? | ✅ | ✅ |  |
+| 4 | Is the vendor service worker stale cache bug fixed? | ✅ | ✅ |  |
+| 5 | Why couldn't schedules cross midnight? | ✅ | ✅ |  |
+| 6 | What did we decide about withholding tax and the Ezzy fee on payouts? | ✅ | ✅ |  |
+| 7 | Why does an offering price lose its centavos when saved? | ✖ | ✅ | rg: 'centavo|truncat' matches 45 files, mostly query-truncation plans; the right plan says 'truncated to whole pesos' |
+| 8 | Is NOTIFICATION_EMAIL_OVERRIDE_TO still on? | ✅ | ✅ |  |
+| 9 | Did we decide to switch from PayMongo to Maya? | ✅ | ✅ |  |
+| 10 | Why was the Command user admin privilege tiering plan abandoned? | ✅ | ✅ |  |
+
+**Run 1 (2026-09-24), questions from the S0 plan review.** Answer key and `rg` patterns were written before either method ran (`questions.json` in the session scratchpad; not kept). Method: `rg -c -i` over the same corpus, files ranked by matching-line count, INDEX.md included; search = installed CLI, top 15 chunks deduplicated to files. Score: an expected source in the top 3 files.
+- **Result: search 10/10, rg + INDEX 8/10. Search-only wins: 2 (Q1, Q7); rg-only wins: 0.**
+- **Go/no-go (I7 rule: search must beat rg on ≥3 of 10): NO-GO for S3 on this run.**
+- Observations: both misses were wording mismatches (the doc uses different words from the question), exactly the case search is for. On the hits, search returned fewer irrelevant files (Q6 and Q9 gave just the one right plan; rg's top 3 padded with incidental mentions). `rg` found the exact identifier (Q8) as well as search did.
+- Biases: the questions came from this session, so the answer locations were known; each `rg` pattern was a single try, where an agent would retry a failed grep (that favours search); ranking `rg` by match count is generous to `rg`.
+- Next: re-run with the user's S1 trial questions (fresh, unknown answers) before deciding S3.
 
 ## 7. Risks
 - **Stale or legacy results returned with confidence.** This is the main risk. Mitigated by I2/D1 status metadata, legacy exclusion by default, and the "open the file, check Status" rule.
