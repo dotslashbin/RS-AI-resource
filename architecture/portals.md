@@ -16,29 +16,86 @@ Allow bookers to browse vendor offerings, book a slot at a vendor of their choic
 
 ### Current Features
 
+> **Rewritten 2026-09-27** after `.plans/2026-09-18-booker-home-search-redesign.md` shipped
+> S0–S13. The portal that section describes — a Dashboard tab, a Booking tab that opened a
+> 6-step wizard, a Transactions tab, and a Leaflet map — no longer exists. What follows is the
+> portal as built.
+
 #### Booking Wizard (fully wired to Supabase + PayMongo)
-A 6-step guided flow:
+A **4-step** flow. ⚠️ It is no longer a tab, and it has no "what do you want / from whom"
+steps: the booker picks the offering **and** the vendor by navigating to a vendor's offering
+page in Explore, and the wizard opens at Schedule already knowing both (plan D1).
 
 | Step | UI | Data source |
 |------|----|------------|
-| 1 — Choose Service | Offering cards with category colour, price and duration | `offerings` table (active, deduped by **code + granularity**) |
-| 2 — Choose Vendor | Vendor list + Leaflet map (user location dot) | `vendors` table (filtered by offering code) |
-| 3 — Pick Schedule | Calendar + derived slot grid (start–end, spaces left, quantity). **Date-granular offerings get no render arm — see Known Gaps** | `schedules` ÷ the offering's duration; occupancy counted per slot |
-| 4 — Upload Documents | Per-requirement file upload with progress bar | `offering.requirements` JSONB field (fetched from DB via `offerings` table) |
-| 5 — Confirm | Summary review screen | Review only — no DB writes |
-| 6 — Payment | Booking summary + Pay button | Writes booking to `bookings` → creates PayMongo Checkout Session → redirects to PayMongo hosted payment page |
+| 1 — Schedule | Calendar + derived slot grid (start–end, spaces left, quantity). **Date-granular offerings get no render arm — see Known Gaps** | `schedules` ÷ the offering's duration; occupancy counted per slot |
+| 2 — Documents | Per-requirement file upload with progress bar | `offering.requirements` JSONB field (fetched from DB via `offerings` table) |
+| 3 — Review | Summary review screen | Review only — no DB writes |
+| 4 — Pay | Booking summary + Pay button | Writes booking to `bookings` → creates PayMongo Checkout Session → redirects to PayMongo hosted payment page |
 
-#### Dashboard
-- Booking history list (`BookingCard` components), fetched from the `bookings` table on login
-- **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`, filtered to the booker's own `booker_id`) patches the status in place when a vendor confirms/rejects/cancels, no refresh needed.
-- Click-to-open booking detail modal
-- `InProgressCard` widget: reads wizard draft from `localStorage`; shows step progress and resume button if a draft is present
-- **Offering Status** widget (`BookingStatusWidget`): up to 4 bookings in any status from `pending` to `completed` (plus `disputed`), unfinished ones first. Each row shows the offering code, vendor, status, date and a "Payment pending" note, plus the booker's acknowledgement action ("Yes, all done" / "I've returned it" / Undo) with its auto-confirm countdown, "Something's wrong" with an inline reason, and a Certificate button on completed rows (a placeholder toast). *Corrected 2026-09-21 — this line previously described a 2-column grid of completed bookings only.*
+The removed Steps 1–2 are **gone, not hidden**: their components, the vendors-by-offering
+service and the Leaflet map were deleted and `leaflet` / `react-leaflet` uninstalled
+(plan S6, S6-a). Full trace in `booking-flow.md`.
 
-#### Transactions Page
-- Wired to the booker's real bookings (`TransactionsPage`)
-- Summary cards: Total Spent, Bookings, Pending
-- Payment history list derived from the booker's bookings
+#### Home — a storefront, not a dashboard (2026-09-27)
+`components/home/HomePage/`. Home answers "what can I book?", and carries **no** dashboard
+widgets — those moved to Activity. Sections, top to bottom:
+
+- **Hero**: "What do you need today?", a search button into Explore, and a Book something CTA.
+- **In-progress strip** — the one personal thing on Home, and only while a booking is actually
+  running. Hidden otherwise.
+- **Browse by division** — all 13 divisions as tinted tiles with a coloured name band. It is the
+  section that *always* has content, which is what keeps Home from ever being a blank page.
+  Renders whatever `lib/divisions.ts` holds; nothing hardcodes 12 or 13.
+- **Available today** — the soonest remaining opening for up to 3 offerings in the booker's
+  city. ⚠️ **Capped at 12 candidate offerings** (`lib/openingsToday.ts`): a "what is open today"
+  shelf over a whole catalogue is one schedules fetch per offering, and a test fails if the cap
+  is removed. Hidden entirely when nothing is open.
+- **Book again**, then **Vendors in your city** — both hidden when empty, so a new booker sees
+  fewer shelves rather than empty boxes.
+- **Guide panel** for a booker with nothing booked yet.
+
+⚠️ **"Popular this month" is designed but NOT built.** It needs a booking count per offering,
+which RLS will not give a booker — they can only read their own rows. The `SECURITY DEFINER`
+function that would serve it (`get_popular_offerings`, read-only, counts only) is drafted in the
+plan and **waits on the user's approval** (D26-gate). The shelf is deliberately absent rather
+than faked.
+
+⚠️ **No proximity anywhere.** "Near you" means *same city string*, never a distance:
+`vendors` has no `lat`/`lng`, there is no PostGIS or `earthdistance`, and the map that people
+assume did this never did. Parked as P11 in the plan with a PSGC-centroid route recorded.
+
+#### Activity — where the dashboard went (2026-09-27)
+`components/activity/ActivityPage/`. Two segments, **Updates** and **Bookings**, and the old
+Bookings tab is the second one — which is why the tab bar still has four entries, not five.
+
+- **Stat strip**: Needs you · Upcoming · In progress · Paid this month, each banded top and
+  bottom in its status colour. Derived from the booking array already in memory — **no second
+  query**.
+- **Needs you** (acknowledge / flag), **Up next**, the **resume-draft card**, and the booking
+  list (5 rows under Updates, unlimited under Bookings), plus the booking detail modal.
+- **Live status updates** — a Realtime `postgres_changes` subscription (`bookings` `UPDATE`,
+  filtered to the booker's own `booker_id`) patches the status in place when a vendor
+  confirms/rejects/cancels, no refresh needed.
+
+These widgets were **re-homed, not rewritten**: they arrived from the old Dashboard with their
+hooks and tests unchanged.
+
+#### Explore
+`components/explore/`. Search across offerings and vendors, filtered by city and division, with
+a vendor page and an offering page. **The offering page is where a booking starts** — its Book
+button opens the wizard at Schedule (plan D1).
+
+#### Payments Page (renamed from Transactions, 2026-09-26)
+`components/payments/`. Period presets (Manila-anchored), state and vendor filters, sort, month
+groups, a receipt sheet, pagination at 10 rows, **CSV export** (RFC 4180, BOM, so Excel opens
+Philippine text correctly) and a print view.
+
+⚠️ Two rules worth knowing before reading a number on this screen:
+- **Totals describe the FILTERED set and count only money actually received.** The old
+  Transactions page summed unpaid and cancelled bookings into "Total Spent".
+- **The CSV column is `booked_on`, not a payment date.** `bookings` records *that* a booking
+  was paid, never *when* — so the export does not invent one.
 
 #### Settings Page
 - Display name, email, and phone (read-only) — name/email from the Supabase Auth session, phone from `profiles.phone` (via `useSettingsPage`)
@@ -46,10 +103,20 @@ A 6-step guided flow:
 - **Password card** (2026-08-10, `components/settings/SecurityCard/`) — change your own password; see `auth-and-roles.md` → "Changing a password while signed in"
 - Logout
 
-#### Navigation
-- Tab bar under the top bar (Dashboard, Booking, Transactions) — *corrected 2026-09-21: it is not a bottom bar*
-- Sidebar: persistent from `lg` up; below `lg` a drawer opened by the TopBar hamburger. Holds the main tabs, Settings, About & Legal and the account menu with Sign out
-- Light/dark theme toggle
+#### Navigation (rebuilt 2026-09-27)
+- Tab bar under the top bar: **Home · Explore · Activity · Payments** — *it is not a bottom bar*.
+  Booking is not a tab; a booking starts from an offering, so the wizard keeps Explore lit
+  (`TAB_FOR_PAGE` in `lib/constants.ts`).
+- **The sidebar collapses at every width**, not only on a phone: the TopBar hamburger toggles it
+  on desktop too, and the choice is remembered in `localStorage`. Below `lg` it is still a
+  drawer over a scrim. There is no icon-only rail — it is open or gone.
+- Holds the main tabs, Settings, About & Legal and the account menu with Sign out.
+- Light/dark theme toggle. ⚠️ The icon is gated on a mount flag (`hooks/useMounted.ts`);
+  `resolvedTheme` is `undefined` during SSR, so rendering it directly is a hydration mismatch.
+
+⚠️ **Routing is still a `PageId` state union in a single-page shell** (`app/page.tsx`), not
+`app/` routes. There are no shareable URLs and the browser Back button does not move between
+tabs; that was a deliberate scope limit, parked in the plan as P3.
 
 #### Legal & policy links (2026-08-19)
 Policy text is **not** in this repo — the apps link out to the canonical pages on
@@ -73,16 +140,22 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 
 | Feature | Status |
 |---------|--------|
-| Booking wizard (Steps 1–6) | ✅ Supabase-wired |
-| Booking written to DB on confirm | ✅ Supabase-wired (Step 6) |
+| Booking wizard (Steps 1–4: Schedule → Documents → Review → Pay) | ✅ Supabase-wired |
+| Booking written to DB on confirm | ✅ Supabase-wired (Step 4, Pay) |
+| Home storefront: divisions grid, Available today, Book again, vendors in your city | ✅ Supabase-wired (2026-09-27) |
+| Home "Popular this month" | ❌ Not built — blocked on the `get_popular_offerings` approval gate (D26-gate). RLS cannot give a booker a cross-booker count |
+| Activity tab (stat strip, Needs you, Up next, resume draft, booking list) | ✅ Supabase-wired (2026-09-27); the strip is derived in memory, no second query |
+| Explore: search, city + division filters, vendor page, offering page | ✅ Supabase-wired |
+| Proximity / "within N km" filtering | ❌ Not possible today — no coordinates on `vendors`, no PostGIS. City string only |
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
-| Booking history on dashboard | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
-| Offering Status widget | ✅ Live — up to 4 bookings with acknowledgement / flag actions |
+| Booking history (now on Activity) | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
+| Needs you widget (was "Offering Status") | ✅ Live — bookings with acknowledgement / flag actions |
 | Booking acknowledgement ("Yes, all done" / "I've returned it") + flag | ✅ Live (2026-08) — via the `acknowledge_booking()` and `raise_booking_dispute()` RPCs, the booker's only write paths to `bookings.status`. See `booking-flow.md` |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Installable PWA (manifest, icons, offline fallback, install banner) | ✅ Live — machine-verified (Chrome installability check, offline fallback, install-flow logic); real Android/iOS device install, and specifically the PayMongo checkout round-trip in standalone mode, still need physical-hardware verification |
 | Document uploads | ⚠️ In-memory only (no Storage/DB writes) |
-| Transactions page (Total Spent / Bookings / Pending + payment history) | ✅ Supabase-wired (derived from bookings) |
+| Payments page (period presets, filters, month groups, receipt, pagination) | ✅ Supabase-wired (derived from bookings), 2026-09-26 |
+| Payments CSV export + print view | ✅ Live — RFC 4180 with a BOM; the print view renders the whole filtered set, because the screen list is paginated |
 | User profile editing | ❌ Not implemented |
 | Booking cancellation / reschedule | ❌ Not implemented |
 
@@ -90,28 +163,58 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 
 - **A date-granular offering cannot be booked at all.** Step 3 detects the mode correctly and computes the bookable span, but `Step3Schedule.tsx` never renders it: the panel shows *"No time slots available for this date."* and `canNext` (`!!date && !!time`) can never pass, because nothing sets a time in this mode. Any offering measured in `day`/`week`/`month` is therefore a dead end for the booker, even though the database validates such bookings fine. The vendor portal can create these schedules today, so the two sides disagree. Full trace in `booking-flow.md` → "Date-granular offerings"; the existing Playwright test is green because it only asserts the absence of slots
 - **Document uploads not persisted.** Files are selected and shown in the UI but not sent to Supabase Storage or written to `booking_documents`. The booking record exists but has no attached documents.
-- **Vendor map has no vendor markers.** `vendors` table has no `lat`/`lng` columns. The map shows the user's location only.
+- ~~**Vendor map has no vendor markers.**~~ **Resolved 2026-09-22 by removal** — the map is gone
+  (plan D4, S6-a; `leaflet` and `react-leaflet` uninstalled). Directions are a Maps link and
+  location is a city filter. The underlying fact remains and now blocks something else:
+  `vendors` has no `lat`/`lng`, so no proximity feature is possible. Parked as plan P11.
 - **PWA install/payment behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors), but an actual home-screen install-and-launch on real Android/iOS hardware, and specifically **the PayMongo checkout round-trip from an installed standalone app**, still need physical-device testing before this is considered fully done.
 
-- **Found 2026-09-18/20 while planning the redesign, not yet fixed** (details and fixes in `.plans/2026-09-18-booker-home-search-redesign.md`):
-  - **Step 3's "spaces left" ignores other bookers.** `getSlotOccupancy()` reads `bookings`, but a booker can only read their own rows, so every slot looks nearly free until the insert is refused (plan F1).
-  - **The auto-confirm countdown ignores the service-date gate** — it shows a flat 3 days, while the DB never auto-confirms before the booked date (plan F2).
-  - **`/api/payment/create-session` does not check `is_paid` or status**, so two checkouts for one booking could both be paid (plan F3). Nothing in the UI retries payment today, which keeps this latent.
-  - **Transactions' "Total Spent" counts unpaid and cancelled bookings** (plan F14).
-  - **`getBookings()` is unpaged**, so a booker past 1000 bookings would get a silently short list (plan F17).
+- **Found 2026-09-18/20 while planning the redesign** (details in
+  `.plans/2026-09-18-booker-home-search-redesign.md`). ⚠️ The first four are **fixed**; the last
+  is the one still open:
+  - ~~Step 3's "spaces left" ignores other bookers~~ — **fixed**: occupancy is counted by a
+    `SECURITY DEFINER` RPC, because a booker can only read their own `bookings` rows (plan F1).
+    Still wants a staging check against real concurrent bookings.
+  - ~~The auto-confirm countdown ignores the service-date gate~~ — **fixed**: the countdown now
+    follows the DB rule, which never auto-confirms before the booked date (plan F2).
+  - ~~Transactions' "Total Spent" counts unpaid and cancelled bookings~~ — **fixed** in the
+    Payments rewrite; totals count money received, over the filtered set (plan F14).
+  - ~~`getBookings()` is unpaged~~ — **fixed**: paged via `fetchAllPages` (plan F17).
+  - ⚠️ **Still open — `/api/payment/create-session` does not check `is_paid` or status**, so two
+    checkouts for one booking could both be paid (plan F3). Nothing in the UI retries payment
+    today, which keeps it latent; "retry payment" is parked as P2 *because* of this.
+
+- **Left deliberately after the redesign** (plan I42, I43, and the S7 measurement):
+  - **Touch targets below 44px** across the shell — the hero search button is 288×25, the
+    "Open Explore" link 98×20, the TopBar icon buttons 34×34, the filter chips ~32 tall.
+    Measured, not estimated (`booker/visual-tests/a11y-audit.mjs` re-runs it). Raising them
+    changes the pinned design's metrics, so it needs a decision rather than a tweak.
+  - **`BookAgainCard` does not render through `HomeSection`**, so that one shelf has different
+    chrome from its four neighbours.
 
 ### In flight
-`.plans/2026-09-18-booker-home-search-redesign.md` — approved 2026-09-21, not yet executed. Replaces the dashboard with a widget Home, adds Explore/search and a vendor-specific Offering page (booking starts there, at the Schedule step), renames Transactions to **Payments** with filters/CSV/paging, and removes the map. Update this section as its stages ship (its S8).
+`.plans/2026-09-18-booker-home-search-redesign.md` — **S0–S13 shipped**; this section was
+rewritten from the built code on 2026-09-27 (its S8). Two things remain in that plan: the
+Popular shelf, which waits on the **D26-gate** approval, and the deferred polish items above.
+
+`.plans/2026-09-25-booker-mobile-redesign.md` (DRAFT) carries the same design to
+`ezzy-booker-mobile`. It depends on this work for the division colours and the resized assets,
+and its Popular shelf waits on the same gate.
 
 ### Roadmap (Approximate Priority)
 
-1. ~~Add lat/lng to `vendors` table; show vendor markers on Step 2 map~~ **Superseded 2026-09-21** by the redesign plan's D4: the map is removed; directions become a Maps link and location a city filter. "Near me" is parked there (P1)
-2. Implement real document uploads (Supabase Storage + `booking_documents`)
-3. Add booking cancellation flow (booker sets status to `cancelled` while still `pending`)
-4. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
-5. Display contact info (from `schedules.contact_name`) on booking confirmation and detail screens
-6. ~~Push/in-app notifications when booking status changes~~ **Done** — full notifications system live
-7. Real-device PWA verification — Android/iOS install-and-launch, and specifically the PayMongo checkout round-trip from an installed standalone app
+1. ~~Add lat/lng to `vendors` table; show vendor markers on Step 2 map~~ **Superseded 2026-09-21** by the redesign plan's D4: the map is removed; directions become a Maps link and location a city filter. Proximity is parked there (P11, which supersedes P1)
+2. **Approve `get_popular_offerings`** (plan D26-gate) — one read-only `SECURITY DEFINER`
+   function; it is the only thing between the designed "Popular this month" shelf and a shipped
+   one, on web **and** on mobile
+3. Implement real document uploads (Supabase Storage + `booking_documents`)
+4. Add booking cancellation flow (booker sets status to `cancelled` while still `pending`)
+5. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
+6. Display contact info (from `schedules.contact_name`) on booking confirmation and detail screens
+7. ~~Push/in-app notifications when booking status changes~~ **Done** — full notifications system live
+8. Real-device PWA verification — Android/iOS install-and-launch, and specifically the PayMongo checkout round-trip from an installed standalone app
+9. **Divisions need a Command-managed icon** — see `schema.md` → "Division icons"; today the
+   13 marks are files in `booker/public/division-icons/`, which no admin can change
 
 ---
 
@@ -877,6 +980,13 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 
 A mock-data prototype is in progress (`.plans/2026-09-21-booker-mobile-app.md`): no auth or real Supabase calls yet. Styling follows `ezzy-vendor-mobile` (`StyleSheet` + `Name.styles.ts`); look and behaviour follow the web booker redesign. Session storage (AsyncStorage vs SecureStore with vendor's chunking adapter) is still open for the real-data plan. The earlier buildout plan was deleted 2026-09-21.
 
+⚠️ **The web redesign has moved ahead of it** (2026-09-27). The phone app's copy of the new Home
+and Activity is `.plans/2026-09-25-booker-mobile-redesign.md` (DRAFT), and
+`.plans/2026-09-22-booker-mobile-real-data.md` now names screens that redesign moves — read the
+ordering warning at the top of it before starting either. Two divergences are recorded rather
+than accidental: the web display typeface is **not** used on mobile, and React Native has no CSS
+modules, so the Expo apps keep the render/hook split but override the `.module.css` rule.
+
 ---
 
 ## Cross-Portal Feature Parity Notes
@@ -888,12 +998,12 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Booking creation | ✅ Done | — | — |
 | Booking status update | ✅ Acknowledge + flag (via RPC) | ✅ Approve/reject + full fulfilment + flag | ✅ Resolve flags, release payouts, reasoned override |
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
-| Transactions / payouts | ✅ Live — booker's own spend, from bookings (⚠️ total overstated, see booker Known Gaps; becomes **Payments** in the redesign plan) | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
+| Transactions / payouts | ✅ Live as **Payments** (renamed 2026-09-26) — booker's own spend, from bookings; filters, CSV, print, pagination. The overstated total is **fixed**: totals count money received over the filtered set | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
 | Platform fee configuration | — | Read-only (shown per transaction) | ✅ Live — sets the global rate |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
-| Map / coordinates | ⚠️ Placeholder | — | — |
+| Map / coordinates | ❌ Removed 2026-09-22 (Leaflet uninstalled). No `lat`/`lng` on `vendors`, so no proximity anywhere — city string only | — | — |
 | Installable PWA | ✅ Live (real-device verification pending, incl. PayMongo round-trip) | ✅ Live (real-device verification pending) | ✅ Live since 2026-08-18 (real-device install pending) |
-| Native mobile client | ❌ Scaffold only (`ezzy-booker-mobile`) | ✅ Ph0–Ph6 live on Android (`ezzy-vendor-mobile`) | — Not planned (desktop admin tool) |
+| Native mobile client | ⚠️ Mock-data prototype (`ezzy-booker-mobile`); the redesign's phone half is a separate DRAFT plan | ✅ Ph0–Ph6 live on Android (`ezzy-vendor-mobile`) | — Not planned (desktop admin tool) |
 
 **The mobile client is not a fourth column of this table.** It targets a subset of the vendor portal's jobs on purpose, so a ❌ against it usually means "deliberately out of scope", not "still to build".
 

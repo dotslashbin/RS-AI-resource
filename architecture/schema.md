@@ -315,6 +315,39 @@ Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyF
 
 **Delete semantics:** `vendors.division_id` is `ON DELETE RESTRICT` — a division referenced by any vendor cannot be hard-deleted; Command's UI only ever offers disable (`is_active = false`), never delete, for exactly this reason.
 
+#### Division icons — the named prerequisite of the Command icon feature (recorded 2026-09-27)
+
+⚠️ **There is no icon column on this table, and no Storage bucket for one.** The booker portal
+now shows all 13 divisions as icon tiles on its Home screen, and every mark it draws is a
+**file in the repo**: `booker/public/division-icons/<slug>.png`, resolved by
+`booker/lib/divisionIcon.ts`. An admin cannot change any of them; a deploy is the only way.
+
+This is written down because the redesign plan
+(`.plans/2026-09-18-booker-home-search-redesign.md`, F27) was asked to "account for a future
+Command feature that lets an admin set a division's icon", and the honest answer was that the
+data layer for it does not exist. The booker side was built so that adding it is a small
+change and not a rewrite:
+
+- `divisionIcon(slug, name, iconPath)` already takes an **`iconPath` first**, falls back to the
+  bundled file, then to a monogram. Nothing passes `iconPath` today — it is the seam.
+- `ezzy-ride` has no bundled logo at all and renders the monogram "ER" in production right now,
+  so the fallback path is on a shipping screen rather than untested.
+- The tile's colours come from `data-division` and the `--div-*` tokens in CSS, never from
+  TypeScript, so a swapped image does not need a code change to stay on-brand.
+
+**What a future feature would need**, none of which exists yet: a nullable `icon_path text`
+column on this table; a Storage bucket to hold the uploads; an upload + validation surface in
+Command; and a read path that feeds `iconPath` through from the `divisions` row. All four are an
+approval gate — **do not add them inside a booker task**.
+
+⚠️ **Public or private is an open question, not a detail.** Every surface that draws a division
+mark today is behind auth (booker's Home), which `vendor-kyc`'s private + signed-URL model
+would serve. But signed URLs expire, and these are brand assets on a grid of 13 — a public-read
+bucket is the obvious fit *if* nothing ever needs them pre-auth. Decide it against the surfaces
+that exist at the time rather than assuming; the vendor registration deep link
+(`/?division=<slug>`) is pre-auth and shows a division **name** only, so it does not settle the
+question today.
+
 ---
 
 ### `vendor_members`
@@ -1383,7 +1416,11 @@ blank vendor-user columns, because closure deletes its memberships.
 |--------|--------|--------|-----------------|--------|
 | `vendor-kyc` | No (private) | 10 MB; `image/jpeg`, `image/png`, `application/pdf` | `{vendor_id}/{uuid}-{filename}` | `storage.objects` RLS keyed on `(storage.foldername(name))[1]::uuid` = vendor id: vendor admins read own + write while `rejected`; Command admins read all. Viewed via time-limited signed URLs only |
 
-> Booking-document uploads (`booking_documents`) are **not** yet wired to Storage — still in-memory in the booker UI (see `portals.md`). `vendor-kyc` is the first live bucket. **`db reset` never deletes Storage blobs** — use `backbone/scripts/wipe-kyc-storage.mjs` to reclaim space (see `vendor-kyc.md`).
+> Booking-document uploads (`booking_documents`) are **not** yet wired to Storage — still in-memory in the booker UI (see `portals.md`). `vendor-kyc` is the first live bucket.
+>
+> ⚠️ **There is no bucket for division icons either**, and the booker's Home screen draws 13 of
+> them. They are repo files under `booker/public/division-icons/`. See `divisions` → "Division
+> icons" above before planning the Command feature that would change that. **`db reset` never deletes Storage blobs** — use `backbone/scripts/wipe-kyc-storage.mjs` to reclaim space (see `vendor-kyc.md`).
 
 ---
 

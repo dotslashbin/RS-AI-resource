@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. Remaining: I37 (Popular, after D26-gate) and S8 (docs), plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). Remaining: I37 (Popular, after D26-gate) and the deferred I42–I45, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -684,6 +684,56 @@ styling change; it belongs to the mobile plan if it is wanted.
 Suite 71/71 after re-recording `home-light` and `home-dark` (the only two that moved, twice over
 — which is also the proof that F51's shared colour map changed no other consumer); `tsc` clean,
 146/146 unit tests, lint at 19.
+
+### F52 — two components this plan built are orphaned (found 2026-09-27, S8)
+
+Writing the docs meant listing what is on each screen, which is how these surfaced: nothing
+imports them.
+
+- `components/home/DivisionShortcuts/` — built in S10, then S12's `HomePage` rendered its own
+  division grid instead of consuming it.
+- `components/home/OpenSlotsCard/` — same stage, same fate.
+
+Both were added by **this plan's own commit** (`69c76f8`), so this is not inherited dead code:
+S10 built two components on spec and S11/S12 then took a different route without removing them.
+⚠️ They still carry weight — they compile, they are linted, and the next person reading
+`components/home/` reasonably assumes the Home screen uses them.
+
+**Not deleted here.** S8 is a docs stage, and deleting components does not belong in a
+docs-only diff. → **I44**.
+
+### F53 — the resume-draft card still advertises six wizard steps (found 2026-09-27, S8)
+
+`components/activity/InProgressCard/InProgressCard.tsx` renders `PROG_STEPS` from
+`lib/constants.ts` — the **old six** — and prints `Step {step} of {PROG_STEPS.length}` with
+`PROG_STEPS[activeIndex].label`. The wizard has been four steps since S6
+(`WIZARD_STEPS = ["Schedule","Documents","Review","Pay"]`), and the draft's `step` is a
+1-based index into *that*.
+
+⚠️ So a booker who saves a draft on the Documents step is told **"Step 2 of 6 — Pick a Vendor"**,
+naming a step that no longer exists, and the progress dots draw six nodes for a four-step flow.
+This is user-visible and wrong, not cosmetic drift.
+
+`PROG_STEPS` has exactly two consumers left: this card and the `/ui-gallery` fixture. The fix is
+to point both at `WIZARD_STEPS` and delete `PROG_STEPS`, which is small — but it changes a
+rendered component and would move a baseline, so it does not belong in a docs stage either.
+→ **I45**.
+
+### F54 — a second dead permission in the security headers (found 2026-09-27, S8)
+
+Alongside F44's `TILE_HOST`, `booker/next.config.ts:153` still sends
+`geolocation=(self)` in `Permissions-Policy`, and the comment above it still cites
+`hooks/useGeolocation.ts:15` — a file deleted with the map in S6. Nothing in booker asks for
+location any more.
+
+⚠️ Same shape as F44 and worth stating as one rule: **removing a feature does not remove the
+permission it needed.** Two security headers were widened for the map and stayed widened after
+it was deleted, and neither leaves any trace at runtime — a permission granted to nobody is
+invisible until someone audits the header.
+
+Not changed here: both are security-related, so they are an approval gate. Folded into **S7-b**
+alongside F44 so they are decided together.
+⬜ TODO — with the user.
 
 ---
 
@@ -1574,6 +1624,31 @@ grant execute on function public.get_popular_offerings(date, int) to authenticat
   cannot pick it up** (D29's narrowing, trap ac).
 - The four counts come from the booking array and `lib/payments.ts`'s `paidTotal` — **no new query** (I31).
 
+#### I44: Delete the two orphaned Home components  ⬜ TODO
+<!-- F52. Trivial, but it is a code change and S8 was docs-only. -->
+- **Files:** `components/home/DivisionShortcuts/` and `components/home/OpenSlotsCard/` (each a
+  `.tsx` + hook + `.module.css`). Nothing imports either — verified by grep across `app/` and
+  `components/`.
+- **Fix:** delete both directories. ⚠️ Check `/ui-gallery` first — a pane that renders one would
+  fail to compile, and its baseline would need removing with it.
+- **Why it matters beyond tidiness:** they were added by this plan (`69c76f8`), so leaving them
+  implies the Home screen uses them.
+
+#### I45: The resume-draft card names six wizard steps  ⬜ TODO
+<!-- F53. User-visible, not cosmetic. -->
+- **File:** `components/activity/InProgressCard/InProgressCard.tsx:42, 63` — renders
+  `PROG_STEPS` (six) and prints `Step N of 6` with a label from the same array, while the draft's
+  `step` indexes the **four**-entry `WIZARD_STEPS`.
+- **Symptom:** a draft saved on Documents reads **"Step 2 of 6 — Pick a Vendor"**, a step that no
+  longer exists; the progress dots draw six nodes for a four-step flow.
+- **Fix:** point this card and the `/ui-gallery` `bookingstepper` pane at `WIZARD_STEPS`
+  (exported from `useBookingWizard.ts`) and delete `PROG_STEPS` from `lib/constants.ts` — those
+  two are its only consumers. ⚠️ `WIZARD_STEPS` holds short labels only (`"Schedule"`), while
+  `PROG_STEPS` carried `label` **and** `short`; this card uses both, so one of them needs a
+  long-form label, which is a small copy decision rather than a pure refactor.
+- **Verification:** re-record the `inprogress` and `bookingstepper` baselines; assert
+  `PROG_STEPS` is gone by grep.
+
 #### I43: Touch targets below 44px across the shell  ⬜ TODO
 <!-- Found in S7 by measurement, deliberately NOT fixed there: see "Why not now". -->
 Measured, not eyeballed: every visible interactive box on ten panes at 360 / 390 / 1280 in both
@@ -1629,7 +1704,7 @@ absorb silently at the end of a stage.
 - **Why not now:** it is a visual inconsistency, not a defect, and it moves markup S11 verified.
   Doing it here would mean re-recording the Home baselines a second time in the same stage.
 
-#### I36: Docs for the redesign  ⬜ TODO
+#### I36: Docs for the redesign  ✅ DONE (2026-09-27)
 - `architecture/portals.md`: booker's nav becomes Home · Explore · Activity · Payments; the Home feature list is replaced; Activity is added.
 - `architecture/schema.md`: record F27 — `divisions` has no icon column and there is no icon bucket — as the named prerequisite of the Command icon feature, so the next plan does not rediscover it.
 - Folds into S8 rather than being its own stage.
@@ -1737,7 +1812,8 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
   - ✅ Confirming visual re-run after F48/F50: **71/71, exit 0, zero hydration errors**, no baseline re-record needed.
   - ⬜ What a machine cannot do: judging whether the 62 changed captures LOOK right → S7-a, yours.
   - Regenerate the Playwright baselines (`visual-tests/pilot.spec.ts-snapshots`, which are committed) and review the diffs, not just accept them → S7-a.
-- **S8: Docs** — last stage.
+- **S8: Docs** ✅ DONE 2026-09-27 — last stage. Written from the built code, with every claim
+  grepped before it was stated; that is how F52–F54 turned up.
   - `architecture/portals.md`: booker features, Live-vs-Mock, Known Gaps, Roadmap (D4 supersedes #1), nav.
   - `architecture/booking-flow.md`: the new entry path and removal of Steps 1–2.
   - `architecture/schema.md`: only if I14 lands.
@@ -1811,9 +1887,11 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S14 | **D22-b: division tile rebuilt as one banded card** — tint across the tile, name in a `-deep` band, `DivisionIcon` `plain` variant, shared `data-division` colour map (F51) | Me | ✅ DONE 2026-09-27 | Matched against your reference at 1280 light/dark and 390. Suite moved only `home-light`/`home-dark`, both re-recorded → 71/71; `tsc`, 146/146, lint 19 |
 | [x] | S7-d | Measured accessibility pass: every interactive box at 360/390/1280 in both themes, plus accessible names | Me | ✅ DONE 2026-09-27 | Ran against your :3000 dev server since Playwright could not start its own (S7-c). Found **F49** (two unnamed controls — fixed, zero pixel change) and **I43** (the sub-44px inventory — deferred, it is a design change) |
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look. 62 changed + 12 new + 8 removed |
-| [ ] | S7-b | **Approval gate:** drop the dead `TILE_HOST` from `img-src` in `next.config.ts` | You | ⬜ TODO | F44. The Leaflet basemap host is still allowed in a security header and nothing requests it since S6. A CSP change is security-related, so it is not done unilaterally |
+| [ ] | S7-b | **Approval gate:** two dead permissions in `next.config.ts` — the `TILE_HOST` in `img-src`, and `geolocation=(self)` in `Permissions-Policy` | You | ⬜ TODO | F44 + F54. Both were for the deleted map; nothing requests either since S6, and the `geolocation` comment still cites `hooks/useGeolocation.ts`, which no longer exists. Security-header changes, so not done unilaterally |
 | [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
-| [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships. Pre-work done 2026-09-21: see Docs-0 |
+| [x] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema F27 | Me | ✅ DONE 2026-09-27 | Six files rewritten from the **built code**, not the plan: `portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`. Every claim grepped. Found **F52**, **F53**, **F54** |
+| [ ] | I44 | Delete the two orphaned Home components (F52) | Me | ⬜ TODO | `DivisionShortcuts/`, `OpenSlotsCard/` — built by this plan in S10, superseded by S12, never removed |
+| [ ] | I45 | Resume-draft card says "Step 2 of 6 — Pick a Vendor" (F53) | Me | ⬜ TODO | User-visible. `InProgressCard` still renders the six-step `PROG_STEPS` against a four-step wizard |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
 | [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |
 | [ ] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ⬜ TODO | F24 is folded into that single migration |

@@ -1,25 +1,36 @@
 # Booking Flow
 
-The booking wizard is the core user-facing feature of the Ezzy (booker) portal. It is a 6-step guided flow that takes a booker from choosing a service through payment to a confirmed booking in Supabase.
+The booking wizard is the core user-facing feature of the Ezzy (booker) portal. It is a **4-step**
+guided flow that takes a booker from a chosen offering through payment to a confirmed booking in
+Supabase.
 
----
+> ⚠️ **Changed 2026-09-22** (`.plans/2026-09-18-booker-home-search-redesign.md`, D1/D4, S6).
+> It used to be six steps, starting with "which service?" and "from whom?". Those two are
+> **deleted** — not hidden behind a flag, not skipped. The booker answers both by *navigating*:
+> Explore → a vendor → one of that vendor's offerings → **Book**, and the wizard opens at
+> Schedule already holding the offering and the vendor. The Leaflet map went with them, and
+> `leaflet` / `react-leaflet` were uninstalled (S6-a).
+>
+> Step numbers below are the **current** ones. Older migrations, component names and plan notes
+> still say "Step 3" for Schedule and "Step 6" for Payment, and the component files are still
+> named `Step3Schedule`, `Step4Documents`, `Step6Confirm` — renaming them was judged more
+> churn than the confusion is worth. `WIZARD_STEPS` in `useBookingWizard.ts` is the one place
+> the real count lives.
 
 ## Flow Overview
 
 ```
-Step 1: Choose Offering
-    ↓ sets offering (DbOffering)
-Step 2: Choose Vendor
-    ↓ sets vendor (BookerVendor), branch (address string)
-Step 3: Pick Schedule
+Entry: Explore → Vendor page → Offering page → "Book"
+    ↓ carries offering (DbOffering) AND vendor (BookerVendor) into the wizard
+Step 1: Schedule            (component: Step3Schedule)
     ↓ sets date (YYYY-MM-DD), time (HH:MM), selectedSchedule (BookerSchedule)
-Step 4: Upload Documents
+Step 2: Documents           (component: Step4Documents)
     ↓ sets uploads (Record<id, {name, size}>)
-Step 5: Confirm & Book
+Step 3: Review              (component: Step6Confirm)
     ↓ review screen — no DB writes yet
-Step 6: Payment
+Step 4: Pay                 (component: StepPayment)
     ↓ writes booking to Supabase → creates PayMongo Checkout Session → redirects to PayMongo
-    ↓ on return: /?payment=success → toast + dashboard; /?payment=cancel → toast (booking stays pending)
+    ↓ on return: /?payment=success → toast + Activity; /?payment=cancel → toast (booking stays pending)
 ```
 
 ---
@@ -33,59 +44,56 @@ All wizard state lives in `useBookingWizard.ts` (a custom hook in `./booker/comp
 | Field | Type | Set at |
 |-------|------|--------|
 | `step` | `number` | Navigation buttons |
-| `offering` | `DbOffering \| null` | Step 1 selection |
-| `vendor` | `BookerVendor \| null` | Step 2 selection |
-| `branch` | `string \| null` | Step 2 (set to `vendor.address`) |
+| `offering` | `DbOffering \| null` | **Passed in on open** (was Step 1) |
+| `vendor` | `BookerVendor \| null` | **Passed in on open** (was Step 2) |
+| `branch` | `string \| null` | Set from `vendor.address` on open |
 | `date` | `string` | Step 3 calendar pick (format: `YYYY-MM-DD`) |
-| `time` | `string` | Step 3 time slot pick (format: `HH:MM`) |
+| `time` | `string` | Schedule step time-slot pick (format: `HH:MM`) |
 | `selectedSchedule` | `BookerSchedule \| null` | Resolved when time is picked |
-| `uploads` | `Record<string, UploadEntry>` | Step 4 file picks |
-| `offerings` | `DbOffering[]` | Fetched on mount |
-| `vendors` | `BookerVendor[]` | Fetched when `offering` changes |
+| `uploads` | `Record<string, UploadEntry>` | Documents step file picks |
+| ~~`offerings`~~ | — | **Gone** — the offering arrives from the offering page |
+| ~~`vendors`~~ | — | **Gone** — the vendor arrives with it; `getVendorsForOffering()` was deleted |
 | `schedules` | `BookerSchedule[]` | Fetched when `vendor` + `offering` change |
 
 **Why `selectedSchedule` is separate from `time`:** `time` is a display/filter string. `selectedSchedule` holds the actual `BookerSchedule` record including its UUID — needed to write `schedule_id` to the `bookings` table. It is resolved by `resolveScheduleForTime(schedules, date, time)` when the booker picks a time slot.
 
 ---
 
-## Step 1 — Choose Offering
+## Steps 1–2 (Choose Offering, Choose Vendor) — REMOVED 2026-09-22
 
-**Component:** `Step1Offering/Step1Offering.tsx`  
-**Service:** `services/offerings.service.ts` → `getActiveOfferings()`
+Both steps, their components, the vendors-by-offering service and the Leaflet map were deleted
+(plan D1/D4, S6). Nothing replaced them inside the wizard; the booker reaches the same state by
+navigating, and the wizard is handed `offering` and `vendor` on open.
 
-Fetches all `is_active = true` offerings from Supabase, reading the free-text `category` column. Deduplicated by `code` client-side — if multiple vendors offer the same code, Step 1 shows it once with the lowest available price shown as "from ₱X".
+What the deletion took with it, so nobody hunts for it:
 
-**Deduplication:** `dedupeByCode()` in the hook returns both the deduplicated list and a `multiPriceCodes: Set<string>` — codes where more than one price exists. `Step1Offering` uses this set to decide whether to prefix the price with "from".
+| Gone | Where its job went |
+|---|---|
+| `Step1Offering/`, its `dedupeByCode()` and the "from ₱X" multi-price prefix | Explore's search and offering cards |
+| `Step2Vendor/` and `services/vendors.service.ts` → `getVendorsForOffering()` | Explore's vendor list and the vendor page |
+| The Leaflet map and the browser-geolocation dot | Nothing. Directions are a Maps link; location is a **city filter** |
+| `leaflet`, `react-leaflet` | Uninstalled |
 
-**Category styling:** `category` is vendor-defined free text. The UI applies a small fixed colour map for a few known values with a neutral fallback for anything custom — there is no fixed category set.
+⚠️ **The RLS dependency did not go away.** `20260515000001_booker_vendor_read_policy.sql` grants
+active bookers read access to active vendors; Explore returns zero rows without it, exactly as
+Step 2 did.
 
-**`canNext`:** `!!offering`
-
----
-
-## Step 2 — Choose Vendor
-
-**Component:** `Step2Vendor/Step2Vendor.tsx`  
-**Service:** `services/vendors.service.ts` → `getVendorsForOffering(offeringCode)`
-
-Fetches vendors that have an active offering matching the selected `code`. Uses a PostgREST `!inner` join through the `offerings` table to filter, then deduplicates by vendor `id` and filters to only `status = 'active'` vendors. Each result is a `BookerVendor` (id, name, address, branch, phone).
-
-**Map:** A Leaflet tile map is shown as a location placeholder. It displays the user's geolocation dot if the browser grants location permission. The map does not show vendor markers — vendor coordinates (`lat`, `lng`) do not yet exist in the DB schema. This is deferred.
-
-**RLS dependency:** A migration (`20260515000001_booker_vendor_read_policy.sql`) grants active bookers read access to active vendors. Without this, the query returns zero rows.
-
-**Selecting a vendor** sets both `vendor` (the full `BookerVendor` object) and `branch` (set to `vendor.address` as a display string). This also triggers the schedules fetch.
-
-**`canNext`:** `!!vendor && !!branch`
-
-**Future:** Once `lat`/`lng` columns are added to `vendors`, vendor markers can be placed on the map and used for proximity sorting.
+⚠️ **"Once `lat`/`lng` exist we can sort by proximity" is still true and still unbuilt**, and the
+map's removal did not change it — the map never sorted by distance either. Parked as P11 in the
+redesign plan, with the PSGC-centroid route recorded there.
 
 ---
 
-## Step 3 — Pick Schedule
+## Step 3 — Pick Schedule  *(now wizard step 1; file name unchanged)*
 
 **Component:** `Step3Schedule/Step3Schedule.tsx`  
-**Service:** `services/schedules.service.ts` → `getSchedulesForVendor(vendorId, offeringCode)`
+**Service:** `services/schedules.service.ts` → **`getSchedulesForOffering(vendorId, offeringId)`**.
+
+⚠️ **Renamed and re-keyed 2026-09-22.** It was `getSchedulesForVendor(vendorId, offeringCode)`,
+matching on the free-text `code`. The wizard now arrives from one vendor's *specific* offering,
+so it matches on that offering's **id** — a vendor with two offerings sharing a code no longer
+gets both schedule sets merged. Home's "Available today" shelf calls the same function with
+`getSlotsForDate`; see `portals.md` → Home, and note the 12-offering cap.
 
 Fetches all active schedules for the selected vendor that belong to an offering with the matching code. Returns `BookerSchedule[]` with: `id`, `startDate`, `endDate`, `startTime` and `windowMinutes` (**nullable** — NULL for date-granular offerings), `daysOfWeek` (DB encoding: 0=Mon..6=Sun), `recurrence`, `capacityPerSlot`, and `durationMinutes`/`durationUnit` **per schedule** (see I10 under Step 3).
 
@@ -180,7 +188,7 @@ would offer a span that is refused at the final step.
 lands every slot reads as available: the DB refuses an overbooking regardless, whereas
 greying out a free slot on a slow network would block a legitimate booking.
 
-**Duration is read per schedule, not from the Step 1 card.** `getSchedulesForVendor()`
+**Duration is read per schedule, not from the offering card.** `getSchedulesForOffering()`
 selects `duration_minutes`/`duration_unit` through the `!inner` join it already had. Two
 vendors can share an offering code with *different* durations, and the deduped card
 keeps only the cheapest — deriving the grid from it would draw boundaries the trigger
@@ -231,7 +239,7 @@ mode cannot be completed.
 
 ---
 
-## Step 4 — Upload Documents
+## Step 4 — Upload Documents  *(now wizard step 2; file name unchanged)*
 
 **Component:** `Step4Documents/Step4Documents.tsx`
 
@@ -251,7 +259,7 @@ Files are stored in React state as `{ name: string, size: number }` — no actua
 
 ---
 
-## Step 5 — Confirm & Book
+## Step 5 — Confirm & Book  *(now wizard step 3, "Review"; component `Step6Confirm`)*
 
 **Component:** `Step6Confirm/Step6Confirm.tsx` (file name retained from original 6-step design)
 
@@ -261,7 +269,7 @@ Shows a summary of all selections: service name, vendor, branch/address, date an
 
 ---
 
-## Step 6 — Payment
+## Step 6 — Payment  *(now wizard step 4, "Pay"; component `StepPayment`)*
 
 **Component:** `StepPayment/StepPayment.tsx` (props: `{offering, vendor, date, time}`)
 
@@ -302,13 +310,13 @@ The hook's `confirmBooking` is `async`. It:
 
 ### Payment return
 
-PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&booking_id=xxx`. `useAppShell` reads these params on mount (after auth) and clears the URL with `history.replaceState`. On `success`, it **verifies the `booking_id` belongs to the current user** (RLS-scoped select) before showing the success toast — a spoofed/foreign id stays silent. The bookings list is reloaded from DB so the new booking appears on the dashboard.
+PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&booking_id=xxx`. `useAppShell` reads these params on mount (after auth) and clears the URL with `history.replaceState`. On `success`, it **verifies the `booking_id` belongs to the current user** (RLS-scoped select) before showing the success toast — a spoofed/foreign id stays silent. The bookings list is reloaded from DB so the new booking appears on **Activity** (the dashboard was replaced 2026-09-27).
 
 Cancelled bookings remain in the DB as `status = "pending"` with no `payment_reference`.
 
 ### Live status updates after booking (2026-07)
 
-Once a booking exists, its status keeps updating on the booker's dashboard **without a refresh** — a Realtime `postgres_changes` subscription on `bookings` (`event: "UPDATE"`, `filter: booker_id=eq.<uid>`) patches the status in place whenever the vendor confirms/rejects/cancels it. The payload carries only the flat `bookings` columns (no joins), so the handler patches the mutable `status` field onto the row already in state rather than re-mapping a full `Booking`; if the row isn't in local state (e.g. booked on another device after login) it falls back to a full `getBookings()` refetch. This shares the same realtime channel as in-app notifications (`useAppShell.ts`). The equivalent exists on the vendor side for incoming bookings + status/payment changes.
+Once a booking exists, its status keeps updating on the booker's **Activity** tab **without a refresh** — a Realtime `postgres_changes` subscription on `bookings` (`event: "UPDATE"`, `filter: booker_id=eq.<uid>`) patches the status in place whenever the vendor confirms/rejects/cancels it. The payload carries only the flat `bookings` columns (no joins), so the handler patches the mutable `status` field onto the row already in state rather than re-mapping a full `Booking`; if the row isn't in local state (e.g. booked on another device after login) it falls back to a full `getBookings()` refetch. This shares the same realtime channel as in-app notifications (`useAppShell.ts`). The equivalent exists on the vendor side for incoming bookings + status/payment changes.
 
 ### Webhook
 
@@ -462,13 +470,13 @@ payment options barely change.
 Mount
   └─ getActiveOfferings() → offerings[]
 
-Step 1: offering selected
-  └─ getVendorsForOffering(offering.code) → vendors[]
+Entry: an offering page in Explore
+  └─ offering + vendor are already known; the wizard opens at Schedule
 
-Step 2: vendor selected
-  └─ getSchedulesForVendor(vendor.id, offering.code) → schedules[]
+Schedule step: opened
+  └─ getSchedulesForOffering(vendor.id, offering.id) → schedules[]
 
-Step 3: date selected
+Schedule step: date selected
   └─ getAvailableDaysInMonth(schedules, year, month) → Set<number>
      date picked → getSlotsForDate(schedules, date) → SlotOption[]  (window ÷ duration)
                  → getSlotOccupancy(scheduleIds, date) → spaces left per slot
@@ -501,8 +509,8 @@ Webhook (async, authoritative):
 | Service | Function | Returns |
 |---------|----------|---------|
 | `offerings.service.ts` | `getActiveOfferings()` | `DbOffering[]` |
-| `vendors.service.ts` | `getVendorsForOffering(code)` | `BookerVendor[]` |
-| `schedules.service.ts` | `getSchedulesForVendor(vendorId, code)` | `BookerSchedule[]` |
+| ~~`vendors.service.ts`~~ | ~~`getVendorsForOffering(code)`~~ | **Deleted 2026-09-22** with Step 2 |
+| `schedules.service.ts` | `getSchedulesForOffering(vendorId, offeringId)` | `BookerSchedule[]` — was `getSchedulesForVendor(vendorId, code)` |
 | `schedules.service.ts` | `getAvailableDaysInMonth(schedules, year, month)` | `Set<number>` |
 | `schedules.service.ts` | `getSlotsForDate(schedules, dateStr)` | `SlotOption[]` — derived units, not one per schedule |
 | `schedules.service.ts` | `getSlotOccupancy(scheduleIds, dateStr)` | `Map<string, number>` — overlap-keyed |
@@ -618,10 +626,10 @@ It builds booker's own payment redirect; vendor's kiosk uses vendor's value for 
 | Vendor map | Tile + user dot only | Add `lat`/`lng` to `vendors`; show vendor markers |
 | `confirmBooking` result handling | Only `id` used; `"already_booked"` / `"full"` show success screen | Check `result` in wizard and display appropriate error toast |
 | Wallet / payment | Static info text | Wallet accounts table, deduction on confirm |
-| Cancellation / reschedule | Dashboard "Reschedule" button is placeholder | Write cancellation flow, status updates |
+| Cancellation / reschedule | The "Reschedule" button (now on Activity) is a placeholder | Write cancellation flow, status updates |
 | Contact info on confirmation | Not shown | Could surface from `schedules.contact_name` on the confirmation screen |
 | ~~Duplicate booking check~~ | ~~None~~ | **Done** — DB `UNIQUE (booker_id, schedule_id, booked_date)` + service maps `23505` to `"already_booked"` |
-| ~~Booking history from DB~~ | ~~Dashboard shows seed data~~ | **Done** — `getBookings()` fetches real rows; loaded on login |
+| ~~Booking history from DB~~ | ~~Dashboard shows seed data~~ | **Done** — `getBookings()` fetches real rows (paged since 2026-09); loaded on login, shown on Activity |
 | ~~Capacity overbooking~~ | ~~No DB enforcement~~ | **Done** — `check_booking_capacity()` BEFORE INSERT trigger, row-locked via `FOR UPDATE` on the schedule as of 2026-07-24 (closes a prior TOCTOU race under concurrent bookings for the last slot) |
 
 ---
@@ -672,7 +680,7 @@ A ₱0 kiosk offering has nothing to pay, so it cannot follow the payment path a
 - **The kiosk booking route creates it settled.** It reads the offering's list price
   server-side and INSERTs with `is_paid = true` when that price is 0. An INSERT does not fire
   `create_booking_transaction()` (AFTER **UPDATE** of `is_paid`), so a free booking writes **no
-  ₱0 ledger row** — nothing in Transactions, nothing in Command's payout buckets.
+  ₱0 ledger row** — nothing in the booker's Payments page, nothing in Command's payout buckets.
 - **The derived `price_paid` stays the authority.** If the vendor edits the price during the
   request, the inserted row and the list price disagree: a settled row with a price is set back
   to unpaid (true → false fires nothing) and continues to payment; an unpaid row at ₱0 is left
@@ -865,7 +873,7 @@ editing an offering mid-flight would strand every in-progress booking.
 | `disputed` | "On hold" | "On hold — Ezzy is reviewing" |
 
 Labels come from `bookingActionCopy.ts` in each app — one table feeding the
-button, its "i" popover, and the dashboard guide, so the wording that tells
+button, its "i" popover, and the Home guide panel, so the wording that tells
 someone *when money moves* cannot drift between the three.
 
 ### The money

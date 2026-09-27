@@ -488,17 +488,31 @@ arm of `B7` in `.plans/2026-08-02-web-apps-production-launch-readiness.md`.
 Two of booker's directives differ from `vendor`/`command`, and **both were wrong in an
 earlier version of this note**. Recorded precisely, because each was a silent breakage:
 
-- **The map tile host is CARTO, not OpenStreetMap.**
-  `https://*.basemaps.cartocdn.com`, read from
-  `components/booking/MapWidget/useMapWidget.ts:25-26` (`{s}` expands to a/b/c/d). It
-  belongs in **`img-src`**, not `connect-src` — Leaflet fetches tiles as `<img>`. The
-  guessed `tile.openstreetmap.org` blocks every tile and leaves a blank grey square with
-  no error naming the map; `booker/visual-tests/csp.spec.ts` exists to catch exactly that
-  and was verified to fail against the wrong host.
-- **`geolocation=(self)`, NOT `geolocation=()`.** `booker/hooks/useGeolocation.ts:15`
-  calls `navigator.geolocation.getCurrentPosition` from booking step 2. Copying vendor's
-  `geolocation=()` leaves the map rendering while the "You are here" marker never
-  appears — no console error worth the name.
+- ~~**The map tile host is CARTO, not OpenStreetMap.**~~ **Obsolete 2026-09-22** — the map
+  and `MapWidget/` were deleted and Leaflet uninstalled (booker redesign D4/S6-a). The
+  original note read: the host was `https://*.basemaps.cartocdn.com` (`{s}` expands to
+  a/b/c/d), and it belonged in **`img-src`**, not `connect-src`, because Leaflet fetches
+  tiles as `<img>`; the guessed `tile.openstreetmap.org` blocked every tile and left a blank
+  grey square with no error naming the map.
+  ⚠️ **`booker/next.config.ts` still allows that host in `img-src`** as of 2026-09-27 —
+  nothing requests it any more, so it is a dead allowance in a security header. Removing it
+  is an approval gate; tracked as S7-b in the redesign plan.
+  `booker/visual-tests/csp.spec.ts` was **repointed**, not deleted: it now asserts the
+  division PNGs and the self-hosted font actually load. ⚠️ Its trap is worth keeping in
+  mind — `next/image` rewrites `/division-icons/x.png` to
+  `/_next/image?url=%2Fdivision-icons%2Fx.png`, so the test decodes each URL before
+  matching; matching the raw URL finds nothing and the test goes green having checked
+  nothing.
+- ~~**`geolocation=(self)`, NOT `geolocation=()`.**~~ **Obsolete 2026-09-22.** The original
+  reason: `booker/hooks/useGeolocation.ts:15` called `navigator.geolocation.getCurrentPosition`
+  from booking step 2 to place the "You are here" marker, and copying vendor's
+  `geolocation=()` disabled it silently, with no console error worth the name.
+  ⚠️ **That hook, that step and that marker are all deleted, but the grant is still live:**
+  `booker/next.config.ts:153` still sends `geolocation=(self)`, and the comment above it still
+  cites the deleted file. Nothing in booker asks for location any more, so this is a permission
+  granted to no one — the same shape as the dead `img-src` tile host two bullets up. Both are
+  **security-header changes and therefore approval gates**; tracked together as S7-b in
+  `.plans/2026-09-18-booker-home-search-redesign.md`.
 
 ⚠️ **booker does NOT need `api.paymongo.com`, and an earlier version of this note wrongly
 said it did**, calling booker "the only app with … a browser-side payment provider". It
@@ -559,8 +573,15 @@ Measured across `booker` on 2026-08-10, `TopBar` and `Step2Vendor` also read
 `resolvedTheme` but produced no warning; they were deliberately left alone rather than
 "fixed" speculatively. Measure before changing one.
 
-If a third consumer ever needs the guard, promote it into `booker/hooks/useTheme.ts`
-(currently a one-line stub) rather than repeating it a third time.
+⚠️ **Both halves of that paragraph have since changed** (2026-09-27). `Step2Vendor` no longer
+exists. And `TopBar` **did** warn — its theme icon was a real hydration mismatch that had been
+live for weeks; it was found only when the app was first opened in a browser during the
+redesign's polish stage, because the fixture it would have shown up in was itself full of
+hydration noise. "No warning observed" was a statement about where anyone had looked.
+
+The guard is now a shared hook — **`booker/hooks/useMounted.ts`** — used by `TopBar` and by
+the `/ui-gallery` fixture. Prefer it over a third hand-rolled copy; it also carries the single
+`react-hooks/set-state-in-effect` disable, which the pattern cannot avoid.
 
 ### Display order is never database data
 
