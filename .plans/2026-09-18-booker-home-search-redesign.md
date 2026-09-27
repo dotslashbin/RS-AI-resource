@@ -2,9 +2,11 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. Remaining: S9b (receipt/CSV/print), S7 (polish + visual baselines), S8 (docs), and the user-owned checks S3b-5, S6-b, S7-a, S9c. No open decisions.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** Remaining: I37 (Popular, after D26-gate), then S7 (polish + regenerate every visual baseline) and S8 (docs), plus the user-owned checks S3b-5, S6-b, S7-a, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
+>
+> **Amended 2026-09-25:** Home stops being a dashboard. It becomes a shopping-first discovery screen led by the division icons, and every widget it gives up moves to a new **Activity** tab (D21). The widgets themselves are not rewritten — they are re-homed.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
 > **Numbering legend:** F# = finding, D# = decision, I# = implementation item, S# = execution stage. Numbers are plan-local. Qualify cross-plan refs, e.g. "booker-mobile-prototype D5".
@@ -12,6 +14,12 @@
 **Prototype (mock data, reference only):** https://claude.ai/artifact/DZyasjx3GN8d6EQeAsw9Aj
 - Home (desktop light, phone dark), Explore, the Offering page, and **Payments (desktop light + phone dark)** — the Payments screens were approved 2026-09-20.
 - Per D3, **only the division colours carry over** from the prototype's look. Booker keeps its current `--db-*` surfaces, type and primary blue.
+- ⚠️ **Its Home board is superseded by the 2026-09-25 redesign (D21).** Explore, Offering and Payments still stand.
+
+**Home/Activity redesign (2026-09-25) — the chosen direction:**
+- 📌 **PINNED 2026-09-25 — this is the design being built:** https://claude.ai/artifact/TZ2nDFNudFffaDDrRXCvP9 — *"Booker Home & Activity — chosen design"* (drawn as "Direction A: Aisle", then merged). Desktop Home, mobile Home, desktop + mobile Activity, the division-icon system, and the loading/empty/failed board. **Updated 2026-09-25** to carry B's banded tiles, its display typeface and its all-divisions mobile grid, so the canvas shows what D21–D24 actually describe. Iterated five times on 2026-09-25 (section chrome → D27, colour per booking → D28, the Activity stat strip → D29, the collapsing sidebar → D30) and then **pinned**. Later changes are amendments to D21–D30, not new directions. D25 and D26 are drawn on it as intent, marked with orange notes.
+- **Not chosen:** https://claude.ai/artifact/U8moEwCed6Sd2EAD64sUjG — "Direction B: Storefront" (3 tabs, Payments folded into Activity, desktop sidebar replaced by a top bar). Kept for the record; its navigation was rejected, **its tile and type treatment was adopted** (D22).
+- The chosen build is **A's navigation and layout with B's division tiles, display typeface and all-divisions-visible mobile grid** (resolved 2026-09-25).
 
 ---
 
@@ -105,6 +113,7 @@ Three more mobile gaps sit outside this plan: uploads with somewhere to store th
 - Division colours in light and dark.
 - A dark-mode pass on every touched surface.
 - **The Payments page** (today's Transactions): honest totals, period control, filters, month grouping, receipt, CSV export, 10-per-page (D13–D16).
+- **Added 2026-09-25 (D21–D24):** the storefront Home, the Activity tab that receives every widget Home gives up, the data-driven division icon system with its fallback, and the five missing division colour pairs.
 - Docs.
 
 **Out:**
@@ -112,14 +121,24 @@ Three more mobile gaps sit outside this plan: uploads with somewhere to store th
 - Persisting document uploads (existing known gap).
 - Cancellation or reschedule.
 - Reviews and ratings (no `reviews` table).
-- Vendor lat/lng and "near me".
+- Vendor lat/lng and "near me". **The redesign says "Vendors in <city>", never a distance** — there are no coordinates (P1).
+- **The Command feature that edits a division's icon** (F27). This plan only makes the booker side read an icon it does not hardcode, so that feature becomes a column and a bucket later, not a rewrite.
+- Ratings, promotions, vouchers, favourites or "trending" on the new Home — none of them exist in the schema, and the redesign brief forbids implying features the product lacks.
 - A spending widget.
 - Drag-to-arrange widgets.
 - Changes to `vendor` or `command`.
 
 **Why Payments lives in this plan, not its own:** it shares the `getBookings()` shape change (I5), the division colours (I3), the `PageId` union and the tab bar (I16). A separate plan would duplicate every coupling and split one big table in two.
 
-**Cross-app flag:** only D9-A touches another folder, `backbone/`. It is an approval gate (schema + multi-app), and per standing practice the user applies migrations.
+**Cross-app flag — what this plan writes outside `booker/`, and nothing else:**
+- `backbone/supabase/migrations/` — **twice**: D9-A's `get_slot_occupancy` (✅ written and applied 2026-09-22) and **D26-gate**'s
+  `get_popular_offerings` (drafted, not written). Both are approval gates, and per standing practice **you** apply migrations.
+- `architecture/*.md` in the root repo — S8 docs only (I36).
+- **Nothing in `ezzy-booker-mobile/`, `vendor/` or `command/`.** Where an item has a phone-app counterpart (I34's typeface, I35's
+  resized assets, the whole redesign), this plan states the hand-off and stops; the work itself belongs to
+  **`.plans/2026-09-25-booker-mobile-redesign.md`** (DRAFT, created 2026-09-25) and runs in its own session. That plan
+  depends on this one: its R2 waits on **S10** for the colours and the resized assets, and its Popular shelf waits on
+  **D26-gate**.
 
 ---
 
@@ -171,6 +190,20 @@ The two clients must end up with the same look and the same feature set, differi
 **Both clients are equally missing** — parked, not divergences: payment retry (P2 / mobile G1), honest slot counts until I14 lands (mobile G2), upload persistence (F4 / mobile G3), delete account (D18-N4 / mobile G4), agreement recording (P9 / mobile G6), receipt numbers (P7), payment method (P8), "near me" (P1), date-granular booking (P5).
 
 **Keeping it true:** every stage of this plan ends by checking its screens against mobile's matching P# section. A new difference is either added to mobile's §4 table with a reason, or fixed. Mobile's sync protocol does the same in reverse.
+
+**Amendment 2026-09-25 — the Home/Activity redesign (D21–D24).** This is the largest parity change since the contract was written, and it lands on screens the phone app has **already built** (its P2 Home, P3 Bookings).
+
+| What | Web | Mobile | Same or different |
+|---|---|---|---|
+| Tabs | Home · Explore · **Activity** · Payments | the same four, same order | **Same.** Mobile's `app/(tabs)/bookings.tsx` becomes `activity.tsx`; its P3 list becomes the Bookings segment |
+| Home content | hero + search, all divisions, Book again, vendors in your city, one in-progress strip | the same sections, same order | **Same** |
+| Division grid | auto-fill grid, tile = tint + white-on-deep name band | 4 across, wrapping, same tile | **Same tile, different column count** — a phone fits four. Add to mobile §4 |
+| Icon source | `divisionIcon()` → bundled `/division-icons/<slug>.png` → monogram | the same function, Expo asset paths | **Same logic, different asset resolution.** Mobile cannot use `/public`; `require()`d assets are the native equivalent. Add to mobile §4 |
+| Activity | segmented Updates \| Bookings, right rail on desktop | the same segments, **no rail** — the rail's cards stack under Updates | **Different by screen size**, already covered by §4's one-column rule |
+| Display typeface | `next/font`, headings only | an Expo font asset gated on `useFonts` | **Same family.** ⚠️ This **reverses mobile's D9**, which uninstalled `@expo-google-fonts/inter` deliberately — mobile must record the re-add rather than have it appear |
+| "Available today" | per **D25**, still open | whatever D25 decides | **Must not diverge.** Mobile waits for D25 too |
+
+Mobile's plan gets the same amendment in its §4b. Nothing above may be implemented on one client only.
 
 
 ---
@@ -242,11 +275,185 @@ The two clients must end up with the same look and the same feature set, differi
   - Canvas Pets division pair `#b45309` on `#fdf0dc`: 4.47:1. The other seven pairs pass.
   - These are pre-existing for the badges and muted text; only the division pair is new work. → D17, and the S7 contrast pass.
 
+### Findings from the Home/Activity redesign (F25–F29, verified 2026-09-25 by reading `division_logos/`, the DB and `globals.css`)
+
+- **F25: The logo folder is one short.** `division_logos/` at the repo root holds **12 PNGs for the 13 seeded divisions** — `ezzy-ride` has no logo. A fallback is not a defensive nicety, it is needed on the first render. The folder is in no app; the assets have never been copied into `booker/public/` or the Expo app. → I29, D23.
+- **F26: The logos are not a normalised set.** All 12 are RGBA with transparent corners, but: sizes run **256×256 → 2000×2000** and **27 KB → 1.4 MB** (`ezzy_drive` 1.4 MB, `ezzy_learn` and `ezzy_stay` ~800 KB each, `ezzy_work` 821 KB); `ezzy_drive.png` **stores dark RGB underneath fully-transparent pixels** — ⚠️ see the correction below; and the art styles do not match (flat navy `care`/`court`, pure-black line art `food`/`learn`/`home`, neon `drive`, pastel `pets`/`park`, tan `law`). Shipping them as-is puts ~4 MB of images on Home. → I35.
+  - ⚠️ **CORRECTION (2026-09-26, S10).** This finding originally said `ezzy_drive.png` had "a dark glow baked in" that would
+    "read as a grey smudge on a light chip". **Measured per-pixel, that is wrong.** The file is 87% fully transparent, and 99%
+    of those transparent pixels carry dark RGB stored *under* the zero alpha; only 5.6% of pixels have partial alpha, and that
+    is the mark's own soft edge. **Any correct compositor — a browser, React Native — ignores RGB at alpha 0 entirely, so it
+    renders clean.** The grey square I saw was an image *viewer* dropping the alpha channel, not the asset. The original claim
+    came from looking at a rendering instead of measuring the bytes.
+    - **Therefore S10-b is moot** and is closed: there is no glow to remove or accept. The re-encode in I35 also zeroed those
+      transparent pixels as a side effect, so the shipped file no longer carries them at all.
+  - Consequence for the design, not just the pipeline: **the tile tint must stay light in dark mode.** Three of the twelve are near-black line art and would disappear on a dark card, and recolouring a vendor-facing logo is not this plan's call. → D22.
+- **F27: There is nowhere to store an admin-set icon.** `divisions` has exactly `id, name, slug, sort_order, is_active, created_at, updated_at` — **no icon column** — and `storage.buckets` holds only `vendor-kyc`, `offering-attachments`, `offering-photos`, `booking-signatures` — **no icon bucket**. The future Command feature therefore needs a column plus a public bucket, which is a schema gate and out of scope here. What is in scope is that booker must resolve icons through one function, so that feature is a source swap. → D23, I29.
+- **F28: Five divisions share one grey.** `booker/app/globals.css` gives `law`, `park`, `learn`, `work` and `stay` the neutral pair (`#f1f5f9` / `#475569` light) rather than their own. Today that is eight coloured chips among thirteen; in a thirteen-tile grid it is five identical tiles, which defeats the icon grid. → D24, I33.
+- **F29: "Available today" on Home hits the same wall as parked P10.** The existing `OpenSlotsCard` (I12) is affordable only because it is bounded to **the booker's own past `(vendor_id, offering_id)` pairs, capped at 4**. A Home shelf of "slots open today" across the whole catalogue is one `getSchedulesForOffering` per offering — exactly the cost that parked P10 (Explore's "When" filter). A new booker has no past pairs at all, so the bounded version renders nothing on the screen that is supposed to sell the product. → **OPEN decision D25.**
+- **F30: nothing in this system can say what is popular** (verified 2026-09-25). There is no `reviews`, `ratings`, `featured` or ranking column anywhere in `public` — the only near-match is `vendors.operating_hours`, which matched the grep on "…ope**rat**ing…" and is not a rating. Booking counts exist, but **RLS shows a booker only their own bookings**, so a client-side count of "how often was this booked" is structurally impossible, not merely unwritten. → **OPEN decision D26.**
+
+### Code assessment for the pinned design (F31–F36, read 2026-09-25 in `booker/`)
+
+Baseline measured the same day: **114/114 `npm test` pass, `npx tsc --noEmit` clean.**
+
+- **F31: the collapsing sidebar is three small edits, and one of them is a trap.** The hamburger already exists and is
+  **already visible at every width** — `components/layout/TopBar/TopBar.tsx:54-59` has no `lg:hidden`. What stops it working on
+  desktop is `components/layout/Sidebar/Sidebar.tsx:34`, where **both** branches of `open` end in `lg:sticky lg:translate-x-0`,
+  so at `lg` the sidebar is pinned open whatever the state says. Three changes: that line honours `open` at `lg`;
+  `AppShell.tsx:272` changes `onMenuOpen={() => setSideOpen(true)}` to a **toggle**; the scrim at `AppShell.tsx:257` keeps its
+  `lg:hidden` (a desktop collapse needs no scrim).
+  - ⚠️ **The trap:** `useAppShell.ts:25` defaults `sideOpen` to **`false`**. That is harmless today because `lg` ignores it —
+    but the moment `lg` honours it, **every desktop session starts with the sidebar collapsed**. The default must flip to
+    `true`, or become width-aware. Changing only the CSS is a silently wrong implementation that still satisfies "make the
+    sidebar hide-able". → I38.
+- **F32: renaming the `PageId`s is not a safe find-and-replace.** `lib/types.ts:12` has `"dashboard" | "explore" | "bookings" |
+  "payments" | …`, but the string `"bookings"` **also names the Supabase table** — `services/bookings.service.ts:27,149,169` and
+  `app/api/payment/webhook/route.ts:101,143,179` all call `.from("bookings")`. 16 occurrences of `"bookings"` and 9 of
+  `"dashboard"` exist across `lib/`, `components/`, `app/` and `services/`. A blanket rename breaks data access in a payment
+  webhook. → I32 renames **through the union and its call sites only**, never by global replace.
+- **F33: the widgets to re-home already exist and must not be rewritten.** `components/dashboard/` holds twelve folders
+  (`NeedsYouCard`, `UpNextCard`, `BookingList`, `BookingProgress`, `BookingDetailModal`, `InProgressCard`, `BookAgainCard`,
+  `OpenSlotsCard`, `DivisionShortcuts`, `DivisionBadge`, `GuidePanel`, `DashboardPage`) and `components/bookings/BookingsPage`
+  is the unlimited list. Re-homing is a **folder move plus import changes**; every hook and test travels unchanged (D21).
+- **F34: nothing of the new structure exists yet.** No `components/home/`, no `components/activity/`, no
+  `components/ui/DivisionIcon/`, no `public/division-icons/`. All four are new (I29, I30, I31).
+- **F35: the shell is a lazy-import switch, so a new page is two edits.** `app/page.tsx:5-12` lazy-loads each page component and
+  `AppShell.tsx:184-190` switches on `page === …`. Adding Activity and renaming Home touches both, and `app/ui-gallery/page.tsx`
+  (the visual-test fixture) references the page ids too.
+- **F36: every committed visual baseline will change.** `visual-tests/` holds committed PNGs and the suite already fails from
+  S6's removed panes. Home, Activity, the shell chrome and the division tiles all change, so **S7 regenerates the whole set** —
+  that is expected, not a regression, and it is why S7 runs after S12.
+
+### F37 — proximity filtering is not available, and the map never did it (verified 2026-09-25)
+
+Asked during the D25 answer: *can we filter offerings by proximity, say a 2 km radius — we use the map to find offerings,
+don't we?* Checked rather than recalled. **No on both counts, and four separate things are missing:**
+
+1. **There are no coordinates.** `vendors` has `address`, `address_line1`, `barangay`, `city`, `province`, `zip_code` and their
+   PSGC codes — and **no latitude or longitude**. A `information_schema.columns` sweep for `lat|lng|long|geo|coord|point|geom`
+   across the whole `public` schema returns nothing (the three hits are `platform_fee_percent`, `platform_fee_amount` and
+   `device_push_tokens.platform` — the substring "lat" inside "platform").
+2. **There is no geo engine.** Installed extensions are `pg_cron, pg_net, pg_stat_statements, pgcrypto, plpgsql,
+   supabase_vault, uuid-ossp`. **No PostGIS, no `earthdistance`, no `cube`** — so there is nothing to compute a radius with
+   even if coordinates existed.
+3. **The map is gone, and it never found offerings.** Leaflet was uninstalled in **S6-a on 2026-09-22 on your own go-ahead**;
+   `grep leaflet package.json` now returns 0 and `components/booking/MapWidget/` no longer exists. What it did before removal
+   was show **the booker's own location** on wizard Step 2 — it never searched, filtered or ranked anything by distance (X4).
+4. **The booker's own position is no longer collected.** `grep -rn "geolocation"` across `components/`, `lib/`, `services/` and
+   `app/` returns **0 hits** — the geolocation call went with the map in S6.
+
+**What location filtering actually exists:** city, via `lib/search.ts`'s `cityOptions` and the `city` filter in
+`useExplorePage.ts:39,56`. City is the finest granularity this system has.
+
+**Can coordinates be derived from the addresses already on file? Yes — checked 2026-09-25, and this is the cheap part.**
+Every vendor row carries **PSGC codes down to barangay**, not just free text: all 3 vendors have `address_line1`, `barangay`,
+`barangay_code`, `city_code`, `province_code` and `zip_code` populated (e.g. `043422005` = Bulilan Sur (Pob.), Pila, Laguna),
+sourced from `vendor/components/address/AddressFields` via `vendor/services/profile.service.ts`. So three options exist, in
+increasing cost:
+1. **PSGC barangay centroid — no third party at all.** One static `psgc_centroids(code, lat, lng)` table loaded once from a
+   published PSA/OSM dataset, joined on `barangay_code`. Free, offline, no address ever leaves the system, no licensing terms,
+   and it covers **100% of vendors today** because the code is already there. ⚠️ Accuracy is a barangay centroid: fine for
+   "which part of the city", and **every vendor in one barangay sits at the same point**, so it cannot rank two shops on the
+   same street. A 2 km radius is credible in an urban barangay and misleading in a large rural one.
+2. **One-off forward geocoding** of `address_line1 + barangay + city + province + zip` → street-level where the line is
+   specific. ⚠️ Two non-technical costs: it **sends vendor business addresses to a third party**, and the providers differ on
+   whether you may *store* the result (Google's terms restrict retention; Mapbox/HERE permit it on paid tiers; OSM/Nominatim's
+   public endpoint forbids bulk use — self-host or pay). Philippine street matching is uneven: "Km 2 National Highway, Apokon"
+   will resolve to a road, not a door.
+3. **A pin the vendor drags** in the Vendor portal, stored as `geocode_precision = 'pinned'`. The only route to real accuracy,
+   and a small addition to a form that already has an address picker.
+**Recommended shape if this is ever picked up:** seed from (1), refine selectively with (2), let (3) override — with a
+`geocode_precision` column so the app knows how much to trust a distance before printing one.
+⚠️ **Do not depend on the device's location at registration** — vendors register away from the shop, which is exactly why a
+draggable pin beats "use my current location".
+⚠️ **Data-quality note for any code join:** `province_code` is not uniformly numeric — the Quezon City row stores `NCR` where
+the others store 9-digit codes. `barangay_code` is consistent, so join on that, not on province.
+Note the radius query itself does **not** need PostGIS at this size: haversine in SQL over a few thousand vendors is enough.
+
+**What a radius filter would take** — a phase, not a flag: a lat/lng pair on `vendors` (schema gate); a geocoding pass to
+populate it for existing vendors, plus a way for new vendors to set it in the Vendor portal (**a second app**); the booker's
+position, which means re-adding a geolocation permission prompt that S6 deliberately removed; and a distance query — PostGIS,
+or `cube`+`earthdistance`, or a bounding box plus haversine in SQL. → **P11**, and it supersedes the older P1.
+
+### F38 — there is no "paid on" date, so the CSV does not claim one (found 2026-09-26 during S9b)
+
+I18 specified a `paid_date` column. **`bookings` has no such field**: a column sweep returns `price_paid`, `is_paid` and
+`payment_reference` and nothing else payment-related. `created_at` is when the booking was **made**, not when money arrived.
+
+Printing `created_at` under a `paid_date` header would be a false statement about money — the same class of error as X10's
+permanent "Method: —" and X12's overstated "Total Spent". **The column is therefore named `booked_on`**, and the export carries
+`booked_on, service_date, …` instead of `paid_date, service_date, …`. Everything else in I18 is as specified.
+
+Unblocked by: storing a paid-at timestamp (schema gate). Related to P7 (no real receipt number) and P8 (no payment method) —
+all three are the same gap, which is that this system records *that* a booking was paid and not *when* or *how*.
+
+### F39 — two colour collisions caught by measuring, not by eye (found 2026-09-27 during S10)
+
+Choosing I33's five pairs surfaced two problems that only a computed check finds:
+
+1. **My first `work` value was the same colour as `pets`.** `#9a3412` sits **15 units** from
+   `pets` `#92400e` in RGB — indistinguishable side by side, which is the exact failure D24
+   set out to fix. Shipped value is `#c2410c` on a lighter `#fff1e3` tint: 4.67:1, and 48
+   units from pets.
+2. **My first `learn` value was the same green as `court`**, and in dark mode my first `park`
+   was **10 units** from `food`. Learn shipped as forest `#14532d` (vs court's emerald), park
+   dark as pink `#f9a8d4` (vs food's red `#fca5a5`, now 47 apart).
+
+Both are now guarded: `palette.test.ts` asserts **no two division foregrounds are within 20
+RGB units**. The threshold is deliberately low — with 13 divisions several hues sit close by
+necessity, and the tile also carries the logo and the name, so colour is a support cue rather
+than the identifier. The test catches an accidental duplicate, not a tight palette.
+
+⚠️ **Pre-existing, not changed:** `court` `#047857` and `care` `#0f766e` are 25.6 apart — also
+close. They were approved under D17 and are live, so changing them is a decision, not a fix.
+Flagged here; the new guard's threshold of 20 lets them pass deliberately.
+
+### F40 — the wizard draft had to move to the shell (found 2026-09-27 during S11)
+
+The resume-draft card moved from Home to Activity (D21), but the draft itself was read and
+cleared inside `useDashboardPage` — the hook of the page it was leaving. Two pages reading
+`WIZARD_DRAFT_KEY` would have been two sources of truth for one draft, and the second one to
+mount would win.
+
+**Fixed by moving ownership up:** `useAppShell` now holds `draft` / `discardDraft`, reads the
+key in an effect (never in a `useState` initialiser — this shell is server-rendered first,
+the hazard `useDashboardPage` already documented), and hands both to Activity.
+`useDashboardPage` is reduced to one decision, `showGuide`, until S12 deletes it.
+
+Not anticipated by I31, which said only "moves, does not rewrite" — true of the components,
+but the state they depended on lived somewhere that was being dismantled.
+
+### F41 — the city lived in Explore, but D25 needs it on Home too (found 2026-09-27, S12)
+
+D25 says "Available today" is narrowed to **the booker's selected city**. That value was
+`useState` inside `useExplorePage.ts:39` — private to Explore. Home had no way to read it,
+and a second copy would have let the two screens disagree about where the booker is looking.
+
+**Lifted to `useAppShell`**, which now owns `city` and passes it to both: Explore keeps the
+picker and reports changes up; Home reads the same value. Touches `useExplorePage`,
+`ExplorePage` and `AppShell`, none of which I30 anticipated.
+
+Without this, Home's shelf would have been "the first 12 offerings in catalogue order" —
+still capped, still cheap, but not the thing D25 describes.
+
+### F42 — I wrote a cascading render; the lint rule caught it (2026-09-27, S12)
+
+The first `useHomePage` cleared its results with a synchronous `setState` inside the effect
+whenever the city changed, and used a ref to discard slow responses. Lint flagged the first
+(`Calling setState synchronously within an effect`), and the ref was a symptom of the same
+shape.
+
+**Rewritten to keyed state**: results are stored with the candidate key they belong to, and
+both the list and the loading flag are **derived** from whether that key is current. No
+setState in the effect, no ref, and a stale response is ignored by construction rather than
+by a counter. Lint returned to its 19-problem baseline.
+
 ---
 
 ## DECISIONS
 
-<!-- No stage may execute while any OPEN: line below remains. None remain as of 2026-09-18. -->
+<!-- No stage may execute while any OPEN: line below remains. **D1–D30 all resolved as of 2026-09-25.** No OPEN decision remains. The one thing still gated is D26-gate, an approval on a drafted read-only migration, and it blocks the Popular shelf alone. -->
 
 - **D1: Search → vendor-specific Offering page → wizard at Schedule → A** (resolved 2026-09-18). Matches booker-mobile-prototype D5-A.
 - **D2: Keep "Open this weekend" → yes** (resolved 2026-09-18). Its counts depend on D9.
@@ -322,6 +529,109 @@ The two clients must end up with the same look and the same feature set, differi
   - **N8a Price unit → always name the block** ("₱ 1,200 / 60 min"), both clients (I24).
   - **N8b Division-name search → keep** (resolved 2026-09-22 on the approved board's own behaviour: "court" returning an EzzyCourt vendor's paddle rental is a feature). Say the word to narrow it to names and categories only.
   - **N10 Overnight slot sort → fix in S1** (I23). A real bug, independent of this redesign.
+
+### Home/Activity redesign (D21–D25, design review 2026-09-25)
+
+Two directions were drawn as full canvases (links in the header) and compared. The
+navigation of **A** was chosen with the tiles and type of **B**.
+
+- **D21: Home becomes discovery; a new Activity tab takes the dashboard** (resolved 2026-09-25).
+  - **Tabs stay four:** Home · Explore · **Activity** · Payments. The **Bookings tab folds into Activity** as a segment, so nothing grows to five and the 360px overflow risk (G4) does not return.
+  - **The sidebar and the hamburger drawer are untouched** — G1 stays closed, and X5 stays aborted.
+  - **Payments keeps its own tab.** Direction B folded it into Activity; that was rejected, because the S9 page is built and a receipt would have gone from two taps to three.
+  - Home keeps **one** piece of personal state: a slim strip for a booking that is today or in progress. Everything else — Needs you, Up next, the draft card, the booking list, the month summary — moves to Activity **unchanged in behaviour**. This is a re-home, not a rewrite: `NeedsYouCard`, `UpNextCard`, `InProgressCard`, `BookingList` and `BookingDetailModal` keep their hooks and their tests.
+- **D22: Tiles and type → adopt Direction B's treatment** (resolved 2026-09-25).
+  - **Tile:** a light division tint holding the art, with the division name on a **deep shade of the same hue in white** beneath it. The tint stays light in both themes (F26).
+  - **Mobile shows every division in a grid**, not a horizontally scrolling rail — 4 across, wrapping, so the count can change without a layout change.
+  - **A display typeface for headings.** ⚠️ This **supersedes D3's "keep the current font" and N3's "use the system font"**, and it reverses the phone app's **D9** (which uninstalled `@expo-google-fonts/inter` on purpose).
+    - **Scope it to headings only:** one display family for `h1`/`h2`/prices; body, labels and controls stay on the system font. One font file, not two.
+    - **Cost, stated rather than discovered later:** a webfont on web (`next/font` to avoid a layout shift) and a font asset plus `useFonts` gating in Expo, which is exactly the load the phone app removed. If that cost is not wanted, say so and the tiles ship without the typeface — the tiles carry most of the effect.
+- **D23: Division icons resolve through one function, keyed on slug** (resolved 2026-09-25).
+  - Order: **`divisions.icon_path` (future, Command-set) → bundled asset `/division-icons/<slug>.png` → monogram on the tint.** Only the middle one exists today.
+  - **Keyed on `divisions.slug`, never `name`** — a Command admin can rename a division, and `lib/divisions.ts` already warns about exactly this.
+  - The monogram branch is live from day one because of F25 (`ezzy-ride`), which also makes it the tested path for any division Command adds later.
+- **D24: Give the five grey divisions their own colours** (resolved 2026-09-25). Sampled from each logo, dark-on-light for the label and white-on-deep for the tile band, both checked at 4.5:1 and guarded by the existing palette test (I22). Values in I33.
+- **D25: "Available today" → offerings with an opening left today, top 3** (resolved 2026-09-25).
+  - The shelf shows **up to three offerings that still have an opening later today**, ordered by the soonest opening. It reuses
+    `getSchedulesForOffering` + `getSlotsForDate` + the `get_slot_occupancy` RPC that S3b already shipped, so the counts are the
+    honest ones (F1).
+  - **Bounded, per F29:** the query runs over a **capped candidate set** — the offerings in the booker's selected city, newest
+    first, hard-capped — never the whole catalogue. The cap is the thing that keeps this off P10's cost curve, so it is stated
+    in the item and asserted in a test, not left to judgement. → I41.
+  - ⚠️ **"based on proximity" cannot ship, and not for want of effort — see F37.** The ordering is **soonest opening**, and the
+    candidate set is filtered by **city**, which is the finest location this system stores. Proximity is its own project (P11).
+  - A new booker sees this shelf — it does not depend on their history, which is what B was rejected for.
+
+- **D26: "Popular this month" → the most-booked offerings, from a counts-only function** (resolved 2026-09-25, option A).
+  - Popularity is **booking count over a window**, nothing cleverer. No weighting, no recency curve, no editorial flag — the
+    label says "most booked" and the number next to it is that count (I37).
+  - Needs the counts-only `SECURITY DEFINER` function in D26-gate below. **Approval gate — the migration is drafted, not written.**
+  - ⚠️ Stated so a later reader does not mistake it for a strategy: this is an **interim definition** chosen because no ranking
+    strategy exists yet. When one does, it replaces the function's body, not the UI.
+
+- **D27: section chrome** (resolved 2026-09-25, amended twice the same day).
+  - **Keep:** the 4px straight marker ("pipe") left of every section title, in that section's own colour. It is what makes the
+    groups scannable.
+  - **Drop the shadows.** Five shadowed slabs down one page was too much of one gesture. Sections separate with a hairline
+    under the header and a recessed body instead.
+  - **Radius is a hierarchy, not a constant** (amended 2026-09-25 after the second look): section surfaces **10px**, the search
+    hero **18px with its shadow, untouched**. The hero has to stay visibly the odd one out — it is the thing above the shelves,
+    not another shelf. If a future surface needs a radius, it picks one of these two, and does not invent a third.
+  - On phones the sections stay **inset 16px** with a full border: a radius needs an edge to sit on, so edge-to-edge and
+    rounded corners are mutually exclusive. (Edge-to-edge was tried on 2026-09-25 and reverted.)
+  - **Sidebar motif** (revised 2026-09-25): the three stepped bars stay; the panel below them now carries the **same arcs +
+    strokes composition as a section header**, anchored to the **bottom-left** instead of the bottom-right, so the page reads as
+    one motif seen from two corners rather than a stamp repeated. On all four web boards, Home and Activity.
+  - Implementation note for I30/I31: this is `.module.css` work, not inline style. One shared `.section` / `.sectionHead` /
+    `.sectionBody` rule set, used by every shelf, so "squared" is one edit and not five.
+  - **Section header** (added 2026-09-25, revised twice the same day): a **flat wash of the section's own colour** — 6% on
+    light, 10% on dark, the same value as the pipe beside the title — plus **straight lines and gentle curves together**,
+    confined to the last 200px of the header (110px on phone): three concentric **arcs** sweeping out of the bottom-right
+    corner (20% / 26%), crossed by four sparse 2px **diagonal strokes** (11% / 14%).
+    - **Curves are allowed here, and only here plus the sidebar** (decided 2026-09-25, reversing the earlier
+      "straight lines only"). Tiles, cards, chips and the tile bands stay geometric.
+    - Two treatments were tried and rejected first: a dense full-width 1px hatch (too many lines), then strokes alone (flat).
+    - **One colour per section, four alphas:** pipe 100%, wash 6/10%, arcs 20/26%, strokes 11/14%. A section never introduces a
+      second hue, and every value is derived from the pipe colour rather than typed separately.
+    - **Header only, never behind the body**, so no text or card sits on a pattern.
+    - In CSS this is `background-color` + one `background-image` with `background-size` / `-position` / `-repeat` on
+      `.sectionHead`, parameterised by the section's colour — not five hand-written rules.
+- **D30: the sidebar collapses on desktop too** (resolved 2026-09-25).
+  - The hamburger in the top bar **toggles** the sidebar at every width. Collapsed, the sidebar is not rendered and the content
+    takes the full width — **no icon-only rail**, which would be a third navigation state to design, test and keep in sync for
+    no stated need.
+  - **Below `lg` nothing changes**: the same button opens the drawer over the page with its scrim, and that drawer stays the
+    only route to Settings, About & Legal and Sign out on a phone (G1, X5).
+  - ⚠️ **This is a smaller change than it looks, and it has one trap** — see F31.
+
+- **D29: the Activity stat strip is banded top and bottom** (resolved 2026-09-25, narrowed the same day).
+  - **Only the four summary cards at the top of Activity** carry a **3px rule across their top and bottom edge** — Needs you,
+    Upcoming, In progress, Paid in September (three on the phone: Upcoming, Needs you, Paid in Sep). Each takes its **status
+    colour**: amber, blue, green, violet.
+  - **Everything below the strip keeps plain card chrome.** Banding every widget was drawn first and pulled back: the rule is a
+    summary-strip device, and the strip stops reading as a strip once the cards beneath it wear the same band.
+  - The other widgets still carry colour — through their content, not their frame: the division tint on the icon and the status
+    pill (D28). Up next does **not** get an EzzyCourt band.
+  - This is the Activity look; Home's shelves keep the pipe-and-header treatment (D27), so the two tabs stay distinct.
+  - ⚠️ **Sourcing note.** The user referred to this as "the original design, or like vendor". I checked and **neither has it**:
+    no booker widget `.module.css` carries a coloured top or bottom border, the original prototype canvas's Home used only
+    `1px solid #eef1f6` hairlines, and vendor's dashboard has no accent rule either (its one accent is a `borderLeft` on
+    GuideModal rows, `GuideModal.tsx:104`). So this is **new**, not a restoration — recorded that way so nobody later
+    "restores" it from a source that never had it.
+  - Implementation for I31: one `.statCard` rule with the colour as a CSS custom property set per card, not four hand-written
+    border pairs — and the rule must not be reachable by the widgets below the strip.
+
+- **D28: a booking's colour is its division's colour** (resolved 2026-09-25).
+  - Every booking row, offering card and tile draws from the **same `--div-<slug>-bg` / `-fg` / `-deep` triple**. There is no
+    per-booking palette and no fourteenth colour: thirteen divisions, thirteen colours, plus the neutral fallback.
+  - Applied as a **wash behind the row** at ~7% alpha, plus the icon tint. Well under any contrast threshold — the row reads by
+    its text, and the colour is a hint, not information carried by colour alone (the `ux-design` rule).
+  - **Status stays a separate channel.** Confirmed / Needs you / Pending keep the `--st-*` palette on the pill, so "which
+    service" and "how is it going" never compete for the same colour. Two systems, two jobs — a booking row shows both at once.
+  - ⚠️ **What this looks like on real data today:** the seeded catalogue has vendors in **EzzyCourt and EzzyWell only**, so a
+    live Home would be close to monochrome. The canvas deliberately shows four divisions to make the rule visible. This is a
+    catalogue-breadth fact, not a design failure, and it is the reason the rule must key on the division rather than on
+    anything per-booking.
 
 ---
 
@@ -582,7 +892,11 @@ The one place that decides what a booking means for money. Pure, so `node --test
 - **Copy rule (F18):** wording for `refunded` says *"Marked refunded — Ezzy can confirm the amount"*, never "we refunded you". A unit test asserts the copy table has no "refunded to you" phrasing.
 - Tests: one case per status × `is_paid`, plus totals excluding cancelled/unpaid, month grouping across a year boundary, and search.
 
-#### I18: `lib/paymentsCsv.ts` + test  ⬜ TODO
+#### I18: `lib/paymentsCsv.ts` + test  ✅ DONE (2026-09-26)
+<!-- `lib/paymentsCsv.ts` + `paymentsCsv.test.ts` (11 cases). Verified: 125/125 tests pass,
+     `tsc` clean, `next build` passes, lint unchanged at 19. ⚠️ Column renamed paid_date →
+     booked_on — see F38. The download (Blob + anchor + revokeObjectURL) is in
+     usePaymentsPage, not in lib/ and not in the .tsx, as specified. -->
 Copy the shape of `command/lib/affiliateCsv.ts` (F20): pure, RFC 4180 quoting (`"` doubled, quote when the cell holds `,` `"` or a newline), CRLF, UTF-8 BOM.
 - Columns: `paid_date, service_date, offering_code, offering_name, vendor, amount_php, payment_state, booking_status, reference`.
 - `amount_php` is a plain number — a `₱` in the cell makes it text in every spreadsheet.
@@ -598,10 +912,14 @@ Copy the shape of `command/lib/affiliateCsv.ts` (F20): pure, RFC 4180 quoting (`
 Copy `phMonthRange`, `phLastNDays`, `phYearRange` from `vendor/lib/utils.ts:223-303` (F19), Asia/Manila, with their tests. Presets: This month · Last 3 months · This year · All time, plus a custom from/to.
 - **Manila, not the browser's zone.** A booker in another timezone must see the same month boundaries the database uses, or a payment near midnight lands in the wrong period.
 
-#### I20: Payments components  🔄 IN PROGRESS
+#### I20: Payments components  ✅ DONE (2026-09-26)
 <!-- ✅ 2026-09-25 (S9): PaymentsPage + usePaymentsPage, PaymentPeriodBar,
-     PaymentSummaryCards, PaymentFilters, PaymentMonthGroup, all four states, 10-per-page
-     with Previous/Next and clamping. ⬜ S9b: the receipt sheet, CSV and the print view. -->
+     PaymentSummaryCards, PaymentFilters, PaymentMonthGroup, all four states, 10-per-page.
+     ✅ 2026-09-26 (S9b): PaymentReceipt (shadcn dialog; amount, dates, status, shortened
+     reference, the state's plain-English note, "View booking"), PaymentsPrintView (the FULL
+     filtered set, black on white, thead repeated per page, truncation banner printed), and
+     the Export CSV / Print buttons. Rows now open the receipt rather than the booking
+     detail; the receipt hands off to it. Verified: 125/125, `tsc`, `next build`, lint 19. -->
 New folder `components/payments/`, mirroring vendor's split (all state in one hook, children controlled and hook-free):
 - **`PaymentsPage`** — `.tsx` (render only) + `usePaymentsPage.ts` (period, custom range, status filter, search, vendor, sort, page, selected receipt, CSV download, print sequence) + `PaymentsPage.module.css`.
 - **`PaymentPeriodBar`** — pure display, above the totals **deliberately**: the range and the figures it produces must be visible together, or the cards read as all-time numbers (vendor's note at `TransactionDateRange.tsx:20-27`).
@@ -619,7 +937,7 @@ New folder `components/payments/`, mirroring vendor's split (all state in one ho
      components/transactions/. The `@media print` block is S9b's. -->
 - `lib/types.ts` `PageId`: `transactions` → `payments`; `lib/constants.ts` `MAIN_TABS` label and icon; `TopBar` `TITLES`; `app/page.tsx` lazy import; `AppShell` render prop.
 - Grep `"transactions"` across `booker/` first (notifications, deep links, tests) so the rename does not orphan a string.
-- `globals.css`: add the `@media print` block (D16).
+- `globals.css`: the `@media print` block (D16) — ✅ **added 2026-09-26 in S9b**: chrome hidden, scroll/height constraints released, `[data-no-print]` for the on-screen list and pager, card shadows dropped.
 
 ### Added by the mobile briefing (2026-09-22)
 
@@ -798,6 +1116,235 @@ Adds what mobile P5 shows and I13 never named: a **category** chip and a **granu
 
 ---
 
+### Home/Activity redesign items (2026-09-25, D21–D24)
+
+Every component below states its render/hook/style split, per
+`.claude/skills/component-separation/SKILL.md`. The phone app mirrors each one —
+see its plan's §4b parity contract.
+
+#### I29: Division icon resolver + `DivisionIcon`  ✅ DONE (2026-09-27)
+<!-- `lib/divisionIcon.ts` + 9 tests: all 13 slugs resolve, 12 have a bundled file,
+     ezzy-ride falls back to the "ER" monogram, an unknown slug goes neutral, a
+     Command-set path wins, case/whitespace tolerated, no two paths collide.
+     `components/ui/DivisionIcon/` renders the tint box + contain-fitted art + monogram.
+     DivisionShortcuts swapped onto it, so all 13 (incl. the fallback) are on a shipping
+     screen. Verified: 136/136 tests, `tsc`, `next build`, lint 19 unchanged. -->
+- **`lib/divisionIcon.ts`** (new, pure + `divisionIcon.test.ts`). `divisionIcon(slug, iconPath?)` → `{ src: string | null; mono: string }`, applying D23's order. Unknown slug → `divisionKey()`'s `"none"` and a neutral mono. **No React, no fetch** — it is a string function, so it is testable and the phone app can copy it byte-for-byte like S0's modules.
+  - Tests: each of the 13 slugs resolves; `ezzy-ride` yields `src: null` (F25); an unknown slug does not borrow a neighbour's colour; a future `icon_path` wins over the bundled asset.
+- **`components/ui/DivisionIcon/`** (new: `DivisionIcon.tsx` pure display + `DivisionIcon.module.css`). Props `slug`, `size`, optional `label`. No state, no effects → **no hook**, which the conventions allow only for a genuinely pure display component; this is one.
+  - Renders the tint box, `object-fit: contain` inside it, and the monogram branch when `src` is null.
+  - Colours come from `data-division` + the CSS variables, **not** from TypeScript — the rule `lib/divisions.ts` already sets.
+- **`booker/public/division-icons/<slug>.png`** — the 12 assets, after I35. The filename *is* the mapping; nothing hardcodes a division's art anywhere else.
+
+#### I30: `HomePage` — the storefront  ✅ DONE (2026-09-27)
+<!-- components/home/HomePage/ + useHomePage.ts + .module.css, rendered through
+     HomeSection (I39). Sections: hero+search -> all-divisions grid -> Available today
+     (I41) -> Book again -> vendors in your city. The in-progress strip is the only
+     personal element and hides when nothing is running (new lib/homeRules
+     inProgressBooking, tested). DashboardPage and components/dashboard/ deleted.
+     Verified: 146/146 tests, `tsc`, `next build`, lint back to 19. ⚠️ Popular shelf NOT
+     built — D26-gate is unapproved. -->
+- **`components/home/HomePage/`** (new: `.tsx` / `useHomePage.ts` / `.module.css`), replacing `DashboardPage`'s role. `DashboardPage/` is **deleted** once Activity (I31) owns its children.
+- Sections, top to bottom: **search hero** → **division grid** (all divisions, `DivisionIcon` + name band, 4-across on phone, auto-fill on desktop) → **Available today** (per D25) → **Book again** → **Vendors in <city>**.
+- The **only** personal element is the "in progress / today" strip, rendered from the same booking array Home already receives, and **hidden otherwise** — no empty box.
+- **Section chrome per D27:** every shelf renders through **I39's `HomeSection`** — the pipe, the header wash with its
+  arc-and-stroke band, the hairline and the recessed body, at 10px radius with no shadow. The search hero is the single
+  exception and keeps its 18px radius and its shadow.
+- The division grid is the one section that always has content, so **Home is never blank**: the loading state skeletons the tiles at their real size, and a failed bookings fetch degrades Book again alone, not the page.
+- The grid renders **whatever `DIVISIONS` holds** — no fixed 12 or 13 anywhere in the markup (F25, and the Command feature that follows).
+
+#### I31: `ActivityPage` + the segmented control  ✅ DONE (2026-09-27)
+<!-- components/activity/ActivityPage/ + useActivityPage.ts + .module.css. Segments
+     Updates | Bookings, StatStrip above them. The five widgets arrived by `git mv` with
+     their hooks and tests untouched (F33): NeedsYouCard, UpNextCard, InProgressCard,
+     BookingList, BookingDetailModal. BookingsPage deleted — its unlimited list IS the
+     Bookings segment. Stats derive from the booking array + lib/payments paidTotal, so
+     Activity issues no query. Verified: 136/136, `tsc`, `next build`, lint 19. -->
+- **`components/activity/ActivityPage/`** (new: `.tsx` / `useActivityPage.ts` for the segment state / `.module.css`).
+- Segments **Updates | Bookings**. Updates holds `NeedsYouCard`, the status feed, and (desktop) a right rail with `UpNextCard`, `InProgressCard` and the month summary; Bookings holds `BookingList` with **no limit** and its four existing filters.
+- **Moves, does not rewrite:** `NeedsYouCard`, `UpNextCard`, `InProgressCard`, `BookingList`, `BookingDetailModal` keep their current hooks, props and tests. Only their parent changes. `HOME_ROW_LIMIT` disappears with Home's copy of the list.
+- The summary strip (Needs you / Upcoming / In progress / Paid this month) derives from the booking array and `lib/payments.ts`'s `paidTotal` — **no new query**, and it reuses the totals rule that F14 forced. It renders through **I40's `StatStrip`**, which is the only place D29's banding lives.
+- The existing **Bookings page becomes Activity's Bookings segment**. `BookingsPage` is deleted, not kept as a duplicate.
+
+#### I32: Navigation change  ✅ DONE (2026-09-27)
+<!-- PageId: dashboard -> home, bookings -> activity. Renamed at the nine real sites only
+     (types, constants MAIN_TABS, TopBar TITLES, AppShell routing + render props,
+     useAppShell initial/goPage/setPage, ui-gallery x3). F32 held: `.from("bookings")` x8
+     and useAppShell's Realtime `table: "bookings"` are untouched, as is the plural noun
+     in Payments copy. Grep confirms no PageId string survives. -->
+- `lib/types.ts`: `PageId` gains `"activity"`, loses `"bookings"`; `"dashboard"` → `"home"` (the string is already inconsistent with the label).
+- `lib/constants.ts`: `MAIN_TABS` becomes Home · Explore · **Activity** · Payments; `TAB_FOR_PAGE` maps `booking` → `activity` (a booking opened from anywhere highlights Activity, not Explore).
+- The Activity tab carries a **count badge** of open "needs you" items, from the same derivation `NeedsYouCard` already uses — not a second source of truth.
+- `tsc` catches every typed reference, the way D13's `payments` rename did — but **`tsc` cannot catch the string collision in
+  F32**: `"bookings"` is also the Supabase table name in `services/bookings.service.ts` and both payment routes. Rename through
+  the union and its call sites; **never a project-wide find-and-replace**, and re-run `npm test` plus a booking round trip after.
+- `app/ui-gallery/page.tsx` references the page ids too (F35) and must move with them, or the visual suite fails for a second
+  reason on top of F36.
+
+#### I33: The five missing division colour pairs  ✅ DONE (2026-09-27)
+<!-- Law, Park, Learn, Work, Stay given real pairs in BOTH themes, plus 14 new
+     `--div-<slug>-deep` tokens (the white-on-band shade) and 14 `--div-<slug>-tile`
+     tokens. Every value computed against the 4.5:1 floor BEFORE writing. palette.test.ts
+     gained two guards: white-on-deep >= 4.5:1 for all 14, and no two division
+     foregrounds within 20 RGB. 9/9 palette cases pass. See F39 for two corrections made
+     while choosing the values. -->
+- `app/globals.css`, light and dark, plus the deep band shade D22 needs. Sampled from each logo's own art:
+  | Slug | Tint (bg) | Label (fg) | Band (white text) |
+  |---|---|---|---|
+  | `ezzy-law` | `#f5efe4` | `#78551b` | `#6b4a17` |
+  | `ezzy-park` | `#ffe4e6` | `#be123c` | `#9f1239` |
+  | `ezzy-learn` | `#e6f4ef` | `#065f46` | `#065f46` |
+  | `ezzy-work` | `#ffedd5` | `#c2410c` | `#9a3412` |
+  | `ezzy-stay` | `#eef2f8` | `#3f5573` | `#35485f` |
+- **I22's `palette.test.ts` is extended to cover the band shade against white**, so the new white-on-colour text is guarded the same way the badges are. Without that the test passes while the tile labels fail.
+- Dark-mode values follow the existing `rgba(...,0.14)` tint pattern; the **tile** tint stays light in both themes (F26) and is therefore not a themed token — it is the division's own light value in both.
+
+#### I34: Display typeface for headings  ✅ DONE (2026-09-27, web half only)
+<!-- Bricolage Grotesque via next/font/google in app/layout.tsx — self-hosted at build
+     time (.woff2 confirmed in .next/static/media), display: swap, weights 600/700/800,
+     exposed as --db-font-display and applied to h1/h2 only. Mobile deliberately does NOT
+     get it (mobile-redesign D3-A). Verified: `next build` compiles, 136/136, lint 19. -->
+- Web: `next/font/google`, one family, headings and prices only, `display: swap`, subset `latin`. No `<link>` in `globals.css` — `next/font` self-hosts and avoids the layout shift.
+- **Mobile does NOT get this face** (decided 2026-09-25, `2026-09-25-booker-mobile-redesign.md` D3-A). Adding it would reverse mobile-app D9, which removed font loading deliberately. The two clients differ in **type only**, recorded in that plan's §4 divergence table. ⚠️ **Do not "restore parity" by adding a font to the phone app** — that is a decision to re-open, not a gap to close. This item ships the web half only.
+- It touches type only. No surface, spacing or colour token changes with it, so it can be reverted in one commit.
+
+#### I35: Normalise the logo assets  ✅ DONE (2026-09-26)
+<!-- 12 files in booker/public/division-icons/, named by slug. 4075 KB -> 771 KB (81%).
+     Capped at 512 and never upscaled; the eight already <= 512 copied byte-identical
+     (md5-verified). Done with the Chromium Playwright already installs — no new
+     dependency, so no gate. See the F26 correction: there was no glow to remove. -->
+- Resize all 12 to a single square master (**512×512** is enough for a 2× 66px tile and a 3× phone tile), keeping transparency, and land them in **`booker/public/division-icons/`**.
+- The same resized files are what the phone app will copy, but **dropping them into the Expo app is that plan's work, not this one's** — this plan does not write outside `booker/` (see the cross-app flag).
+- `ezzy_drive.png`: its baked glow needs removing, or the tile accepts a grey halo on the light tint. **Flagging, not choosing** — it is someone's artwork.
+- ⚠️ **No image tooling is installed in this workspace** (no ImageMagick, no Pillow). Either a dependency is approved for a one-off script, or the resized files are produced outside the repo and dropped in. Until then the tiles would ship ~4 MB of PNGs, `ezzy_drive` alone being 1.4 MB.
+
+#### I37: "Popular this month" shelf  ⬜ TODO (blocked by D26)
+- **`components/home/PopularShelf/`** (new: `.tsx` / `usePopularShelf.ts` / `.module.css`), rendering a ranked row: rank chip in
+  the division's deep shade, offering name, vendor, price and the count that justifies the word "popular".
+- **Data (D26-A):** `services/offerings.service.ts` gains `getPopularOfferings(window, limit)` calling the RPC, then joins the
+  returned `offering_id`s against the catalogue it already loads — the counts function returns **counts only** (F30), never rows
+  a booker may not read.
+- **The count is shown, not implied.** "34 bookings" next to the price is what makes the ranking checkable; a bare "Popular"
+  badge with no number is the weak implementation of this item.
+- Hidden entirely when the window returns nothing — no "no popular offerings yet" box on a discovery screen.
+- ⚠️ If D26 resolves to **B**, the heading changes to *Featured* and this item becomes a `divisions`/`offerings` flag read; if
+  **C**, the item is aborted and Home ships with four sections.
+
+#### I41: "Available today" shelf  ✅ DONE (2026-09-27)
+<!-- lib/openingsToday.ts + 9 tests. THE CAP IS TESTED: a 200-offering catalogue causes
+     exactly HOME_TODAY_CANDIDATES (12) schedule fetches. Slots filtered against Manila
+     now (passed in, never read from Date inside), soonest-first, one failed fetch does
+     not empty the shelf, hidden entirely when nothing is open. Candidates narrowed by
+     CITY first — no distance term (F37). -->
+- **`services/schedules.service.ts`** gains `getOpeningsToday(offeringIds, date)`: for a **capped candidate list** it reuses
+  `getSchedulesForOffering`, `getSlotsForDate` and `getSlotOccupancy` — all three already exist from S1/S3b — and returns the
+  soonest remaining opening per offering, Manila-dated.
+- **The cap is the design, not an implementation detail** (F29). `HOME_TODAY_CANDIDATES = 12`, chosen in the booker's selected
+  city, and the shelf renders the first 3 that still have an opening. A test asserts the service issues **at most
+  `HOME_TODAY_CANDIDATES` schedule fetches** for a catalogue of 200 — that is what stops this becoming P10.
+- **Ordering is soonest opening. There is no distance term** (F37). The city filter is the location model.
+- Openings already past are excluded against **Manila now**, not the browser clock — `lib/` already owns Manila arithmetic.
+- **`components/home/AvailableTodayShelf/`** (`.tsx` / `useAvailableTodayShelf.ts` / `.module.css`), rendered inside I39's
+  `HomeSection`. Hidden entirely when nothing is open — no empty shelf.
+- ⚠️ Counts print only when `getSlotOccupancy` reports them `known`, the rule S3b already established.
+
+#### D26-gate: the popularity function  ⬜ APPROVAL GATE (D26, blocks I37)
+**Not written. Drafted here per the plan-authoring rule for schema changes.**
+
+```sql
+-- 20260925000001_popular_offerings_rpc.sql  (DRAFT — not applied)
+create or replace function public.get_popular_offerings(
+  p_since date,
+  p_limit int default 8
+)
+returns table (offering_id uuid, booking_count bigint)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select b.offering_id, count(*)::bigint
+  from bookings b
+  where b.booked_date >= p_since
+    and b.status not in ('cancelled', 'rejected')
+  group by b.offering_id
+  having count(*) > 0
+  order by count(*) desc, b.offering_id
+  limit least(greatest(p_limit, 1), 20);
+$$;
+
+revoke all on function public.get_popular_offerings(date, int) from public, anon;
+grant execute on function public.get_popular_offerings(date, int) to authenticated, service_role;
+```
+
+**Blast radius, assessed before asking:**
+- **Data:** read-only. Creates no table, rewrites no row, validates nothing. Nothing can fail on existing data.
+- **Lock / performance:** `create function` takes a brief catalogue lock only. At runtime it is one aggregate over `bookings`
+  filtered by date. ⚠️ **There is no index on `bookings.booked_date`** — confirm before shipping; on today's row counts a seq
+  scan is fine, and the honest fix later is an index, not a materialised view.
+- **Exposure:** returns **an offering id and a count** — no booker id, no name, no amount, no PII. It deliberately mirrors
+  `get_slot_occupancy` (`20260922000001`), including the `revoke … from public, anon` **before** the grant — the exact line that
+  F24 caught being wrong last time, because this project's `pg_default_acl` grants EXECUTE to `anon` directly.
+- **Reversibility:** `drop function public.get_popular_offerings(date, int);` — nothing depends on it but one service call.
+- **Cross-app:** none. `command` and `vendor` do not call it.
+
+**Needs your go-ahead before the file is written, and you apply it** (standing practice).
+
+#### I38: Collapsible sidebar  ✅ DONE (2026-09-27)
+<!-- Sidebar.tsx: the closed branch is now `fixed -translate-x-full lg:hidden` — `lg:hidden`
+     rather than a transform, because a translated sidebar still occupies its 224px in the
+     flex row and the content would not reclaim the space. AppShell: onMenuOpen ->
+     onToggleMenu (it was an open, not a toggle); the scrim keeps `lg:hidden`. useAppShell:
+     sideOpen defaults TRUE (the F31 trap), plus SIDEBAR_COLLAPSED_KEY persistence read in
+     an effect, never a useState initialiser. TopBar: aria-expanded / aria-controls and a
+     label that changes with the state; Sidebar gained id="app-sidebar".
+     Verified: 146/146, `tsc`, `next build`, lint 19; and each of F31's four traps grepped
+     individually. NOT verified: any of it in a browser — S7. -->
+- **`Sidebar.tsx:34`** — the closed branch stops forcing `lg:translate-x-0`. Closed becomes `-translate-x-full` **and**
+  `lg:hidden` (or `lg:w-0`), so the flex row reclaims the width instead of leaving a 224px gap.
+- **`AppShell.tsx:272`** — `onMenuOpen` becomes `onToggleMenu: () => setSideOpen(o => !o)`. The prop is renamed on `TopBar` too,
+  because "open" stops being true of what it does.
+- **`useAppShell.ts:25`** — `sideOpen` defaults to **`true`** (F31's trap). Below `lg` the drawer is `fixed` and translated out,
+  so a `true` default costs nothing there; at `lg` it is what keeps today's behaviour for anyone who never touches the button.
+- **Persistence:** remember the collapsed state in `localStorage`, read in an effect (never in a `useState` initialiser — this
+  shell is server-rendered first, and `useDashboardPage.ts:20-34` already documents that exact hazard). Wrapped in `try/catch`,
+  defaulting to open.
+- **Separation:** `Sidebar.tsx` stays a render layer, the state stays in `useAppShell`, the class strings stay in `cn()` as they
+  are today. No new `.module.css` — nothing about this is non-trivial styling.
+- **A11y:** the button gets `aria-expanded` and `aria-controls`, and its label changes with the state. It keeps the scrim only
+  below `lg` (F31).
+
+#### I39: `HomeSection` — the shared shelf chrome  ✅ DONE (2026-09-27)
+<!-- components/home/HomeSection/: one rule set, five tones. Each tone sets
+     --section-accent and the pipe / wash / arcs / strokes are all derived from it with
+     color-mix(), so D27's four alphas exist once. 10px radius, no shadow, header-only
+     artwork, recessed body, responsive at 640px. Not yet consumed — S12 renders it. -->
+- **`components/home/HomeSection/`** (new: `.tsx` pure display + `.module.css`; no hook — no state, no effects).
+- Props: `title`, `meta`, `colour` (the section's token), `action`. Renders the 4px pipe, the title row, the header wash with
+  its arc-and-stroke band, the hairline, and the recessed body.
+- **One rule set, parameterised by a CSS custom property** — `--section-accent` set per instance. D27's four alphas (pipe 100%,
+  wash 6/10%, arcs 20/26%, strokes 11/14%) are derived in CSS from that one value via `color-mix()`, so a colour change is one
+  edit and a fifth section cannot drift.
+- Used by every Home shelf (I30) **and nothing on Activity** (D29's boundary).
+
+#### I40: `StatStrip` — the banded Activity summary  ✅ DONE (2026-09-27)
+<!-- components/activity/StatStrip/: one .card rule, four tones via --stat-accent, the
+     3px band as per-side border-top/bottom so the card keeps its own hairline. The rule
+     is scoped to this component only, which is what keeps it off the widgets below
+     (D29, trap ac). Not yet consumed — S11 renders it. -->
+- **`components/activity/StatStrip/`** (new: `.tsx` pure display + `.module.css`; no hook — the counts are derived by
+  `useActivityPage` and passed in).
+- One `.statCard` rule with `--stat-accent` per card, drawing the 3px top and bottom rule. **Scoped so widgets below the strip
+  cannot pick it up** (D29's narrowing, trap ac).
+- The four counts come from the booking array and `lib/payments.ts`'s `paidTotal` — **no new query** (I31).
+
+#### I36: Docs for the redesign  ⬜ TODO
+- `architecture/portals.md`: booker's nav becomes Home · Explore · Activity · Payments; the Home feature list is replaced; Activity is added.
+- `architecture/schema.md`: record F27 — `divisions` has no icon column and there is no icon bucket — as the named prerequisite of the Command icon feature, so the next plan does not rediscover it.
+- Folds into S8 rather than being its own stage.
+
+---
+
 ## Plan review (2026-09-18): gaps found and folded in
 
 - **G1: The left sidebar / hamburger drawer was never addressed. The prototype silently dropped it. FIXED → I16.**
@@ -885,8 +1432,13 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
 - **S5: Offering page** ✅ DONE 2026-09-22. I13's `OfferingPage`, **I26**, **I25** (vendor page). Staff per D7/D8.
 - **S6: Wizard entry + removals** ✅ DONE 2026-09-22, with S6-a (Leaflet uninstalled on the user's go).
 - **S9: Payments core.** I17, I19, I21, and I20's page, period bar, summary cards, filters, month groups and rows. Depends on S0 (division colours), S1 (paged `getBookings`) and S4 (the tab). Deletes `components/transactions/`.
-- **S9b: Payments receipt, CSV and print.** I18, plus I20's receipt and print view, and the `@media print` block.
-- **S7: Polish** — runs **after S9b**, so the pass covers Payments too.
+- **S9b: Payments receipt, CSV and print.** ✅ DONE 2026-09-26. I18, I20's receipt and print view, the `@media print` block. 125/125 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Found F38.
+- **S10: Redesign foundations.** ✅ DONE 2026-09-27. I29, I33, I34 (web half), I35, I39, I40. 136/136 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Found F39. `DivisionShortcuts` now renders all 13 through `DivisionIcon`, so the `ezzy-ride` fallback is on a shipping screen; `HomeSection` and `StatStrip` are built but not yet consumed (S11/S12 render them).
+- **S13: Collapsible sidebar.** ✅ DONE 2026-09-27. I38. 146/146 tests, `tsc` clean, `next build` passes, lint unchanged at 19. All four F31 traps closed and grepped. `lib/constants.ts` gained `SIDEBAR_COLLAPSED_KEY`.
+- **S11: Activity tab + navigation.** ✅ DONE 2026-09-27. I31, I32. 136/136 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Widgets moved with `git mv` (history preserved); `components/bookings/` deleted; `DashboardPage` stripped to its discovery widgets and is deliberately thin until S12. Found F40.
+  - ⚠️ **Between S11 and S12 Home is deliberately thin** — the widgets have left and the storefront has not landed. If that gap is unwanted, run S11 and S12 as one pass; they are split only to keep each review small.
+- **S12: The storefront Home.** ✅ DONE 2026-09-27 — I30 and I41. 146/146 tests, `tsc` clean, `next build` passes, lint back to 19. **I37 (Popular) NOT built**: D26-gate is still unapproved, so the shelf is absent and the rest of Home shipped, exactly as this line allowed. Found F41, F42.
+- **S7: Polish** — runs **after S9b and S12**, so the pass covers Payments, Home and Activity.
   - Dark/light pass at 390px and 1280px on every new surface.
   - Contrast check for the `--div-*` pairs, keyboard pass, 44px targets.
   - Regenerate the Playwright baselines (`visual-tests/pilot.spec.ts-snapshots`, which are committed) and review the diffs, not just accept them.
@@ -897,6 +1449,7 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
   - Update `booker/AGENTS.md` for what shipped (rewritten ahead of time on 2026-09-21, F11).
   - Cross-reference booker-mobile-prototype W1/W5 as delivered on web.
   - Payments: rename in `portals.md` (Transactions → Payments), the corrected totals rule, filters, CSV and pagination.
+  - **I36:** the new nav (Home · Explore · Activity · Payments), the storefront Home, the Activity tab, and F27 recorded in `schema.md` as the prerequisite of the Command icon feature.
 
 ---
 
@@ -912,11 +1465,16 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | D13–D16 | Payments decisions (name, CSV, pagination, print) | You | ✅ DONE 2026-09-20 | Same gate, Payments half |
 | [x] | D19, D20 | Parity: vendor page on web; agreements parked on both | You | ✅ DONE 2026-09-22 | From the 2026-09-22 parity review |
 | [ ] | Parity | Per-stage check against mobile's matching P# section | Me | ⬜ TODO | A new difference is justified in mobile §4 or fixed |
+| [x] | F39 | Two colour collisions caught while choosing I33's values | Me | ✅ DONE 2026-09-27 | `work`/`pets` 15 apart, `learn`/`court` same green, dark `park`/`food` 10 apart. All fixed and guarded. `court`/`care` at 25.6 is pre-existing (D17) — flagged, not changed |
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
 | [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
 | [x] | Approve | Approve the plan for execution | You | ✅ DONE 2026-09-21 | Approved; execution starts with S0 |
 | [x] | Brief | Read and **verify** the ezzy-booker-mobile briefing | Me | ✅ DONE 2026-09-22 | 111/111 mobile tests pass; `slots.ts` diff identical; N3, N5, N6, N9, N10 confirmed by code read and computed contrast (N9 corrected) |
 | [x] | D17 | Contrast fixes → adopt the phone app's tested values | You | ✅ DONE 2026-09-22 | Six badge styles and the grey text were below 4.5:1, and status colour carries meaning |
+| [x] | Proto-3 | Two Home/Activity directions drawn as full canvases (desktop + mobile Home, Activity, icon system, states) | Me | ✅ DONE 2026-09-25 | Compare a real storefront against a real alternative before changing the plan. Both links are in the header |
+| [x] | D21–D24 | Home → discovery, Activity takes the dashboard; B's tiles and type adopted; icons resolve by slug; five grey divisions get colours | You | ✅ DONE 2026-09-25 | Chose A's navigation with B's tile and type treatment. Payments keeps its tab; the sidebar and drawer are untouched |
+| [x] | D25 | **"Available today" → offerings with an opening left today, top 3, soonest first** | You | ✅ DONE 2026-09-25 | Reuses the S3b occupancy RPC over a **capped** candidate set, so it stays off P10's cost curve. Proximity ordering dropped — see F37 |
+| [x] | F25–F29 | Redesign findings: 12 logos for 13 divisions, unnormalised assets, no icon column or bucket, five grey divisions, the "available today" data wall | Me | ✅ DONE 2026-09-25 | Read the folder, the DB and `globals.css` rather than assuming the assets were a matched set |
 | [x] | D18 | N1–N10 answered | You | ✅ DONE 2026-09-22 | Call vendor + photos added, price unit named, slot sort fixed, Inter name dropped, false "not charged" line replaced; N4 parked |
 | [x] | S0 | Foundations: progress steps, countdown, division colours, search matcher, **contrast palette + guard test** (I1–I4, I22) | Me | ✅ DONE 2026-09-22 | Copy-back from the phone app + D17 colours. Verified: `npm test` **70/70** (was 36), `tsc --noEmit` clean, no new lint. Wiring the countdown into the two widgets is S2's |
 | [x] | S1 | Data layer: booking fields, status history, catalogue, photos, staff, **paged `getBookings`**, **overnight sort fix**, **price-unit helper** (I5–I9, I23, I24, F17, G9) | Me | ✅ DONE 2026-09-22 | Both Home and Payments read these fields; paging removes the silent 1000-row cut |
@@ -934,9 +1492,27 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S6-a | `npm uninstall leaflet react-leaflet @types/leaflet` | You approved · Me ran | ✅ DONE 2026-09-22 | Three dependencies gone from `package.json` and the lockfile; `npm ls leaflet` empty; `tsc`, 100/100 tests and `next build` all clean afterwards. An empty `node_modules/@react-leaflet/` folder survives `npm prune` — no files, not in the lockfile, harmless |
 | [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
 | [x] | S9 | **Payments core:** money rules, Manila presets, honest totals, filters, month groups, 10-per-page (I17, I19, I20 part, I21) | Me | ✅ DONE 2026-09-25 | 114/114 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Fixes F14. Old Transactions page deleted |
-| [ ] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ⬜ TODO | You approved CSV; the receipt gives a customer something to quote to support |
-| [ ] | S9c | Open an exported CSV in your spreadsheet; print a receipt | You | ⬜ TODO | Encoding and print output can only be judged on real software |
-| [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments too** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |
+| [x] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ✅ DONE 2026-09-26 | 125/125 tests (11 new), `tsc` clean, `next build` passes, lint unchanged at 19. **F38**: no paid-at exists, so the CSV column is `booked_on`, not `paid_date` |
+| [x] | F38 | No "paid on" timestamp in `bookings` | Me | ✅ DONE 2026-09-26 | Found in S9b. The export names the column for what it holds rather than claiming a date the system never recorded |
+| [x] | S9c | Open an exported CSV in your spreadsheet; print a receipt | You | ✅ DONE 2026-09-27 | **Your acceptance**, not a machine check — CSV and print output judged on real software. ⚠️ Open question left from it: there is no per-receipt print action; **Print** produces the payments summary sheet (I20). Say if a one-page receipt print is wanted |
+| [x] | S10 | **Redesign foundations:** icon resolver + `DivisionIcon` + fallback, five colour pairs + extended palette guard, normalised assets, display typeface, `HomeSection`, `StatStrip` (I29, I33–I35, I39, I40) | Me | ✅ DONE 2026-09-27 | 136/136 tests (22 new), `tsc` clean, `next build` passes, lint 19 unchanged. **F39**: two colour collisions caught by measuring — `work`/`pets` were 15 RGB apart. Now guarded by a test |
+| [x] | S13 | **Collapsible sidebar** (I38, D30): hamburger toggles at every width, `sideOpen` defaults true, collapse remembered, `aria-expanded` | Me | ✅ DONE 2026-09-27 | 146/146, `tsc`, build, lint 19. F31's traps each grepped: no `lg:translate-x-0` when closed, default is `true`, scrim stays phone-only, no `setSideOpen(true)` left. Browser check is S7 |
+| [x] | S10-a | Produce the 12 resized logo files | Me | ✅ DONE 2026-09-26 | **No new dependency**: used the Chromium that Playwright already installs. 4075 KB → 771 KB (81%). Capped at 512, never upscaled; the eight 256px files copied byte-identical (md5-verified) |
+| [x] | S10-b | Decide on `ezzy_drive.png`'s "baked glow" | — | ✖ ABORTED 2026-09-26 | **Moot — my earlier claim was wrong.** Measured per pixel: the dark RGB sits under fully-transparent pixels, which every correct compositor ignores. See the correction on F26 |
+| [x] | S11 | **Activity tab + navigation:** Activity page + segments, five widgets re-homed by `git mv`, `BookingsPage` deleted, `PageId` renamed (I31, I32) | Me | ✅ DONE 2026-09-27 | 136/136 tests, `tsc` clean, build passes, lint 19. **F32 held**: the Realtime `table: "bookings"` and 8 `.from("bookings")` calls untouched. **F40**: draft ownership moved to the shell |
+| [x] | D26 | **"Popular" → most-booked offering over a window** (interim definition) | You | ✅ DONE 2026-09-25 | No ranking strategy exists yet, so the label means exactly what it says. Needs the counts-only function below |
+| [x] | D27 | Section chrome: keep the pipe marker, drop the shadows, sections at **10px** radius against the hero's **18px + shadow** (untouched), phone sections inset | You | ✅ DONE 2026-09-25 | Amended the same day: squared entirely was a step too far, so the radius came back smaller. Two radii only, no third. Sidebar motif kept as drawn |
+| [ ] | D26-gate | **Approve the `get_popular_offerings` function** (drafted inline, read-only, counts only) | You | ⬜ TODO | **Blocks I37.** Mirrors `get_slot_occupancy` incl. the `revoke … from public, anon` that F24 caught. Check: no index on `bookings.booked_date` |
+| [ ] | I37 | Build the Popular shelf | Me | ⬜ TODO | After D26-gate. The count is displayed, not implied |
+| [ ] | I41 | Build the "Available today" shelf (capped candidate set + a test asserting the cap) | Me | ⬜ TODO | S12. The cap is what keeps it from becoming P10 |
+| [x] | F37 | Proximity check: no coordinates, no PostGIS, no map, no geolocation | Me | ✅ DONE 2026-09-25 | Answered your radius question by reading the schema and the code, not from memory. → P11 |
+| [x] | D28 | A booking's colour is its division's colour; status keeps its own palette | You | ✅ DONE 2026-09-25 | Thirteen brand colours, no fourteenth. Note: only two divisions have vendors today, so live Home stays near-monochrome until the catalogue widens |
+| [x] | D29 | **Only the top stat strip** banded top + bottom, 3px, in its status colour | You | ✅ DONE 2026-09-25 | First drawn on every widget, then narrowed to the four summary cards. Asked for as "like the original / like vendor" — verified neither has it, so it ships as new, not a restoration |
+| [x] | D30 | Sidebar collapses on desktop too; no icon-only rail; the phone drawer is untouched | You | ✅ DONE 2026-09-25 | Last design change before the pin |
+| [x] | Pin | **Design pinned** — the canvas is the agreed target for Home and Activity | You | ✅ DONE 2026-09-25 | Five iterations, then frozen. Later changes are amendments to D21–D30, not new directions |
+| [x] | F31–F36 | Code assessment against the pinned design | Me | ✅ DONE 2026-09-25 | Read the real files. Baseline measured: 114/114 tests, `tsc` clean. Found the `sideOpen` default trap and the `"bookings"` table-name collision |
+| [x] | S12 | **The storefront Home:** hero + search, all-divisions grid, Available today, Book again, vendors in your city, in-progress strip (I30, I41) | Me | ✅ DONE 2026-09-27 | 146/146 tests, `tsc`, build, lint 19. **Popular shelf absent** — D26-gate unapproved. **F41**: the city had to be lifted to the shell. **F42**: a lint rule caught a cascading render I wrote |
+| [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments, Home and Activity** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look |
 | [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships. Pre-work done 2026-09-21: see Docs-0 |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
@@ -944,6 +1520,7 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ⬜ TODO | F24 is folded into that single migration |
 | [ ] | Git | Commit each later stage | You | ⬜ TODO | You handle git |
 | [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
+| [ ] | P11 | **Proximity / radius filtering** ("offerings within 2 km") | — | ⏸ PARKED 2026-09-25 | F37: no lat/lng on `vendors`, no PostGIS or earthdistance, no geolocation left in the app, and the removed map never did distance anyway. Needs coordinates + geocoding + a Vendor-portal field + a distance query — its own plan. Supersedes P1 |
 | [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |
 | [ ] | P3 | Real URLs (browser Back, shareable links) | — | ⏸ PARKED | Keeping booker's single-page shell (D12) |
 | [ ] | P4 | Staff email/phone readable by any active user | — | ⏸ PARKED | A database security fix outside booker (F6); this plan reads names only |
@@ -965,6 +1542,9 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [ ] | X10 | "Method: —" row on every payment | — | ✖ ABORTED 2026-09-20 | Booker stores no payment method, so it was a permanent dash (F15). Real methods → P8 |
 | [ ] | X11 | Wording a `refunded` booking as money returned | — | ✖ ABORTED 2026-09-20 | There is no refund mechanism in this system (F18); claiming one would be a false promise about money |
 | [ ] | X12 | "Total Spent" as the sum of every booking | — | ✖ ABORTED 2026-09-20 | It counts unpaid and cancelled bookings and overstates what you paid (F14). Replaced by Paid / Awaiting payment |
+| [ ] | X14 | Direction B's three-tab navigation (Payments inside Activity, desktop top bar, sidebar removed) | — | ✖ ABORTED 2026-09-25 | Rejected with the design choice: it re-homes the finished S9 Payments page, edits the phone app's built tab bar, and retires the drawer that G1 exists to protect |
+| [ ] | X15 | Ratings, promos, vouchers, favourites and "trending" on the new Home | — | ✖ ABORTED 2026-09-25 | No `reviews`, promotions or favourites tables exist. The brief forbids sections that imply features the product does not have |
+| [ ] | X16 | Distance or "near me" on the storefront Home | — | ✖ ABORTED 2026-09-25 | Vendors have no coordinates (P1), so the shelf says "Vendors in <city>" and never a number of kilometres |
 | [ ] | X13 | Fee or payout breakdown on a receipt | — | ✖ ABORTED 2026-09-20 | Booker cannot read `booking_transactions` by design, and a customer pays one amount |
 
 ---
@@ -983,6 +1563,13 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | I17–I19 | `npm test`: state per status × `is_paid`; totals exclude cancelled/unpaid; CSV quoting/BOM; Manila month boundaries | — |
 | I20, I21 | `tsc` (the renamed `PageId` forces every reference), lint, Playwright baselines | Both themes at 390/1280: filters narrow the list, totals change with them, CSV opens in a spreadsheet with `₱` intact and amounts summing, receipt prints without the app chrome, pagination clamps |
 | I15 | grep: no imports of the deleted modules; `tsc`; `leaflet` absent from the bundle after uninstall | End-to-end: Explore → Offering → Schedule → Pay on staging (PayMongo test mode) |
+| I29 | `npm test`: every slug resolves, `ezzy-ride` falls back to a monogram, an unknown slug goes neutral, a future `icon_path` wins | The 12 tiles rendered in both themes — `food`/`learn`/`home` are near-black art and must stay legible on the tint |
+| I30, I31, I32 | `tsc` (the `PageId` change forces every reference), lint, Playwright baselines; grep for the strings `dashboard` and `bookings` before the rename | Both themes at 360/390/1280: the tab bar does not overflow, a booking opened from a notification highlights Activity, Home renders with zero bookings and with a failed fetch |
+| I33 | `npm test`: `palette.test.ts` covers the five new pairs **and** the white-on-band shade | Thirteen tiles side by side — five of them were one grey until now |
+| I34 | Build output shows one self-hosted family; no `<link>` added | A real phone: no flash of unstyled text, and the Expo build still starts with the font gate |
+| I35 | Each file ≤ one square master size; total Home image weight measured | The resized art next to the original at 1× and 3× |
+| I38 | `tsc`, lint; grep that no branch of the `open` class expression still forces `lg:translate-x-0` | **A browser at ≥1280 and at 390**: collapse persists across a reload, the phone drawer and its scrim still work, and the first desktop visit starts expanded |
+| I39, I40 | `tsc`, lint; grep that the stat-strip rule is not reachable from Home, and that no shelf hand-writes section chrome | Both themes: five shelves read as five, and the strip still reads as a strip |
 
 Weak-implementation traps to check at review:
 - (a) a progress map that ignores `cancelled`/`refunded`/`disputed`;
@@ -999,4 +1586,26 @@ Weak-implementation traps to check at review:
 - (l) CSV exporting only the current page instead of the filtered set (D14);
 - (m) the print view printing one page of rows (F19);
 - (n) "refunded" worded as money returned (F18);
-- (o) `getBookings()` left unpaged, so totals understate past 1000 rows (F17).
+- (o) `getBookings()` left unpaged, so totals understate past 1000 rows (F17);
+- (p) a division's icon hardcoded per tile, or keyed on `name` instead of `slug`, so the Command feature becomes a rewrite (D23);
+- (q) the grid hardcoding 12 or 13 tiles instead of rendering what the list holds;
+- (r) the monogram fallback left untested because `ezzy-ride` happens to be off-screen (F25);
+- (s) the tile tint themed dark, which hides the three near-black logos (F26);
+- (t) a widget "moved" to Activity by being rewritten, losing the hook and tests it already had (D21);
+- (u) an "Available today" shelf shipped with a per-offering schedules query, which is what parked P10 (F29);
+- (v) Home rendering an empty box where a booker's history would be, instead of hiding the section;
+- (w) a "Popular" heading over anything that is not an actual count — a hand-picked list, or a client-side count that RLS
+  silently reduces to the booker's own bookings (F30, D26);
+- (x) section chrome pasted inline per shelf instead of one shared rule set, so a D27 radius change has to be edited five times;
+- (y) a third radius appearing on Home — D27 allows exactly two, 10px for a section and 18px for the hero.
+- (z) a booking tinted by anything other than its division — a per-status row wash, or a rotating palette — which collides with
+  the status pill and invents colours the brand does not have (D28);
+- (aa) section artwork drifting behind the body text instead of staying on the header, or the arc/stroke band being left
+  full-width instead of confined to the end of the header (D27);
+- (ab) curves spreading past the two places D27 allows them — the section header and the sidebar panel.
+- (ac) the Activity band painted a decorative colour instead of the card's status colour, applied to widgets below the summary
+- (ad) the sidebar collapse shipped as CSS alone, leaving `sideOpen` defaulting to `false` so every desktop session starts
+  collapsed (F31), or the `lg:hidden` scrim widened so a desktop collapse dims the page;
+- (ae) `"bookings"` renamed by find-and-replace, hitting `.from("bookings")` in the service and the payment webhook (F32);
+- (af) a re-homed widget "moved" by being rewritten, losing the hook and tests it already has (D21, F33).
+  strip, or leaking onto Home's shelves — each of which erases what the band is for (D29).

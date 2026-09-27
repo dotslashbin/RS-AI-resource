@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ezzy Home — North Star proposal</title>
+    <style>
+      :root { --ink:#17213a; --muted:#69738a; --line:#e9ebf1; --canvas:#f6f7fb; --paper:#fff; --violet:#6557e8; --violet-2:#eeeaff; --mint:#dcf7e8; --orange:#ffbd77; --red:#e96270; --shadow:0 18px 55px rgba(32, 39, 67, .13); }
+      * { box-sizing:border-box } body { margin:0; background:var(--canvas); color:var(--ink); font:14px/1.35 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .intro { max-width:1180px; margin:0 auto; padding:62px 32px 32px; }
+      .eyebrow { color:var(--violet); font-weight:800; font-size:11px; letter-spacing:.13em; text-transform:uppercase; }
+      h1 { margin:8px 0 10px; font-size:clamp(32px,5vw,56px); line-height:1.02; letter-spacing:-.055em; } .intro > p { max-width:720px; margin:0; color:var(--muted); font-size:17px; }
+      .north { display:inline-flex; align-items:center; gap:7px; margin-top:20px; padding:8px 12px; border-radius:99px; background:#ece9ff; color:#4b3fc7; font-size:12px; font-weight:750; }
+      .north b { font-size:16px; line-height:10px; }
+      .board { max-width:1320px; margin:0 auto; padding:12px 32px 80px; display:grid; grid-template-columns:280px minmax(430px, 1fr) 280px; gap:28px; align-items:start; }
+      .notes { padding:22px; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,.72); } .notes h2 { margin:0 0 13px; font-size:15px; letter-spacing:-.02em; } .notes p { margin:0 0 16px; color:var(--muted); } .notes strong { color:var(--ink); } .rule { height:1px; background:var(--line); margin:17px 0; }
+      .screens { display:grid; gap:34px; } .label { display:flex; align-items:center; justify-content:space-between; margin:0 4px 10px; color:var(--muted); font-size:12px; font-weight:700; } .label span:last-child { color:#969db0; font-weight:600; }
+      .phone { width:390px; min-height:815px; margin:auto; padding:10px; border-radius:48px; background:#202438; box-shadow:0 24px 50px rgba(27,31,52,.26); } .phone-screen { min-height:795px; overflow:hidden; border-radius:39px; background:#fbfbfe; position:relative; }
+      .status { height:34px; padding:14px 27px 0; display:flex; justify-content:space-between; font-size:10px; font-weight:800; } .notch { position:absolute; top:8px; left:50%; width:105px; height:23px; transform:translateX(-50%); border-radius:20px; background:#202438; }
+      .mobile-home { padding:13px 18px 90px; } .topline { display:flex; justify-content:space-between; align-items:center; margin:7px 0 18px; } .hello { font-size:12px; color:var(--muted); } .hello b { display:block; margin-top:2px; color:var(--ink); font-size:21px; letter-spacing:-.05em; } .avatar { width:33px; height:33px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(135deg,#ffcfac,#8878ff); color:#fff; font-weight:800; }
+      .search { height:48px; display:flex; align-items:center; gap:10px; padding:0 15px; border:1px solid #e2e3ea; border-radius:16px; background:#fff; color:#737b90; box-shadow:0 3px 10px rgba(30,34,55,.03); } .search i { width:15px; height:15px; border:2px solid currentColor; border-radius:50%; position:relative; } .search i:after { content:""; position:absolute; width:6px; height:2px; background:currentColor; right:-5px; bottom:-3px; transform:rotate(45deg); } .search b { margin-left:auto; color:var(--violet); font-size:11px; }
+      .section-head { display:flex; align-items:baseline; justify-content:space-between; margin:25px 0 12px; } .section-head h2 { margin:0; font-size:18px; letter-spacing:-.04em; } .section-head a { color:var(--violet); font-size:12px; font-weight:750; }
+      .category-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:9px; } .cat { min-height:88px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:7px 3px; border-radius:18px; background:var(--paper); border:1px solid #edf0f4; box-shadow:0 5px 12px rgba(30,34,55,.035); text-align:center; font-size:10px; font-weight:750; } .cat img { width:39px; height:39px; object-fit:contain; } .cat .fallback { width:39px; height:39px; display:grid; place-items:center; border-radius:13px; background:#eef0f5; color:#5c667b; font-size:17px; font-weight:850; }
+      .story { min-height:150px; position:relative; overflow:hidden; padding:18px; border-radius:21px; background:linear-gradient(125deg,#6255e9 0%,#7c70f3 61%,#94dfcb 62%,#d9f7d2 100%); color:#fff; } .story:after { content:""; position:absolute; right:-25px; top:-18px; width:148px; height:148px; border:23px solid rgba(255,255,255,.22); border-radius:50%; } .story .pill { display:inline-block; padding:5px 8px; border-radius:99px; background:rgba(255,255,255,.2); font-size:10px; font-weight:800; } .story h3 { max-width:220px; margin:14px 0 5px; font-size:22px; letter-spacing:-.05em; line-height:1.02; } .story p { margin:0; font-size:11px; opacity:.88; } .story button { position:absolute; left:18px; bottom:17px; border:0; border-radius:10px; padding:8px 11px; background:#fff; color:#493ac9; font:800 11px inherit; }
+      .nearby { display:flex; gap:11px; padding:12px; border:1px solid var(--line); border-radius:18px; background:#fff; } .thumbnail { width:62px; height:62px; flex:none; border-radius:13px; background:linear-gradient(135deg,#ffcf9b,#ff8e85); } .nearby h3 { margin:2px 0 3px; font-size:13px; letter-spacing:-.02em; } .nearby p { margin:0; color:var(--muted); font-size:11px; } .stars { margin-top:6px; color:#d58a16; font-size:11px; font-weight:800; }
+      .tabbar { position:absolute; bottom:0; left:0; right:0; height:73px; display:flex; align-items:center; justify-content:space-around; border-top:1px solid #e9eaf0; background:rgba(255,255,255,.96); } .tab { display:grid; justify-items:center; gap:4px; color:#81899a; font-size:10px; font-weight:700; } .tab b { font-size:19px; line-height:16px; } .tab.active { color:var(--violet); } .tab .dot { width:18px; height:18px; display:grid; place-items:center; border-radius:7px; background:currentColor; color:#fff; font-size:11px; }
+      .activity { padding:12px 18px 90px; } .activity h1 { margin:16px 0 4px; font-size:27px; } .activity .sub { color:var(--muted); font-size:12px; } .summary { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:20px; } .metric { padding:13px; border:1px solid #ebecf1; border-radius:17px; background:#fff; } .metric b { display:block; margin-bottom:7px; font-size:20px; letter-spacing:-.05em; } .metric span { color:var(--muted); font-size:11px; font-weight:650; } .metric .green { color:#159466; }
+      .timeline { position:relative; margin-top:21px; padding-left:22px; } .timeline:before { content:""; position:absolute; left:5px; top:12px; bottom:18px; width:2px; background:#e4e4ef; } .event { position:relative; margin-bottom:17px; padding:13px; border:1px solid #ebedf3; border-radius:17px; background:#fff; } .event:before { content:""; position:absolute; left:-22px; top:17px; width:10px; height:10px; border:3px solid #fafaff; border-radius:50%; background:var(--violet); box-shadow:0 0 0 1px #d6d2ff; } .event.warning:before { background:#eea033; box-shadow:0 0 0 1px #ffe2a9; } .event h3 { margin:0 0 4px; font-size:13px; } .event p { margin:0; color:var(--muted); font-size:11px; } .event .meta { display:flex; justify-content:space-between; margin-top:10px; color:#747b90; font-size:10px; font-weight:750; }
+      .desktop { min-width:0; overflow:hidden; border:1px solid #e1e3ea; border-radius:24px; background:#fff; box-shadow:var(--shadow); } .desktop-top { height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 27px; border-bottom:1px solid var(--line); } .brand { font-size:21px; font-weight:900; letter-spacing:-.07em; } .brand b { color:var(--violet); } .desk-search { width:335px; height:37px; display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:11px; background:#f4f4f8; color:#7d8495; font-size:12px; } .desk-search:before { content:"⌕"; font-size:20px; } .desk-user { display:flex; align-items:center; gap:9px; color:#5f677b; font-size:12px; font-weight:700; }
+      .desktop-body { display:grid; grid-template-columns:170px 1fr; min-height:640px; } .side { padding:20px 12px; border-right:1px solid var(--line); background:#fbfbfd; } .side a { display:flex; gap:9px; align-items:center; margin-bottom:5px; padding:10px 11px; border-radius:10px; color:#6a7286; font-size:12px; font-weight:700; } .side a.active { background:#ece9ff; color:#5144d3; } .side .help { margin-top:75px; padding:12px; border-radius:13px; background:#f0f8f5; color:#3b6f5b; font-size:11px; } .desktop-main { padding:29px; background:linear-gradient(180deg,#fff 0,#f9faff 100%); } .desktop-main h1 { margin:0; font-size:30px; } .desktop-main > p { margin:6px 0 23px; color:var(--muted); }
+      .desktop-hero { min-height:154px; display:flex; position:relative; overflow:hidden; padding:25px; border-radius:20px; background:linear-gradient(112deg,#6557e8,#8c7ff4 65%,#bce9d5); color:#fff; } .desktop-hero:after { content:""; position:absolute; right:50px; top:-52px; width:225px; height:225px; border:34px solid rgba(255,255,255,.22); border-radius:50%; } .desktop-hero h2 { max-width:380px; margin:5px 0 6px; font-size:27px; line-height:1.05; letter-spacing:-.05em; } .desktop-hero p { margin:0; font-size:12px; opacity:.9; } .desktop-hero button { align-self:end; margin-left:auto; position:relative; z-index:1; border:0; padding:10px 14px; border-radius:10px; background:#fff; color:#4b3eca; font:800 12px inherit; }
+      .desk-categories { display:grid; grid-template-columns:repeat(6, 1fr); gap:10px; } .desk-cat { min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; border:1px solid #eceef4; border-radius:17px; background:#fff; font-size:11px; font-weight:800; } .desk-cat img { width:48px; height:48px; object-fit:contain; } .desk-cat .fallback { width:48px; height:48px; display:grid; place-items:center; border-radius:14px; background:#f1f2f7; color:#5c667b; font-size:20px; }
+      .offerings { display:grid; grid-template-columns:repeat(3, 1fr); gap:11px; } .offer { padding:13px; border:1px solid #ebedf3; border-radius:16px; background:#fff; } .offer .image { height:75px; margin-bottom:10px; border-radius:11px; background:linear-gradient(120deg,#d1c4ff,#8abbd8); } .offer:nth-child(2) .image { background:linear-gradient(120deg,#ffcf95,#fc8c81) } .offer:nth-child(3) .image { background:linear-gradient(120deg,#bdeed6,#63c5a4) } .offer h3 { margin:0 0 4px; font-size:12px; } .offer p { margin:0; color:var(--muted); font-size:10px; } .offer b { display:block; margin-top:8px; color:#4f42d0; font-size:11px; }
+      .data { padding:13px; border-radius:13px; background:#21263b; color:#e8ecff; font:11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap; } .data em { color:#8bddbd; font-style:normal; } .data i { color:#b8b2ff; font-style:normal; }
+      @media (max-width:1100px) { .board { grid-template-columns:250px minmax(430px, 1fr); } .board > .notes:last-child { grid-column:1/-1; } }
+      @media (max-width:760px) { .intro { padding:38px 20px 20px; } .board { display:block; padding:0 16px 48px; } .notes { margin:18px 0; } .phone { transform:scale(.88); transform-origin:top center; margin-bottom:-90px; } .desktop { overflow:auto; } .desktop-body { min-width:780px; } .desktop-top { min-width:780px; } }
+    </style>
+  </head>
+  <body>
+    <header class="intro">
+      <div class="eyebrow">Independent concept proposal · 25 September 2026</div>
+      <h1>Ezzy Home, as a launchpad.</h1>
+      <p>“North Star” makes discovery feel immediate and optimistic, while moving booking logistics into one calm, accountable Activity space.</p>
+      <div class="north"><b>✦</b> Browse first. Decide with confidence. Track without clutter.</div>
+    </header>
+    <main class="board">
+      <aside class="notes">
+        <h2>Direction</h2>
+        <p><strong>A warm utility marketplace.</strong> Home is for possibility: a clear search doorway, high-recognition divisions, then a small amount of relevant inspiration. It is not a status dashboard.</p>
+        <div class="rule"></div>
+        <h2>Navigation shift</h2>
+        <p>On phones, <strong>Activity replaces Bookings</strong> as the broader place for upcoming services, actions needed, completed history and booking summaries. Payments remains a focused utility.</p>
+        <div class="rule"></div>
+        <h2>Design system</h2>
+        <p>Quiet neutral canvas; expressive violet used only to orient and invite action; soft green signals readiness. Cards are shallow and roomy, so the real logos—not UI chrome—carry category recognition.</p>
+        <div class="rule"></div>
+        <h2>Accessible by default</h2>
+        <p>Every category is a labelled button, not a logo-only control. The design leaves 44px+ touch space, uses text alongside status colour, and keeps titles / key actions high contrast.</p>
+      </aside>
+
+      <section class="screens" aria-label="Home and Activity mockups">
+        <div>
+          <div class="label"><span>01 — MOBILE HOME</span><span>390 × 844</span></div>
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="notch"></div><div class="status"><span>9:41</span><span>●●● 5G ▰</span></div>
+              <div class="mobile-home">
+                <div class="topline"><div class="hello">Good afternoon<b>What can we make easier?</b></div><div class="avatar">JP</div></div>
+                <div class="search"><i></i><span>Search services, places, or needs</span><b>⌕</b></div>
+                <div class="section-head"><h2>Explore Ezzy</h2><a>All services →</a></div>
+                <div class="category-grid">
+                  <div class="cat"><img src="../division_logos/ezzy_food.png" alt="EzzyFood"/>EzzyFood</div><div class="cat"><img src="../division_logos/ezzy_well.png" alt="EzzyWell"/>EzzyWell</div><div class="cat"><img src="../division_logos/ezzy_drive.png" alt="EzzyDrive"/>EzzyDrive</div><div class="cat"><img src="../division_logos/ezzy_home.png" alt="EzzyHome"/>EzzyHome</div>
+                  <div class="cat"><img src="../division_logos/ezzy_care.png" alt="EzzyCare"/>EzzyCare</div><div class="cat"><img src="../division_logos/ezzy_pets.png" alt="EzzyPets"/>EzzyPets</div><div class="cat"><img src="../division_logos/ezzy_learn.png" alt="EzzyLearn"/>EzzyLearn</div><div class="cat"><span class="fallback" aria-hidden="true">↗</span>EzzyRide</div>
+                </div>
+                <div class="section-head"><h2>A little time, well spent</h2><a>See all →</a></div>
+                <div class="story"><span class="pill">THIS WEEKEND</span><h3>Reset your weekend routine.</h3><p>Find a session, a table, or a little help close by.</p><button>Browse nearby</button></div>
+                <div class="section-head"><h2>Popular near you</h2><a>More →</a></div>
+                <div class="nearby"><div class="thumbnail"></div><div><h3>Sunday wellness sessions</h3><p>EzzyWell · 1.4 km away</p><div class="stars">★ 4.8 · From ₱650</div></div></div>
+              </div>
+              <nav class="tabbar"><div class="tab active"><b>⌂</b>Home</div><div class="tab"><b>⌕</b>Explore</div><div class="tab"><span class="dot">✓</span>Activity</div><div class="tab"><b>◉</b>Profile</div></nav>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="label"><span>02 — ACTIVITY TAB</span><span>390 × 844</span></div>
+          <div class="phone">
+            <div class="phone-screen"><div class="notch"></div><div class="status"><span>9:41</span><span>●●● 5G ▰</span></div>
+              <div class="activity"><h1>Your Activity</h1><div class="sub">The services you have on the go, in one place.</div>
+                <div class="summary"><div class="metric"><b class="green">1</b><span>Coming up</span></div><div class="metric"><b>₱1,950</b><span>Saved this month</span></div></div>
+                <div class="section-head"><h2>Next up</h2><a>View booking →</a></div>
+                <div class="event"><h3>Massage therapy · 60 min</h3><p>Sunday, 28 Sept · 2:00 PM<br>Well House, Makati</p><div class="meta"><span>CONFIRMED</span><span>Directions →</span></div></div>
+                <div class="section-head"><h2>Recent updates</h2><a>All activity</a></div>
+                <div class="timeline"><div class="event warning"><h3>One thing needs your attention</h3><p>Complete your document upload for Driving Fundamentals.</p><div class="meta"><span>YESTERDAY</span><span>Continue →</span></div></div><div class="event"><h3>Booking confirmed</h3><p>Your Court 3 reservation is set for Saturday.</p><div class="meta"><span>24 SEPT</span><span>View receipt →</span></div></div><div class="event"><h3>Payment completed</h3><p>₱1,200 paid to The Playfield.</p><div class="meta"><span>22 SEPT</span><span>Receipt →</span></div></div></div>
+              </div>
+              <nav class="tabbar"><div class="tab"><b>⌂</b>Home</div><div class="tab"><b>⌕</b>Explore</div><div class="tab active"><span class="dot">✓</span>Activity</div><div class="tab"><b>◉</b>Profile</div></nav>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="label"><span>03 — DESKTOP HOME</span><span>Responsive wide layout</span></div>
+          <div class="desktop">
+            <div class="desktop-top"><div class="brand">e<b>z</b>zy</div><div class="desk-search">Search services, places, or needs</div><div class="desk-user"><span>⌁</span> Manila <span class="avatar">JP</span></div></div>
+            <div class="desktop-body"><aside class="side"><a class="active">⌂&nbsp; Home</a><a>⌕&nbsp; Explore</a><a>✓&nbsp; Activity</a><a>▣&nbsp; Payments</a><a>◉&nbsp; Profile</a><div class="help"><strong>Need a hand?</strong><br>Start with a service, then choose what feels right.</div></aside>
+              <section class="desktop-main"><h1>Make room for a good day.</h1><p>Choose a category, or start with what you need.</p><div class="desktop-hero"><div><span class="pill">EZZY, YOUR WAY</span><h2>A better weekend is closer than you think.</h2><p>Discover places and people ready when you are.</p></div><button>Explore nearby</button></div>
+                <div class="section-head"><h2>Explore Ezzy</h2><a>View every division →</a></div><div class="desk-categories"><div class="desk-cat"><img src="../division_logos/ezzy_food.png" alt=""/>EzzyFood</div><div class="desk-cat"><img src="../division_logos/ezzy_well.png" alt=""/>EzzyWell</div><div class="desk-cat"><img src="../division_logos/ezzy_court.png" alt=""/>EzzyCourt</div><div class="desk-cat"><img src="../division_logos/ezzy_drive.png" alt=""/>EzzyDrive</div><div class="desk-cat"><img src="../division_logos/ezzy_home.png" alt=""/>EzzyHome</div><div class="desk-cat"><img src="../division_logos/ezzy_pets.png" alt=""/>EzzyPets</div></div>
+                <div class="section-head"><h2>Easy wins nearby</h2><a>Show more →</a></div><div class="offerings"><div class="offer"><div class="image"></div><h3>Wellness appointments</h3><p>Take an hour for yourself.</p><b>Browse EzzyWell →</b></div><div class="offer"><div class="image"></div><h3>Make dinner simpler</h3><p>Book culinary help that fits.</p><b>Browse EzzyFood →</b></div><div class="offer"><div class="image"></div><h3>Play time, sorted</h3><p>Reserve a court in minutes.</p><b>Browse EzzyCourt →</b></div></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside class="notes">
+        <h2>Category data contract</h2>
+        <p>Icons are content, not a shipped enum. Home receives ordered division data from the same future-managed source Command will use. The UI only needs an image URL plus accessible naming.</p>
+        <div class="data">{
+  <i>id</i>: <em>"ezzy-well"</em>,
+  <i>name</i>: <em>"EzzyWell"</em>,
+  <i>iconUrl</i>: <em>"…/well.png"</em>,
+  <i>alt</i>: <em>"EzzyWell"</em>,
+  <i>sortOrder</i>: 2,
+  <i>isActive</i>: true
+}</div>
+        <div class="rule"></div>
+        <h2>Missing or changed icon</h2>
+        <p>A neutral initial/arrow tile appears when <code>iconUrl</code> is absent or fails. The category remains tappable and correctly named—important for <strong>EzzyRide</strong> today and any admin change tomorrow.</p>
+        <div class="rule"></div>
+        <h2>Intentional restraint</h2>
+        <p>No speculative location map, promotion carousel, or personalisation claim is required for the first release. “Near you” should appear only when location/area and inventory make it honest; otherwise it becomes “Popular now.”</p>
+      </aside>
+    </main>
+  </body>
+</html>

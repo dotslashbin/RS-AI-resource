@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21
 **App / scope:** `./ezzy-booker-mobile` only. Every other folder is read-only reference. Web changes are requested through **Sync notes (N#)**, never made from here.
-**Status:** COMPLETE 2026-09-22 for the build scope (M1–M9). **Approved 2026-09-21** with the order M1 → … → M8, M9 added 2026-09-21 at the user's request. Every stage ✅ (M8 on the user's acceptance after their emulator checks). **Carried forward, not done:** G1–G6 (including device storage for the draft, I7) → the real-data plan (§12); N1–N9 with the user for the web session; commits with the user. Next: the real-data plan, written 2026-09-22 → `.plans/2026-09-22-booker-mobile-real-data.md` (DRAFT; decisions D1–D7 open). It carries G1–G6 as dependencies W1–W6. **Parity review 2026-09-22 (web session): §4b added — five differences found, three owned by web, and two actions here (gate the agreements step; re-copy the now-final division colours).**
+**Status:** COMPLETE 2026-09-22 for the build scope (M1–M9). **Approved 2026-09-21** with the order M1 → … → M8, M9 added 2026-09-21 at the user's request. Every stage ✅ (M8 on the user's acceptance after their emulator checks). **Carried forward, not done:** G1–G6 (including device storage for the draft, I7) → the real-data plan (§12); N1–N9 with the user for the web session; commits with the user. Next: the real-data plan, written 2026-09-22 → `.plans/2026-09-22-booker-mobile-real-data.md` (DRAFT; decisions D1–D7 open). It carries G1–G6 as dependencies W1–W6. **Parity review 2026-09-22 (web session): §4b added — five differences found, three owned by web, and two actions here (gate the agreements step; re-copy the now-final division colours).** **Redesign carried to its own plan 2026-09-25: `.plans/2026-09-25-booker-mobile-redesign.md` (DRAFT). This plan stays COMPLETE for M1–M9. Parity amendment 2026-09-25 (web session): §4b-2 added — Home becomes a storefront and a new Activity tab takes the dashboard (web D21–D24). It changes this app's built P2 and P3, is ⬜ TODO here, and one web decision (D25, the "Available today" shelf) is still open.**
 **Replaces:** `2026-09-18-booker-mobile-prototype.md`, deleted 2026-09-21 at the user's request. That plan had absorbed three design directions and contradicted itself. Everything still true is here. What it built, M0 and the first Payments screen, is recorded under *What exists today*.
 
 > **Goal:** the booker mobile app **looks and behaves like the approved web booker redesign** (`2026-09-18-booker-home-search-redesign.md`) in light and dark, on mock data that can be swapped for real Supabase calls. Where native differs from web, the difference is deliberate and listed with its reason.
@@ -90,6 +90,7 @@ Booker's look, not the prototype's: `--db-*` surfaces, booker's primary blue, an
 | Booking detail | Modal (web I10) | Pushed screen `booking/[id]` | Native back gesture; long content scrolls better on a screen than in a modal |
 | `<select>` (city, when, vendor, sort) | Native `<select>` | Bottom-sheet pickers; Payments puts them in a **Filters** sheet with a count badge, as `MobilePayments` draws | No `<select>` on native |
 | Payments date range | Presets + custom from/to (web I19) | **Presets only**: Last 3 months · This month · This year · All (the `MobilePayments` order) | A date picker needs a new package; the phone board shows presets only |
+| **Heading typeface** | A display face for headings (web D22) | **System stack, no display face** | Added 2026-09-25 (redesign plan D3-A). Loading a font costs a bundle asset, a `useFonts` gate on first paint and a re-test of M8's label clipping — for headings only. **D9 removed font loading on purpose; this does not reverse it.** The clients differ in type ONLY: tiles, colour, chrome, spacing and copy stay identical |
 | Pagination | 10 per page, Previous / Next (web D15) | **"Load N more"**, 10 at a time | The phone board draws "Load 3 more" |
 | CSV export | Blob download (web D14) | **Share sheet** (`expo-file-system` + `expo-sharing`, D10) | No browser downloads on native |
 | Receipt print | `window.print()` (web D16) | **`expo-print`** (D10) | No `window.print()` on native |
@@ -121,6 +122,62 @@ The web plan (`2026-09-18-booker-home-search-redesign.md`) now carries the same 
 - **Web keeps a `lib/palette.test.ts`** that reads `globals.css` and asserts every pair ≥ 4.5:1, the same job `statusPalette.test.ts` and `divisions.test.ts` do here. If a value changes on either side, both suites must be re-run.
 
 **Web items that unblock this app's real-data plan** are unchanged: its I5 (paged bookings → W6), I14 (occupancy RPC → W2) and P2 (payment retry → W1).
+
+### 4b-2. Home becomes a storefront, and a new Activity tab takes the dashboard (added 2026-09-25 by the web session)
+
+> ➡️ **This work is NOT executed in this plan.** It has its own document:
+> **`.plans/2026-09-25-booker-mobile-redesign.md`** (DRAFT, 2026-09-25). This plan stays **COMPLETE** as the record of
+> the M1–M9 build; the section below remains as the parity contract the new plan follows.
+
+The web plan's **D21–D24**, chosen by the user on 2026-09-25 after a two-direction
+design review (the chosen canvas: https://claude.ai/artifact/TZ2nDFNudFffaDDrRXCvP9).
+**This lands on screens this app has already built** — P2 Home and P3 Bookings — so it
+is a change to working code, not a new screen.
+
+⬜ **TODO here. Nothing below is built on mobile yet.** Web executes it as its S10 → S11 → S12; this app follows in its own session.
+
+| What | Web | Mobile | Same or different |
+|---|---|---|---|
+| Tabs | Home · Explore · **Activity** · Payments | **the same four, same order** | **Same.** `app/(tabs)/bookings.tsx` → `activity.tsx`; today's P3 list becomes its Bookings segment. The tab bar stays at four, so the label-clipping work from M0/M8 still holds |
+| Home | hero + search, all divisions, Book again, vendors in your city, one in-progress strip | the same sections, same order | **Same.** P2's widget list moves wholesale to Activity |
+| Division grid | auto-fill grid; tile = light tint + division name in white on a deep band | **4 across**, wrapping | **Different column count only** — a phone fits four. Allowed; recorded here |
+| Icon source | `divisionIcon(slug)` → `/division-icons/<slug>.png` → monogram | the same function; `require()`d assets, not a `/public` URL | **Same logic, different asset resolution.** Allowed; recorded here |
+| Activity layout | segments + a right rail on desktop | the same segments, rail cards stacked under Updates | Already covered by §4's one-column rule |
+| Display typeface | headings only, via `next/font` | ⚠️ the same family as an Expo asset, gated on `useFonts` | **This reverses D9**, which uninstalled `@expo-google-fonts/inter` deliberately. It is a real cost here (a font file, a load gate, a fallback), and it is the user's call — see the web plan's D22, which says the tiles ship without it if the cost is refused |
+| "Available today" shelf | **web D25 is still OPEN** | whatever D25 decides | **Must not diverge.** Do not build a shelf here before that answer |
+
+**Design iterations after the first pass (2026-09-25), both clients:**
+- **Section chrome (web D27):** every shelf carries a **4px straight marker** in its own colour left of the title, a hairline
+  under the header, and a recessed body. **No shadows** on the section surfaces. Radius is a two-step hierarchy — **10px for a
+  section, 18px for the search hero**, which also keeps its shadow; no third value. Phone sections stay **inset 16px** with a
+  full border, because a radius needs an edge to sit on. In React Native this is `StyleSheet` on a shared `Section` component,
+  not per-screen styles (this app's AGENTS.md overrides the `.module.css` rule, the render/hook split still applies).
+- **"Popular this month"** sits between the divisions and Available today. ⚠️ **Do not build it here yet** — web **D26** is open,
+  and there is no popularity data in the system at all (web F30: no ratings or featured column, and RLS means a client cannot
+  count bookings it is not allowed to read).
+- **Sidebar / D30 — does NOT apply here.** The phone app has no sidebar: its drawer became the Account screen (§4, D4), and
+  the collapse is a desktop-only affordance. Nothing to port; recorded so the parity check does not flag it as a gap.
+- **Activity stat strip (web D29):** **only the three summary cards at the top** (Upcoming, Needs you, Paid in Sep) carry a
+  **3px rule top and bottom**, each in its status colour. Widgets below the strip keep plain card chrome — they carry colour
+  through the division tint and the status pill instead (D28). Trivial in React Native (`borderTopWidth` /
+  `borderBottomWidth` + `borderTopColor` / `borderBottomColor`); RN needs the per-side colour props, not a shorthand.
+- **Colour per booking (web D28):** a booking's colour is its **division's** colour — the row wash (~7% alpha), the icon tint
+  and the tile band all read from the same `--div-<slug>` triple that `tokens.ts` already mirrors. **Status keeps its own
+  palette on the pill**; the two never share a channel. No per-booking or per-status row colours.
+- **Section header (web D27):** a **flat wash** of the section's colour (6% light / 10% dark — the pipe's own colour) plus
+  **arcs and diagonal strokes together** over the last ~110px of the header. Header only; one colour at four alphas.
+  In React Native the flat wash is trivial, but there is no `repeating-radial-gradient` or `repeating-linear-gradient`, so the
+  arc/stroke band is either **one small PNG or SVG asset per section colour** (thirteen tiny assets, or one white asset tinted
+  via `tintColor`) or it is dropped on mobile. Decide when the section component is built and record which. The flat wash alone
+  is an acceptable mobile result; the header must not be left plain.
+- The **sidebar motif** is web-only: this app has no sidebar, and the phone's angular equivalent is not drawn. If one is wanted
+  on the Account screen, it is a new item, not a port.
+
+**Two things this app must not do:**
+- **Do not rewrite the widgets while moving them.** `NeedsYouCard`, `UpNextCard`, the draft card and the booking list keep their current logic and their tests on both clients; only the parent screen changes (web D21).
+- **Do not hardcode a division's icon.** There are **12 logos for 13 divisions** — `ezzy-ride` has none — so the monogram fallback is a live path, not a defensive one, and a division Command adds later will use the same branch (web F25, D23).
+
+**Also carried from the web session's asset audit (web F26–F28):** the supplied logos are 256–2000 px and 27 KB–1.4 MB and must be resized before either client ships them; `divisions` has no icon column and there is no icon bucket, so the Command-set icon is a later schema gate; and five divisions (`law`, `park`, `learn`, `work`, `stay`) get real colour pairs for the first time (web I33) — **re-copy them into `tokens.ts` when web lands them**, the same way this plan already re-copies the rest.
 
 
 ## 5. Screens and features (P#) — every one must exist on mobile
@@ -856,6 +913,9 @@ I2 is resolved (2026-09-21), so every stage can now be verified visually as well
 | [x] | I8 | Native crash in Expo Go: align 16 packages to SDK 57's expected patch versions | You→Me | ✅ DONE 2026-09-22 | Approved + run; Home renders on the emulator, no crash |
 | [x] | I1 | Lint setup | You→Me | ✅ DONE 2026-09-22 | eslint + eslint-config-expo (dev), vendor's config; `npm run lint` clean |
 | [x] | I10 | Hooks-rule fixes from the first lint (14) | Me | ✅ DONE 2026-09-22 | 10 set-state-in-effect + 4 refs; all browser checks re-run clean |
+| [ ] | Redesign | **Storefront Home + Activity tab** (§4b-2, web D21–D24): `bookings` tab → `activity` with Updates \| Bookings segments, Home rebuilt around the 13 division tiles, widgets re-homed unchanged | Me | ⬜ TODO | Changes built screens P2 and P3. Waits on web's S10–S12 landing first, and on web D25 for the "Available today" shelf |
+| [ ] | Redesign-a | Re-copy the five new division colour pairs into `tokens.ts` once web's I33 lands | Me | ⬜ TODO | `law`, `park`, `learn`, `work`, `stay` shared the neutral grey until now |
+| [ ] | Redesign-b | Decide the display typeface on mobile — it **reverses D9** | You | ⬜ TODO | D9 uninstalled `@expo-google-fonts/inter` on purpose; re-adding a font is a real cost here |
 | [ ] | N1–N10 | Sync notes to the web session | You | ⬜ TODO | I can't edit web's plan |
 | [ ] | Git | Commit per stage (app repo + root repo for plans) | You | ⬜ TODO | |
 | [ ] | G1–G6 | Backend gaps | — | ⏸ PARKED | Real-data plan; G4 blocks App Store submission |

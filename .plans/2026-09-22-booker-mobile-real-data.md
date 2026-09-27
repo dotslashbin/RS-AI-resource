@@ -4,6 +4,9 @@
 **App / scope:** `./ezzy-booker-mobile`. Reads `booker`, `backbone` and `ezzy-vendor-mobile` as **read-only reference**. Changes wanted in `booker` or `backbone` are requested through **Dependencies (W#)** and the mobile build plan's sync notes — never made from here.
 **Status:** DRAFT — decisions D1–D7 are OPEN. **No stage may execute while an OPEN decision remains.**
 
+> ⚠️ **Ordering, decided 2026-09-25 (`2026-09-25-booker-mobile-redesign.md` D4-A): the Home/Activity redesign runs FIRST, on mocks. This plan starts after it.**
+> Consequence: the W-items below name screens that the redesign **moves or renames** — the Bookings tab becomes **Activity**, Home loses its dashboard widgets to it, and Home is rebuilt as a storefront. **Re-read this plan against the new structure before approving it**; do not merge it blind. The two plans never run in the same session.
+
 > **Goal:** the app that exists today on sample data runs on the real shared Supabase project: a booker signs in, sees their own bookings, searches the real catalogue, books a real slot, pays, and gets real notifications — with the same screens, and no drop in the honesty the build plan fought for.
 
 > **Status legend:** ⬜ TODO · 🔄 IN PROGRESS · ✅ DONE · ⏸ PARKED · ✖ ABORTED.
