@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** Remaining: I37 (Popular, after D26-gate), then S7 (polish + regenerate every visual baseline) and S8 (docs), plus the user-owned checks S3b-5, S6-b, S7-a, S9c.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. Remaining: I37 (Popular, after D26-gate) and S8 (docs), plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -448,6 +448,242 @@ shape.
 both the list and the loading flag are **derived** from whether that key is current. No
 setState in the effect, no ref, and a stale response is ignored by construction rather than
 by a counter. Lint returned to its 19-problem baseline.
+
+### F43 — a pre-existing hydration mismatch in the theme toggle (found 2026-09-27, S7)
+
+`components/layout/TopBar/TopBar.tsx` picked its icon from `resolvedTheme` on the first
+render. The server has no theme, so the markup it sent and the markup the client produced
+disagreed — a React hydration warning that predates this plan and had nothing to do with the
+redesign.
+
+**Fixed**: a `mounted` guard, the pattern next-themes documents. The icon renders only after
+mount; before that the button is still there and still labelled, so nothing shifts.
+✅ DONE (2026-09-27) — the guard is in place; the mount flag now comes from the shared
+`hooks/useMounted.ts` added in F48.
+
+Getting here took one wrong turn worth recording. After the guard, a clean run **still** logged
+12 hydration errors, so the fix looked incomplete. Reading the actual React diffs, rather than
+the error count, showed none of them came from `TopBar`, and all 12 were the harness:
+
+- **10 text mismatches** — `+ 12w ago` against `- 36w ago` in `NotificationItem`
+  (`fmtRelativeTime`), and the same shape wherever a countdown is printed. The **server** uses
+  the real clock while the **spec freezes the browser's** (F46), so the two disagree by
+  construction. Nothing to do with the product: in production both clocks are real.
+- **2 attribute mismatches** — `style={{caret-color:"transparent"}}` present in the server HTML
+  and absent on the client, on the login inputs. `caret-color` appears nowhere in this repo:
+  it is Playwright's own `caret: "hide"` editing the DOM before hydration — literally the
+  "browser extension messes with the HTML" case React's message names.
+
+So the theme icon was the only real one, and it is fixed. ⚠️ The lesson is the method: an error
+*count* said "not fixed", the error *contents* said "fixed, plus two artifacts". Read the diff.
+
+### F48 — a fixture that always logs hydration errors cannot report one (found 2026-09-27, S7)
+
+F43 hid in `/ui-gallery` for weeks behind harness noise (see above). The noise is unavoidable
+while the fixture is server-rendered — freezing the browser clock is exactly what makes the
+server's HTML wrong — so the fixture is now **client-only**: `app/ui-gallery/page.tsx` gates
+`<Body />` on a mount flag, leaving no server HTML to reconcile.
+
+⚠️ **This broke the harness's timing assumption, which is the part worth remembering.** Both the
+spec and the audit script waited on `networkidle` — and on a client-only page the network can go
+idle while the page is still **empty**, which yields blank captures and boxes measured mid-layout
+(it is why I43's first numbers looked self-contradictory). The fixture now exposes
+`data-gallery-ready` once mounted, and everything that captures or measures it waits for that
+attribute and then for `document.fonts.ready`, never for the network. A change that removes SSR
+has to bring the harness with it.
+
+⚠️ This is a **fixture-only** change. It is not a licence to skip SSR anywhere in the product —
+the hook's own doc comment says so, because "add `useMounted` until the warning stops" is the
+obvious wrong reading of this finding.
+
+**Also extracted `hooks/useMounted.ts`.** Both call sites (F43's `TopBar`, this fixture) wrote
+`useState(false)` + a `setMounted(true)` effect, and each tripped
+`react-hooks/set-state-in-effect` — lint had quietly gone 19 → 20 → 21. The rule is right in
+general and cannot be satisfied here (the render that learns "have we mounted" is by definition
+the second one), so the disable now lives **once**, in a hook whose only job is this, instead of
+at every call site.
+**The change cost one test, and the test was right to fail.** `csp.spec.ts` asserts the division
+icons were *actually fetched* — its guard against passing trivially — and on a client-only page
+`networkidle` was reached before any icon had been requested, so it reported "no
+/division-icons/ requests — img-src is untested". It now waits for the ready flag **and** for
+every `<img>` to report `complete`, because relying on the network made it pass on a warm server
+and fail on a cold compile; a flaky security test is worse than none.
+
+✅ DONE (2026-09-27) — `tsc` clean, 146/146 unit tests, lint at its **19-problem baseline**
+(measured against `git show HEAD:app/ui-gallery/page.tsx` to separate my problems from
+pre-existing ones), and the full Playwright suite **71/71, exit 0, with zero hydration errors in
+the log** — down from 12. The baselines did **not** need re-recording: `document.fonts.ready`
+shifted no glyph. The handshake is independently proven by the audit script, which now returns a
+full inventory on every pane where it previously returned empty ones.
+
+### F50 — Payments' header was clipped, not scrolled, at 360px (found 2026-09-27, S7)
+
+The audit gained a horizontal-overflow check — the machine half of "does it work at 360?", and
+the half a screenshot review misses, because a capture is taken at the full scroll width and so
+looks fine.
+
+`components/payments/PaymentsPage/PaymentsPage.module.css:4` — `.header` was a non-wrapping flex
+row holding the heading and a `flex-shrink: 0` actions row (Export CSV, Print). At 360px it ran
+16px past the viewport. ⚠️ And because `AppShell`'s `<main>` is `overflow-hidden`, the result was
+not a sideways scroll but **silent clipping**: the Print button was simply not there.
+
+**Fixed** with `flex-wrap: wrap` on `.header`, so the actions drop to a second line. No effect
+above ~380px, which is why no baseline moved.
+✅ DONE (2026-09-27) — re-measured: the overflow is gone at 360 in both themes; full suite
+71/71, so nothing shifted at capture width.
+
+⚠️ **One overflow remains and is NOT a product bug:** the `divisions` gallery pane scrolls 27px
+at 360 because the *fixture* hardcodes `gridTemplateColumns: repeat(5, 1fr)` with 60px icons
+(`app/ui-gallery/page.tsx`) — 348px of content in a 296px box. The product's own grid is
+`repeat(auto-fill, minmax(…))` and cannot overflow. Left alone deliberately: making the fixture
+grid responsive would re-record the `divisions` baselines to fix a number nobody reads.
+
+### F44 — the CSP test was still guarding a deleted map (found 2026-09-27, S7)
+
+`visual-tests/csp.spec.ts` asserted that tile requests went only to the Leaflet basemap host.
+S6 deleted the map, so the test was passing by testing nothing.
+
+**Repointed** at what this screen actually loads now: the division PNGs under
+`/division-icons/` and the self-hosted font. ⚠️ Recorded trap: `next/image` rewrites those to
+`/_next/image?url=%2Fdivision-icons%2F…`, so the assertion decodes each URL
+(`decodeURIComponent(r.url())`) before matching — matching the raw URL silently finds nothing,
+which is how a green test can mean "no requests were made".
+✅ DONE (2026-09-27) — the test now fails if the icons stop loading; confirmed by running it.
+
+**Left for the user (approval gate):** `next.config.ts` still allows `TILE_HOST`
+(`https://*.basemaps.cartocdn.com`) in `img-src`. Nothing requests it any more, so it is a
+dead allowance in a security header. Removing it is a security-related change, so it is
+**not** done here — see the new S7-b.
+
+### F45 — the gallery fixture fed display strings to parsers (found 2026-09-27, S7)
+
+The `/ui-gallery` mock bookings carried already-formatted values (`"April 12, 2026"`,
+`"9:00 AM"`) where the real rows carry raw ones (`"2026-04-12"`, `"09:00"`). Every widget that
+*parses* instead of printing therefore rendered "IN NAN DAYS" and "9:NaN AM" — in the fixture
+only; production data was always raw.
+
+**Fixed**: seven dates and seven times converted to the raw formats the services return. The
+fixture now exercises the same code path production does, which is the only reason it is worth
+capturing.
+✅ DONE (2026-09-27) — verified by reading the regenerated captures: no `NaN` anywhere.
+
+### F46 — the visual baselines were rotting daily, and had been for weeks (found 2026-09-27, S7)
+
+`UpNextCard` derives a countdown from `Date.now()`. Every baseline containing it therefore
+encodes *the day it was recorded*: the committed capture read **"3077d left"** while today's
+run of the same pane read **"3021d left"** — a 56-day drift, and proof the suite had been
+failing for reasons unrelated to any code change.
+
+⚠️ This is the more important half of the finding: a suite that fails every day teaches people
+to re-record without looking, which is exactly how a real regression gets committed as a
+baseline.
+
+**Fixed**: the spec freezes the clock before navigating —
+`await page.clock.setFixedTime(new Date("2026-04-10T02:00:00+08:00"))` — a Manila morning, so
+the frozen instant also exercises the +08:00 date arithmetic rather than sidestepping it. Any
+future countdown, relative date or "today" badge is now stable by construction.
+✅ DONE (2026-09-27) — re-recorded all 67 captures with the clock frozen (exit 0), then re-ran
+the suite unchanged against them.
+
+### F47 — `BookAgainCard` does not render through `HomeSection` (found 2026-09-27, S7)
+
+Every shelf on Home is wrapped in `HomeSection`, which owns the pipe, the band and the D27
+artwork — except "Book again", which draws its own chrome from before that component existed
+(`components/home/BookAgainCard/`). On screen the section reads as a different kind of object
+than its neighbours.
+
+**Not fixed here.** It is a visual inconsistency, not a defect, and touching it means moving
+markup that S11 verified. Logged as **I42** below rather than changed in a polish stage.
+⬜ TODO — see I42.
+
+### F49 — two icon-only controls had no accessible name (found 2026-09-27, S7)
+
+The measured pass (see I43) reports each control's accessible name alongside its box, which is
+how these surfaced: two buttons came back with an **empty** name.
+
+- `components/layout/TopBar/TopBar.tsx` — the notification bell. Worse than a missing label:
+  the unread count was conveyed **only** by a coloured dot, so a screen-reader user had no way
+  to know there was anything unread. Now
+  `aria-label` carrying the count when there is one,
+  with `aria-expanded`, and the icon and dot marked `aria-hidden`.
+- `components/layout/Sidebar/Sidebar.tsx:63` — the phone drawer's close button, an `<X>` and
+  nothing else. Now `aria-label="Close the menu"`, icon `aria-hidden`.
+
+⚠️ Neither changes a pixel, so **the baselines just recorded stay valid** — that is why these
+two were worth fixing inside a polish stage while I43 was not.
+✅ DONE (2026-09-27) — `tsc` clean, 146/146 tests, lint at 19. Re-measured: no unnamed control
+remains on the audited panes.
+
+### F51 — one division→colour map, instead of one per consumer (2026-09-27, D22-b)
+
+Rebuilding the tile needed the division's tint and deep shade on a **second** component. Each
+consumer had been repeating its own thirteen-line `[data-division="…"]` block; a third copy was
+about to appear.
+
+`app/globals.css` now maps the attribute to two inherited custom properties once —
+`--division-tile` and `--division-deep` — and any element carrying `data-division` just uses
+them. `DivisionIcon.module.css` lost its own thirteen rules to the shared map.
+
+⚠️ Why this is worth more than the lines it saves: **F39 was two colour collisions that survived
+review and were found only by measuring.** Thirteen near-identical rules per consumer is exactly
+the shape that lets one value drift. Keyed on the attribute alone and placed in the base layer,
+so a component can still override either value with an ordinary class.
+✅ DONE (2026-09-27) — verified by consequence: the full visual suite moved **only** `home-light`
+and `home-dark`. Every other consumer of a division colour (the `divisions` pane, the shelf
+cards, the badges) rendered byte-identical, which is the proof the refactor changed no colour.
+
+### D22-b — the division tile is one banded card (amendment to D22, 2026-09-27)
+
+**Asked for**, against a reference image: the rounded square carries the division's tint, and
+the name sits in a band of a darker shade of the same hue along the bottom.
+
+What shipped before this was an icon *on a card* — a small tinted square on `--db-card-bg`, with
+the name as plain text underneath. The amendment makes the **tile itself** the coloured object:
+
+- `.tile` — `background: var(--division-tile)`, `overflow: hidden`, no border. ⚠️ The
+  `overflow: hidden` is load-bearing: the band is a square-cornered block, and the card's radius
+  is the only thing rounding its bottom two corners.
+- `.tileName` — `background: var(--division-deep)`, white, full width. Every division clears
+  7.3:1 against white, which is why `-deep` exists as its own token (D22).
+- `DivisionIcon` gained a **`plain`** variant that drops its own tint and radius, so the icon
+  does not stamp a second, slightly different rounded square onto a card that is already tinted.
+  `ezzy-ride` still renders the "ER" monogram in the deep shade, because there the monogram is
+  the mark (F26).
+- Grid minimum 128px, giving 7 across at desktop width and matching the reference's wrap; the
+  phone override stays at four across so all thirteen remain visible.
+
+**Then measured against the pinned artboard itself, not the eye** (`project/Main.dc.html` and
+`project/MobileHomeLight.dc.html` on the canvas), because the first pass looked right and was
+not. Every number below is now the artboard's:
+
+| | Desktop | Phone |
+|---|---|---|
+| Tile radius | 15px | 14px |
+| Tint band height | 78px | 58px |
+| **Mark** | **46px** | **36px** |
+| Monogram | 19px | 15px |
+| Name band | 8px 4px, 11.5px | 6px 3px, 10px |
+| Grid gap | 12px | 9px |
+
+⚠️ The first pass drew the mark at **~34px** — `size={52}` through `DivisionIcon`'s 66% rule —
+against the artboard's 46px. It read as "a bit small" and nothing else; only opening the artboard
+gave the number. **Read the artboard for figures; the eye is for whether they are right.**
+
+⚠️ That fix forced a component change. `DivisionIcon` sized itself from a `size` **prop**, and the
+design needs two sizes at one breakpoint — which a number in TypeScript cannot express. Under
+`plain` the component now sets no inline size at all and fills the box it is given, so
+`.tileIcon` (46px, 36px in the media query) owns it. `size` is ignored in that mode, and the
+prop's doc comment says so.
+
+⚠️ **Divergence left in place:** the mobile artboard labels the tiles with a SHORT name
+(`{{d.short}}` — "Court", not "EzzyCourt"). `lib/divisions.ts` has no such field. The full names
+fit at 390px without truncating, so this ships as-is rather than growing the data model inside a
+styling change; it belongs to the mobile plan if it is wanted.
+
+✅ DONE (2026-09-27) — compared against the artboard at 1280 light, 1280 dark and 390 light.
+Suite 71/71 after re-recording `home-light` and `home-dark` (the only two that moved, twice over
+— which is also the proof that F51's shared colour map changed no other consumer); `tsc` clean,
+146/146 unit tests, lint at 19.
 
 ---
 
@@ -1338,6 +1574,61 @@ grant execute on function public.get_popular_offerings(date, int) to authenticat
   cannot pick it up** (D29's narrowing, trap ac).
 - The four counts come from the booking array and `lib/payments.ts`'s `paidTotal` — **no new query** (I31).
 
+#### I43: Touch targets below 44px across the shell  ⬜ TODO
+<!-- Found in S7 by measurement, deliberately NOT fixed there: see "Why not now". -->
+Measured, not eyeballed: every visible interactive box on ten panes at 360 / 390 / 1280 in both
+themes — `booker/visual-tests/a11y-audit.mjs`, run by hand against a dev server that is already
+up (`node visual-tests/a11y-audit.mjs`, `AUDIT_BASE=…` to point it elsewhere). It is not part of
+the Playwright suite. It also reports **horizontal overflow** per pane, which is what caught F50.
+At the two **touch** widths, these come back under 44px in a dimension:
+
+| Where | Control | Box |
+|---|---|---|
+| `InfoTip` (Needs you, Activity) | "What does … mean?" | **22×22** – 22×44 |
+| `TopBar` | search, theme, bell | 34×34 each |
+| `TopBar` | hamburger | 38×38 |
+| `ActivityPage` | Updates / Bookings segments | ~34 tall |
+| `BookingList` | Upcoming / In progress / Past / Cancelled chips | ~32 tall |
+| `NeedsYouCard` | "Yes, all done", "I've returned it", "Something's wrong" | ~32 tall |
+| `Sidebar` | nav rows / "About & Legal" | 40 / 36 tall |
+| `PaymentsPage` | Export CSV, Print | ~38 tall |
+| `HomePage` | **"Open Explore" section link** | **98×20** |
+| `HomePage` | **hero "Search a service or vendor"** | **288×25** |
+| `PaymentsPage` | search input | 215×20 |
+
+⚠️ **The 20–25px readings are real, and they are on the screens this plan just built.** I first
+wrote them off as measured mid-layout; they survive a `[data-gallery-ready]` handshake and a
+`document.fonts.ready` wait (both added to the script and to `pilot.spec.ts` — see F48), so they
+are the actual boxes. The apparent contradiction — "Open Explore" at 93×**39** on a 360 viewport
+and 98×**20** on a 390 one — is the label **wrapping to two lines** in the narrower column, which
+is the wrong way to reach 44px.
+
+**Also keyboard**, from the same run:
+- the `role="tablist"` wrapper labelled "Booking groups" in `BookingList` is a tab stop with no
+  focus change — it should not be focusable at all; the tabs inside it are;
+- Payments' search input and its Previous / Next buttons showed no focus change either.
+- ⚠️ Caveat on that last group only: the script focuses elements **programmatically**, and
+  `:focus-visible` does not always apply to a programmatic focus. Confirm these three by
+  actually tabbing before changing anything; the missing-name findings (F49) needed no such
+  caveat and are already fixed.
+
+**Why not now:** 44px is a **design** change, not a polish tweak. Raising the bell, the segments
+and the chips changes the metrics of the pinned design (D21–D30) and re-records most of the
+baselines that S7 just settled. It needs a decision on whether to hit 44px with padding (taller
+chrome) or with a transparent hit area (same look), and that is a D-item, not something to
+absorb silently at the end of a stage.
+
+#### I42: `BookAgainCard` does not render through `HomeSection`  ⬜ TODO
+<!-- Found in S7 (F47). Deliberately NOT done in a polish stage. -->
+- **File:** `components/home/BookAgainCard/BookAgainCard.tsx` — it draws its own card chrome
+  from before `HomeSection` existed, so on Home it reads as a different kind of object than the
+  four shelves around it (no pipe, no band, no D27 artwork).
+- **Fix direction:** wrap its list in `<HomeSection tone="…" title="Book again" …>` and delete
+  the card's own header/frame, keeping the row markup untouched. Needs a fifth `tone` or reuse
+  of `today`'s — a D27 choice, not a mechanical edit.
+- **Why not now:** it is a visual inconsistency, not a defect, and it moves markup S11 verified.
+  Doing it here would mean re-recording the Home baselines a second time in the same stage.
+
 #### I36: Docs for the redesign  ⬜ TODO
 - `architecture/portals.md`: booker's nav becomes Home · Explore · Activity · Payments; the Home feature list is replaced; Activity is added.
 - `architecture/schema.md`: record F27 — `divisions` has no icon column and there is no icon bucket — as the named prerequisite of the Command icon feature, so the next plan does not rediscover it.
@@ -1438,10 +1729,14 @@ One stage at a time (developerboss cadence). Each stage ends with `npx tsc --noE
 - **S11: Activity tab + navigation.** ✅ DONE 2026-09-27. I31, I32. 136/136 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Widgets moved with `git mv` (history preserved); `components/bookings/` deleted; `DashboardPage` stripped to its discovery widgets and is deliberately thin until S12. Found F40.
   - ⚠️ **Between S11 and S12 Home is deliberately thin** — the widgets have left and the storefront has not landed. If that gap is unwanted, run S11 and S12 as one pass; they are split only to keep each review small.
 - **S12: The storefront Home.** ✅ DONE 2026-09-27 — I30 and I41. 146/146 tests, `tsc` clean, `next build` passes, lint back to 19. **I37 (Popular) NOT built**: D26-gate is still unapproved, so the shelf is absent and the rest of Home shipped, exactly as this line allowed. Found F41, F42.
-- **S7: Polish** — runs **after S9b and S12**, so the pass covers Payments, Home and Activity.
-  - Dark/light pass at 390px and 1280px on every new surface.
-  - Contrast check for the `--div-*` pairs, keyboard pass, 44px targets.
-  - Regenerate the Playwright baselines (`visual-tests/pilot.spec.ts-snapshots`, which are committed) and review the diffs, not just accept them.
+- **S7: Polish** ✅ DONE 2026-09-27 — runs **after S9b and S12**, so the pass covers Payments, Home and Activity.
+  - ✅ Baselines regenerated with the clock frozen (F46): 67 captures re-recorded, then the suite re-run unchanged against them — 71/71, exit 0. Eight stale captures removed (`step1`, `step2`, `statuswidget`, `transactions`); `statuswidget`→`needsyou` and `transactions`→`payments` renamed.
+  - ✅ Fixture correctness: F45 (raw dates/times, no more `NaN`), F44 (CSP test repointed at the division PNGs), F43 (`TopBar` hydration), F48 (fixture client-only + `hooks/useMounted.ts`).
+  - ✅ Measured pass at 360/390/1280 in both themes (`a11y-audit.mjs`): accessible names, touch boxes, tab order per pane, horizontal overflow. Produced **F49** (fixed), **F50** (fixed) and **I43** (deferred, with the numbers).
+  - ✅ Contrast: `palette.test.ts` asserts every badge/muted pair ≥ 4.5:1 and no two division foregrounds within 20 RGB, in both themes — part of the 146 passing tests (I22, F39).
+  - ✅ Confirming visual re-run after F48/F50: **71/71, exit 0, zero hydration errors**, no baseline re-record needed.
+  - ⬜ What a machine cannot do: judging whether the 62 changed captures LOOK right → S7-a, yours.
+  - Regenerate the Playwright baselines (`visual-tests/pilot.spec.ts-snapshots`, which are committed) and review the diffs, not just accept them → S7-a.
 - **S8: Docs** — last stage.
   - `architecture/portals.md`: booker features, Live-vs-Mock, Known Gaps, Roadmap (D4 supersedes #1), nav.
   - `architecture/booking-flow.md`: the new entry path and removal of Steps 1–2.
@@ -1512,8 +1807,12 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | Pin | **Design pinned** — the canvas is the agreed target for Home and Activity | You | ✅ DONE 2026-09-25 | Five iterations, then frozen. Later changes are amendments to D21–D30, not new directions |
 | [x] | F31–F36 | Code assessment against the pinned design | Me | ✅ DONE 2026-09-25 | Read the real files. Baseline measured: 114/114 tests, `tsc` clean. Found the `sideOpen` default trap and the `"bookings"` table-name collision |
 | [x] | S12 | **The storefront Home:** hero + search, all-divisions grid, Available today, Book again, vendors in your city, in-progress strip (I30, I41) | Me | ✅ DONE 2026-09-27 | 146/146 tests, `tsc`, build, lint 19. **Popular shelf absent** — D26-gate unapproved. **F41**: the city had to be lifted to the shell. **F42**: a lint rule caught a cascading render I wrote |
-| [ ] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments, Home and Activity** | Me | ⬜ TODO | Dark mode everywhere, as you asked; baselines change because the screens change |
-| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look |
+| [x] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments, Home and Activity** | Me | ✅ DONE 2026-09-27 | 67 baselines re-recorded with the clock frozen; final suite **71/71, exit 0, zero hydration errors** (was 12). `tsc` clean, 146/146, lint 19. Fixed F43–F46, F48, F49, F50. Deferred with numbers: **I42**, **I43**. Your visual judgement is still S7-a |
+| [x] | S14 | **D22-b: division tile rebuilt as one banded card** — tint across the tile, name in a `-deep` band, `DivisionIcon` `plain` variant, shared `data-division` colour map (F51) | Me | ✅ DONE 2026-09-27 | Matched against your reference at 1280 light/dark and 390. Suite moved only `home-light`/`home-dark`, both re-recorded → 71/71; `tsc`, 146/146, lint 19 |
+| [x] | S7-d | Measured accessibility pass: every interactive box at 360/390/1280 in both themes, plus accessible names | Me | ✅ DONE 2026-09-27 | Ran against your :3000 dev server since Playwright could not start its own (S7-c). Found **F49** (two unnamed controls — fixed, zero pixel change) and **I43** (the sub-44px inventory — deferred, it is a design change) |
+| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look. 62 changed + 12 new + 8 removed |
+| [ ] | S7-b | **Approval gate:** drop the dead `TILE_HOST` from `img-src` in `next.config.ts` | You | ⬜ TODO | F44. The Leaflet basemap host is still allowed in a security header and nothing requests it since S6. A CSP change is security-related, so it is not done unilaterally |
+| [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
 | [ ] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema if I14 landed | Me | ⬜ TODO | Docs must match what ships. Pre-work done 2026-09-21: see Docs-0 |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
 | [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |

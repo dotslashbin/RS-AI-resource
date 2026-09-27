@@ -17,6 +17,7 @@
 - ✅ DONE (2026-09-21) — `https://ezzy.ph/privacy-policy/` and `https://ezzy.ph/account-data-deletion/` each returned HTTP 200. The live links are wired into mobile Settings at `ezzy-vendor-mobile/src/lib/constants.ts:73-119` and `src/components/settings/SettingsList/useSettingsList.ts:51-56`.
 - **Correction to prior documentation:** `ezzy-vendor-mobile/STORE-SUBMISSION.md:161-165` still says privacy/deletion are absent. That is a false alarm from an older report; do not build a duplicate route. Its listings, reviewer access, push, and device-verification gaps remain real.
 - **Cross-system coupling:** enabling remote push deploys the already-authored `backbone/supabase/migrations/20260728000001_device_push_tokens.sql:47-192` and `backbone/supabase/functions/send-push-notification/`. It changes the shared production backend, so it requires separate explicit approval before execution. The mobile client is already prepared at `ezzy-vendor-mobile/src/services/push.service.ts:103-135`.
+- **Scope update (2026-09-27):** The user has paused Android/Google Play submission work. Do not change the existing Internal testing release, add Android testers, inspect/resolve Play findings, create a production Android AAB, or submit to Play until the user explicitly resumes Android work. Apple/App Store preparation continues independently.
 
 ## BLOCKERS
 
@@ -113,7 +114,7 @@ Neither store can review a login-walled app without usable reviewer access. List
 
 ## IMPORTANT
 
-### I1 — Decide whether kiosk ships in the first public mobile release  ⬜ TODO
+### I1 — Decide whether kiosk ships in the first public mobile release  ✅ DONE (2026-09-27)
 **Files:** `ezzy-vendor-mobile/src/lib/constants.ts:44-48`; `ezzy-vendor-mobile/KIOSK-VERIFICATION.md:94-96`; `ezzy-vendor-mobile/KIOSK-IMPLEMENTATION.md:48-63`.
 
 Kiosk is disabled in production by default. Enabling it exposes browser payment/receipt functionality whose live end-to-end acceptance is outstanding.
@@ -121,6 +122,8 @@ Kiosk is disabled in production by default. Enabling it exposes browser payment/
 **Fix approach:** Keep kiosk disabled for the first public submission unless it is a required launch capability. If it is required, treat B4’s kiosk tests and the web payment environment checks in `architecture/production-env-checklist.md` as blockers before release.
 
 **Verification:** machine: inspect final public config; needs live environment if enabled: successful and cancelled sandbox payment, delayed webhook, receipt, browser return, and no cross-customer state leakage.
+
+**Resolved / verified (2026-09-27):** User chose to exclude kiosk from the first public iOS release to reduce initial App Review scope and ship the vendor app earlier. The production `EXPO_PUBLIC_KIOSK_ENABLED` value must remain unset/false; App Store listing copy, screenshots, reviewer account, and review notes must not claim kiosk functionality. Kiosk remains available only as a later version/update scope, requiring its own production validation and App Review submission.
 
 ### I2 — Reconcile release documentation with verified reality  ⬜ TODO
 **Files:** `ezzy-vendor-mobile/STORE-SUBMISSION.md:1-175`; `ezzy-vendor-mobile/AGENTS.md:65-94`; `ezzy-vendor-mobile/EAS-SETUP.md:214-221`.
@@ -131,6 +134,13 @@ The submission document has a known stale B6 claim and must become an accurate o
 
 **Verification:** machine: link/path check; needs human review: release owner confirms the document matches the console records and submitted artefacts.
 
+### I3 — Android / Google Play submission stream  ⏸ PARKED (2026-09-27)
+**Files / console targets:** `ezzy-vendor-mobile/eas.json:22-40`; Google Play Console Internal testing and Production tracks; this plan's Stage 1 Android checks and Stage 8 Google submission.
+
+**Parked:** The user explicitly paused Android submission work while continuing iOS preparation. The existing Play Internal testing release is retained unchanged; this is not an abandonment or a production release.
+
+**Unblock condition:** The user explicitly asks to resume Android/Google Play work. Resume by reviewing the current Play Internal testing state and pre-launch report, then run the Android parity checklist before any production upload.
+
 ## DECISIONS
 
 <!-- No item in this plan may execute while any OPEN line remains. -->
@@ -140,7 +150,7 @@ The submission document has a known stale B6 claim and must become an accurate o
 - D3 — First release scope → **include kiosk in the release candidate, initially against staging** (resolved 2026-09-21) — this makes kiosk’s browser/payment/receipt acceptance testing mandatory. Staging is limited to internal/TestFlight/Play testing; before store review or public release, a stable review environment and then production must be selected and fully re-tested. No public binary may point at staging.
 - D4a — Target age audience → **adults only** (resolved 2026-09-21) — configure the content-rating and target-audience questionnaires consistently for a business-facing adult vendor app.
 - D4b — Launch storefront countries/regions → **Philippines only** (resolved 2026-09-21) — initial App Store and Google Play availability will be limited to the operating market. Expansion requires a deliberate later review of service readiness, privacy, payments, support, and local obligations.
-- OPEN: D5 — Should kiosk ship in the first public build? **Recommended: no, unless it is required for the Philippines launch.** Keeping it off reduces the first-review surface; including it requires the full live payment/receipt checklist below against production before public submission. D3 remains valid: kiosk is included in the current staging candidate for testing.
+- D5 — Public kiosk scope → **exclude from the first public iOS build** (resolved 2026-09-27) — selected to ship the core vendor app earlier and reduce initial review risk. D3 remains valid for staging-only kiosk testing; a later kiosk update needs a new production build, reviewer path, validation pass, and App Review.
 
 ## DEFERRED / COSMETIC
 
@@ -152,20 +162,20 @@ The submission document has a known stale B6 claim and must become an accurate o
 
 **Current safe prefix — staging-only validation, no application or backend mutation:**
 
-1. **Stage 1 — B2 staging artefact/distribution check:** inspect the Play pre-launch report and confirm the installed builds identify as the staging candidate; record device/OS/build number. The signed builds are already installed. No Store review or public availability starts here.
-2. **Stage 2 — B4 staging core-flow test pass:** follow the release-owner checklist below on both phones. Record pass/fail only; do not include credentials, customer data, tokens, or payment details in the log. A defect returns the work to a staging fix/build/test cycle.
-3. **Stage 3 — I1/D5 release-scope decision:** decide whether kiosk is in the first public binary. This is an explicit public-release gate; do not configure production kiosk values or submit a public build before it is resolved.
-4. **Stage 4 — production candidate preparation:** create the controlled production reviewer vendor/data set, set production-safe public EAS values, build new signed production candidates, and repeat the applicable Stage 2 checks. The current staging binaries must never be promoted.
+1. **Stage 1 — iOS staging artefact/distribution check:** retain the existing TestFlight build as private evidence; record the remaining App Store Connect Build Metadata check and any unresolved iOS staging finding. Android/Play checks are parked in I3.
+2. **Stage 2 — iOS staging core-flow test pass:** retain the recorded iOS results below; resolve an observable failed-network error/retry state, explicit test-email evidence, and notification permission behaviour only when in scope. Android parity is parked in I3.
+3. **Stage 3 — I1/D5 release-scope decision:** ✅ DONE (2026-09-27) — kiosk is excluded from the first public iOS binary. Production kiosk configuration stays disabled and all v1 reviewer/listing materials cover the vendor app only.
+4. **Stage 4 — iOS production candidate preparation:** create the controlled production reviewer vendor/data set, set production-safe public EAS values, build a fresh signed iOS candidate, and repeat the applicable iOS checks. The current staging binary must never be promoted.
 
 **Coupled batch — requires separate shared-backend approval:**
 
-5. **Stage 5 — B3:** deploy the existing token/function work, configure push credentials, then prove push on both physical platforms. B3 and B4’s push acceptance must ship/test together.
+5. **Stage 5 — B3:** deploy the existing token/function work, configure push credentials, then prove push on physical devices. This remains a shared-backend approval gate and is not included in the current Apple-only preparation.
 
 **Release assembly:**
 
 6. **Stage 6 — B5:** create reviewer account, final screenshots/listings, privacy/data declarations, and reviewer instructions against the accepted production build.
 7. **Stage 7 — I2:** reconcile operational documentation with the verified release record.
-8. **Stage 8 — public submission:** submit the production binary to App Review and Play Production, resolve store feedback, then release only after every blocker is ✅ DONE. Apple manual release and Google managed publishing/control settings must be selected before submission.
+8. **Stage 8 — public submission:** submit the verified iOS production binary to App Review with Manual release selected. Google Play Production remains parked in I3; never treat an Apple approval as authorisation to publish Android.
 
 ## Release-owner checklist
 
@@ -236,20 +246,24 @@ Use this in order. A checkbox becomes complete only after it has a result in a r
 
 **Expected:** payment truth comes from the server/receipt, never merely from closing the browser. Any incorrect amount, status, duplicate booking/charge, or cross-customer data exposure stops kiosk from public scope.
 
-### Stage 3 — Decide first-public-release kiosk scope  ⬜ TODO
+### Stage 3 — Decide first-public-release kiosk scope  ✅ DONE (2026-09-27)
 
-- [ ] Resolve D5 before any production EAS configuration or public submission.
-- [ ] If **excluded**, production `EXPO_PUBLIC_KIOSK_ENABLED` remains unset/false and the public listing/reviewer notes do not claim kiosk functionality.
-- [ ] If **included**, repeat Stage 2A against production using sandbox/test payment methods, confirm production browser/payment/receipt behaviour, and make the kiosk journey available to the reviewer demo vendor.
+- [x] D5 resolved: kiosk is excluded from the first public iOS release.
 
-### Stage 4 — Production candidate and reviewer environment  ⬜ TODO
+**Follow-on constraints:** Stage 4 must keep production `EXPO_PUBLIC_KIOSK_ENABLED` unset/false, and Stage 6 must not claim kiosk functionality in App Store materials. A later kiosk version requires its own production payment/receipt validation and reviewer path.
 
-**Approval boundary:** creating production accounts/data or changing shared-backend state is outside this mobile app and needs separate explicit approval at execution time. Do not put reviewer credentials in this document.
+### Stage 4 — Production candidate and reviewer environment  🔄 IN PROGRESS
 
-- [ ] Create one reusable, fully activated production demo vendor; no KYC, email confirmation, OTP, or manual approval may block sign-in. Seed fictional pending and paid bookings, a transaction, and the data required by every public feature. `STORE-SUBMISSION.md:125-137` defines the minimum reviewer state.
-- [ ] Set only safe `EXPO_PUBLIC_*` production EAS values: production Supabase URL, anon key, vendor portal URL, app name, and the resolved kiosk flag. Never use a service-role key or payment/APNs/FCM private credential.
-- [ ] Build fresh Android AAB and iOS IPA with the `production` EAS profile. New monotonic build numbers are required. Do not repurpose the current staging artefacts.
-- [ ] Upload the production candidates to private tracks, install them on both physical phones, and repeat all applicable Stage 1/Stage 2 checks against production before completing any public submission form.
+**Approval (2026-09-27):** the user approved creation of the controlled production reviewer environment. Do not put reviewer credentials in this document. Android/Google work remains parked under I3.
+
+- [ ] Create a dedicated, user-controlled production vendor account through the normal web registration/KYC process. Use legitimate, controlled business/identity material; do not upload fabricated KYC documents or record reviewer credentials in this plan.
+- [ ] In Command, approve its KYC packet and activate the vendor. Confirm the account signs in directly to the Vendor app as an active `vendor-admin`, with no reviewer-facing KYC, email-confirmation, OTP, or manual-approval step.
+- [ ] Populate only fictional, non-personal reviewer data through supported production workflows: at least three pending bookings (to demonstrate one approval and one rejection), one legitimately paid booking/transaction if the product flow permits it without an unapproved real charge, and the representative data needed by each in-scope vendor screen. Kiosk/payment-browser coverage is excluded from this version.
+- [ ] From a clean device/browser, exercise the reviewer account and retain the account and data throughout Apple review. Do not share its password outside App Store Connect's App Review Information.
+- [ ] Confirm all intended mobile UI changes are complete, then commit the exact release source in the `ezzy-vendor-mobile` repository. Run lint, unit tests, and Expo Doctor against that commit; resolve any release-blocking failure before building.
+- [ ] Set only safe `EXPO_PUBLIC_*` production EAS values: production Supabase URL, anon key, vendor portal URL, app name, and `EXPO_PUBLIC_KIOSK_ENABLED=false` (or leave it unset if the production configuration treats absence as false). Never use a service-role key or payment/APNs/FCM private credential.
+- [ ] Build a fresh **iOS IPA only** with the `production` EAS profile from the verified release commit. A new monotonic build number is required; do not repurpose the staging artefact.
+- [ ] Upload the production iOS candidate to TestFlight, install it on the physical iPhone, and repeat the applicable Stage 1/Stage 2 checks against production before completing any public submission form.
 
 ### Stage 5 — Optional push batch  ⏸ PARKED
 
