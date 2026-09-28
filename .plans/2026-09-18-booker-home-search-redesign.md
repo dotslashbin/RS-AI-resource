@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. **I45, I47, I44 and I42 ✅ DONE 2026-09-27 — every item in this plan owned by me is now complete.** I45 killed the "Step 2 of 6 — Pick a Vendor" card; I47 extracted one `ShelfCard` for two shelves and found **F60** (long names wrap to three lines — a design call, left open); I44 removed 5 orphaned files; I42 put Book again through `HomeSection` and, on the way, gave every shelf an accessible name — none of them was a landmark before. 154/154, `tsc`, build, lint 18, visual **77/77**. Remaining: **F60** and **I43** need a decision from you; the rest is the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. **I45, I47, I44 and I42 ✅ DONE 2026-09-27 — every item in this plan owned by me is now complete.** I45 killed the "Step 2 of 6 — Pick a Vendor" card; I47 extracted one `ShelfCard` for two shelves and found **F60** (long names wrap to three lines — a design call, left open); I44 removed 5 orphaned files; I42 put Book again through `HomeSection` and, on the way, gave every shelf an accessible name — none of them was a landmark before. 154/154, `tsc`, build, lint 18, visual **77/77**. **F60 and I43 decided and done 2026-09-27** — F60 → option B (price on its own row, text column 89→189px); I43 → tier 1, everything failing WCAG 2.2 AA, which exposed the hero search collapsing to **25px on every phone** because `flex: 1` overrode its height in a column. Tier 2 (all ≥32px, passes AA) is deferred to the mobile plan. New: **I48**, the artboard's Available-today card differs from what shipped. Remaining: I48, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -1873,17 +1873,63 @@ so neither shelf renders there. The `opentoday` pane is the only thing covering 
 ### F60 — long offering names wrap to three lines on a shelf card (found 2026-09-27, I47)
 
 The first baseline of this card showed it: at the shelf's 260px minimum, "Private Coaching
-Session" wraps to three lines while its neighbours use one, so a row of cards has ragged
-heights. The icon, the two text lines and the trailing price share ~260px and the text column
-gets roughly 120 of them.
+Session" wraps to three lines while its neighbours use one.
+
+⚠️ **Corrected 2026-09-27 by measuring** — the first write-up said "a row of cards has ragged
+heights", which is wrong on desktop and right only on a phone:
+
+| Width | Card | Text column | Title lines |
+|---|---|---|---|
+| 1280 / 1000 | 278×185, **all equal** (grid stretch) | **89–105px — 32% of the card** | 1 / 3 / 2 |
+| 390 (one per row) | **109 / 168 / 147 — genuinely ragged** | 107–123px | 1 / 3 / 2 |
+
+So the desktop problem is not raggedness: it is that **the longest title inflates every card in
+the row to 185px**, and the text column is a third of the width because the icon (44), the gaps
+(26), the padding (30) and the trailing price (71–87) take the rest.
 
 ⚠️ Pre-existing, not introduced by the extraction — the CSS moved verbatim. It had simply never
 been looked at, which is the whole argument for I47.
 
-**Not fixed here.** The remedies are design choices, not tidying: truncate the title to one line
-(loses information), drop the price to its own row (changes the card's shape), or raise the grid
-minimum (fewer cards per row). That is a D-item.
-⬜ TODO — with the user.
+**Resolved 2026-09-27 → option B: the price moves to its own row.** Four options were measured
+in the browser rather than argued about:
+
+| | Card | Text column | Title lines | 390px heights |
+|---|---|---|---|---|
+| A current | 278×185 | 89px | 1 / 3 / 2 | 109 / 168 / 147 |
+| **B price on its own row** | **278×167** | **189px** | **1 / 2 / 1** | **129 / 146 / 129** |
+| C grid minimum 320px | 423×92 | 234px | 1 / 1 / 1 | unchanged |
+| D clamp title to 2 lines | 278×164 | 89px *(unchanged)* | 1 / 2 / 2 | — |
+
+C is the biggest single improvement but drops the shelf to **two cards per row**, breaking the
+three-across rhythm the design draws. B keeps three across, more than doubles the text column,
+and is **what the pinned artboard already does** — its card carries the price in a footer row
+for the same reason. D changes nothing that matters: the text column stays 89px.
+
+⚠️ **The artboard's card is a different shape from what shipped, and F60 is a symptom of that.**
+`project/Main.dc.html`'s "Available today" is a **vertical** card in 3 fixed columns: a 110px
+tinted photo panel, then name, vendor · city, slot · **duration**, and a footer with the price
+and a **Book** button. What shipped is horizontal, with a 44px mark and no photo, duration or
+button. B adopts the artboard's *price placement* only. Adopting the whole card needs offering
+photos wired in and changes the tap target from the card to a button — feature-sized, and not
+folded in here. → **I48**.
+
+✅ DONE (2026-09-27) — `ShelfCard.module.css` only, no markup change. Re-measured: text column
+89 → 189px, card 185 → 167px, phone heights evened. Suite 77/77 after re-recording `opentoday`.
+
+#### I48: "Available today" ships a different card from the pinned artboard  ⬜ TODO
+<!-- Found while deciding F60. Feature-sized; not folded into a CSS fix. -->
+- **Artboard** (`project/Main.dc.html`, "Available today"): a **vertical** card in
+  `repeat(3, minmax(0,1fr))` — a 110px tinted **photo panel** (56px mark at 0.5 opacity, a
+  division pill, an "Offering photo" badge), then name (15px), vendor · city, **slot ·
+  duration**, and a footer with the price and a **Book** button.
+- **Shipped:** horizontal — 44px mark, name (14px), vendor · city, slot, price.
+- **Missing:** the photo panel, the division pill, the duration, and the Book button.
+- ⚠️ **It changes the interaction, not just the look.** Today the whole card is one button;
+  the artboard puts a Book button inside it, which means a card with two targets and a decision
+  about what tapping the rest of it does.
+- **Needs:** offering photos wired into the catalogue (`offeringPhotos.service.ts` exists, plan
+  I8) and a duration on the shelf's rows.
+- **Why not with F60:** F60 was one CSS rule with no markup change. This is a new card.
 
 #### I44: Delete the two orphaned Home components  ✅ DONE (2026-09-27)
 <!-- F52. Trivial, but it is a code change and S8 was docs-only. -->
@@ -1925,7 +1971,7 @@ re-exports it so existing importers are untouched. `PROG_STEPS` deleted.
 clean; 154/154; lint 18; four baselines re-recorded; and the card read visually — **"Step 3 of
 4 — Review"** over four dots labelled Schedule · Documents · Review · Pay.
 
-#### I43: Touch targets below 44px across the shell  ⬜ TODO
+#### I43: Touch targets below 44px across the shell  ✅ DONE (2026-09-27, tier 1)
 <!-- Found in S7 by measurement, deliberately NOT fixed there: see "Why not now". -->
 Measured, not eyeballed: every visible interactive box on ten panes at 360 / 390 / 1280 in both
 themes — `booker/visual-tests/a11y-audit.mjs`, run by hand against a dev server that is already
@@ -1963,11 +2009,40 @@ is the wrong way to reach 44px.
   actually tabbing before changing anything; the missing-name findings (F49) needed no such
   caveat and are already fixed.
 
-**Why not now:** 44px is a **design** change, not a polish tweak. Raising the bell, the segments
-and the chips changes the metrics of the pinned design (D21–D30) and re-records most of the
-baselines that S7 just settled. It needs a decision on whether to hit 44px with padding (taller
-chrome) or with a transparent hit area (same look), and that is a D-item, not something to
-absorb silently at the end of a stage.
+**Resolved 2026-09-27 → tier 1 only: fix what fails WCAG 2.2 AA, defer the rest.**
+
+The inventory splits cleanly on the standard, which reframes it from taste to compliance:
+**2.5.8 Target Size (Minimum)** is **AA at 24×24**; **2.5.5 Target Size (Enhanced)** is **AAA at
+44×44**. Four controls failed AA. Everything else (32–40px) already passes AA and fails only
+AAA — that is the deferred tier.
+
+| Control | Was | Now | Why it was small |
+|---|---|---|---|
+| Hero "Search a service or vendor" | **288×25** | ≥44 | ⚠️ A real bug — see below |
+| `InfoTip` trigger | 22×22 | 24×24 | Fixed size |
+| "Open Explore" / "See all" shelf links | 98×**20** | 98×26 | No vertical padding at 13px |
+| Payments search `<input>` | 215×**20** | 215×42 | The 38px box was the wrapper, not the input |
+
+⚠️ **The hero search was a layout bug, not a small button.** `.search` carries `flex: 1`, whose
+`flex-basis: 0%` governs the **main axis** — and at ≤640px `.heroActions` becomes a column, so
+the main axis turns vertical and `height: 52px` was simply ignored. The button collapsed to
+**25px on every phone**, half its designed height, and it reads as "a slightly short search
+box" rather than as broken. Only measuring found it.
+
+⚠️ **The Payments input's fix changes no pixels**, which is worth knowing: the input is
+transparent with its border on the wrapper, so `align-self: stretch` grew the target from 20px
+to 42px while the `payments` baseline stayed byte-identical. The thing you see and the thing you
+can hit are now the same object.
+
+✅ DONE (2026-09-27) — re-ran `a11y-audit.mjs`: **nothing under 24px remains** at 360 or 390 in
+either theme. 154/154, `tsc`, build, lint 18, suite 77/77 after re-recording 10 baselines
+(InfoTip's 2px reaches `infotip`, `activity`, `needsyou`, `bookingdetail`).
+
+**Tier 2 deferred, with the numbers already taken:** TopBar icons 34×34, hamburger 38×38,
+Activity segments ~34, filter chips ~32, Needs-you actions ~32, sidebar rows 40 / About & Legal
+36, Export & Print 38. All pass AA. Reaching 44 wants transparent hit areas (`::after` with
+negative insets) so the pinned metrics are untouched — and it belongs with the phone app, where
+touch is the only input. → the mobile redesign plan.
 
 #### I42: `BookAgainCard` does not render through `HomeSection`  ✅ DONE (2026-09-27)
 <!-- Found in S7 (F47). Deliberately NOT done in a polish stage. -->
@@ -2179,8 +2254,9 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments, Home and Activity** | Me | ✅ DONE 2026-09-27 | 67 baselines re-recorded with the clock frozen; final suite **71/71, exit 0, zero hydration errors** (was 12). `tsc` clean, 146/146, lint 19. Fixed F43–F46, F48, F49, F50. Deferred with numbers: **I42**, **I43**. Your visual judgement is still S7-a |
 | [x] | S14 | **D22-b: division tile rebuilt as one banded card** — tint across the tile, name in a `-deep` band, `DivisionIcon` `plain` variant, shared `data-division` colour map (F51) | Me | ✅ DONE 2026-09-27 | Matched against your reference at 1280 light/dark and 390. Suite moved only `home-light`/`home-dark`, both re-recorded → 71/71; `tsc`, 146/146, lint 19 |
 | [x] | S7-d | Measured accessibility pass: every interactive box at 360/390/1280 in both themes, plus accessible names | Me | ✅ DONE 2026-09-27 | Ran against your :3000 dev server since Playwright could not start its own (S7-c). Found **F49** (two unnamed controls — fixed, zero pixel change) and **I43** (the sub-44px inventory — deferred, it is a design change) |
-| [ ] | I43 | Sub-44px touch targets across the shell | You | ⬜ TODO | Measured inventory in the I43 section. Needs a decision: reach 44px with padding (taller chrome) or a transparent hit area (same look) |
-| [ ] | F60 | Long offering names wrap to three lines on a shelf card | You | ⬜ TODO | Found by I47's new baseline; pre-existing, not introduced. Fixes are design calls: truncate the title, move the price to its own row, or raise the grid minimum |
+| [x] | I43 | Touch targets — **tier 1: everything failing WCAG 2.2 AA (24×24)** | 🤝 | ✅ DONE 2026-09-27 | You chose tier 1. Four controls fixed; re-measured, nothing under 24px remains. **The hero search was a layout bug** — `flex: 1` overrode `height: 52px` once `.heroActions` went to a column, so it was 25px tall on every phone. Tier 2 (32–40px, passes AA) deferred to the mobile plan |
+| [x] | F60 | Long offering names on a shelf card | 🤝 | ✅ DONE 2026-09-27 | You chose **B** — price to its own row. Text column 89 → 189px, card 185 → 167px, phone heights 109/168/147 → 129/146/129. Four options measured in the browser first |
+| [ ] | I48 | "Available today" ships a different card from the artboard | Me | ⬜ TODO | Found while deciding F60. The pin draws a vertical card with a photo panel, duration and a Book button. Needs offering photos and changes the tap target |
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look. 62 changed + 12 new + 8 removed |
 | [ ] | S7-b | **Approval gate:** two dead permissions in `next.config.ts` — the `TILE_HOST` in `img-src`, and `geolocation=(self)` in `Permissions-Policy` | You | ⬜ TODO | F44 + F54. Both were for the deleted map; nothing requests either since S6, and the `geolocation` comment still cites `hooks/useGeolocation.ts`, which no longer exists. Security-header changes, so not done unilaterally |
 | [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
