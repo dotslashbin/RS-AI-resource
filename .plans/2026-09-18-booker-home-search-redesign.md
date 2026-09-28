@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. Remaining: the deferred I42–I45 and I47, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. **I45, I47, I44 and I42 ✅ DONE 2026-09-27 — every item in this plan owned by me is now complete.** I45 killed the "Step 2 of 6 — Pick a Vendor" card; I47 extracted one `ShelfCard` for two shelves and found **F60** (long names wrap to three lines — a design call, left open); I44 removed 5 orphaned files; I42 put Book again through `HomeSection` and, on the way, gave every shelf an accessible name — none of them was a landmark before. 154/154, `tsc`, build, lint 18, visual **77/77**. Remaining: **F60** and **I43** need a decision from you; the rest is the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -1850,7 +1850,7 @@ it automatically.
 **Verification when it runs:** the two queries at the foot of each file (row counts by status,
 then `get_popular_offerings((current_date - 90)::date, 8)` returning rows).
 
-#### I47: "Available today" has no visual baseline either  ⬜ TODO
+#### I47: "Available today" has no visual baseline either  ✅ DONE (2026-09-27)
 <!-- F57's other half, found while giving the Popular shelf one. -->
 - **Why:** the `/ui-gallery` `home` pane passes `catalogue: { offerings: [], vendors: [] }`, so
   every data-driven shelf renders nothing there. "Available today" has therefore been uncovered
@@ -1860,7 +1860,32 @@ then `get_popular_offerings((current_date - 90)::date, 8)` returning rows).
 - ⚠️ Slightly more work than Popular's was, because the card is inline in `HomePage.tsx` rather
   than in its own component, so the extraction touches a file S12 verified.
 
-#### I44: Delete the two orphaned Home components  ⬜ TODO
+**Done — as one `ShelfCard`, not two copies.** The card's CSS was shared with "Vendors in your
+city", so extracting only the one I47 needed would have left two copies of five rules to drift
+apart — the failure F51 exists to prevent. `components/home/ShelfCard/` now serves both shelves;
+`slot` and `price` are optional and are the entire difference between them. The new `opentoday`
+pane renders **both shapes**, plus a card with no division, so the neutral fallback is covered
+too.
+✅ Verified: `tsc`, 154/154, lint 18, two new baselines, suite 77/77.
+⚠️ **The `home` baseline does not prove this extraction** — that pane passes an empty catalogue,
+so neither shelf renders there. The `opentoday` pane is the only thing covering it.
+
+### F60 — long offering names wrap to three lines on a shelf card (found 2026-09-27, I47)
+
+The first baseline of this card showed it: at the shelf's 260px minimum, "Private Coaching
+Session" wraps to three lines while its neighbours use one, so a row of cards has ragged
+heights. The icon, the two text lines and the trailing price share ~260px and the text column
+gets roughly 120 of them.
+
+⚠️ Pre-existing, not introduced by the extraction — the CSS moved verbatim. It had simply never
+been looked at, which is the whole argument for I47.
+
+**Not fixed here.** The remedies are design choices, not tidying: truncate the title to one line
+(loses information), drop the price to its own row (changes the card's shape), or raise the grid
+minimum (fewer cards per row). That is a D-item.
+⬜ TODO — with the user.
+
+#### I44: Delete the two orphaned Home components  ✅ DONE (2026-09-27)
 <!-- F52. Trivial, but it is a code change and S8 was docs-only. -->
 - **Files:** `components/home/DivisionShortcuts/` and `components/home/OpenSlotsCard/` (each a
   `.tsx` + hook + `.module.css`). Nothing imports either — verified by grep across `app/` and
@@ -1870,7 +1895,14 @@ then `get_popular_offerings((current_date - 90)::date, 8)` returning rows).
 - **Why it matters beyond tidiness:** they were added by this plan (`69c76f8`), so leaving them
   implies the Home screen uses them.
 
-#### I45: The resume-draft card names six wizard steps  ⬜ TODO
+**Done.** Both directories removed (5 files). Re-grepped first: no import anywhere in `app/`,
+`components/`, `lib/` or `services/`, and no gallery pane referenced either, so nothing needed a
+baseline removed with them.
+✅ Verified: `tsc` clean, 154/154, lint 18, suite 77/77 — nothing referenced them.
+⚠️ The deletions are **unstaged**: `git rm` stages, and staging is yours. They are gone from the
+working tree and show as `D` in `git status`.
+
+#### I45: The resume-draft card names six wizard steps  ✅ DONE (2026-09-27)
 <!-- F53. User-visible, not cosmetic. -->
 - **File:** `components/activity/InProgressCard/InProgressCard.tsx:42, 63` — renders
   `PROG_STEPS` (six) and prints `Step N of 6` with a label from the same array, while the draft's
@@ -1884,6 +1916,14 @@ then `get_popular_offerings((current_date - 90)::date, 8)` returning rows).
   long-form label, which is a small copy decision rather than a pure refactor.
 - **Verification:** re-record the `inprogress` and `bookingstepper` baselines; assert
   `PROG_STEPS` is gone by grep.
+
+**Done.** `WIZARD_STEPS` **moved to `lib/constants.ts`** — the copy decision the item flagged
+resolved by using one string for both the dot label and the sentence ("Step 3 of 4 — Review"),
+rather than reintroducing a `label`/`short` pair that can drift again. `useBookingWizard`
+re-exports it so existing importers are untouched. `PROG_STEPS` deleted.
+✅ Verified: grep finds no `PROG_STEPS` outside the comments explaining its removal; `tsc`
+clean; 154/154; lint 18; four baselines re-recorded; and the card read visually — **"Step 3 of
+4 — Review"** over four dots labelled Schedule · Documents · Review · Pay.
 
 #### I43: Touch targets below 44px across the shell  ⬜ TODO
 <!-- Found in S7 by measurement, deliberately NOT fixed there: see "Why not now". -->
@@ -1929,7 +1969,7 @@ baselines that S7 just settled. It needs a decision on whether to hit 44px with 
 chrome) or with a transparent hit area (same look), and that is a D-item, not something to
 absorb silently at the end of a stage.
 
-#### I42: `BookAgainCard` does not render through `HomeSection`  ⬜ TODO
+#### I42: `BookAgainCard` does not render through `HomeSection`  ✅ DONE (2026-09-27)
 <!-- Found in S7 (F47). Deliberately NOT done in a polish stage. -->
 - **File:** `components/home/BookAgainCard/BookAgainCard.tsx` — it draws its own card chrome
   from before `HomeSection` existed, so on Home it reads as a different kind of object than the
@@ -1939,6 +1979,19 @@ absorb silently at the end of a stage.
   of `today`'s — a D27 choice, not a mechanical edit.
 - **Why not now:** it is a visual inconsistency, not a defect, and it moves markup S11 verified.
   Doing it here would mean re-recording the Home baselines a second time in the same stage.
+
+**Done.** Wrapped in `HomeSection tone="again"` — the fifth tone already existed from S10, so
+D27's "needs a tone choice" resolved itself. The card's own `db-card` frame and icon header are
+gone; `.list` gained the border and radius that wrapper used to provide, because the rows now
+sit on the section's recessed body instead of being the card.
+
+**Also fixed while there:** `HomeSection`'s `<section>` had no accessible name, so **none** of
+Home's shelves was exposed as a landmark — `BookAgainCard` was the only one that got this right,
+with its own `aria-labelledby`, and moving it in would have *lost* that. `HomeSection` now
+carries `aria-labelledby` pointing at its own `<h2>`, keyed on the tone, so all five shelves are
+named regions.
+✅ Verified: `tsc`, 154/154, lint 18, suite 77/77 with `bookagain` added and `home` re-recorded;
+read visually — pipe, band and artwork now match its neighbours.
 
 #### I36: Docs for the redesign  ✅ DONE (2026-09-27)
 - `architecture/portals.md`: booker's nav becomes Home · Explore · Activity · Payments; the Home feature list is replaced; Activity is added.
@@ -2114,7 +2167,7 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | I46 | Booker demo data (`demo/booker-demo-seed.sql` + teardown) | Me | ✅ DONE 2026-09-27 | **Run on local**: 3 schedules, 14 bookings, 6 statuses, 12 paid. **F59**: first run aborted on `check_booking_placement` — schedules started 30 days back, history reaches 84 — and the transaction rolled it back cleanly. Fixed and re-run. ⚠️ Still unrun on staging |
 | [x] | F58 | **Three of Home's five shelves had never rendered** | Me | ✅ DONE 2026-09-27 | Found only by opening Home against real data. `loadCatalogue()` was called from `goExplore()` alone, so Popular, Available today and Vendors in your city silently showed nothing — two of them dead since S12. Fixed in `useAppShell`, gated on `loggedIn` (the first fix fired as `anon` and got a 401, looking identical on screen) |
 | [x] | I37 | Build the Popular shelf | Me | ✅ DONE 2026-09-27 | 154/154 tests, `tsc`, build, lint 19, visual **73/73** with 2 new baselines. Count rendered, not implied. **F56**: the count's colour was 2.08:1 on dark — caught by measuring, fixed with the theme-flipping `-fg` token. **F57**: split out `PopularCardRow` so the fixture could cover it at all |
-| [ ] | I47 | Give "Available today" a visual baseline (F57's other half) | Me | ⬜ TODO | The gallery's `home` pane passes an empty catalogue, so that shelf has been uncovered since S12 |
+| [x] | I47 | Give "Available today" a visual baseline (F57's other half) | Me | ✅ DONE 2026-09-27 | Extracted as **one `ShelfCard`** serving both it and "Vendors in your city" — two copies of the shared CSS was the F51 failure. New `opentoday` pane covers both shapes + the no-division fallback. **F60**: the baseline immediately showed long names wrapping to three lines — pre-existing, left for a design call |
 | [x] | I41 | Build the "Available today" shelf (capped candidate set + a test asserting the cap) | Me | ✅ DONE 2026-09-27 | Shipped in S12. `HOME_TODAY_CANDIDATES = 12`, and `openingsToday.test.ts` fails if the cap is removed — that test is what keeps it off P10's cost curve. *(This row read ⬜ TODO until 2026-09-27; the I41 section and the S12 row were already correct.)* |
 | [x] | F37 | Proximity check: no coordinates, no PostGIS, no map, no geolocation | Me | ✅ DONE 2026-09-25 | Answered your radius question by reading the schema and the code, not from memory. → P11 |
 | [x] | D28 | A booking's colour is its division's colour; status keeps its own palette | You | ✅ DONE 2026-09-25 | Thirteen brand colours, no fourteenth. Note: only two divisions have vendors today, so live Home stays near-monochrome until the catalogue widens |
@@ -2126,12 +2179,15 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S7 | Polish: light + dark at 360/390/1280, contrast, keyboard, touch sizes, regenerate visual baselines — **now covers Payments, Home and Activity** | Me | ✅ DONE 2026-09-27 | 67 baselines re-recorded with the clock frozen; final suite **71/71, exit 0, zero hydration errors** (was 12). `tsc` clean, 146/146, lint 19. Fixed F43–F46, F48, F49, F50. Deferred with numbers: **I42**, **I43**. Your visual judgement is still S7-a |
 | [x] | S14 | **D22-b: division tile rebuilt as one banded card** — tint across the tile, name in a `-deep` band, `DivisionIcon` `plain` variant, shared `data-division` colour map (F51) | Me | ✅ DONE 2026-09-27 | Matched against your reference at 1280 light/dark and 390. Suite moved only `home-light`/`home-dark`, both re-recorded → 71/71; `tsc`, 146/146, lint 19 |
 | [x] | S7-d | Measured accessibility pass: every interactive box at 360/390/1280 in both themes, plus accessible names | Me | ✅ DONE 2026-09-27 | Ran against your :3000 dev server since Playwright could not start its own (S7-c). Found **F49** (two unnamed controls — fixed, zero pixel change) and **I43** (the sub-44px inventory — deferred, it is a design change) |
+| [ ] | I43 | Sub-44px touch targets across the shell | You | ⬜ TODO | Measured inventory in the I43 section. Needs a decision: reach 44px with padding (taller chrome) or a transparent hit area (same look) |
+| [ ] | F60 | Long offering names wrap to three lines on a shelf card | You | ⬜ TODO | Found by I47's new baseline; pre-existing, not introduced. Fixes are design calls: truncate the title, move the price to its own row, or raise the grid minimum |
 | [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look. 62 changed + 12 new + 8 removed |
 | [ ] | S7-b | **Approval gate:** two dead permissions in `next.config.ts` — the `TILE_HOST` in `img-src`, and `geolocation=(self)` in `Permissions-Policy` | You | ⬜ TODO | F44 + F54. Both were for the deleted map; nothing requests either since S6, and the `geolocation` comment still cites `hooks/useGeolocation.ts`, which no longer exists. Security-header changes, so not done unilaterally |
 | [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
 | [x] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema F27 | Me | ✅ DONE 2026-09-27 | Six files rewritten from the **built code**, not the plan: `portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`. Every claim grepped. Found **F52**, **F53**, **F54** |
-| [ ] | I44 | Delete the two orphaned Home components (F52) | Me | ⬜ TODO | `DivisionShortcuts/`, `OpenSlotsCard/` — built by this plan in S10, superseded by S12, never removed |
-| [ ] | I45 | Resume-draft card says "Step 2 of 6 — Pick a Vendor" (F53) | Me | ⬜ TODO | User-visible. `InProgressCard` still renders the six-step `PROG_STEPS` against a four-step wizard |
+| [x] | I42 | `BookAgainCard` now renders through `HomeSection` | Me | ✅ DONE 2026-09-27 | The `again` tone already existed, so D27 needed no new choice. **Also**: `HomeSection`'s `<section>` had no accessible name, so no Home shelf was a landmark — `BookAgainCard` was the only one that was, and moving it in would have lost that. All five are named regions now |
+| [x] | I44 | Delete the two orphaned Home components (F52) | Me | ✅ DONE 2026-09-27 | 5 files removed after re-grepping for importers and gallery panes. `tsc`, 154/154, 77/77 unaffected. ⚠️ Deletions left **unstaged** — staging is yours |
+| [x] | I45 | Resume-draft card says "Step 2 of 6 — Pick a Vendor" (F53) | Me | ✅ DONE 2026-09-27 | `PROG_STEPS` deleted; `WIZARD_STEPS` moved to `lib/constants.ts` as the single source of the count. Reads **"Step 3 of 4 — Review"**, verified visually. 4 baselines re-recorded |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
 | [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |
 | [ ] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ⬜ TODO | F24 is folded into that single migration |
