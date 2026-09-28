@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
 **App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). Remaining: I37 (Popular, after D26-gate) and the deferred I42–I45, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
+**Status:** IN PROGRESS. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. Remaining: the deferred I42–I45 and I47, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -734,6 +734,50 @@ invisible until someone audits the header.
 Not changed here: both are security-related, so they are an approval gate. Folded into **S7-b**
 alongside F44 so they are decided together.
 ⬜ TODO — with the user.
+
+### F58 — three of Home's five shelves had never rendered (found 2026-09-27, running I46)
+
+Running `booker-demo-seed.sql` on local and then signing in as a real booker — the first time
+the redesigned Home was opened against real data — showed **Popular, Available today and
+Vendors in your city all missing**, with no error on screen.
+
+They are the three shelves that join the **catalogue**, and `loadCatalogue()` was called from
+exactly one place: `goExplore()`. So the catalogue loaded the first time someone opened Explore
+and never otherwise.
+
+⚠️ **This was correct until S12 and became wrong silently.** Deferring the catalogue to Explore
+was right when Home was a dashboard. Home is now the landing screen *and* a storefront built on
+that data — and because every shelf is designed to hide when empty (I30), a Home with no
+catalogue looks deliberate rather than broken. **Two of the three have been dead since S12
+shipped**; only writing the third made anyone look.
+
+**Fixed** in `components/layout/AppShell/useAppShell.ts`: an effect loads the catalogue when the
+page is `home`, still lazily (someone who goes straight to Payments never pays for it) and still
+guarded against double-fetching.
+
+⚠️ **The first fix was wrong, and its failure mode was the same invisibility.** Gating on `page`
+alone fires at mount, *before* `getUser()` resolves, so the request went out as `anon` and
+PostgREST answered **401 `permission denied for table offerings`** — the table has no `anon`
+grant, by design. On screen: identical to before, three shelves quietly absent. Now gated on
+`loggedIn` as well.
+
+✅ DONE (2026-09-27) — verified by signing in against local Supabase and listing the rendered
+sections: **"Browse by division | Popular this month | Available today | Book again | Vendors"**.
+Before the fix the same check returned two. 154/154 tests, `tsc`, build, visual 73/73.
+
+### F59 — the demo seed failed on its first run, exactly as intended (found 2026-09-27, I46)
+
+`booker-demo-seed.sql` had never been executed. Its first run aborted on
+`check_booking_placement()`: *"This schedule does not start until 2026-08-29"* — the demo
+schedule started `v_today - 30` while the history it creates reaches `v_today - 84`, so every
+booking older than a month was placed before its own schedule existed.
+
+The whole script is one transaction, so the failure cost nothing and left no partial data. Fixed
+by starting the schedules at `v_today - 120`, with the reason written at that line so the number
+is not "tidied" later.
+
+✅ DONE (2026-09-27) — re-run clean: 3 schedules, 14 bookings across 6 statuses, 12 paid.
+`get_popular_offerings` over the current month returns those rows, and Home renders them.
 
 ---
 
@@ -1504,17 +1548,52 @@ see its plan's §4b parity contract.
 - `ezzy_drive.png`: its baked glow needs removing, or the tile accepts a grey halo on the light tint. **Flagging, not choosing** — it is someone's artwork.
 - ⚠️ **No image tooling is installed in this workspace** (no ImageMagick, no Pillow). Either a dependency is approved for a one-off script, or the resized files are produced outside the repo and dropped in. Until then the tiles would ship ~4 MB of PNGs, `ezzy_drive` alone being 1.4 MB.
 
-#### I37: "Popular this month" shelf  ⬜ TODO (blocked by D26)
+#### I37: "Popular this month" shelf  ✅ DONE (2026-09-27)
 - **`components/home/PopularShelf/`** (new: `.tsx` / `usePopularShelf.ts` / `.module.css`), rendering a ranked row: rank chip in
   the division's deep shade, offering name, vendor, price and the count that justifies the word "popular".
-- **Data (D26-A):** `services/offerings.service.ts` gains `getPopularOfferings(window, limit)` calling the RPC, then joins the
-  returned `offering_id`s against the catalogue it already loads — the counts function returns **counts only** (F30), never rows
-  a booker may not read.
+- **Data (D26-A):** `services/offerings.service.ts` gains
+  `getPopularOfferings({ since, until, city, limit })` calling the RPC, then joins the returned
+  `offering_id`s against the catalogue it already loads — the counts function returns **counts
+  only** (F30), never rows a booker may not read.
+- ⚠️ **Corrected 2026-09-27:** this item used to say `getPopularOfferings(window, limit)`, with
+  no city and one open-ended date. Both were wrong against the pinned artboard, whose caption
+  is *"Most booked across Cebu City in September"* — see the D26-gate review. **The city must
+  be passed to the RPC, never applied to its result**, or a city with local favourites that are
+  not national favourites gets an empty shelf.
+- **Window:** the current Manila month, first day to last day — not "the last 30 days", so the
+  heading "this month" is literally true.
 - **The count is shown, not implied.** "34 bookings" next to the price is what makes the ranking checkable; a bare "Popular"
   badge with no number is the weak implementation of this item.
 - Hidden entirely when the window returns nothing — no "no popular offerings yet" box on a discovery screen.
 - ⚠️ If D26 resolves to **B**, the heading changes to *Featured* and this item becomes a `divisions`/`offerings` flag read; if
   **C**, the item is aborted and Home ships with four sections.
+
+**Built 2026-09-27.** `lib/popular.ts` (+ 8 tests), `lib/manila.ts` gained `manilaMonthEnd`,
+`services/offerings.service.ts` gained `getPopularOfferings`,
+`components/home/PopularShelf/{PopularShelf.tsx, PopularCardRow.tsx, usePopularShelf.ts,
+PopularShelf.module.css}`, wired into `HomePage` between the division grid and Available today.
+
+⚠️ **F56 — the count's colour was a contrast failure, caught by measuring.** The artboard draws
+it in the section's purple, and the obvious token was `--div-ezzy-well-deep`. That token is
+**identical in both themes** (it is made for white text on a coloured band) and computes to
+**2.08:1** on the dark card — far under 4.5. `--div-ezzy-well-fg` flips per theme and gives
+**7.1:1** light and **10.13:1** dark. Same class of mistake as F39, caught the same way: by
+computing it rather than looking at it.
+
+⚠️ **F57 — a new shelf would have had no visual coverage at all.** The `/ui-gallery` `home` pane
+passes an **empty catalogue**, so every data-driven shelf renders nothing there — "Available
+today" has been uncovered since S12 for the same reason. Since `PopularShelf` owns an RPC call,
+the fixture cannot render it with fixed data. Split the card into **`PopularCardRow`** (pure
+display, no hook — the allowed exception) and added a `popular` gallery pane that renders it
+with four divisions and a count of 1, so the per-division colours, the rank chip and the
+singular "1 booking" are all in a baseline.
+⚠️ "Available today" is still uncovered. Not fixed here — it would need the same treatment and
+belongs in its own item. → **I47**.
+
+**Verified:** 154/154 unit tests (8 new), `tsc` clean, `next build` passes, lint at its
+19-problem baseline, visual suite **73/73** with two new baselines. Behaviour confirmed against
+the real function on local: the RPC returns ranked rows for an active booker, and the city
+argument demonstrably changes the set (all → 3 offerings, `Pila` → 2, `Quezon City` → 1).
 
 #### I41: "Available today" shelf  ✅ DONE (2026-09-27)
 <!-- lib/openingsToday.ts + 9 tests. THE CAP IS TESTED: a 200-offering catalogue causes
@@ -1534,8 +1613,46 @@ see its plan's §4b parity contract.
   `HomeSection`. Hidden entirely when nothing is open — no empty shelf.
 - ⚠️ Counts print only when `getSlotOccupancy` reports them `known`, the rule S3b already established.
 
-#### D26-gate: the popularity function  ⬜ APPROVAL GATE (D26, blocks I37)
-**Not written. Drafted here per the plan-authoring rule for schema changes.**
+#### D26-gate: the popularity function  ✅ APPROVED + WRITTEN (2026-09-27)
+**Approved 2026-09-27. Written as `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql`
+— NOT applied; you apply it (standing practice).** Filed under today's date rather than the
+drafted `20260925000001`, so it sorts after `20260922000001`.
+
+⚠️ **Three corrections between the draft below and the file, each found by reading the schema
+rather than trusting the draft:**
+
+1. **`'rejected'` is not a booking status.** The draft excluded
+   `status not in ('cancelled','rejected')`; `bookings_status_values`
+   (`20260801000002:51`) permits only `pending, confirmed, fulfilled, in_progress, returned,
+   completed, disputed, cancelled, refunded`. Excluding a value that cannot exist is harmless
+   at runtime and misleading forever — worse, it meant **`refunded` bookings were counted as
+   popularity**. Now `not in ('cancelled','refunded')`, matching `get_slot_occupancy`.
+2. **The draft had no caller gate.** `get_slot_occupancy` refuses a non-active caller with
+   `is_active()` and *raises*; the draft was `language sql` with no check at all, so any
+   authenticated role could call it. Now `plpgsql` with the same gate and the same
+   raise-don't-return-empty rule — ⚠️ here the reason is sharper than for occupancy: an empty
+   result is **a genuinely valid answer** ("nothing booked yet"), so a silent refusal would be
+   indistinguishable from real data.
+3. **The draft could rank an unbookable offering.** It counted `bookings` alone, so a delisted
+   offering, or one belonging to a suspended vendor, could top the shelf and 404 on tap. Now
+   joined to `offerings.is_active` and the vendor's `active` status, mirroring the
+   `booker_vendor_read_policy` predicate. Popularity is historical; bookability is current, and
+   the shelf can only act on the second.
+
+Also added: `p_since` null/future/>366-day validation, and an `order by … , b.offering_id`
+tie-break so two offerings on the same count do not swap places between refreshes.
+
+**Still true and deliberately not acted on:** there is no index on `bookings.booked_date`. An
+index is a write-path cost on the busiest table in the schema; add it when a measurement asks,
+not on suspicion. Recorded in the migration's header.
+
+**Verify after applying** (the F24 check):
+```sql
+select grantee, privilege_type from information_schema.routine_privileges
+where routine_name = 'get_popular_offerings';   -- expect NO anon
+```
+
+<details><summary>The original draft, kept for the record</summary>
 
 ```sql
 -- 20260925000001_popular_offerings_rpc.sql  (DRAFT — not applied)
@@ -1574,7 +1691,83 @@ grant execute on function public.get_popular_offerings(date, int) to authenticat
 - **Reversibility:** `drop function public.get_popular_offerings(date, int);` — nothing depends on it but one service call.
 - **Cross-app:** none. `command` and `vendor` do not call it.
 
-**Needs your go-ahead before the file is written, and you apply it** (standing practice).
+</details>
+
+#### F55 — staging never got the occupancy function (found 2026-09-27)
+
+Checked while answering "my staging is behind 2 migrations". `supabase migration list --linked`
+against `fbxbwnfeimzhgxpshdpa` returns an empty remote column for **both**
+`20260922000001_slot_occupancy_rpc` and `20260927000001_popular_offerings_rpc`.
+
+⚠️ The first one was **recorded in this plan as applied on 2026-09-22** ("Applied; function
+confirmed live, `security definer`, `stable`"). That evidence was real but it was **local** —
+S3b-3's wording, "apply the migration (local, then staging)", let a local-only apply satisfy a
+row that claimed both. S3b-3 is corrected above; the lesson is that "local, then staging"
+should have been two rows with two pieces of evidence.
+
+**What it means on staging today:** `getSlotOccupancy` calls an RPC that does not exist there,
+gets an error, and returns `known: false` — which the UI renders as **no "N left" number at
+all** (`services/schedules.service.ts:293`). So it degrades exactly as designed rather than
+breaking, and the symptom is the absence of a feature, not an error. That is also why nobody
+noticed.
+
+⚠️ **Production is not checked.** The `backbone` CLI is linked to staging, so this command says
+nothing about prod. Verify separately before assuming prod has either function.
+✅ RESOLVED (2026-09-27) — pushed to staging and production. Staging re-checked: 0 pending.
+⚠️ Production is **unverified from here**: `backbone` is linked to staging, so no command in this
+session reports on prod. The grants query on prod is still outstanding.
+
+⚠️ **`20260922000001` is a live behaviour change on prod, not an inert one.** Shipped booker code
+calls `getSlotOccupancy`; bookers who saw *no* "N left" on Step 3 now see real numbers — and it
+reached production **before S3b-5** confirmed those numbers on staging. Do that check soon: if
+the counts are wrong, prod is where it shows.
+
+#### D26-gate review — checked against the widget before applying (2026-09-27)
+
+You asked whether the function actually supports the shelf before running it. Checked against
+the **pinned artboard** (`project/Main.dc.html`, the "Popular this month" section) and I37, not
+against the draft. **Two gaps and one decision**, all now closed in the file.
+
+**GAP 1 — no city scope, and the design says there is one.** The artboard's caption reads
+*"Most booked across **Cebu City** in September"*. Every other Home shelf narrows by the
+booker's city; this one was platform-wide.
+
+⚠️ And it could not have been fixed in the client. Filtering after the call returns the
+**country's** top 8 and then discards the ones out of reach — so a city whose offerings are
+popular locally but not nationally shows an **empty shelf**, which reads as "nothing is popular
+here" rather than "we ranked the wrong population". The filter has to be inside the query,
+before the `limit`. Added `p_city text default null`, case-insensitive because `vendors.city` is
+free text a vendor typed. Null = platform-wide, which is the booker's real "no city filter"
+state.
+
+**GAP 2 — the window had no upper bound, so "this month" meant "from this month onwards,
+forever".** `bookings.booked_date` is the **service date** (`20260507000004:42`), not when the
+booking was made. `where booked_date >= p_since` therefore counted every future booking that
+will ever exist: a shelf headed "Popular this month" would rank a booking for next March.
+Added `p_until date default null`, defaulting to `current_date`, plus a `p_until < p_since`
+check. Home passes the month's last day, so the caption's "in September" is literally true.
+
+**DECISION — service date, not when-booked.** The function ranks by `booked_date` ("booked
+*for* a date in the window"). The alternative is `created_at` ("booked *during* the window"),
+which is demand recency and would rank an offering that filled up yesterday for next winter.
+Chose the service date because it is the date every other booker surface already means —
+Payments' period presets, Activity's stat strip — so one word means one thing across the app.
+Recorded in the migration header as a one-line change if it ever proves wrong.
+
+**Checked and found NOT to be gaps:**
+- *Can the client resolve the returned ids?* Yes. The catalogue is fetched with
+  `fetchAllPages` (`services/offerings.service.ts:62`), so every active offering is in memory
+  and no id can come back unresolvable.
+- *Does the shelf need anything the function withholds?* No. The artboard's card needs name,
+  vendor, price, division colour and the count. The first four are catalogue fields the client
+  already holds; the count is what the function adds. Rank is the array position.
+- *Grants.* `authenticated` only, with the explicit `anon` revoke (F24).
+
+**Signature changed as a result** — `(p_since, p_until, p_city, p_limit)`. ⚠️ A second
+positional argument is now a **date**, not the limit; the sample call in
+`booker-demo-seed.sql` was updated to named arguments for exactly that reason.
+
+**I37 is now unblocked** — it waits only on you applying the migration.
 
 #### I38: Collapsible sidebar  ✅ DONE (2026-09-27)
 <!-- Sidebar.tsx: the closed branch is now `fixed -translate-x-full lg:hidden` — `lg:hidden`
@@ -1623,6 +1816,49 @@ grant execute on function public.get_popular_offerings(date, int) to authenticat
 - One `.statCard` rule with `--stat-accent` per card, drawing the 3px top and bottom rule. **Scoped so widgets below the strip
   cannot pick it up** (D29's narrowing, trap ac).
 - The four counts come from the booking array and `lib/payments.ts`'s `paidTotal` — **no new query** (I31).
+
+#### I46: Booker demo data, so the new widgets can be seen on staging  🔄 WRITTEN, UNRUN (2026-09-27)
+<!-- Asked for alongside the D26-gate approval: "ensure there is a way for me to replicate
+     that on my hosted, staging instance". -->
+**Files:** `backbone/supabase/demo/booker-demo-seed.sql` + `booker-demo-teardown.sql`.
+
+**Why it was needed.** The migration adds **no data at all** — it is a function. And the
+existing `demo/demo-seed.sql` cannot fill these screens: ⚠️ its demo bookers are created with an
+**unusable password hash and can never sign in**, and "Book again", Activity and Payments all
+read `booker_id = auth.uid()`. It dresses the vendor portal; nothing dressed the booker's.
+
+**What it does.** Additive, tagged (`de400000-`), reversible, attaches to an existing booker you
+can sign in as and an existing active vendor. Creates no user, vendor, offering or staff — one
+schedule per offering (up to 3) and ~14 bookings across ~90 days with mixed statuses, ~9 paid.
+Follows `demo-seed.sql`'s notification/email suppression exactly.
+
+⚠️ **Two schema traps it had to respect**, both found by reading the migrations:
+- `check_booking_consistency()` (`20260507000004:64`) rejects a booking whose `offering_id`
+  differs from its schedule's. The first draft cycled bookings across three offerings against
+  one shared schedule — every insert would have failed. Hence one schedule per offering.
+- `schedules.end_time` was **dropped** in `20260828000002`; the stored value is `window_minutes`
+  (capped at 1440). An insert naming `end_time` fails on any current database.
+
+⚠️ **Why a daily schedule.** The local seed's schedules are Mon/Wed/Fri and Tue/Thu, so on a
+Saturday or Sunday "Available today" is correctly empty and looks broken. The demo schedule runs
+every day, 08:00 + 720 minutes, so slots exist until 20:00 Manila.
+
+**Status: written, NOT RUN.** ⚠️ It has never been executed — not against local, not against
+staging — so it is unverified SQL. Run it on **local first**; the teardown exists so a failed
+attempt costs nothing. It is not a migration and lives outside `migrations/`, so nothing applies
+it automatically.
+**Verification when it runs:** the two queries at the foot of each file (row counts by status,
+then `get_popular_offerings((current_date - 90)::date, 8)` returning rows).
+
+#### I47: "Available today" has no visual baseline either  ⬜ TODO
+<!-- F57's other half, found while giving the Popular shelf one. -->
+- **Why:** the `/ui-gallery` `home` pane passes `catalogue: { offerings: [], vendors: [] }`, so
+  every data-driven shelf renders nothing there. "Available today" has therefore been uncovered
+  since S12 — its card layout is checked by no baseline at all.
+- **Fix:** the same treatment `PopularShelf` just got — split the card out of `HomePage.tsx`
+  into a pure display component and give it a gallery pane with fixed data.
+- ⚠️ Slightly more work than Popular's was, because the card is inline in `HomePage.tsx` rather
+  than in its own component, so the extraction touches a file S12 verified.
 
 #### I44: Delete the two orphaned Home components  ⬜ TODO
 <!-- F52. Trivial, but it is a code change and S8 was docs-only. -->
@@ -1853,7 +2089,7 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S3 | Home side: Book again, 13 division shortcuts, compact Resume + Discard, guide for new bookers only (I11, I28) | Me | ✅ DONE 2026-09-22 | Low-risk widgets on S1 data |
 | [x] | S3b-1 | Approve the counts-only occupancy function (I14) | You | ✅ DONE 2026-09-22 | Approved after the index check (`bookings_schedule_id_idx` exists) |
 | [x] | S3b-2 | Write the migration file | Me | ✅ DONE 2026-09-22 | `20260922000001_slot_occupancy_rpc.sql`. Verified by reads only: every referenced object and column type exists; `get_slot_occupancy` not already defined. **Not executed** |
-| [x] | S3b-3 | Apply the migration (local, then staging) | You | ✅ DONE 2026-09-22 | Applied; function confirmed live, `security definer`, `stable` |
+| [x] | S3b-3 | Apply the migration (local, then staging) | You | ⚠️ **LOCAL ONLY** (corrected 2026-09-27) | Recorded as done 2026-09-22 — `security definer`, `stable`, confirmed live — but that was **local**. `supabase migration list --linked` against staging (`fbxbwnfeimzhgxpshdpa`) on 2026-09-27 shows `20260922000001` with an empty remote column, i.e. never applied there. Staging is missing it *and* the new `20260927000001`. See Apply-D26 |
 | [x] | S3b-3b | `supabase db reset` so history matches the condensed `20260922000001` (F24) | You | ✅ DONE 2026-09-22 | Verified after: no `anon` EXECUTE, history shows one migration, and the occupancy proof re-ran on the fresh seed |
 | [x] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ✅ DONE 2026-09-22 | Proved locally: a booker who sees 0 rows via RLS gets a count of 1 from the function. Fixes F1. Unknown counts now print no number at all |
 | [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment |
@@ -1873,9 +2109,13 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S11 | **Activity tab + navigation:** Activity page + segments, five widgets re-homed by `git mv`, `BookingsPage` deleted, `PageId` renamed (I31, I32) | Me | ✅ DONE 2026-09-27 | 136/136 tests, `tsc` clean, build passes, lint 19. **F32 held**: the Realtime `table: "bookings"` and 8 `.from("bookings")` calls untouched. **F40**: draft ownership moved to the shell |
 | [x] | D26 | **"Popular" → most-booked offering over a window** (interim definition) | You | ✅ DONE 2026-09-25 | No ranking strategy exists yet, so the label means exactly what it says. Needs the counts-only function below |
 | [x] | D27 | Section chrome: keep the pipe marker, drop the shadows, sections at **10px** radius against the hero's **18px + shadow** (untouched), phone sections inset | You | ✅ DONE 2026-09-25 | Amended the same day: squared entirely was a step too far, so the radius came back smaller. Two radii only, no third. Sidebar motif kept as drawn |
-| [ ] | D26-gate | **Approve the `get_popular_offerings` function** (drafted inline, read-only, counts only) | You | ⬜ TODO | **Blocks I37.** Mirrors `get_slot_occupancy` incl. the `revoke … from public, anon` that F24 caught. Check: no index on `bookings.booked_date` |
-| [ ] | I37 | Build the Popular shelf | Me | ⬜ TODO | After D26-gate. The count is displayed, not implied |
-| [ ] | I41 | Build the "Available today" shelf (capped candidate set + a test asserting the cap) | Me | ⬜ TODO | S12. The cap is what keeps it from becoming P10 |
+| [x] | D26-gate | **Approve the `get_popular_offerings` function** | You | ✅ APPROVED 2026-09-27 | Migration written: `20260927000001_popular_offerings_rpc.sql`. Three corrections vs the draft: `'rejected'` is not a status (and `refunded` was being counted), no caller gate, and it could rank a delisted offering |
+| [x] | Apply-D26 | Apply `20260927000001` **and** the overdue `20260922000001` — local, staging, production | You | ✅ DONE 2026-09-27 | **I37 unblocked.** All three environments level; `migration list --linked` shows staging with **0 pending**. Verified on local by execution, not inspection: both functions `security definer` + `stable`, EXECUTE = `authenticated, postgres, service_role` — **no `anon`** (the F24 trap, closed). The caller gate refuses an unauthenticated caller; as a real active booker it returns ranked rows; the `p_until` and 366-day guards both raise. ⚠️ **The grants query has NOT been run on staging or production** — I have no SQL path to either, so that remains yours |
+| [x] | I46 | Booker demo data (`demo/booker-demo-seed.sql` + teardown) | Me | ✅ DONE 2026-09-27 | **Run on local**: 3 schedules, 14 bookings, 6 statuses, 12 paid. **F59**: first run aborted on `check_booking_placement` — schedules started 30 days back, history reaches 84 — and the transaction rolled it back cleanly. Fixed and re-run. ⚠️ Still unrun on staging |
+| [x] | F58 | **Three of Home's five shelves had never rendered** | Me | ✅ DONE 2026-09-27 | Found only by opening Home against real data. `loadCatalogue()` was called from `goExplore()` alone, so Popular, Available today and Vendors in your city silently showed nothing — two of them dead since S12. Fixed in `useAppShell`, gated on `loggedIn` (the first fix fired as `anon` and got a 401, looking identical on screen) |
+| [x] | I37 | Build the Popular shelf | Me | ✅ DONE 2026-09-27 | 154/154 tests, `tsc`, build, lint 19, visual **73/73** with 2 new baselines. Count rendered, not implied. **F56**: the count's colour was 2.08:1 on dark — caught by measuring, fixed with the theme-flipping `-fg` token. **F57**: split out `PopularCardRow` so the fixture could cover it at all |
+| [ ] | I47 | Give "Available today" a visual baseline (F57's other half) | Me | ⬜ TODO | The gallery's `home` pane passes an empty catalogue, so that shelf has been uncovered since S12 |
+| [x] | I41 | Build the "Available today" shelf (capped candidate set + a test asserting the cap) | Me | ✅ DONE 2026-09-27 | Shipped in S12. `HOME_TODAY_CANDIDATES = 12`, and `openingsToday.test.ts` fails if the cap is removed — that test is what keeps it off P10's cost curve. *(This row read ⬜ TODO until 2026-09-27; the I41 section and the S12 row were already correct.)* |
 | [x] | F37 | Proximity check: no coordinates, no PostGIS, no map, no geolocation | Me | ✅ DONE 2026-09-25 | Answered your radius question by reading the schema and the code, not from memory. → P11 |
 | [x] | D28 | A booking's colour is its division's colour; status keeps its own palette | You | ✅ DONE 2026-09-25 | Thirteen brand colours, no fourteenth. Note: only two divisions have vendors today, so live Home stays near-monochrome until the catalogue widens |
 | [x] | D29 | **Only the top stat strip** banded top + bottom, 3px, in its status colour | You | ✅ DONE 2026-09-25 | First drawn on every widget, then narrowed to the four summary cards. Asked for as "like the original / like vendor" — verified neither has it, so it ships as new, not a restoration |
