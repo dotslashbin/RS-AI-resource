@@ -183,7 +183,7 @@ PayMongo accounts across booker/vendor, and a stale registration.
 | `booker/components/booking/BookingWizard/useBookingWizard.ts:197-216` | our own `{checkout_url}` response shape + top-level navigation |
 | `vendor/components/kiosk/KioskBooking/useKioskCheckout.ts:67-101` | same |
 | `booker/components/layout/AppShell/useAppShell.ts:132-151` | `?payment=success|cancel&booking_id=` return contract |
-| `vendor/components/kiosk/KioskShell/useKioskShell.ts:57-73, 180-182` | same, plus stripping spent params on reset |
+| `vendor/components/kiosk/KioskShell/useKioskShell.ts:58-74, 185-187` | same, plus stripping spent params on reset |
 | `vendor/components/kiosk/KioskBooking/KioskBooking.tsx:44-48`, `useKioskReceipt.ts` | receipt re-read after a **full page load** back from the provider |
 | `booker/lib/siteUrl.ts`, `vendor/lib/siteUrl.ts` | `resolveSiteUrl()` — must keep its throw-don't-guess property |
 
@@ -1248,17 +1248,17 @@ new test files, not new tooling.
 **Verify:** `npm test` in each app lists the new maya test names — machine-verifiable.
 
 ### I10 — The kiosk has no return state for a failed or cancelled payment  ⬜ TODO
-**Files:** `vendor/components/kiosk/KioskShell/useKioskShell.ts:77`,
+**Files:** `vendor/components/kiosk/KioskShell/useKioskShell.ts:78`,
 `vendor/components/kiosk/KioskBooking/KioskBooking.tsx:45`,
 `booker/components/layout/AppShell/useAppShell.ts:132-151`
 **Found by the 2026-09-07 review pass — this corrects D9.** D9 said the change was "roughly
 three lines each in `useAppShell.ts` and `useKioskShell.ts`; both already branch on this
 parameter." That was wrong on both counts:
-- It is **three files, not two.** The kiosk splits the decision: `useKioskShell.ts:77` chooses
+- It is **three files, not two.** The kiosk splits the decision: `useKioskShell.ts:78` chooses
   the *view* (`payment === "success" ? "booking" : "home"`), while `KioskBooking.tsx:45` chooses
   whether to render the confirmation. A `failed` return satisfies neither test, so the customer
   lands on the **Welcome screen** holding a spent URL — the identical shape to the B39 bug the
-  comment at `useKioskShell.ts:57-63` was written to fix.
+  comment at `useKioskShell.ts:58-64` was written to fix.
 - **The kiosk has no toast.** booker's handler shows a toast; the kiosk is a full-screen flow
   facing a walk-in customer and needs a *designed* state, not a copied line.
 **Why it matters more here than in booker:** a booker at home whose card is declined can retry
@@ -1458,7 +1458,7 @@ abandoned-checkout bookings the tests deliberately created.
   completed. Your booking is saved as pending."*
   **⚠️ Corrected by I10 (2026-09-07):** I first sized this as "roughly three lines each in two
   files, both of which already branch on this parameter". That was wrong. It is **three files**,
-  the kiosk splits the decision across `useKioskShell.ts:77` and `KioskBooking.tsx:45`, and the
+  the kiosk splits the decision across `useKioskShell.ts:78` and `KioskBooking.tsx:45`, and the
   kiosk has **no toast** — it needs a designed screen. The decision stands; the estimate does
   not. See **I10**.
 

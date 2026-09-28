@@ -779,6 +779,33 @@ is not "tidied" later.
 ✅ DONE (2026-09-27) — re-run clean: 3 schedules, 14 bookings across 6 statuses, 12 paid.
 `get_popular_offerings` over the current month returns those rows, and Home renders them.
 
+### S7-b resolved — `geolocation` dropped, the tile host kept (2026-09-28)
+
+Both allowances were left over from the map S6 deleted. You asked what dropping them would
+cost before deciding, which changed the answer.
+
+**`geolocation=(self)` → `geolocation=()`.** Nothing in booker asks for location:
+`grep -rn geolocation` over `components/ lib/ services/ app/` returns **zero hits**. The
+Permissions-Policy is now byte-identical to vendor's and command's.
+
+⚠️ **The restore instruction now lives at the line**, because a Permissions-Policy denial is
+*silent* — `getCurrentPosition` simply never calls back, which is how this was got wrong the
+first time. It does fire in `next dev`, so the first local test catches it.
+
+**`TILE_HOST` kept, deliberately.** ⚠️ **A correction to my own advice**: I first called it the
+easy one to drop, on the grounds that its consumer "will never return". That was wrong once you
+said a vendor-pin map is wanted — Leaflet fetches tiles as `<img>`, so `img-src` is exactly what
+decides whether a future map renders at all. It is the allowance with a plausible future
+consumer; `geolocation` was the one genuinely finished with.
+
+**Worth knowing for P11:** vendor **pins** never needed `geolocation`. Those come from vendor
+addresses resolved server-side (F37's PSGC-centroid route). Only the *booker's own* position
+would, and that is a separate feature from showing where vendors are.
+
+✅ DONE (2026-09-28) — `tsc` clean, `next build` compiles, lint 18, 154/154 unit tests, visual
+suite **77/77** including `csp.spec.ts`, which asserts the division PNGs and the self-hosted
+font still load. No baseline moved: headers are not pixels.
+
 ---
 
 ## DECISIONS
@@ -2238,7 +2265,7 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | D26 | **"Popular" → most-booked offering over a window** (interim definition) | You | ✅ DONE 2026-09-25 | No ranking strategy exists yet, so the label means exactly what it says. Needs the counts-only function below |
 | [x] | D27 | Section chrome: keep the pipe marker, drop the shadows, sections at **10px** radius against the hero's **18px + shadow** (untouched), phone sections inset | You | ✅ DONE 2026-09-25 | Amended the same day: squared entirely was a step too far, so the radius came back smaller. Two radii only, no third. Sidebar motif kept as drawn |
 | [x] | D26-gate | **Approve the `get_popular_offerings` function** | You | ✅ APPROVED 2026-09-27 | Migration written: `20260927000001_popular_offerings_rpc.sql`. Three corrections vs the draft: `'rejected'` is not a status (and `refunded` was being counted), no caller gate, and it could rank a delisted offering |
-| [x] | Apply-D26 | Apply `20260927000001` **and** the overdue `20260922000001` — local, staging, production | You | ✅ DONE 2026-09-27 | **I37 unblocked.** All three environments level; `migration list --linked` shows staging with **0 pending**. Verified on local by execution, not inspection: both functions `security definer` + `stable`, EXECUTE = `authenticated, postgres, service_role` — **no `anon`** (the F24 trap, closed). The caller gate refuses an unauthenticated caller; as a real active booker it returns ranked rows; the `p_until` and 366-day guards both raise. ⚠️ **The grants query has NOT been run on staging or production** — I have no SQL path to either, so that remains yours |
+| [x] | Apply-D26 | Apply `20260927000001` **and** the overdue `20260922000001` — local, staging, production | You | ✅ DONE 2026-09-27 | **I37 unblocked.** All three environments level; `migration list --linked` shows staging with **0 pending**. Verified on local by execution, not inspection: both functions `security definer` + `stable`, EXECUTE = `authenticated, postgres, service_role` — **no `anon`** (the F24 trap, closed). The caller gate refuses an unauthenticated caller; as a real active booker it returns ranked rows; the `p_until` and 366-day guards both raise. Grants query since run by the user on **staging and production**: both match local, no `anon` (2026-09-28) |
 | [x] | I46 | Booker demo data (`demo/booker-demo-seed.sql` + teardown) | Me | ✅ DONE 2026-09-27 | **Run on local**: 3 schedules, 14 bookings, 6 statuses, 12 paid. **F59**: first run aborted on `check_booking_placement` — schedules started 30 days back, history reaches 84 — and the transaction rolled it back cleanly. Fixed and re-run. ⚠️ Still unrun on staging |
 | [x] | F58 | **Three of Home's five shelves had never rendered** | Me | ✅ DONE 2026-09-27 | Found only by opening Home against real data. `loadCatalogue()` was called from `goExplore()` alone, so Popular, Available today and Vendors in your city silently showed nothing — two of them dead since S12. Fixed in `useAppShell`, gated on `loggedIn` (the first fix fired as `anon` and got a 401, looking identical on screen) |
 | [x] | I37 | Build the Popular shelf | Me | ✅ DONE 2026-09-27 | 154/154 tests, `tsc`, build, lint 19, visual **73/73** with 2 new baselines. Count rendered, not implied. **F56**: the count's colour was 2.08:1 on dark — caught by measuring, fixed with the theme-flipping `-fg` token. **F57**: split out `PopularCardRow` so the fixture could cover it at all |
@@ -2257,8 +2284,9 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | I43 | Touch targets — **tier 1: everything failing WCAG 2.2 AA (24×24)** | 🤝 | ✅ DONE 2026-09-27 | You chose tier 1. Four controls fixed; re-measured, nothing under 24px remains. **The hero search was a layout bug** — `flex: 1` overrode `height: 52px` once `.heroActions` went to a column, so it was 25px tall on every phone. Tier 2 (32–40px, passes AA) deferred to the mobile plan |
 | [x] | F60 | Long offering names on a shelf card | 🤝 | ✅ DONE 2026-09-27 | You chose **B** — price to its own row. Text column 89 → 189px, card 185 → 167px, phone heights 109/168/147 → 129/146/129. Four options measured in the browser first |
 | [ ] | I48 | "Available today" ships a different card from the artboard | Me | ⬜ TODO | Found while deciding F60. The pin draws a vertical card with a photo panel, duration and a Book button. Needs offering photos and changes the tap target |
-| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | Baselines are committed, so each diff needs a real look. 62 changed + 12 new + 8 removed |
-| [ ] | S7-b | **Approval gate:** two dead permissions in `next.config.ts` — the `TILE_HOST` in `img-src`, and `geolocation=(self)` in `Permissions-Policy` | You | ⬜ TODO | F44 + F54. Both were for the deleted map; nothing requests either since S6, and the `geolocation` comment still cites `hooks/useGeolocation.ts`, which no longer exists. Security-header changes, so not done unilaterally |
+| [x] | Grants-check | Run the EXECUTE-grant query on **staging and production** for `get_slot_occupancy` and `get_popular_offerings` | You | ✅ DONE 2026-09-28 | Both hosted environments match local: two rows, `security definer`, EXECUTE = `authenticated, postgres, service_role`, **no `anon`**. F24's trap is closed on both — the explicit `revoke … from public, anon` did its job. Reported by the user |
+| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | **71 committed baselines** as of 2026-09-28, re-recorded across S7, S14, I37, I42, I43, I45, I47 and F60. Machine checks prove they are *stable*, never that they are *right* — that judgement has no substitute |
+| [x] | S7-b | Two dead permissions in `next.config.ts` — **`geolocation` dropped, `TILE_HOST` deliberately kept** | 🤝 | ✅ DONE 2026-09-28 | You chose option 1 after asking what it would cost. `geolocation=(self)` → `()`, matching vendor and command. **`TILE_HOST` stays**: a vendor-pin map is on the roadmap (P11) and Leaflet fetches tiles as `<img>`, so `img-src` is what decides whether they load. ⚠️ I had first called `TILE_HOST` the safe one to drop — wrong, given a map may return. The stale comment citing the deleted `hooks/useGeolocation.ts` was rewritten with the restore instruction |
 | [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
 | [x] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema F27 | Me | ✅ DONE 2026-09-27 | Six files rewritten from the **built code**, not the plan: `portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`. Every claim grepped. Found **F52**, **F53**, **F54** |
 | [x] | I42 | `BookAgainCard` now renders through `HomeSection` | Me | ✅ DONE 2026-09-27 | The `again` tone already existed, so D27 needed no new choice. **Also**: `HomeSection`'s `<section>` had no accessible name, so no Home shelf was a landmark — `BookAgainCard` was the only one that was, and moving it in would have lost that. All five are named regions now |
@@ -2266,8 +2294,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | I45 | Resume-draft card says "Step 2 of 6 — Pick a Vendor" (F53) | Me | ✅ DONE 2026-09-27 | `PROG_STEPS` deleted; `WIZARD_STEPS` moved to `lib/constants.ts` as the single source of the count. Reads **"Step 3 of 4 — Review"**, verified visually. 4 baselines re-recorded |
 | [x] | Docs-0 | Pre-execution doc sync: booker `AGENTS.md`/`CLAUDE.md` rewritten; portals/booking-flow/schema corrected and given the known gaps F1–F3, F6, F14, F17; root `AGENTS.md` + overview point to the live mobile plan | Me | ✅ DONE 2026-09-21 | Verified by grep that every plan path referenced in the docs exists. You commit it |
 | [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |
-| [ ] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ⬜ TODO | F24 is folded into that single migration |
-| [ ] | Git | Commit each later stage | You | ⬜ TODO | You handle git |
+| [x] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ✅ DONE 2026-09-22 | Landed with `69c76f8` "Payments, then the Home/Activity redesign (S9-S13)" |
+| [x] | Git | Commit each later stage | You | ✅ DONE 2026-09-28 | Current through `2f6bd54` "Updates on card layout and target sizes". I draft the message and the file list; you commit |
 | [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
 | [ ] | P11 | **Proximity / radius filtering** ("offerings within 2 km") | — | ⏸ PARKED 2026-09-25 | F37: no lat/lng on `vendors`, no PostGIS or earthdistance, no geolocation left in the app, and the removed map never did distance anyway. Needs coordinates + geocoding + a Vendor-portal field + a distance query — its own plan. Supersedes P1 |
 | [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |

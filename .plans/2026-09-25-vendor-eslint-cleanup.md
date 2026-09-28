@@ -28,7 +28,7 @@
 | `react-hooks/purity` | 1 | `useBookingActions.ts:90` |
 | `react-hooks/static-components` | 1 | `app/ui-gallery/page.tsx:1195` |
 | `@next/next/no-html-link-for-pages` | 1 | `app/not-found.tsx:12` |
-| warnings: `no-unused-vars` ×2, `exhaustive-deps` ×1 | 3 | `AppShell.tsx:125`, `offerings.service.ts:2`, `useAppShell.ts:480` |
+| warnings: `no-unused-vars` ×2, `exhaustive-deps` ×1 | 3 | `AppShell.tsx:125`, `offerings.service.ts:2`, `useAppShell.ts:496` |
 
 Unit tests pass 484/484 and the visual suite 187/187 at this baseline (both run 2026-09-25 during the
 recovery plan). Correction to F21: its first summary left out the two `no-unescaped-entities`.
@@ -62,10 +62,10 @@ The same patterns fixed K2 in `useLoginPage.ts`. Each item below names which one
 - **L4** — `app/not-found.tsx:12`: `<a href="/">` → `next/link` `<Link href="/">`, keeping `className`
   and `style`. The only behaviour change is client-side navigation instead of a full reload, which is
   what Next recommends. Live-check the 404 link.
-- **L5** — `useAppShell.ts:480` `exhaustive-deps`: the effect is keyed on `currentUser?.id` on purpose
+- **L5** — `useAppShell.ts:496` `exhaustive-deps`: the effect is keyed on `currentUser?.id` on purpose
   (no re-subscribing on object identity) but reads `currentUser.id` inside. → `const userId =
   currentUser?.id` above the effect, use `userId` inside, deps `[userId]`. Identical behaviour.
-- **L6** — `services/vendor-access.service.ts:64-82`: 5 × `as any` on PostgREST embeds.
+- **L6** — `services/vendor-access.service.ts:86-104`: 5 × `as any` on PostgREST embeds.
   - → one hand-written row type per select (repo convention: hand-written interfaces). Embeds may
     come back as an object or an array, so a small `name`-reader helper handles both instead of
     `any`.
@@ -152,13 +152,13 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 
 ## Stage S4 — `useAppShell` (auth shell)  ⬜ TODO — highest risk, last
 
-- **L23** — `components/layout/AppShell/useAppShell.ts:205`: `setSideOpen(true)` when
+- **L23** — `components/layout/AppShell/useAppShell.ts:208`: `setSideOpen(true)` when
   `innerWidth >= 1024`, at the top of the auth-gate effect → **P1**: `useState(() => window.innerWidth
   >= 1024)`. Safe because AppShell renders nothing until the auth check. The rest of that effect (the
   access gate and the recovery skip) is **not touched**.
-- **L24** — `:333`: resets staff/schedules/bookings/status when `selectedVendorId` clears → **P3** on
+- **L24** — `:349`: resets staff/schedules/bookings/status when `selectedVendorId` clears → **P3** on
   `selectedVendorId`. The setters stay exported (pages mutate these lists), so P2 does not fit.
-- **L25** — `:440`: `setNotifLoading(true)` before the fetch → **P2** keyed on the user id from L5.
+- **L25** — `:456`: `setNotifLoading(true)` before the fetch → **P2** keyed on the user id from L5.
 
 **Verification:** eslint (whole app now: **0/0**), `tsc`, `npm test`, full visual suite. Live, headless:
 - Sign in with a single-vendor account: the dashboard shows and the sidebar is open at ≥1024 px,
