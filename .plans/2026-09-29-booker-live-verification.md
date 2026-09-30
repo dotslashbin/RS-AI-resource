@@ -52,7 +52,21 @@ your machine.
 
 **What only you can judge:**
 
-- **L0-a — re-review the 19 re-recorded baselines.** ⚠️ **This is not a repeat of a check you
+- ⚠️ **AMENDED 2026-09-29 — L0-a now covers a second change, and its scope grew from 19 baselines
+  to 69.** `.plans/2026-09-29-booker-poppins-base-font.md` made **Poppins** booker's single type
+  family (body *and* headings; Bricolage Grotesque removed), which re-recorded **69 of the 71**
+  baselines — every pane with text. The two untouched are `infotip-light`/`dark`, which contain no
+  text. So this pass is now judging **the redesign palette and the new typeface together**, which is
+  deliberate: the alternative was passing L0-a on the old font and then repeating the whole pass.
+  Machine checks that are already done and are *not* what L0-a is for: 154/154 tests, `tsc`, `build`,
+  visual **77 passed twice at exit 0**, touch targets and focus counts unchanged, tile labels
+  unclipped at 360/390/1280. What still needs **your eye**: whether Poppins reads well at the 10–11px
+  label tier, the badge pills, and the amount columns on Payments (`tabular-nums` is a no-op under
+  Poppins — the column still aligns, measured at a 0.00px decimal spread, but you should confirm it
+  looks right). ⚠️ The vendor **taglines** are the one thing no baseline covers at all, on either
+  client — the gallery never renders them; their italic was verified by measurement only.
+- **L0-a — re-review the re-recorded baselines** (19 named below from the redesign; **69 in total**
+  after the Poppins change — see the amendment above).** ⚠️ **This is not a repeat of a check you
   already passed.** Your earlier acceptance ("the baselines are all good") happened while the
   suite was still colour-blind — `threshold` defaulted to 0.2, so the palette you were shown was
   not necessarily the one on disk (redesign plan F64/F66). The 19 in question: `home`,
@@ -151,7 +165,7 @@ queue.
 
 | Done | ID | What | Who | Status | Why / reason |
 |:-:|---|---|---|---|---|
-| [ ] | L0-a | Re-review the 19 re-recorded visual baselines | You | ⬜ TODO — **blocks L1–L3** | ⚠️ Not a repeat: your earlier pass was shown a palette the suite could not verify (F64/F66). 5 of the 19 are panes nobody has looked at since 2026-08-31 |
+| [ ] | L0-a | Re-review the re-recorded visual baselines — **69**, not 19 (amended 2026-09-29) | You | ⬜ TODO — **blocks L1–L3** | ⚠️ Not a repeat: your earlier pass was shown a palette the suite could not verify (F64/F66). 5 of the original 19 are panes nobody has looked at since 2026-08-31. ⚠️ **Now also covers Poppins as the base font** (`2026-09-29-booker-poppins-base-font.md`), which re-recorded 69 of 71 baselines — judge palette **and** typeface in one pass |
 | [ ] | L0-b | Storefront Home against the local demo seed — all five shelves | You | ⬜ TODO | Empty shelves hide themselves; that is how three stayed dead for two stages (F58) |
 | [ ] | L0-c | Both themes at 360 / 390 / 1280 | You | ⬜ TODO | `defaultTheme="dark"` — dark is the default, not the variant |
 | [ ] | L0-d | Wizard end to end locally, up to the payment step | You | ⬜ TODO | The payment itself is L2 |

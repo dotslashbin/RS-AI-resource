@@ -376,6 +376,12 @@ Two things about this setup are load-bearing:
   local overwrite; and the PNGs are **platform-locked** — the filenames say
   `*-chromium-linux.png`, so they only reproduce on this OS and font stack. CI must pin
   a matching container or the whole suite fails wholesale.
+  ⚠️ **Amended 2026-09-29 — "font stack" now means different things in the two apps.**
+  `booker` self-hosts Poppins for *all* its text (`next/font` + `theme.extend.fontFamily.sans`),
+  so the family no longer depends on what the machine has installed; only rasterisation and
+  hinting still do. `vendor` is unchanged and still renders in the system stack, so its baselines
+  remain sensitive to both. Neither app is portable across platforms — the point stands — but a
+  booker baseline diff can no longer be explained away as "a different font was installed".
 - **What happens with a missing baseline** (measured 2026-08-26, after an earlier claim
   here got it backwards): `toHaveScreenshot` **fails** — *"A snapshot doesn't exist at
   …, writing actual."* — but **writes the file while failing**. So a single clean CI

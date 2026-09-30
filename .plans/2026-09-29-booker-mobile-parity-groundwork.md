@@ -277,7 +277,7 @@ The two clients must end up with the same look and the same feature set, differi
 | Status badges | the darkened light set + web's dark set (D17) | web I22 ✅; mobile M8 |
 | Muted text | `#5b6576` light, `#94a3b8` dark (D17) | both ✅ |
 | Division colours | 13 slugs + `none`, light and dark; Pets `#92400e` | web I3 ✅ — **now the source of truth**; mobile re-copies from `globals.css`, replacing its provisional values |
-| Font | the system stack; Inter's name dropped (N3, mobile D9) | web I16; mobile M1 ✅ |
+| Font | ⚠️ **AMENDED 2026-09-29 — the clients are deliberately OUT OF CONTRACT on this row.** Web: **Poppins**, the single family for body *and* headings, self-hosted via `next/font` (`.plans/2026-09-29-booker-poppins-base-font.md` D1/D2 — 400/500/600/700/800 preloaded, 400 italic on demand). Mobile: **still the system stack**, unchanged. | web ✅ 2026-09-29 (that plan's S2); mobile ⬜ — its own plan, not started. Mobile's **D9 is NOT reversed** and no RN file was touched. Until mobile adopts Poppins the two clients differ **on purpose**, the same way D22-c/D22-d/I48/F63 sit out of contract above |
 | Primary button, accent | `linear-gradient(135deg,#2563eb,#1d4ed8)`, `#2563eb` / `#60a5fa` | both ✅ |
 
 **Functional gaps found 2026-09-22, and how each closes**
@@ -302,7 +302,7 @@ The two clients must end up with the same look and the same feature set, differi
 | Division grid | auto-fill grid, tile = tint + white-on-deep name band | 4 across, wrapping, same tile | **Same tile, different column count** — a phone fits four. Add to mobile §4 |
 | Icon source | `divisionIcon()` → bundled `/division-icons/<slug>.png` → monogram | the same function, Expo asset paths | **Same logic, different asset resolution.** Mobile cannot use `/public`; `require()`d assets are the native equivalent. Add to mobile §4 |
 | Activity | segmented Updates \| Bookings, right rail on desktop | the same segments, **no rail** — the rail's cards stack under Updates | **Different by screen size**, already covered by §4's one-column rule |
-| Display typeface | `next/font`, headings only | an Expo font asset gated on `useFonts` | **Same family.** ⚠️ This **reverses mobile's D9**, which uninstalled `@expo-google-fonts/inter` deliberately — mobile must record the re-add rather than have it appear |
+| Display typeface | ⚠️ **AMENDED 2026-09-29 — there is no longer a separate display face on web.** Bricolage Grotesque was removed and Poppins carries the headings too, so this row and the Font row above are now one decision, not two (`.plans/2026-09-29-booker-poppins-base-font.md` D1/I2, superseding redesign D22/I34). | an Expo font asset gated on `useFonts`, **if and when mobile adopts it** | ⚠️ Still **reverses mobile's D9**, which uninstalled `@expo-google-fonts/inter` deliberately — mobile must record the re-add rather than have it appear, and it is now Poppins that would be added, not Inter or Bricolage |
 | "Available today" | per **D25**, still open | whatever D25 decides | **Must not diverge.** Mobile waits for D25 too |
 
 Mobile's plan gets the same amendment in its §4b. Nothing above may be implemented on one client only.
