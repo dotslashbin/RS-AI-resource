@@ -1,8 +1,8 @@
 # Booker: widget Home, better booking status, Explore/search, offering page, Payments
 
 **Date:** 2026-09-18 (Payments folded in 2026-09-20)
-**App / scope:** `./booker`. One optional backbone migration (D9) sits behind its own approval gate.
-**Status:** IN PROGRESS. **Booker production is not serving users yet (confirmed 2026-09-28)** — so the live checks below are staging-only for now, and nothing here is customer-facing. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. **I45, I47, I44 and I42 ✅ DONE 2026-09-27 — every item in this plan owned by me is now complete.** I45 killed the "Step 2 of 6 — Pick a Vendor" card; I47 extracted one `ShelfCard` for two shelves and found **F60** (long names wrap to three lines — a design call, left open); I44 removed 5 orphaned files; I42 put Book again through `HomeSection` and, on the way, gave every shelf an accessible name — none of them was a landmark before. 154/154, `tsc`, build, lint 18, visual **77/77**. **F60 and I43 decided and done 2026-09-27** — F60 → option B (price on its own row, text column 89→189px); I43 → tier 1, everything failing WCAG 2.2 AA, which exposed the hero search collapsing to **25px on every phone** because `flex: 1` overrode its height in a column. Tier 2 (all ≥32px, passes AA) is deferred to the mobile plan. New: **I48**, the artboard's Available-today card differs from what shipped. Remaining: I48, plus the user-owned S3b-5, S6-b, S7-a, S7-b, S9c.
+**App / scope:** `./booker` **web only** (narrowed 2026-09-29 by the three-way split). One backbone migration (D9) sat behind its own approval gate and is applied everywhere. **Out of scope:** React Native → `.plans/2026-09-29-booker-mobile-parity-groundwork.md`; staging/production checks → `.plans/2026-09-29-booker-live-verification.md`.
+**Status:** COMPLETE — build scope, 2026-09-29. **Split three ways on 2026-09-29; see the end of this line.** **Booker production is not serving users yet (confirmed 2026-09-28)** — so the live checks below are staging-only for now, and nothing here is customer-facing. **S0–S6 ✅ DONE 2026-09-22** (incl. S6-a, Leaflet uninstalled). **S9 ✅ DONE 2026-09-25** — Payments core; 114/114 tests, `tsc` clean, `next build` passes. **Home/Activity redesign added 2026-09-25 (D21–D30, S10–S13) — design 📌 PINNED**, code assessed against it (F31–F36) on a measured baseline of 114/114 tests and a clean `tsc`. **D25 and D26 answered 2026-09-25 — no decision is open.** One approval gate remains (D26-gate, the popularity function), and it blocks one shelf, not the plan. **S9b ✅ and S10 ✅ DONE 2026-09-27** (136/136 tests, `tsc`, build, lint 19). **S11 ✅ and S12 ✅ DONE 2026-09-27** — the redesign is built except the Popular shelf, which waits on D26-gate. **S13 ✅ DONE 2026-09-27.** **S7 ✅ DONE 2026-09-27** — every visual baseline regenerated with the clock frozen (F46); final suite **71/71, exit 0, zero hydration errors** (was 12); `tsc` clean, 146/146 tests, lint at its 19 baseline. Found and fixed F43–F46 and F48–F50 (a hydration bug, a test guarding a deleted map, a fixture feeding `NaN` to parsers, baselines rotting a digit a day, a fixture that could not report a hydration error, two unnamed controls, and a Payments header silently clipped at 360px). Deferred **with measurements**: I42 (BookAgainCard chrome), I43 (sub-44px touch targets — a design decision, not a tweak). **D22-b ✅ DONE 2026-09-27** — the division tile rebuilt as one banded card against your reference, plus F51's shared colour map. **S8 ✅ DONE 2026-09-27** — six docs rewritten from the built code (`portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`), which surfaced F52 (two components this plan orphaned), F53 (the resume-draft card still names six wizard steps — user-visible) and F54 (a second dead security permission). **D26-gate ✅ APPROVED 2026-09-27** — `backbone/supabase/migrations/20260927000001_popular_offerings_rpc.sql` written (not applied; you apply it). Three corrections against the draft, incl. that `'rejected'` is not a booking status, which meant `refunded` bookings were being counted as popularity. Then a pre-apply review against the pinned artboard added `p_city` and `p_until` (two more gaps) — see the D26-gate review. **I46** adds `demo/booker-demo-seed.sql` so the new widgets can be seen on staging — written but **never run**. **I37 ✅ DONE 2026-09-27 — the Popular shelf shipped, and with it the plan's last build item.** 154/154 tests, `tsc`, build, lint 19, visual 73/73. Found F56 (a 2.08:1 contrast failure caught by measuring) and F57 (the new shelf would have had no visual baseline). **I46 ✅ and F58 ✅ DONE 2026-09-27.** Running the demo seed and opening Home against real data exposed **F58**: three of Home's five shelves — Popular, Available today, Vendors in your city — had never rendered, because the catalogue loaded only when Explore was opened. Two of them had been dead since S12 and nothing showed it, since every shelf hides when empty. Fixed and confirmed: all five now render. **I45, I47, I44 and I42 ✅ DONE 2026-09-27 — every item in this plan owned by me is now complete.** I45 killed the "Step 2 of 6 — Pick a Vendor" card; I47 extracted one `ShelfCard` for two shelves and found **F60** (long names wrap to three lines — a design call, left open); I44 removed 5 orphaned files; I42 put Book again through `HomeSection` and, on the way, gave every shelf an accessible name — none of them was a landmark before. 154/154, `tsc`, build, lint 18, visual **77/77**. **F60 and I43 decided and done 2026-09-27** — F60 → option B (price on its own row, text column 89→189px); I43 → tier 1, everything failing WCAG 2.2 AA, which exposed the hero search collapsing to **25px on every phone** because `flex: 1` overrode its height in a column. Tier 2 (all ≥32px, passes AA) is deferred to the mobile plan. New: **I48**, the artboard's Available-today card differs from what shipped. **D22-c shipped 2026-09-28** — division tiles are now circles with the name beneath, per your choice from the three-shape preview, plus vendor's real branding (F63). Found **F62**: a functional test had been guarding the bug I49 fixed, which also means my I49 report of "77/77" was wrong. **D22-d shipped 2026-09-29** — division colours now derived from the logos, sampled with an alpha gate and every label contrast-measured in both themes. Found **F64**: ⚠️ the visual suite can pass against a **stale** baseline after a global CSS change — proven by md5, and the likely explanation for F62's bad report too. **I48 built 2026-09-29** — Available today now matches the artboard, and **F65** (a green pill on a blue panel) forced `-deep` to be derived too. **I51 ✅ ROOT CAUSE FOUND AND FIXED 2026-09-29 — and it was not what I said twice.** Not the dev server: `toHaveScreenshot` takes `maxDiffPixels` **and** `threshold`, and the config set only the first, leaving `threshold` at its default **0.2** — a YIQ tolerance of 1409. The stale pipe `#5b21b6`→`#4a5b58` scores **953**, so a purple-to-green swap counted as **zero** differing pixels while a comment overhead claimed "Pixel-exact". `threshold: 0.02` fixes it; the `globalSetup` guard I built for the disproven theory was **removed**. All 73 baselines re-recorded — 19 had drifted, including **five panes I never touched** (verified text anti-aliasing only, every delta ≤24/255) — then **two consecutive runs at 73/73**. `tsc` clean, 154/154, lint 18 pre-existing. ⚠️ **Consequence: every "visual NN/NN" dated before 2026-09-29 in this plan proved stability, not correctness**; the suite is load-bearing for colour only from now on, and **S7-a needs a re-look at the 19** because your pass was shown a palette the suite could not verify. **SPLIT 2026-09-29 — this plan is now web-only and its build scope is COMPLETE.** On the user's instruction the remaining work left this file: everything React Native (the parity contract, the mobile briefing, Mobile-D22c) → `.plans/2026-09-29-booker-mobile-parity-groundwork.md`; everything needing staging or production (S3b-5, S6-b) → `.plans/2026-09-29-booker-live-verification.md`, which gates them behind **L0**, the user's local acceptance pass. ⚠️ **What that means for "complete": every build item here is shipped and machine-verified, but the human judgement on whether the redesign LOOKS right is L0-a in the live plan and has not happened yet** — the earlier pass was shown a palette the suite could not verify (F64/F66). Parked P1–P11 and aborted X1–X16 stay below as the record.
 
 > Make Home a set of widgets that shows what needs the booker next. Replace the two overlapping booking lists with one list that shows each booking's progress. Add search across services and vendors that opens a page for one vendor's offering, and book from that page. Rebuild Transactions as **Payments**, with honest totals, filters, CSV and paging. Everything works in light and dark.
 >
@@ -23,83 +23,20 @@
 
 ---
 
-## Briefing from ezzy-booker-mobile (added 2026-09-22 — read this before S0)
+## Briefing from ezzy-booker-mobile — **MOVED 2026-09-29**
 
-The phone app in `.plans/2026-09-21-booker-mobile-app.md` was built **to these
-designs and this plan's decisions**, on mock data, and is complete (M1–M9). It
-ported the rules this plan's S0/S1 describe, from booker's own code, and **tested
-them**. Two consequences for whoever executes this plan:
+⚠️ **Moved verbatim to `.plans/2026-09-29-booker-mobile-parity-groundwork.md`**, on the user's
+instruction that this plan hold only web work.
 
-1. **S0 and parts of S1 are largely a copy back, not a fresh build.** Take the
-   mobile file, drop the `.ts` extension imports (they exist because mobile's
-   tests run under `node --test` with strip-types), and keep the tests.
-2. **The mobile build found ten things wrong or undecided in web** (N1–N10 below).
-   They are cheapest to fix while these screens are being written.
+What went with it: the table of tested rules in `ezzy-booker-mobile/src/lib/` that **S0 and S1
+copied back** rather than built fresh; the 2026-09-22 verification of that briefing (111/111
+mobile tests, `slots.ts` byte-identical by `diff`); **N1–N10**, the ten things the phone app found
+wrong or undecided in web; and the list of what mobile is waiting on from here (**W1 ← P2/F3**,
+**W2 ← I14/S3b**, **W6 ← I5/S1**).
 
-### What already exists, tested, in `ezzy-booker-mobile/src/lib/`
-
-| Mobile file | What it is | Web item it serves | Tests |
-|---|---|---|---|
-| `slots.ts` | **Byte-identical** to `booker/lib/slots.ts` — proven by `diff` on 2026-09-22 | — | `slots.test.ts` (booker's own suite) |
-| `occurrence.ts` | Which dates a schedule runs: none/weekly/biweekly/monthly, date bounds, date-granular. Ported from `booker/services/schedules.service.ts` `isOccurrence` | I9, and the fifth copy of the rule `check_booking_placement()` owns | `occurrence.test.ts` — vendor-mobile's fixtures **plus a year-long cross-check against a verbatim copy of booker's function**, all recurrences, both granularities |
-| `bookingProgress.ts` | Progress steps for **all nine statuses**, cancelled/refunded/disputed as terminal tracks, with a runtime fallback | **I1** | `bookingProgress.test.ts` |
-| `autoConfirm.ts` | Auto-confirm date with the service-date gate: `max(changedAt + 3d, service day start)`, Manila | **I2** | `autoConfirm.test.ts` |
-| `search.ts` | The matcher: lower-cased, every token must match, grouped into services and vendors, no fuzzy library; plus cities, popular categories, recent searches, the result line | **I4** | `search.test.ts` |
-| `payments.ts`, `paymentsFilter.ts`, `paymentsCsv.ts`, `receiptHtml.ts` | Money states, paid-only totals, Manila month groups and period presets ("Last 3 months" = the same day three months back), CSV of the **filtered** set, receipt HTML with escaping | **I17, I19, I20, I21** | four test files |
-| `statusPalette.ts` + `contrast.ts` | Status colours per theme **and a contrast test** for every text/surface pair | I3, and **N9** | `statusPalette.test.ts` |
-| `divisions.ts`, `theme/divisionPalette.ts` | 13 division slugs + `none`, light and dark, slug-keyed, unknown → neutral | **I3** | `divisions.test.ts` (every pair ≥ 4.5:1) |
-| `homeRules.ts` | Needs you / Up next / the four booking groups / Book again (by offering **id**) / show-the-guide | **I10, I11** | `homeRules.test.ts` |
-| `statusExplain.ts`, `bookingTimeline.ts` | Plain explanation per status; timeline steps with the real `booking_status_log` times | I6, I10 | `bookingDetail.test.ts` |
-| `manila.ts`, `format.ts` | Manila calendar days with fixed +08:00 arithmetic (never the device zone); day, time, range, price-suffix and relative-day formatting | I19 and every date on screen | `format.test.ts` |
-| `bookingActionCopy.ts` | **Copied verbatim from `booker/lib/bookingActionCopy.ts`** — unchanged, listed so nobody re-invents it | I10 | — |
-
-Mobile's component split (`Name.tsx` render / `useName.ts` logic / styles) mirrors
-this repo's convention, so the screens are also a useful reference for how the
-widgets were assembled — see `.plans/2026-09-21-booker-mobile-app.md` §7 M1–M9 for
-what each stage built and how it was verified.
-
-### Verification of this briefing (web session, 2026-09-22)
-
-Another session's report is unverified until checked (plan-authoring §4). What I ran and found:
-
-| Claim | Verdict |
-|---|---|
-| The ported rules exist and are tested | ✅ **Confirmed.** 40 files in `ezzy-booker-mobile/src/lib/`; `npm --prefix ezzy-booker-mobile test` → **111 tests, 111 pass, 0 fail** |
-| `slots.ts` byte-identical to booker's | ✅ **Confirmed** by `diff` — no output |
-| Mobile build is complete (M1–M9) | ✅ Its plan reads COMPLETE 2026-09-22 with every stage ✅. ⚠️ **The app is uncommitted**: `ezzy-booker-mobile` still has one commit (`55a5c64`) and **272 changed files**. The copy-back depends on files that exist only in the working tree |
-| **N3** Inter named but never loaded | ✅ **Confirmed.** `AppShell.tsx:62` sets `fontFamily: "'Inter',…"`; grep for `next/font`, `@font-face`, `fonts.googleapis` across `app/`, `components/`, `public/` → **no hits** |
-| **N10** overnight slots mis-sorted | ✅ **Confirmed.** `schedules.service.ts:214` sorts `a.start.localeCompare(b.start)` — clock text, so a window crossing midnight lists `00:00` before `23:00` |
-| **N5** dark muted text under 4.5:1 | ✅ **Confirmed, and worse than reported.** `#64748b` is **4.13:1** on the dark page and **3.93:1** on a dark card (the report only gave the page). Mobile's `#94a3b8`: 7.66 |
-| **N6** Pets division pair fails | ✅ **Confirmed.** `#b45309` on `#fdf0dc` = **4.47:1**. Mobile's `#92400e` = 6.3. **The other 7 canvas pairs all pass** (4.83–9.15), so I3 fixes one pair, not all |
-| **N9** light badges fail as text | ⚠️ **Confirmed with a correction.** Failing: pending **2.90**, disputed **3.08**, fulfilled **3.29**, returned **3.34**, confirmed **3.37**, refunded **4.14**. **Passing:** completed 4.50, in_progress 4.90 — the report's "2.9–3.8" range understated the spread and implied all of them fail. Light `--db-text` `#64748b` on the page is **4.33:1** (report said 4.26; the gradient varies) — under 4.5 either way |
-
-**Consequence for this plan:** the contrast failures are in tokens **D3 kept deliberately** (`--db-*`, `.db-badge-*`) and in one approved division colour. Fixing them changes colours the user approved, so it is a decision, not a silent edit → **D17**.
-
-### N1–N10 — what mobile found, for web to settle
-
-- **N1** Mobile has **Call vendor** on the booking detail (`vendors.phone`); web doesn't. Add it?
-- **N2** Mobile shows **offering photos and description** on the booking detail; web's modal doesn't.
-- **N3** Web **names Inter but never loads it** (`booker/components/layout/AppShell/AppShell.tsx:62`; no `@font-face`, no Google Fonts link, no `next/font` anywhere in `app`, `components` or `public`). Either load it or drop the name — most visitors currently see their system font.
-- **N4** Booker has **no Delete account**, which the Privacy Policy expects, and Apple requires for the phone app (mobile G4/W5).
-- **N5** Web's **dark** muted text `#64748b` is ~4.1:1 on the dark page — under 4.5:1. The approved phone board uses `#94a3b8`; mobile matches the board.
-- **N6** The canvas's **Pets** division colour (`#b45309` on `#fdf0dc`) is **4.47:1**. Mobile uses `#92400e`. I3 must check every pair, not only this one.
-- **N7** The design's pending line, "You have not been charged for a booking they decline", may be **false**: bookers pay before the vendor accepts and there is no refund mechanism (F18). Mobile says "Waiting for the vendor to accept your booking." Confirm the true wording before it ships on either client.
-- **N8** Two search details: (a) the board prints some prices with no unit ("₱ 1,200", "₱ 950"), but `offerings.price` is per booked block, so mobile always names the block ("/ hr", "/ 60 min"); pick one rule for both clients. (b) Per I4 the division **name** is searchable, so "court" also returns everything at an EzzyCourt vendor (e.g. "Paddle Set Rental") — the board behaves the same; confirm it's wanted.
-- **N9** Web's **light** badge colours (`.db-badge-*`, the Tailwind -600 shades `#059669`, `#d97706`, …) are **2.9–3.8:1 as text**, on their own tint and on white alike. Mobile uses one shade darker (-700; amber and orange -800) in light only — see `ezzy-booker-mobile/src/theme/statusPalette.ts`, guarded by `statusPalette.test.ts`. Web's light `--db-text` `#64748b` is 4.26:1 on the page gradient; mobile uses the canvas's own `#5b6576`.
-- **N10** `booker/services/schedules.service.ts` `getSlotsForDate` sorts slots by clock text, so a window running past midnight lists "00:00" **before** "23:00". Mobile sorts by instant.
-
-### What mobile is waiting on from this plan
-
-`.plans/2026-09-22-booker-mobile-real-data.md` (the phone app's real-data plan)
-blocks on three items here — its W1, W2 and W6:
-
-- **W1 ← P2 / F3.** `booker/app/api/payment/create-session/route.ts:31-33` authenticates the SSR cookie only. Mobile needs a **Bearer-token** path, and the route must refuse a booking that is already paid.
-- **W2 ← I14 / S3b.** The counts-only occupancy function. Until it exists, mobile shows no counts rather than wrong ones (D9-B), exactly as this plan chose for web.
-- **W6 ← I5 / S1.** Paged `getBookings`. Mobile inherits the same 1000-row cap.
-
-Three more mobile gaps sit outside this plan: uploads with somewhere to store them (W3), a booker write path for `booking_acknowledgements` (W4), and the account-deletion route (W5, also N4).
-
----
+Nothing is lost by the move: every web item those findings produced is **already shipped and
+recorded in this plan** — N1, N2, N7 in S2; N3 in I16; N5, N6, N9 in D17/I22; N10 in I23; N4
+parked as D18. Read the groundwork plan only if you need the *why* behind one of them.
 
 ## Scope
 
@@ -159,54 +96,19 @@ The plan stays on booker's current stack. **No new dependencies.** Versions belo
 
 ✅ `booker/AGENTS.md` said "Next.js 15.1" and "single-file `app/page.tsx`" (F11). **Rewritten 2026-09-21** from `package.json` and the real tree, and `booker/CLAUDE.md` now just imports it (`@AGENTS.md`, as the mobile apps do). S8 updates it again for what ships.
 
-## Parity contract with ezzy-booker-mobile (2026-09-22)
+## Parity contract with ezzy-booker-mobile — **MOVED 2026-09-29**
 
-The two clients must end up with the same look and the same feature set, differing only where a phone genuinely differs. Neither plan owns that alone, so the contract is written into both.
+⚠️ **Moved verbatim to `.plans/2026-09-29-booker-mobile-parity-groundwork.md`**, including its
+2026-09-25 Home/Activity amendment.
 
-**Who decides what**
-- **This plan owns look and behaviour.** Mobile follows it (its §2, §3, D2).
-- **Mobile's `§4 Web → native differences` is the allowed-divergence list.** Nothing outside that table may differ. It covers: the drawer becoming an Account screen, bottom tabs, where the theme switch lives, the search entry, one-column layout, detail as a pushed screen, sheet pickers instead of `<select>`, presets-only date range, "Load more" instead of page buttons, CSV via the share sheet, printing via `expo-print`, receipt as a sheet, the sticky booking bar, native maps links, and no hover or keyboard hints.
-- **Anything else that differs is a bug in one of the plans.** Five were found on 2026-09-22 and are closed below.
+The contract said the two clients must look and behave the same, differing only where mobile's
+`§4 Web → native differences` allows. That obligation did not disappear with the move — it is now
+tracked as **C1–C4** in the groundwork plan, because **four things shipped on web after the
+contract's last amendment and are not yet in it**: D22-c (circle tiles), D22-d (logo-derived
+colours), I48 (the Available-today card) and F63 (vendor branding). Until each is carried across
+or added to mobile's §4 with a reason, the clients are out of contract.
 
-**Look: settled and identical on both**
-| Token group | Value | Where |
-|---|---|---|
-| Surfaces, text, borders | booker `--db-*`, light and dark | web `globals.css`; mobile `theme/tokens.ts`, ported verbatim |
-| Status badges | the darkened light set + web's dark set (D17) | web I22 ✅; mobile M8 |
-| Muted text | `#5b6576` light, `#94a3b8` dark (D17) | both ✅ |
-| Division colours | 13 slugs + `none`, light and dark; Pets `#92400e` | web I3 ✅ — **now the source of truth**; mobile re-copies from `globals.css`, replacing its provisional values |
-| Font | the system stack; Inter's name dropped (N3, mobile D9) | web I16; mobile M1 ✅ |
-| Primary button, accent | `linear-gradient(135deg,#2563eb,#1d4ed8)`, `#2563eb` / `#60a5fa` | both ✅ |
-
-**Functional gaps found 2026-09-22, and how each closes**
-| # | Gap | Resolution |
-|---|---|---|
-| 1 | **Vendor page.** Mobile opens a vendor's services from a vendor search result; this plan never said what a vendor card does | **D19-A:** web gets the same page → **I25** |
-| 2 | **Agreements at booking.** Mobile collects acceptance and a typed signature; nothing records it, and web collects nothing | **D20-A:** parked on **both** until `booking_acknowledgements` has a booker write path → **P9**; mobile hides the step it built (its G6) |
-| 3 | **Offering page details.** Mobile shows category + granularity chips, opening hours and "All N services"; I13 never named them | **I26** adds all three to web |
-| 4 | **Notifications.** Mobile opens the booking a notification refers to; web's panel has no such action | **I27** |
-| 5 | **Unstated numbers that drifted.** Division shortcuts (the prototype drew 8; there are 13) and the Payments default period | **I28**: 13 shortcuts, and "Last 3 months" as the default |
-
-**Both clients are equally missing** — parked, not divergences: payment retry (P2 / mobile G1), honest slot counts until I14 lands (mobile G2), upload persistence (F4 / mobile G3), delete account (D18-N4 / mobile G4), agreement recording (P9 / mobile G6), receipt numbers (P7), payment method (P8), "near me" (P1), date-granular booking (P5).
-
-**Keeping it true:** every stage of this plan ends by checking its screens against mobile's matching P# section. A new difference is either added to mobile's §4 table with a reason, or fixed. Mobile's sync protocol does the same in reverse.
-
-**Amendment 2026-09-25 — the Home/Activity redesign (D21–D24).** This is the largest parity change since the contract was written, and it lands on screens the phone app has **already built** (its P2 Home, P3 Bookings).
-
-| What | Web | Mobile | Same or different |
-|---|---|---|---|
-| Tabs | Home · Explore · **Activity** · Payments | the same four, same order | **Same.** Mobile's `app/(tabs)/bookings.tsx` becomes `activity.tsx`; its P3 list becomes the Bookings segment |
-| Home content | hero + search, all divisions, Book again, vendors in your city, one in-progress strip | the same sections, same order | **Same** |
-| Division grid | auto-fill grid, tile = tint + white-on-deep name band | 4 across, wrapping, same tile | **Same tile, different column count** — a phone fits four. Add to mobile §4 |
-| Icon source | `divisionIcon()` → bundled `/division-icons/<slug>.png` → monogram | the same function, Expo asset paths | **Same logic, different asset resolution.** Mobile cannot use `/public`; `require()`d assets are the native equivalent. Add to mobile §4 |
-| Activity | segmented Updates \| Bookings, right rail on desktop | the same segments, **no rail** — the rail's cards stack under Updates | **Different by screen size**, already covered by §4's one-column rule |
-| Display typeface | `next/font`, headings only | an Expo font asset gated on `useFonts` | **Same family.** ⚠️ This **reverses mobile's D9**, which uninstalled `@expo-google-fonts/inter` deliberately — mobile must record the re-add rather than have it appear |
-| "Available today" | per **D25**, still open | whatever D25 decides | **Must not diverge.** Mobile waits for D25 too |
-
-Mobile's plan gets the same amendment in its §4b. Nothing above may be implemented on one client only.
-
-
----
+The per-stage parity check that used to live in this plan's big table moved with it.
 
 ## Findings (F1–F13 verified 2026-09-18, F14–F21 on 2026-09-20, by reading the cited code)
 
@@ -840,6 +742,251 @@ that are fine.
 session, so the RPC fails there — and re-recording `step3-light`/`step3-dark` showed the "N
 left" badges **disappearing**. Those baselines had been asserting the wrong behaviour since the
 pane was created.
+
+### D22-c — the division tile becomes a circle with the name beneath (2026-09-28)
+
+**Asked for and decided by the user**, after three shapes were drawn and compared
+(`https://claude.ai/artifact/36EZ7XgAt4LaGortMwAftL`): option **B**. Supersedes D22-b's banded
+card, which shipped on 2026-09-27 and lasted a day.
+
+- `.tile` is no longer a card — no frame, no border, no band. An 84px disc in
+  `--division-tile` carries the 46px mark; the name sits on the page beneath it.
+- Phone (≤640px): disc 58px, mark 32px, name 10px and allowed to **wrap** rather than
+  truncate — at four across there is no room to ellipsize a name into meaninglessness.
+- Desktop keeps 7 across, as the preview draws it.
+
+⚠️ **The label uses `--division-fg`, and that choice is the whole reason this works in dark
+mode.** `-deep` is built for white text on a coloured band and is identical in both themes, so
+as text on a dark page it computes to about **2.08:1** — the trap F56 caught on the Popular
+count. `-fg` flips per theme and every pair is asserted at ≥4.5:1 by `lib/palette.test.ts`.
+Booker's default theme is **dark**, so this is the common case, not an edge one.
+
+`--division-fg` was added to F51's one map in `globals.css`, alongside `-tile` and `-deep`, with
+a note at the map saying which of the three a given surface should use. All 14 rows.
+
+⚠️ **Not adopted: the logo-derived colours.** The preview's later boards recoloured every
+division from its own mark's dominant colour. That is *not* in this change, deliberately:
+those values were read **by eye** (the pixel tooling was unavailable) and their contrast was
+never computed, and three of thirteen marks — Food, Stay, Home — are black or grey line art and
+produce grey tiles that read as disabled. The shipped tiles keep the measured palette. → **I50**
+if you want the derived colours pursued properly.
+
+### F62 — a functional test was guarding the bug I49 fixed (found 2026-09-28)
+
+`visual-tests/pilot.spec.ts:104` asserted `getByText("10 left")` was visible on the Step 3
+pane. It passed for the wrong reason: the fixture has no Supabase session, so
+`get_slot_occupancy` fails, and the pre-I49 code ignored the `known` flag — an empty occupancy
+map made `remainingForSlot` compute `capacityPerSlot - 0`, so every slot printed a confident
+"10 left" produced by a call that had errored.
+
+I49 made a failed lookup render no badge, so this assertion had to break.
+
+⚠️ **It did not surface at the time, and my I49 report said "visual suite 77/77".** That report
+was wrong: a test asserting the old behaviour cannot pass alongside the change that removed it.
+I cannot reconstruct how that run reported green and am not going to invent a reason. The
+lesson is narrower and worth keeping: **re-recording baselines does not re-check assertions** —
+the two failures look identical in a summary line and only one of them is fixed by
+`--update-snapshots`.
+
+**Fixed**: the test now asserts the **absence** of any count (`/\d+ left/` → 0 matches, and no
+"Full"), with the reason written at the line, so a count reappearing means the `known` flag has
+been dropped again. It also waits on `[data-gallery-ready]`, which it never did.
+✅ DONE (2026-09-28).
+
+### F63 — booker carried placeholder branding (2026-09-28)
+
+Booker shipped a lucide `CalendarCheck` glyph as its logo in three places, and its own
+favicon/PWA icon set, while `vendor` had the real Ezzy marks. Asked to bring vendor's across.
+
+Copied **byte-identical** (md5-verified), vendor untouched and `git status` clean:
+`app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`, `public/icons/icon-{192,512,maskable-512}.png`,
+and `components/ui/BrandLogo/BrandLogo.tsx`.
+
+⚠️ **The mark could not simply be dropped into the old containers.** `BrandLogo variant="mark"`
+is single-ink **brand blue by design** — deliberately not `currentColor`, per its own comment —
+and all three call sites put a white glyph on a blue fill. Blue on blue would have hidden it.
+So: the sidebar's blue tile was removed entirely (the mark reads correctly on both the light and
+dark page), and the login page's two blue-gradient tiles became white, which is the surface the
+mark is drawn for.
+✅ DONE (2026-09-28) — 15 baselines re-recorded; `tsc`, build, 154/154, lint 18, suite 77/77.
+
+### D22-d — division colours are derived from the logos (2026-09-29)
+
+**Your decision**, pointing at the preview's option-B board. Supersedes the hand-picked tints
+for ten of thirteen divisions.
+
+⚠️ **Sampled, not eyeballed this time.** When I first drew the preview the Bash tool was
+returning classifier errors, so those colours were judged by eye and I flagged them as unverified.
+They are now read from the PNGs through a canvas: **alpha-gated at 200** so `ezzy_drive`'s dark
+RGB under transparent pixels cannot skew the result (F26), and desaturated ink excluded when
+judging hue.
+
+| | Sampled base | Chromatic ink |
+|---|---|---|
+| court / care / drive | `#025afb` / `#0b2d85` / `#0271eb` | 93–100% |
+| pets / work / park | `#f47356` / `#fd7802` / `#ed3b0c` | 40–94% |
+| learn / law / well / home | `#035848` / `#c69d73` / `#75918b` / `#1b252e` | 96–100% |
+| **food / stay** | **none** | **0%** |
+
+From each base: a tint at 12% base on white, and a label **darkened or lightened until it
+measures ≥ 4.5:1 against the worst stop of that theme's page gradient**. Every one of the twenty
+ratios was computed, the lowest being 4.52:1.
+
+⚠️ **`ezzy-food`, `ezzy-stay` and `ezzy-ride` keep their hand-picked colours.** Food and Stay
+have **0% chromatic ink** — pure black and grey line art — and Ride has no logo at all. Deriving
+gives grey, and three grey tiles among thirteen read as disabled rather than neutral. Their
+existing `-fg` is already contrast-tested, so they lose nothing.
+
+**Where the new values live, and what they do NOT touch:**
+- `--div-*-tile` replaced for the ten. Three consumers, all "a mark on its tint" — the Home
+  disc, `DivisionIcon`'s box and the Popular card's panel — so they move together, which is
+  what keeps the app consistent.
+- `--div-*-label` is **new**, per theme, and the map's `--division-fg` now points at it. That
+  var has exactly **one** consumer, the tile's name.
+- ⚠️ **`--div-*-fg` is untouched**, deliberately. It feeds ten components — `DivisionBadge`,
+  four Explore surfaces, `StatStrip`, `VendorPage` — and `lib/palette.test.ts` asserts its
+  `-bg`/`-fg` pairs. Repointing it would have recoloured badges across the app and could have
+  broken that test. Checked before changing anything.
+
+✅ DONE (2026-09-29) — `tsc` clean, 154/154, lint 18, build compiles, suite 77/77.
+
+### F64 — the visual suite passed against a stale baseline (found 2026-09-29)
+
+⚠️ **This one undermines a verification method this plan leans on, so it matters more than the
+change that exposed it.**
+
+After the tint tokens changed, `divisions-light` **passed**, while a probe of the same pane on
+the same server showed `ezzy-court`'s box computing to the new `#e1ebff` where the baseline had
+the old green. At `maxDiffPixels: 0` that is impossible. Forcing a re-record proved it: the PNG's
+md5 changed, so the test had been comparing against an image that no longer matched the render.
+
+A later full run then failed `divisions-light` *after* I had re-recorded it — i.e. two runs of
+the same code produced different pixels. The dev server compiles lazily, so a run started soon
+after a global CSS edit can serve the **previous** stylesheet to early tests and the new one to
+later tests.
+
+**What this costs:** a green suite immediately after a `globals.css` change is not evidence.
+⚠️ It is also the most likely explanation for **F62** — the I49 run that reported 77/77 while a
+test asserting the old behaviour should have failed. I could not reconstruct that at the time;
+this is a mechanism that fits.
+
+**ROOT CAUSE FOUND 2026-09-29 — it was never the dev server. It was `threshold`.** ✅ RESOLVED
+
+`toHaveScreenshot` takes **two** independent knobs and `playwright.config.ts` only ever set one:
+
+- `maxDiffPixels: 0` — how many pixels may differ.
+- `threshold` — **what "differ" means.** It was absent, so it defaulted to **0.2**.
+
+Playwright compares via pixelmatch, which counts a pixel only when its YIQ delta exceeds
+`35215 × threshold²`. At the default that tolerance is **1409**. Run the numbers on the exact
+stale pipe from F66 — baseline `#5b21b6`, render `#4a5b58`:
+
+```
+dy = -18.20   di = -4.22   dq = 63.15
+delta = 0.5053·dy² + 0.299·di² + 0.1957·dq²
+      = 167.4  +  5.3  +  780.4   =  953
+```
+
+**953 < 1409 — so a purple-to-green swap counted as ZERO differing pixels.** `maxDiffPixels: 0`
+was bounding a number that colour changes never incremented. The comment above it read
+*"Pixel-exact: a pure refactor must not move a single pixel"*, which was never true of this
+config. Every stale-baseline pass on this page has this one cause.
+
+**Proof, in order:** baseline pipe `#5b21b6`; Playwright's own `popular-light-actual.png` pipe
+`#4a5b58`; test green. Setting `threshold: 0` then failed it with **74,524** differing pixels.
+
+**Fix applied:** `threshold: 0.02` (tolerance 14 — it catches delta 953 with a 68× margin).
+Not `0`, because text sub-pixel anti-aliasing produces neutral deltas up to **24/255** (≈291
+YIQ) that no source change explains; at `0` five untouched panes fail on text edges alone.
+
+⚠️ **The guard I built for this was removed.** `visual-tests/global-setup.ts` and its
+`globalSetup` line are gone (2026-09-29). It was built on the lazy-compilation theory, which the
+diagnosis **disproved** — `curl` confirmed the Playwright server was serving the new `#4a5b58`
+while the test still passed. Keeping 85 lines and a 120s poll whose stated rationale is false
+would have taught the next reader the wrong lesson. Playwright's own `webServer.url` already
+waits on `/ui-gallery`, which forces the compile.
+
+⚠️ **One observation I still cannot reconstruct.** The note above records `divisions-light`
+*failing* a later run after I had re-recorded it. Threshold does not explain that, and it no
+longer reproduces; the pane's only drift now is 35px of text AA. It may have been a genuine
+mid-edit render. I am not asserting a mechanism for it.
+
+⚠️ **F62's bad report is NOT explained by this after all.** F62 was a *functional* test asserting
+`getByText("10 left")`; `threshold` governs screenshots only. The earlier note pinning F62 on
+this mechanism was wrong — that mis-report remains unexplained.
+
+### I48 — "Available today" adopts the artboard's card  ✅ BUILT, VISUALLY VERIFIED (2026-09-29)
+
+`components/home/OpenTodayCard/` (`.tsx` + `.module.css`, pure display, no hook). Drawn to
+`project/Main.dc.html`: a 110px panel, the division pill, name, vendor · city, **slot ·
+duration**, and a footer with the price against a Book affordance.
+
+**The dependency that deferred this was wrong.** I had recorded that photos would mean a fetch
+per card. `getCoverPhotos(offeringIds)` takes the ids **together** and chunks internally — one
+batched query, the same call Explore already makes. So the shelf gets covers without
+reintroducing the fan-out D25 capped, and a card with no photo falls back to its mark on its
+tint, which is the state the artboard actually draws.
+
+⚠️ **One tap target, not two.** The artboard puts a Book **button** inside a card that is
+itself a link. That cannot be built as drawn — a `<button>` inside a `<button>` is invalid, and
+a clickable `<div>` is unreachable by keyboard. The card is the control and Book is an
+`aria-hidden` span styled as one. That also sidesteps a flow question the artboard raises but
+does not answer: a real Book button here would skip the offering page that D1 made the entry
+point.
+
+⚠️ `useHomePage` needed **keyed state** for the photos, not a bare Map — clearing one on a card
+change is a synchronous `setState` in an effect, the cascading render F42 caught.
+
+### F65 — deriving only the tint left two palettes on one card (found 2026-09-29)
+
+The first `OpenTodayCard` render showed **EzzyCourt with a blue panel and a dark green pill**.
+D22-d derived `--div-*-tile` but left `--div-*-deep` hand-picked, so every surface pairing the
+two mixed palettes: this card's pill, the Popular rank chip, and `DivisionIcon`'s monogram ink.
+
+**Fixed**: `-deep` is now derived from the same sampled base, darkened until white text on it
+clears **7:1** — the bar the hand-picked set held — with the lowest at 7.03. As the monogram on
+its own tint each clears 5.91. Re-checked on screen: the pills now match their panels.
+✅ DONE (2026-09-29).
+
+### F66 — the I51 guard did NOT stop the false pass  ✅ RESOLVED (2026-09-29)
+
+⚠️ **I reported I51 as fixed twice before it was.** Both reports were wrong, and the reason is
+worth keeping: I diagnosed from a plausible mechanism instead of measuring the tool's own rules.
+
+The symptom: after `-deep` changed, `popular-light` **passed** while the stored baseline held a
+**purple** pipe and the live page painted `rgb(74, 91, 88)`. Forcing `--update-snapshots` wrote
+**byte-identical** output, which I read as the server persistently serving an old palette.
+
+That inference was wrong. The re-record was byte-identical because the *baseline had already been
+rewritten* on an earlier `--update-snapshots`; the test kept passing because of `threshold`, not
+because of what was served. See **F64** for the arithmetic — the cause is fully accounted for.
+
+**Ruled out along the way**, each by direct test, so none of these needs revisiting: the injected
+`playwright-screenshot.css` (it only hides `nextjs-portal`), `PW_TEST=1` (only sets
+`devIndicators: false`), the port (the `webServer` command does bind 3200), stale served CSS
+(`curl` showed the new `#4a5b58`), service workers (`serviceWorkers: "block"` changed nothing),
+and "the comparison never runs" (swapping in an unrelated image failed with 18,354px).
+
+**Resolution, verified 2026-09-29:**
+1. `threshold: 0.02` set in `playwright.config.ts`, with the false "Pixel-exact" comment replaced
+   by the actual rule and the numbers behind the chosen value.
+2. `visual-tests/global-setup.ts` and its `globalSetup` line removed — a guard for a disproven
+   mechanism.
+3. All **73** baselines re-recorded. 19 panes had genuinely drifted: the 14 I changed under
+   D22-c/D22-d/I48 (home 44,943px · popular 74,524px · opentoday 518,686px · bookagain 33,413px)
+   **plus five I never touched** — `bookingconfirm`, `step4`, `steppay`, `notfound`, `error`.
+4. Those five were checked before being accepted rather than rubber-stamped: every differing
+   pixel is **≤24/255**, confined to narrow text bands (`notfound` y600–631, `step4` y64–353),
+   with top colours identical. Text anti-aliasing, no colour or layout change.
+5. **Two consecutive full runs, no edits between: 73/73 and 73/73.** The drift was one-time, not
+   flake, so `maxDiffPixels: 0` stays.
+6. `tsc` clean · **154/154** unit tests · lint at its pre-existing 18 (none in touched files).
+
+⚠️ **What this cost and what it buys.** Ten panes were green against stale colours for an unknown
+period, so *every* "visual NN/NN" in this plan dated before 2026-09-29 proves only that the
+baselines were stable, never that they matched the code. The suite is now load-bearing for colour
+for the first time. **S7-a's human review was therefore the only thing standing between a wrong
+palette and a commit** — and it is the check that caught nothing because nothing was shown to it.
 
 ---
 
@@ -2261,12 +2408,10 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | D1–D12 | Home / Explore / Offering decisions | You | ✅ DONE 2026-09-18 | No stage runs while a decision is open |
 | [x] | D13–D16 | Payments decisions (name, CSV, pagination, print) | You | ✅ DONE 2026-09-20 | Same gate, Payments half |
 | [x] | D19, D20 | Parity: vendor page on web; agreements parked on both | You | ✅ DONE 2026-09-22 | From the 2026-09-22 parity review |
-| [ ] | Parity | Per-stage check against mobile's matching P# section | Me | ⬜ TODO | A new difference is justified in mobile §4 or fixed |
 | [x] | F39 | Two colour collisions caught while choosing I33's values | Me | ✅ DONE 2026-09-27 | `work`/`pets` 15 apart, `learn`/`court` same green, dark `park`/`food` 10 apart. All fixed and guarded. `court`/`care` at 25.6 is pre-existing (D17) — flagged, not changed |
 | [x] | G1–G12 | Plan review gaps folded in (sidebar, tabs, realtime, a11y, …) | Me | ✅ DONE 2026-09-18 | Keeps a weak implementation from satisfying the plan as written |
 | [x] | F14–F21 | Payments findings (wrong totals, truncation, refund wording, existing CSV/print/date patterns) | Me | ✅ DONE 2026-09-20 | Read the real code before planning; three are money bugs or copy risks |
 | [x] | Approve | Approve the plan for execution | You | ✅ DONE 2026-09-21 | Approved; execution starts with S0 |
-| [x] | Brief | Read and **verify** the ezzy-booker-mobile briefing | Me | ✅ DONE 2026-09-22 | 111/111 mobile tests pass; `slots.ts` diff identical; N3, N5, N6, N9, N10 confirmed by code read and computed contrast (N9 corrected) |
 | [x] | D17 | Contrast fixes → adopt the phone app's tested values | You | ✅ DONE 2026-09-22 | Six badge styles and the grey text were below 4.5:1, and status colour carries meaning |
 | [x] | Proto-3 | Two Home/Activity directions drawn as full canvases (desktop + mobile Home, Activity, icon system, states) | Me | ✅ DONE 2026-09-25 | Compare a real storefront against a real alternative before changing the plan. Both links are in the header |
 | [x] | D21–D24 | Home → discovery, Activity takes the dashboard; B's tiles and type adopted; icons resolve by slug; five grey divisions get colours | You | ✅ DONE 2026-09-25 | Chose A's navigation with B's tile and type treatment. Payments keeps its tab; the sidebar and drawer are untouched |
@@ -2282,13 +2427,11 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S3b-3 | Apply the migration (local, then staging) | You | ⚠️ **LOCAL ONLY** (corrected 2026-09-27) | Recorded as done 2026-09-22 — `security definer`, `stable`, confirmed live — but that was **local**. `supabase migration list --linked` against staging (`fbxbwnfeimzhgxpshdpa`) on 2026-09-27 shows `20260922000001` with an empty remote column, i.e. never applied there. Staging is missing it *and* the new `20260927000001`. See Apply-D26 |
 | [x] | S3b-3b | `supabase db reset` so history matches the condensed `20260922000001` (F24) | You | ✅ DONE 2026-09-22 | Verified after: no `anon` EXECUTE, history shows one migration, and the occupancy proof re-ran on the fresh seed |
 | [x] | S3b-4 | Switch counts to the function; build "Open this weekend" (I12) | Me | ✅ DONE 2026-09-22 | Proved locally: a booker who sees 0 rows via RLS gets a count of 1 from the function. Fixes F1. Unknown counts now print no number at all |
-| [ ] | S3b-5 | Staging check: a second booker's booking lowers "N left" | You | ⬜ TODO | Needs two real booker accounts in a live environment. ⚠️ See **F61**: a dead RPC renders full capacity on this screen, so a sensible-looking number proves nothing — only the second booking does |
 | [x] | I49 | Wizard Step 3 discards `known`, so a failed occupancy call shows full capacity (F61) | Me | ✅ DONE 2026-09-28 | Step 3 now tracks `occupancyKnown` and renders **no badge** when the count is unknown, matching the Offering page. The `step3` baselines moved on their own — the fixture has no session, so the RPC fails there and the badges correctly vanished. 77/77, 154/154, `tsc`, build, lint 18 |
 | [x] | S4 | Shell (sidebar drawer kept, TopBar search + titles, 4 tabs, Inter name dropped) + Explore + Bookings page + `payments` rename (I16, I13 part, I15 nav) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc` clean, build passes, lint at baseline. Nothing seen in a browser yet |
 | [x] | S5 | Offering page **+ vendor page**: photos, staff, next open times, category/granularity chips, hours, agreements listed (D7, D8, D11, I25, I26) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean, lint at baseline. Closes parity gaps 1 and 3. "Book this slot" still enters the old flow until S6 |
 | [x] | S6 | Wizard starts at Schedule from the Offering page; Steps 1–2, map, geolocation, vendors service and dead types removed (I15, G10) | Me | ✅ DONE 2026-09-22 | 100/100 tests, `tsc`, build clean; lint 23 → 19 problems. Visual suite will fail until S7 (two gallery panes are gone) |
 | [x] | S6-a | `npm uninstall leaflet react-leaflet @types/leaflet` | You approved · Me ran | ✅ DONE 2026-09-22 | Three dependencies gone from `package.json` and the lockfile; `npm ls leaflet` empty; `tsc`, 100/100 tests and `next build` all clean afterwards. An empty `node_modules/@react-leaflet/` folder survives `npm prune` — no files, not in the lockfile, harmless |
-| [ ] | S6-b | Staging run-through: Explore → Offering → Schedule → Pay (PayMongo test mode) | You | ⬜ TODO | A real payment round trip needs staging keys and a browser |
 | [x] | S9 | **Payments core:** money rules, Manila presets, honest totals, filters, month groups, 10-per-page (I17, I19, I20 part, I21) | Me | ✅ DONE 2026-09-25 | 114/114 tests, `tsc` clean, `next build` passes, lint unchanged at 19. Fixes F14. Old Transactions page deleted |
 | [x] | S9b | **Payments receipt, CSV, print** (I18, I20 rest, first `@media print` block) | Me | ✅ DONE 2026-09-26 | 125/125 tests (11 new), `tsc` clean, `next build` passes, lint unchanged at 19. **F38**: no paid-at exists, so the CSV column is `booked_on`, not `paid_date` |
 | [x] | F38 | No "paid on" timestamp in `bookings` | Me | ✅ DONE 2026-09-26 | Found in S9b. The export names the column for what it holds rather than claiming a date the system never recorded |
@@ -2319,9 +2462,14 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | S7-d | Measured accessibility pass: every interactive box at 360/390/1280 in both themes, plus accessible names | Me | ✅ DONE 2026-09-27 | Ran against your :3000 dev server since Playwright could not start its own (S7-c). Found **F49** (two unnamed controls — fixed, zero pixel change) and **I43** (the sub-44px inventory — deferred, it is a design change) |
 | [x] | I43 | Touch targets — **tier 1: everything failing WCAG 2.2 AA (24×24)** | 🤝 | ✅ DONE 2026-09-27 | You chose tier 1. Four controls fixed; re-measured, nothing under 24px remains. **The hero search was a layout bug** — `flex: 1` overrode `height: 52px` once `.heroActions` went to a column, so it was 25px tall on every phone. Tier 2 (32–40px, passes AA) deferred to the mobile plan |
 | [x] | F60 | Long offering names on a shelf card | 🤝 | ✅ DONE 2026-09-27 | You chose **B** — price to its own row. Text column 89 → 189px, card 185 → 167px, phone heights 109/168/147 → 129/146/129. Four options measured in the browser first |
-| [ ] | I48 | "Available today" ships a different card from the artboard | Me | ⬜ TODO | Found while deciding F60. The pin draws a vertical card with a photo panel, duration and a Book button. Needs offering photos and changes the tap target |
+| [x] | S15 | **D22-c: division tiles become circles, name beneath** — disc + `--division-fg` label, responsive to 390px | Me | ✅ DONE 2026-09-28 | Your decision from the three-shape preview. `--division-fg` added to F51's map so the label flips per theme — `-deep` would have been 2.08:1 on the dark page. Logo-derived colours **not** adopted (see D22-c) |
+| [x] | S16 | **Vendor's favicon, app icons and BrandLogo brought into booker** (F63) | Me | ✅ DONE 2026-09-28 | 7 files copied byte-identical, md5-verified; vendor untouched. The blue tiles behind the mark had to go — the mark is brand blue, not `currentColor` |
+| [x] | F62 | A functional test was guarding the bug I49 fixed | Me | ✅ DONE 2026-09-28 | ⚠️ **My I49 report of "77/77" was wrong.** The test asserted "10 left" on a pane where the RPC fails; it now asserts the count is absent |
+| [x] | I50 / D22-d | **Logo-derived division colours** — sampled, not eyeballed | 🤝 | ✅ DONE 2026-09-29 | Your decision. Canvas-sampled with an alpha gate (the `ezzy_drive` trap), labels darkened/lightened to a **measured** ≥4.5:1 in both themes, lowest 4.52. ⚠️ Food, Stay (0% chromatic ink) and Ride (no logo) keep their picked colours — deriving gives grey. `--div-*-fg` deliberately untouched: 10 components and `palette.test.ts` depend on it |
+| [x] | I51 / F64, F66 | **The visual suite passed against stale baselines** | Me | ✅ **ROOT CAUSE FOUND & FIXED 2026-09-29** | Not the dev server — **`threshold`**. `toHaveScreenshot` has two knobs and the config set only `maxDiffPixels: 0`; `threshold` defaulted to **0.2**, a YIQ tolerance of `35215×0.2²` = **1409**. The stale pipe `#5b21b6`→`#4a5b58` scores **953**, so a purple-to-green swap counted as **zero** differing pixels. Fix: `threshold: 0.02` (tolerance 14, catches 953 by 68×; not 0, since text AA hits 24/255 ≈ 291). The `globalSetup` guard was **removed** — its lazy-compile rationale was disproven by `curl`. All 73 baselines re-recorded; 19 had drifted, incl. **5 panes I never touched** (all ≤24/255, text AA only — checked, not rubber-stamped). **Two consecutive runs 73/73.** `tsc` clean, 154/154, lint 18 pre-existing |
+| [x] | I48 | "Available today" adopts the artboard's card — panel, pill, duration, price + Book | Me | ✅ BUILT 2026-09-29 | The photo dependency that deferred it was **wrong** — `getCoverPhotos` is one batched call. One tap target, not the artboard's two (invalid HTML). **F65**: deriving only the tint left a green pill on a blue panel; `-deep` is now derived too. ⚠️ Verified by direct capture, NOT by the suite — see F66 |
 | [x] | Grants-check | Run the EXECUTE-grant query on **staging and production** for `get_slot_occupancy` and `get_popular_offerings` | You | ✅ DONE 2026-09-28 | Both hosted environments match local: two rows, `security definer`, EXECUTE = `authenticated, postgres, service_role`, **no `anon`**. F24's trap is closed on both — the explicit `revoke … from public, anon` did its job. Reported by the user |
-| [ ] | S7-a | Review the visual baseline diffs | You | ⬜ TODO | **71 committed baselines** as of 2026-09-28, re-recorded across S7, S14, I37, I42, I43, I45, I47 and F60. Machine checks prove they are *stable*, never that they are *right* — that judgement has no substitute |
+| [x] | S7-a | Review the visual baseline diffs | You | ✅ DONE 2026-09-29 | You reviewed and accepted ("the baselines are all good"). ⚠️ **Re-review needed on the 19 re-recorded after I51** — your pass happened while the suite was still colour-blind (F64), so the palette it showed you was not necessarily the one on disk. `visual-tests/pilot.spec.ts-snapshots/` (booker-relative), 73 files |
 | [x] | S7-b | Two dead permissions in `next.config.ts` — **`geolocation` dropped, `TILE_HOST` deliberately kept** | 🤝 | ✅ DONE 2026-09-28 | You chose option 1 after asking what it would cost. `geolocation=(self)` → `()`, matching vendor and command. **`TILE_HOST` stays**: a vendor-pin map is on the roadmap (P11) and Leaflet fetches tiles as `<img>`, so `img-src` is what decides whether they load. ⚠️ I had first called `TILE_HOST` the safe one to drop — wrong, given a map may return. The stale comment citing the deleted `hooks/useGeolocation.ts` was rewritten with the restore instruction |
 | [x] | S7-c | Stop the `next dev` on :3000 so Playwright can start its own | You | ✅ DONE 2026-09-27 | Your dev server (pid seen 2026-09-27 11:58, started from tmux) holds `booker/`, and Next 16 refuses a second `next dev` in the same directory — so the webServer on :3200 cannot start at all, whatever port is asked for. Not mine to kill. You stopped it; the suite then ran clean (71/71). Next 16 refuses a second `next dev` in the same directory, so this recurs whenever a dev server is up — worth remembering, not a defect |
 | [x] | S8 | Docs: portals (incl. the Payments rename), booking flow, `booker/AGENTS.md`, schema F27 | Me | ✅ DONE 2026-09-27 | Six files rewritten from the **built code**, not the plan: `portals.md`, `booking-flow.md`, `schema.md`, `overview.md`, `conventions.md`, `booker/AGENTS.md`. Every claim grepped. Found **F52**, **F53**, **F54** |
@@ -2332,6 +2480,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 | [x] | Git-S0 | Commit S0–S3 (booker repo) | You | ✅ DONE 2026-09-22 | `b726bac` "WIP: booker redesign" |
 | [x] | Git-S3b | Commit S3b + S4: `booker/`, `backbone/` (one migration), both plan files | You | ✅ DONE 2026-09-22 | Landed with `69c76f8` "Payments, then the Home/Activity redesign (S9-S13)" |
 | [x] | Git | Commit each later stage | You | ✅ DONE 2026-09-28 | Current through `2f6bd54` "Updates on card layout and target sizes". I draft the message and the file list; you commit |
+| — | **MOVED** | **Parity**, **Mobile-D22c** and **Brief** → `.plans/2026-09-29-booker-mobile-parity-groundwork.md` | — | ➡️ MOVED 2026-09-29 | Everything about the React Native app left this plan on your instruction. The carry-over is tracked there as **C1–C4** |
+| — | **MOVED** | **S3b-5** and **S6-b** → `.plans/2026-09-29-booker-live-verification.md` | — | ➡️ MOVED 2026-09-29 | Both need a live environment. That plan gates them behind **L0**, your local acceptance pass |
 | [ ] | P1 | "Near me" / real map | — | ⏸ PARKED | Vendors have no coordinates. Unblocked if proximity becomes a product goal |
 | [ ] | P11 | **Proximity / radius filtering** ("offerings within 2 km") | — | ⏸ PARKED 2026-09-25 | F37: no lat/lng on `vendors`, no PostGIS or earthdistance, no geolocation left in the app, and the removed map never did distance anyway. Needs coordinates + geocoding + a Vendor-portal field + a distance query — its own plan. Supersedes P1 |
 | [ ] | P2 | Retry payment for an unpaid booking | — | ⏸ PARKED | Could charge twice today (F3). Unblocked by a reviewed fix to the payment route |
@@ -2363,6 +2513,8 @@ The single checklist for this plan, Home **and** Payments. Updated before every 
 ---
 
 ## Verification
+
+⚠️ **The right-hand column is now another plan's work.** Every "needs a live environment" cell below was moved to `.plans/2026-09-29-booker-live-verification.md` on 2026-09-29 — **I14**'s row is its **L1**, **I15**'s end-to-end row is its **L2**, and the both-themes / looks-right rows are its **L0**. The table is kept intact as the record of what each item was *meant* to be checked by; do not read a filled right-hand cell as a check that happened.
 
 | Item | Machine-verifiable | Needs a live environment |
 |---|---|---|
