@@ -268,6 +268,7 @@ These are architectural invariants that must not be violated regardless of how f
 | Framework | Next.js 16 (App Router) | All three portals |
 | Language | TypeScript 5.7 (strict) | All three portals |
 | Styling | Tailwind CSS 3.4 + shadcn/ui (base-nova) | All three portals |
+| Typography | **Diverges by portal since 2026-09-29.** **booker:** Poppins, one self-hosted family for body *and* headings, declared with `next/font` and made the base through `theme.extend.fontFamily.sans` (weights 400–800 preloaded; 400 italic declared separately, not preloaded). **vendor** and **command:** unchanged — no webfont, still the system stack Tailwind's preflight supplies | Deliberate: booker went first as the trial. `vendor`, `command` and the two Expo apps are intended to follow, each under its own plan — `ezzy-vendor-mobile` already has one in progress. ⚠️ Anyone repeating this elsewhere should read `.plans/2026-09-29-booker-poppins-base-font.md` first: the family belongs in `tailwind.config.ts` and not in a CSS rule, `next dev` must be restarted after that file changes or it fails **silently**, and `style: ["italic"]` on the main weight array preloads an italic at every weight |
 | Theming | next-themes (light/dark via `class`) | All three portals |
 | Icons | lucide-react | All three portals |
 | Notifications | sonner | All three portals |

@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **App / scope:** `booker/` web only — the base (body) type family and everything that inherits it. `vendor/`, `command/`, `ezzy-booker-mobile/` and `ezzy-vendor-mobile/` are explicitly **out of scope** and unchanged by this plan.
-**Status:** **COMPLETE — build scope, 2026-09-29.** Reopened briefly on 2026-09-29 at the user's request to fix **F6, F7 and F8**, all now ✅; booker's Poppins commit is `ae85bd1`, and the F6–F8 fixes are a **second, uncommitted** change (5 files). **F8's fix corrected a wrong diagnosis in this plan and found a real 320px overflow in three product shelves — see F8.** Approved 2026-09-29 with D1–D4 resolved; S1–S5 all ✅; every B and I item ✅. Machine-verified: `tsc` 0 · `npm test` **154/154** · `npm run build` 0 · `npm run lint` 18 (its pre-existing baseline) · `npm run test:visual` **77 passed, exit 0, twice consecutively** after re-recording 69 of 71 baselines.
+**Status:** **COMPLETE — build scope, 2026-09-29.** Reopened briefly on 2026-09-29 at the user's request to fix **F6, F7 and F8**, all now ✅; booker's Poppins commit is `ae85bd1` and the root plan/doc commit is `7c1bdad`; the F6–F8 fixes remain a **second, uncommitted** booker change (5 files). **F8's fix corrected a wrong diagnosis in this plan and found a real 320px overflow in three product shelves — see F8.** Approved 2026-09-29 with D1–D4 resolved; S1–S5 all ✅; every B and I item ✅. Machine-verified: `tsc` 0 · `npm test` **154/154** · `npm run build` 0 · `npm run lint` 18 (its pre-existing baseline) · `npm run test:visual` **77 passed, exit 0, twice consecutively** after re-recording 69 of 71 baselines.
 
 ⚠️ **"Complete" means built and measured, not seen.** Whether booker *looks* right in Poppins is **L0-a** in `.plans/2026-09-29-booker-live-verification.md`, amended by I5 to cover this change; it has not happened, and it is the user's. Also outstanding and the user's: the commit (7 source files + 69 PNGs).
 
@@ -363,7 +363,7 @@ Each stage stops for the summary + checklist + plan-status report, and the next 
 3. **S2 — B1 + I1 + I2.** ✅ **DONE (2026-09-29)** — all three items executed and machine-verified; `tsc` 0, 154/154 tests, lint at its 18 baseline. `build` deferred to the end of S4 (it contends with the dev server for `.next`). Found F3 and F4.
 4. **S3 — B2 + I3 + I4.** ✅ **DONE (2026-09-29)** — ₱ confirmed drawn by Poppins from the latin-ext range (B2's premise corrected); `tnum` confirmed absent but the column measures a 0.00px decimal spread; the two comments rewritten to match the measurements. Found F5 (parked to the S4 build) and F6.
 5. **S4 — B3(b–e) + B4.** ✅ **DONE (2026-09-29)** — 69 red (explained), 69 re-recorded, 77 passed twice; a11y unchanged on touch targets and focus, and every overflow delta attributed to a fixture (F7) or to a pre-existing floor (F8) by re-measuring with the old stack forced back on. No spacing change was needed. Found and fixed F9 along the way; F5 resolved.
-6. **S5 — I6 + I5.** Amend the parity contract row per D4, then add the one L0-a line to the live-verification plan. Both are plan edits, not code.
+6. **S5 — I6 + I5.** ✅ **DONE (2026-09-29)** — both parity-contract rows amended per D4(a); L0-a amended from 19 to 69 baselines so it judges palette *and* typeface in one pass. Plan edits only; no code, no RN file, and nothing marked done on the user's behalf.
 7. **Not in this plan:** `vendor/`, `command/`, `ezzy-booker-mobile/`, `ezzy-vendor-mobile/`. The last of those is already running its own Poppins plan.
 
 ## Verification
