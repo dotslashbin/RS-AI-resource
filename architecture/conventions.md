@@ -305,11 +305,19 @@ module appears.
 must return nothing, and so must a grep for the key's actual value across all of
 `.next/`.
 
-### Unit tests in the web apps (`vendor`, `command`, 2026-08)
+### Unit tests in the web apps (`vendor`, `command`, `booker`)
 
-`vendor` and — since 2026-08-16 — `command` carry the same zero-dependency runner the
-mobile app uses: `npm test` → `node --test --experimental-strip-types "lib/**/*.test.ts"`.
-No framework, no new dependency. **`booker` has none yet.**
+**All three** web apps carry the same zero-dependency runner the mobile apps use:
+`npm test` → `node --test --experimental-strip-types "lib/**/*.test.ts"`. No framework, no new
+dependency. `vendor` first, `command` since 2026-08-16, `booker` since the Home/search redesign.
+
+⚠️ **This section said "`booker` has none yet" until 2026-10-02, and that was long stale** —
+booker had 171 passing tests by then, including the contrast guard `lib/palette.test.ts` that
+other docs already referenced. Anyone acting on the old line would have reached for a test
+framework the app already had.
+
+Counts when last measured (2026-10-02) — treat as a scale, not a contract:
+`vendor` **525** · `booker` **171** · `command` **140**.
 
 `command`'s suite exists for one specific reason worth knowing: the payout blob format
 is duplicated between `vendor/lib/payout/` and `command/lib/payout/` (no shared-code
@@ -350,9 +358,9 @@ npx playwright test --grep "ui-gallery <mode>-" --update-snapshots   # re-record
 
 | App | `/ui-gallery` | `playwright.config.ts` | `visual-tests/` |
 |---|---|---|---|
-| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs **+ committed baselines** (committed since 2026-08-26; 98 PNGs in `pilot.spec.ts-snapshots` as of 2026-09-12) |
-| `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs **+ committed baselines** (55 PNGs, since 2026-08-26) |
-| `command` | ✅ | ✅ port 3300, `localhost` (fixed 2026-08-21) | ⚠️ **behavioural specs only** — `closures`, `payouts`, `seo`, `settings-withholding`; **no `pilot.spec.ts` and no baselines**, so no pixel coverage (`.plans/2026-08-25-vendor-launch-followups.md` F2) |
+| `vendor` | ✅ | ✅ port 3100, `localhost` | ✅ specs **+ committed baselines** (committed since 2026-08-26; **112 PNGs** in `pilot.spec.ts-snapshots` as of 2026-10-02) |
+| `booker` | ✅ | ✅ port 3200, `localhost` | ✅ specs **+ committed baselines** (**81 PNGs** as of 2026-10-02, since 2026-08-26) |
+| `command` | ✅ | ✅ port 3300, `localhost` (fixed 2026-08-21) | ⚠️ **behavioural specs only** — `closures`, `payouts`, `seo`, `settings-withholding`; **no `pilot.spec.ts` and no baselines**, so no pixel coverage (`.plans/2026-08-25-vendor-launch-followups.md` F2). ⚠️ Re-confirmed 2026-10-02: nothing in `visual-tests/` calls `toHaveScreenshot`, so its `expect.toHaveScreenshot` config block is **dead** — kept, with `threshold`, only so the first screenshot anyone adds is correct |
 
 Two things about this setup are load-bearing:
 
@@ -364,8 +372,24 @@ Two things about this setup are load-bearing:
   and `booker` on 2026-08-04, and in `command` on 2026-08-21 (it also moved off vendor's
   port to 3300). Any interactive baseline recorded on `127.0.0.1` before a fix is worthless. See I15 in
   `.plans/2026-08-03-offering-duration-and-booking-units.md`.
-- **`toHaveScreenshot: { maxDiffPixels: 0 }`** — baselines are exact, with animations
-  disabled and the caret hidden. A diff is a real change; regenerate deliberately with
+- ⚠️ **`maxDiffPixels: 0` IS NOT "exact" ON ITS OWN — this bullet said it was, and it was
+  wrong (corrected 2026-10-02).** `toHaveScreenshot` takes two knobs: `maxDiffPixels` bounds
+  how many pixels may differ, and **`threshold` decides what "differ" means**. Playwright
+  compares via pixelmatch, which counts a pixel only when its YIQ delta exceeds
+  `35215 × threshold²` — and `threshold` **defaults to 0.2**, a tolerance of **1409**. All
+  three apps carried `maxDiffPixels: 0` with no `threshold`, under a comment claiming
+  pixel-exactness none of them had.
+  **What it cost:** in `booker`, ten panes passed against stale colours. A pipe rendering
+  `#4a5b58` against a `#5b21b6` baseline scores dy=-18.2, di=-4.22, dq=63.15 → delta **953**,
+  comfortably under 1409, so a purple-to-green change counted as **zero** differing pixels.
+  Diagnosed in `.plans/2026-09-18-booker-home-search-redesign.md` F64/F66.
+  **Now `threshold: 0.02` in all three** (tolerance 14 — catches that delta 68× over).
+  Deliberately not `0`: text sub-pixel anti-aliasing produces neutral deltas up to ~24/255
+  (≈291 YIQ) that no source change explains, and at `0` untouched text panes fail.
+  ⚠️ `vendor`'s 112 baselines were re-run after the fix and **all passed**, so nothing had
+  actually been masked there; `command` has no screenshots at all, so its setting is
+  preventative. Only `booker` had live damage.
+- **A diff is a real change**, with animations disabled and the caret hidden; regenerate deliberately with
   `--update-snapshots` **scoped by `--grep`** to the modes you mean to change (the bare flag
   re-records every baseline and silently accepts any drift), read the diff before
   committing it, and re-run without the flag to prove the new baseline is stable.
