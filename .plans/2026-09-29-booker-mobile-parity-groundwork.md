@@ -97,6 +97,34 @@ hit the same trap.
 a copy. See `.plans/2026-07-30-vendor-mobile-brand-assets.md` for how the vendor app did it.
 **Verification:** human — icon rendering on a device.
 
+### C7 — the Home → Explore search transition, the top-bar field, and the card division mark  ⬜ TODO
+**Added 2026-10-02** by `.plans/2026-10-01-booker-search-transition-and-topbar.md` (F3 there).
+Four pieces of new web behaviour the parity contract does not yet describe:
+
+1. **Home's hero has a real search input.** It was a navigate-only button before, so the phone
+   app has nothing equivalent to diverge from — mobile's §4 has no row for this.
+2. **A 1600ms transition overlay** (`components/home/SearchingOverlay/`): division marks
+   travelling right to left, the matched one lit. ⚠️ On web the delay is **deliberate**, not
+   covered work — Home already holds the catalogue. On RN the first catalogue fetch is real
+   network, so the same floor would cover genuine latency and should probably be shorter or
+   absent. **A straight copy would be the wrong call.**
+3. **The top bar is a real search field** (`useTopBar.ts`), hidden on Home, Explore and the
+   wizard. ⚠️ RN has no top bar of this shape — the phone app uses bottom tabs and its own
+   header, which mobile's §4 already lists as allowed divergence. This may be a row that says
+   "web only, by design" rather than work to carry.
+4. **Result cards carry the division mark and a real no-photo placeholder** (the Ezzy mark
+   beside the division mark), and **all six Explore surfaces moved to the derived palette**
+   (I10 there). ⚠️ **This one matters for C2:** mobile re-copies division colours from
+   `globals.css`, and the badge pair `--div-*-bg` / `-fg` is now unused by any Explore surface
+   on web. Mobile must take `-tile` + `-deep`, not the badge pair.
+   ⚠️ And **not `-label` for ink on a tint** — measured 2026-10-02, label-on-tile fails AA for
+   all ten divisions that define one (worst 2.25:1). `-deep` on tile passes, worst 5.89:1.
+   `booker/lib/palette.test.ts` now asserts this; mobile's `divisions.test.ts` should too.
+
+**Carry approach:** decide per piece whether it is parity work or a justified §4 divergence.
+Items 1, 2 and 4 are parity; item 3 is probably a divergence with a reason.
+**Verification:** mobile's contrast test for the palette half; the rest is a human check.
+
 ### C5 — the three colourless divisions  ⏸ PARKED (2026-09-29)
 Three divisions have no logo to sample, so C2's derivation leaves them on neutral values.
 **Why parked:** the user decided on 2026-09-29 not to plan a logo redraw ("No, do not include
@@ -168,6 +196,7 @@ would mean doing it twice:
 | [ ] | C4 | F63 branding onto RN | Me | ⬜ TODO | RN icons are `app.json`, not a file copy |
 | [ ] | C5 | Three divisions with no logo to sample | — | ⏸ PARKED 2026-09-29 | Your call: no logo redraw for now. Unblocks when the logos exist |
 | [ ] | C6 | I43 tier 2 — targets ≥32px | Me | ⬜ TODO | Owner unconfirmed — gated on D1 |
+| [ ] | C7 | Search transition · top-bar field · card division mark · the derived-palette migration | Me | ⬜ TODO (added 2026-10-02) | From the 2026-10-01 plan. ⚠️ Not a straight copy: web's 1600ms floor is deliberate, RN's would cover real network. ⚠️ Changes **C2** — mobile must take `-tile`+`-deep`, never the badge pair, and never `-label` as ink on a tint (fails AA, worst 2.25:1) |
 | [ ] | Parity | Per-stage check against mobile's matching P# section | Me | ⬜ TODO | Moved from the redesign plan 2026-09-29. A new difference is justified in mobile §4 or fixed |
 | [x] | Brief | Read and **verify** the ezzy-booker-mobile briefing | Me | ✅ DONE 2026-09-22 | 111/111 mobile tests pass; `slots.ts` diff identical; N3, N5, N6, N9, N10 confirmed by code read and contrast measurement |
 | [x] | Contract | The parity contract, written into both plans | 🤝 | ✅ DONE 2026-09-22, amended 2026-09-25 | ⚠️ **Not amended for D22-c, D22-d, I48 or F63** — that gap is exactly C1–C4 |

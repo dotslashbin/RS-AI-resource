@@ -50,7 +50,7 @@ Do not introduce a global `AppText` wrapper, modify React Native defaults, alter
 
 **Completed / verified (2026-09-29):** replaced the unused Inter token with the six-face static Poppins map and applied it to every static `fontSize` style in 47 style modules, including the three input paths. Numeric `fontWeight` and the former Georgia/serif and monospace exceptions were removed so each style selects a bundled face. Machine verification: typography inventory reports complete coverage; a source scan finds no Inter, numeric weight, serif, or monospace-family leftovers; `npm run lint`, `npx tsc --noEmit`, and 25/25 unit tests pass. Device visual/accessibility checks remain B3.
 
-### B3 — Regression-test typography as a visual and accessibility change  ⬜ TODO
+### B3 — Regression-test typography as a visual and accessibility change  ✅ DONE (2026-09-30)
 **Files:** `ezzy-vendor-mobile/src/app/_layout.tsx:45-79`; `ezzy-vendor-mobile/src/theme/tokens.ts:315-325`; `ezzy-vendor-mobile/src/components/common/`; `ezzy-vendor-mobile/src/components/auth/`; `ezzy-vendor-mobile/src/components/bookings/`; `ezzy-vendor-mobile/src/components/dashboard/`; `ezzy-vendor-mobile/src/components/transactions/`; `ezzy-vendor-mobile/src/components/notifications/`; `ezzy-vendor-mobile/src/components/settings/`; `ezzy-vendor-mobile/src/components/vendor/`; `ezzy-vendor-mobile/src/components/kiosk/`.
 
 Poppins has different character widths and ascender/descender metrics from the system fonts. Existing compact controls, list rows, amount totals, the action bar, and maximum-text accessibility layouts can regress even when static checks pass.
@@ -58,6 +58,8 @@ Poppins has different character widths and ascender/descender metrics from the s
 **Fix approach:** Build a non-production iOS candidate after B1–B2 and verify: sign-in/recovery, vendor picker, dashboard, booking list/detail/actions, Transactions, notifications, Settings/legal links, blocked/error states, and any reachable kiosk screens. Test Light/Dark, maximum Larger Accessibility Sizes, and VoiceOver. Treat clipping, unreadable controls, missing fonts, or focus/label regressions as blockers; adjust only spacing/line-height required by the new metrics, not unrelated design.
 
 **Verification:** machine — lint, tests, Doctor, and successful signed/internal build. Human/device — screenshots and a pass/fail log on the iPhone used for submission. Android visual validation is not a Google Play action, but it remains required before any future Android distribution because the same React Native style modules ship there.
+
+**Completed / verified (2026-09-30):** user confirmed the B3 iOS preview-build validation is complete. This is user-confirmed device evidence; a detailed screenshot/pass-fail log was not captured in the repository. Android validation remains deferred under I1.
 
 ### B4 — Fold the accepted font change into the iOS production candidate  ⬜ TODO
 **Files:** `ezzy-vendor-mobile/package.json:1-48`; `ezzy-vendor-mobile/eas.json:20-39`; `.plans/2026-09-21-ezzy-vendor-mobile-store-submission.md:255-272` (reference only; do not edit without separate approval).

@@ -83,6 +83,9 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20260911000003_audit_logs_append_only.sql` | `revoke all … from service_role`, then `grant select, insert`, on `booking_status_log`, `vendor_payout_method_log`, `vendor_payout_view_log` and `booking_transaction_corrections`. **Found by a test, not an audit**: a `GRANT` only adds, so the schema's default privileges had been leaving `service_role` with UPDATE, DELETE and TRUNCATE on four logs documented here as append-only |
 | `20260913000001_payout_statements.sql` | **Payout statements** (Command Mark Paid). `payout_statements` + `payout_statement_items` (append-only; `transaction_id` UNIQUE), the internal builder `payout_statement_groups()` with the one money/date format (`payout_statement_peso()` / `payout_statement_amount()`), `preview_payout_statements()` and `release_payouts_with_statements()` (lock → all releasable → no blocking problems → fingerprints equal → release + statements + notifications, one transaction; request-id replay), and the `payout_statement` notification type. **Additive only** — `release_booking_payouts()` stays granted until the separate contract migration (`supabase/pending/retire_release_booking_payouts.sql`, promoted with a fresh timestamp after Command is live in production). Tests: `supabase/tests/payout_statements_test.sql` |
 | `20260917000001_affiliates_and_vendor_referrals.sql` | **Affiliate referrals (interim).** `affiliates` (one row per affiliate user; admin-chosen `referral_code`, `^[A-Z0-9]{4,32}$`, unique) and `vendor_referrals` (one row per referred vendor). **No role is added** — affiliate is a capability, not a role (see `auth-and-roles.md`). Both tables: Command admin/root SELECT only; **no `authenticated` write grant** — written only by Command's and the vendor app's service-role routes. `vendor_referrals.affiliate_user_id` is `on delete set null` so account closure cannot fail at its last step. Additive: no existing table altered, nothing backfilled |
+| `20260930000001_vendor_activation_requires_kyc.sql` | **Activation requires an approved KYC packet.** `enforce_vendor_activation_requires_kyc()` (SECURITY DEFINER, `search_path` pinned) + a BEFORE INSERT OR UPDATE OF `status_id` trigger on `vendors`: refuses any move into `active` — pending→active, suspended→active, or insert as active — unless `vendor_kyc.status = 'approved'`, raising hint `kyc_not_approved` (Command maps it to its own message). **No exemption** for service role / no session; the seed activates vendors by UPDATE after an approved header. Existing rows untouched; suspending and edits that leave `status_id` unchanged are unaffected. Reverses command D6 (KYC advisory). Plan `.plans/2026-09-30-vendor-signup-before-kyc.md` C1 |
+| `20260930000002_vendor_status_notifications.sql` | **Vendor status notices.** AFTER UPDATE OF `status_id` trigger on `vendors` (SECURITY DEFINER) writes one notification per vendor-admin: → active from `pending_activation` or `suspended` → `vendor_activated` ("is active" / "has been reinstated"); active → suspended → `vendor_suspended`, **skipped while a vendor-closure request is pending** (closure reuses `suspended`). Two new `notification_type_settings` rows; each skipped when disabled. Generic email template, no function redeploy. A local `db reset` now leaves one "is active" notice per seeded vendor-admin. Plan `.plans/2026-09-30-vendor-signup-before-kyc.md` N1 |
+| `20261001000001_vendor_kyc_review_notifications.sql` | **KYC review notices — a bug fix.** AFTER UPDATE OF `status` trigger `notify_vendor_kyc_review` on `vendor_kyc`: → approved → `kyc_approved`; → rejected → `kyc_rejected` (with the reason); rejected → submitted → `kyc_submitted`. Never on INSERT; the first submission's `kyc_submitted` is written by the vendor route after it fully succeeds. Adds the `kyc_submitted` type. ⚠️ Before this, Command inserted `kyc_approved`/`kyc_rejected` from the browser, which `notifications` RLS refused (no INSERT for `authenticated`), so **none was ever sent**; that insert was removed. Not back-filled. Plan N2 |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -256,7 +259,7 @@ Vendors (businesses) that sell bookable offerings. The central entity in the pla
 | `created_at` | `timestamptz` | |
 | `updated_at` | `timestamptz` | Auto-updated by trigger |
 
-> Vendors default to `pending_activation`. Command admins activate them after review. Only active vendors are visible in the booker booking flow.
+> Vendors default to `pending_activation`. Command admins activate them after review — and since `20260930000001`, **only once their `vendor_kyc` packet is `approved`** (trigger `enforce_vendor_activation_requires_kyc`). Only active vendors are visible in the booker booking flow. The vendor portal additionally requires the packet to be approved *now* (a packet re-rejected after activation routes the vendor back to the KYC surface).
 
 > **Correction, 2026-08-21.** `phone`, `email` and `operating_hours` were documented above as
 > nullable and are not — all three are `not null default ''` in `20260504000002_schema.sql:66-68`
@@ -321,6 +324,14 @@ Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyF
 now shows all 13 divisions as icon tiles on its Home screen, and every mark it draws is a
 **file in the repo**: `booker/public/division-icons/<slug>.png`, resolved by
 `booker/lib/divisionIcon.ts`. An admin cannot change any of them; a deploy is the only way.
+
+⚠️ **If that upload feature is ever built, the marks are not interchangeable images.** Measured
+2026-10-02 over each PNG's opaque pixels: `ezzy-food` has a mean luminance of **1** (100% of its
+pixels under 70), `ezzy-home` 38, `ezzy-care` 48, `ezzy-learn` 68. Four of the twelve are
+near-black line art, which is why booker's tile tint stays light in dark mode and why any surface
+that drops the tinted disc paints the mark through a CSS mask instead of drawing it as an image.
+An upload path would need either the same constraint on what can be uploaded or the same
+mask treatment. See `booker/AGENTS.md` → "Division colours and icons".
 
 This is written down because the redesign plan
 (`.plans/2026-09-18-booker-home-search-redesign.md`, F27) was asked to "account for a future
@@ -1176,7 +1187,7 @@ Per-applicant-type list of **suggested** verification documents — guidance onl
 ---
 
 ### `vendor_kyc`
-One KYC header row per vendor. Carries the applicant type **and** the whole-packet review state (D-2/D-6 = B). Created by the atomic submit route (`vendor/app/api/auth/register/route.ts`) at submission time — there is no pre-submission server-side state (pre-submit progress lives in a browser draft).
+One KYC header row per vendor. Carries the applicant type **and** the whole-packet review state (D-2/D-6 = B). Created by `POST /api/kyc/submit` (`vendor/app/api/kyc/submit/route.ts`, service role) when the signed-in vendor first submits; **no header** means "not submitted yet". Since 2026-09-30 the vendor already exists from signup — before that, the header was created with the account by the old atomic register route.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -1188,7 +1199,7 @@ One KYC header row per vendor. Carries the applicant type **and** the whole-pack
 | `reviewed_at` | `timestamptz` | Nullable |
 | `submitted_at` | `timestamptz` | Default `now()` |
 
-**RLS:** vendor admins SELECT their own header and may UPDATE it to resubmit (rejected → submitted); Command admins/root SELECT all and UPDATE the review fields. Approve/reject writes here. KYC approval is currently **advisory** — it does not hard-gate `vendors` activation (deferred; see `vendor-kyc.md`).
+**RLS:** vendor admins SELECT their own header and may UPDATE it to resubmit (rejected → submitted); Command admins/root SELECT all and UPDATE the review fields. Approve/reject writes here. `authenticated` has no INSERT — the first header is written by the service-role route above. Since `20260930000001` an **approved** header is required for any move of `vendors` into `active`.
 
 ---
 

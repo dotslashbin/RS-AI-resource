@@ -200,84 +200,70 @@ Path 3 sends no email by design; the operator passes the password on out of band
 
 There are two onboarding paths depending on the portal:
 
-### Vendor self-registration path (KYC-gated)
+### Vendor self-registration path (sign up first, KYC after)
 
-Vendor onboarding is a **required KYC stage** — see `vendor-kyc.md` for the full
-subsystem. The key access-control property: **no auth user or vendor record is
-created until the entire KYC flow is submitted** (D-7 = D). The multi-step form
-fields live in browser `localStorage` and the documents are held in memory; only
-the final submit creates anything. Abandoning KYC leaves nothing behind.
+Revised 2026-09-30 (`.plans/2026-09-30-vendor-signup-before-kyc.md`). Signing up
+creates the account; verification (KYC) is submitted afterwards by the signed-in
+vendor. Until 2026-09-30 **no account existed until the whole KYC packet was
+submitted** (D-7 = D in `vendor-kyc.md`) — that decision was reversed, so an
+abandoned signup now leaves a real account and a pending vendor behind (accepted,
+plan D2). Full subsystem: `vendor-kyc.md`.
 
-The final submit is **three hops, not one** (2026-08-08 — the packet used to post
-as a single multipart body, and Vercel's 4.5 MB serverless request-body cap made
-registration impossible in production):
-
-1. `POST /api/auth/register/prepare` — validates every field and the file
-   manifest, then mints one signed upload URL per file under a staging prefix
-   `pending/{submissionId}/`. **Creates nothing.**
-2. The browser uploads each file **directly to Storage** with those tokens,
-   bypassing the Route Handler body limit entirely.
-3. `POST /api/auth/register` — a few KB of JSON. Re-validates everything (it may
-   not assume step 1 ran), then creates the records and **moves** the staged
-   objects to `{vendorId}/…`.
-
-> ⚠️ **Why the files cannot be uploaded straight to their final path.** The
-> bucket's policies key on `(storage.foldername(name))[1]::uuid = vendor id`
-> (`20260706000002`). At upload time the vendor row does not exist yet, so there
-> is no legal path to sign — hence the staging prefix and the later move.
-
-Using the service-role admin client, step 3 **atomically** (rolling back on any
-failure):
+**1. Signup — `POST /api/auth/register`** (service role, rollback on any failure;
+a few KB of JSON, no files):
 
 1. Create a confirmed Supabase Auth user (bypasses email verification)
-2. Immediately set the user's profile to `status_id = active`
+2. Set the user's profile to `status_id = active`
 3. Grant `vendor` portal access (`user_portals` row)
-4. Create the vendor record with `status_id = pending_activation`
+4. Create the vendor with `status_id = pending_activation` (`accreditation_no` null)
 5. Link the user as `vendor-admin` in `vendor_members`
-6. Create the `vendor_kyc` header (`status = submitted`) + **move** each staged
-   object from `pending/{submissionId}/` to `{vendorId}/` + insert a
-   `vendor_kyc_documents` row per file
-7. Notify Command (`vendor_pending_approval` + `new_user_registration`) **and the
-   vendor** (`vendor_registration_received` — a plain acknowledgement, no link)
+6. Record the referral, if any, then the policy consent (`legal_acceptances`) **last**
+7. Notify the vendor (`vendor_registration_received` — "your account is ready, next
+   verify your business") and Command (`new_user_registration`)
 
-> **What "atomic" does and does not cover now.** No auth user, vendor, KYC header
-> or document row exists unless step 3 succeeds — unchanged. What *can* survive a
-> failure is orphaned bytes under `pending/`, so rollback sweeps that prefix and
-> the success path clears any file uploaded but never claimed. An abandoned
-> `prepare` leaves the same litter and wants a periodic sweep of anything older
-> than a day — **not yet built**.
->
-> **Where the upload limits are actually enforced.** The browser uploads with a
-> signed token, so the sizes it declared at `prepare` are unverified claims.
-> Per-file size (10 MB) and MIME are enforced by the **bucket**
-> (`20260706000002`), which a signed upload cannot bypass. The per-submission
-> **total** has no bucket equivalent, so step 3 re-derives it from the real Storage
-> listing before creating anything.
+The client then signs in with the same credentials and routes the new vendor
+through the **same access verdict as any login** — which lands it on the KYC form.
 
-**Result:** The user is immediately active and can log in, but until Command
-approves and activates the vendor they see the KYC status surface
-(`KycStatusPage`: under review / approved-awaiting-activation / rejected → revise
-& resubmit), not the app. The *vendor itself* stays `pending_activation` and will
-not appear to bookers until activated. KYC approval is currently **advisory** — a
-Command admin flips the vendor active at their discretion (a hard gate is
-deferred; see `vendor-kyc.md`).
+**2. First KYC submission — `POST /api/kyc/submit`** (signed in):
+
+- The browser uploads each file **directly** to `vendor-kyc/{vendorId}/…` with the
+  vendor's own session — allowed by the bucket's "kyc vendor admin upload own"
+  policy now that the vendor row exists. No staging prefix and no signed-URL hop;
+  no request body ever carries a file, so Vercel's 4.5 MB body cap does not apply.
+- The route verifies the caller from the cookie session (portal grant, active
+  profile, vendor-admin of **this** vendor — `assertVendorAdmin` with
+  `requireActiveVendor: false`, since the vendor may be pending, active or
+  suspended), refuses with 409 if a header already exists (also on a PK race),
+  checks every named object exists and totals the **real** sizes, then — service
+  role, rollback on failure — inserts the `vendor_kyc` header (`submitted`), the
+  `vendor_kyc_documents` rows and, for a company, `vendors.accreditation_no`, and
+  notifies Command (`vendor_pending_approval`).
+- **Why a route, not RLS:** `authenticated` has no INSERT on `vendor_kyc`, and may add
+  document rows only while the header is `rejected`. Widening that would let a
+  vendor edit a packet under review (plan D5/I1).
+
+**Result — who gets the dashboard.** The vendor portal (web and mobile) opens only
+for a vendor that is **active AND whose KYC is `approved`** (plan D1). Everyone
+else lands on the KYC surface, which shows the form (no packet), "under review"
+(submitted), the resubmit editor (rejected) or "approved — awaiting activation";
+a suspended vendor sees a suspended notice above the form/editor when those apply.
+Activation itself is still a manual Command action, but since 2026-09-30 it
+**requires** an approved packet — enforced by the trigger
+`enforce_vendor_activation_requires_kyc` (`20260930000001`), and by Command's UI
+before it. A vendor stays invisible to bookers until activated.
 
 ```
-Multi-step registration + KYC (form in localStorage; no account yet)
-    │  (applicant type → documents → ID + selfie → review)
+Signup (2 steps: business details → account + consent)
     ▼
-POST /api/auth/register (service role — atomic, rollback on failure)
-    │
-    ├─ auth.users row created (confirmed)
-    ├─ profiles row: status = active
-    ├─ user_portals row: vendor portal
-    ├─ vendors row: status = pending_activation
-    ├─ vendor_members row: vendor-admin
-    ├─ vendor_kyc header: status = submitted
-    └─ vendor_kyc_documents + files in vendor-kyc bucket
-    │
+POST /api/auth/register  →  user (active) · vendor (pending_activation) · membership
+    ▼   auto sign-in, same verdict as login
+KYC form (type → documents → ID + selfie → review)
     ▼
-User logs in → KYC status surface until Command approves + activates the vendor
+POST /api/kyc/submit  →  vendor_kyc (submitted) · vendor_kyc_documents · files
+    ▼
+Command: approve packet  →  activate (trigger requires approved)
+    ▼
+Vendor dashboard (active AND approved)
 ```
 
 ### Booker self-registration path

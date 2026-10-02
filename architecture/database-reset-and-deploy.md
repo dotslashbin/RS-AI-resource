@@ -70,6 +70,36 @@ needs no seed run.
 So a clean `db push` yields a **fully working schema with an empty dataset**, which
 is the correct outcome for a real environment.
 
+**What `seed.sql` creates, local only** — relevant because its *breadth* changed on 2026-10-02:
+
+| Block | Creates |
+|---|---|
+| 1–2 | The root account and the dev users |
+| 3–4 | The three original sports vendors (EzzyCourt ×2, EzzyWell) and their offerings |
+| **4c** | **One vendor per remaining division — 11 vendors, 22 offerings, 11 different cities** |
+| 5–6 | Staff and schedules, for the three original vendors only |
+| 7–10 | Bookings, notifications, the paid ledger, payouts, one referral |
+
+⚠️ **Block 4c exists because booker's search could not be judged without it.** Before it,
+`seed.sql` referenced exactly **two** division slugs — `ezzy-court` and `ezzy-well` — so eleven of
+the thirteen divisions had no catalogue at all. A correct search and a broken one looked identical
+for those eleven: tapping EzzyPets, or searching "pets", filtered Explore to a division with
+nothing in it. See `.plans/2026-10-01-booker-search-transition-and-topbar.md` F13 / I11.
+
+Two things Block 4c deliberately does **not** create, so their absence is not a bug:
+- **No schedules**, so "Available today" and the slot grid stay as sparse as they were. Offerings
+  alone populate Explore, search and the vendor pages. Left out because
+  `check_booking_placement` rejected one seed's first run over a start date, and
+  `end_time`/`window_minutes` carry migration history worth reading before more rows depend on it.
+- **No bookings or payments**, so these offerings never appear in "Popular this month" — that is
+  most-*booked*, by `get_popular_offerings`. Paid rows would also need the platform fee set first,
+  since `booking_transactions` snapshots `platform_fee_percent` un-repairably.
+
+Its addresses are **real PSGC entries** from `vendor/public/ph-address/*.json`, like Block 3's, so
+the vendor profile edit screen resolves every dropdown on load. ⚠️ Validating them against that
+source caught a province code sitting in a city-code column — one vendor's dropdowns would have
+failed silently.
+
 ### The one thing an empty environment still needs: a root account
 
 An empty dataset means **no account can log in to Command** — and since
@@ -150,10 +180,28 @@ it creates sign-in-able accounts, and it must never touch a hosted project.
 `supabase/demo/` is that second answer. Two files, and **neither is a migration
 nor a seed** — they are run by hand, like `bootstrap/production-root.sql`:
 
-| File | Purpose |
-|---|---|
-| `demo-seed.sql` | Attaches a demo dataset to **one existing vendor** |
-| `demo-teardown.sql` | Removes it again, completely — including demo payouts that were marked paid onto a payout statement (since 2026-09-13; see `schema.md` → `payout_statement_items`) |
+**Two pairs live here**, one per portal, and they tag different id prefixes so each
+teardown can only ever remove its own rows:
+
+| File | Purpose | Tag |
+|---|---|---|
+| `demo-seed.sql` | Attaches a demo dataset to **one existing vendor** | `de300000-` |
+| `demo-teardown.sql` | Removes it again, completely — including demo payouts that were marked paid onto a payout statement (since 2026-09-13; see `schema.md` → `payout_statement_items`) | `de300000-` |
+| `booker-demo-seed.sql` | Attaches past bookings, paid payments and daily schedules to **one existing booker you can sign in as** — so the redesigned Home, Activity and Payments screens have something to show (added 2026-09-27) | `de400000-` |
+| `booker-demo-teardown.sql` | Removes that set again | `de400000-` |
+
+⚠️ **The booker pair is staging-only — never production** (decided 2026-10-01). Its safety
+mechanics are sound: additive, tagged, one transaction (`begin;` … `commit;`), it raises and rolls
+back if the booker or vendor does not exist, and it disables `bookings_notify_new`,
+`bookings_notify_status_change` and the `notifications` user trigger for the duration so ~14
+bookings do not send real email to a real vendor's admins. The rule is not about mechanics — it is
+that **fabricated bookings and payments in a production database are a trust problem even when
+they can be removed cleanly.** Production is for real customer rows.
+
+⚠️ **It has no double-run guard**, unlike `demo-seed.sql`, which aborts with "Demo data is already
+present". Running `booker-demo-seed.sql` twice duplicates its bookings. The teardown matches the
+whole `de400000-` prefix, so it does clean up both sets — but check before re-running rather than
+after.
 
 What makes it safe on a hosted project:
 

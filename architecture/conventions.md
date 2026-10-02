@@ -413,12 +413,16 @@ Two things about this setup are load-bearing:
   `maxDiffPixels: 0` a hair's difference reads as *"Failed to take two consecutive
   stable screenshots"*. It must live on `expect`, not inside `toHaveScreenshot`, which
   rejects a `timeout` key (TS2769).
-- ⚠️ **A version badge will break any unmasked screenshot on every release.**
+- **The version badge is hidden in screenshots, not masked** (vendor, since 2026-10-01).
   `DevVersionBadge` renders `v{NEXT_PUBLIC_APP_VERSION}` in a `fixed bottom-4 right-4`
-  pill, so any `toHaveScreenshot` without `mask: badgeMask(page)` fails by ~9–14 pixels
-  in the bottom-right corner each time the version changes. Three call sites had drifted
-  without it and cost 24 failing tests. **Every `toHaveScreenshot` in `pilot.spec.ts`
-  must carry the mask** — grep for one without it before adding a new snapshot test.
+  pill. It used to be covered with `mask: badgeMask(page)`, but Playwright paints a mask
+  **at the element's size**, and the badge's width follows the version string: the bump
+  0.55.9 → 0.55.10 widened the box and failed 106 of 199 baselines at once. Vendor's
+  `playwright-screenshot.css` now sets the badge to `visibility: hidden`, so version
+  bumps of any length change no screenshot. **Do not reintroduce a badge mask.** In an
+  app whose specs still mask it (`booker`), the same breakage waits for the next
+  length-changing bump; port the CSS rule there before relying on its baselines
+  (`.plans/2026-10-01-vendor-post-signup-welcome.md` W-F1).
 
 ### Search-engine exposure is off by default
 

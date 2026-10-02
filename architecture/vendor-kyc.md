@@ -7,24 +7,39 @@ packet and activates the vendor. This is the platform's first real Supabase
 Storage implementation.
 
 Plans of record: `.plans/2026-07-03-vendor-kyc-storage.md` (main),
-`.plans/2026-07-06-kyc-id-selfie-capture.md` (camera step).
+`.plans/2026-07-06-kyc-id-selfie-capture.md` (camera step),
+`.plans/2026-09-30-vendor-signup-before-kyc.md` (sign up first, KYC after; activation
+requires an approved packet — **supersedes the "no account until KYC" model below**).
 
 ---
 
 ## The one-paragraph model
 
-A prospective vendor completes a multi-step registration form, then a KYC stage
-(applicant type → documents → ID + selfie). **No account or vendor record exists
-until the whole thing is submitted** — the form fields live in browser
-`localStorage` and the files are held in memory, and the final submit atomically
-creates everything at the end. Command admins then review the document
-packet (approve/reject with notes) inside the existing vendor view; a rejected
-vendor revises and resubmits. Files live in a **private** `vendor-kyc` Storage
-bucket; access is enforced by RLS at both the table and Storage layers.
+A prospective vendor **signs up first** — business details, then account + policy
+consent — which creates the account and a `pending_activation` vendor with **no KYC**.
+They are signed in straight away and land on the **KYC form** (applicant type →
+documents → ID + selfie → review), which they submit as the signed-in vendor. Command
+admins review the packet (approve/reject with notes) inside the vendor view; a rejected
+vendor revises and resubmits. The vendor portal (web and mobile) opens only when the
+vendor is **active AND its KYC is approved**, and Command can activate a vendor only
+once its packet is approved — enforced in the database. Files live in a **private**
+`vendor-kyc` Storage bucket; access is enforced by RLS at both the table and Storage
+layers.
+
+(2026-09-30 — until then no account existed until the whole packet was submitted, and
+KYC approval was advisory to activation. See the superseded section below and
+`.plans/2026-09-30-vendor-signup-before-kyc.md`.)
 
 ---
 
-## Why no account until KYC completes (D-7 = D)
+## ~~Why no account until KYC completes (D-7 = D)~~ — SUPERSEDED 2026-09-30
+
+> **Reversed** by `.plans/2026-09-30-vendor-signup-before-kyc.md` (D2): signup now
+> creates the account first and KYC is submitted afterwards, signed in. The rationale
+> below is kept as the record of what was traded away — an abandoned signup now leaves
+> an account and a pending vendor behind (accepted), and the resume is no longer
+> device-bound (the vendor simply signs in and lands on the form). The three-hop submit
+> it describes was retired with the `prepare` route and the `pending/` staging prefix.
 
 The requirement was: abandoning KYC must leave **no** auth user or vendor row
 behind, while still being resumable if interrupted. These conflict with the
@@ -55,25 +70,39 @@ start over). Cross-device resume was explicitly not worth the extra machinery.
 
 ## Onboarding flow (vendor portal)
 
-Registration is a **6-step** flow in the vendor `LoginPage` (the same modal as
-sign-in; the left info panel / mobile toggle behaviour is unchanged):
+**Signup** is a **2-step** flow in the vendor `LoginPage` (the same modal as sign-in):
 
 | Step | Screen | Notes |
 |------|--------|-------|
-| 1 | Business details | name, year established, address (Province/City/Barangay pickers, Address Line 1, ZIP Code), phone, operating hours |
-| 2 | Account setup | email + password — **validated only, no account created** |
-| 3 | Applicant type | `company` or `individual` (see below); company also enters accreditation/license no. |
-| 4 | Documents | free-form: label + file per document; suggestions shown per type; ≥1 required |
-| 5 | Identity | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
-| 6 | Review & submit | summary → atomic submit → "pending review" |
+| 1 | Business details | name, year established, address (Province/City/Barangay pickers, Address Line 1, ZIP Code), division, phone, operating hours |
+| 2 | Account setup | contact name, email + password, **policy consent** → **Create account** |
+
+`POST /api/auth/register` creates the auth user (confirmed), active profile, vendor
+portal grant, `pending_activation` vendor, vendor-admin membership, referral and
+consent rows — **no KYC header**. The client then signs in and routes through the same
+access verdict as any login, which lands the new vendor on the KYC surface. **Right
+after Create account only**, that surface opens on a one-time **welcome step**
+(`components/kyc/KycWelcomeStep`: "You're signed up! / Welcome to Ezzy", **Do it
+later** (signs out), or **Start verification →**, which opens the form). It is carried
+in React state (`useLoginPage` → `useAppShell` → `KycStatusPage`), never stored, so a
+reload or a later sign-in goes straight to the form (2026-10-01,
+`.plans/2026-10-01-vendor-post-signup-welcome.md`). A draft of
+steps 1–2 (never the password) resumes from `localStorage`.
+
+**KYC** is `components/kyc/KycSubmitForm`, shown by `KycStatusPage` whenever the vendor
+has no packet (the former registration steps 3–6, moved unchanged in behaviour):
+
+| Step | Screen | Notes |
+|------|--------|-------|
+| 1 | Applicant type | `company` or `individual`; company also enters accreditation/license no. |
+| 2 | Documents | free-form: label + file per document; suggestions shown per type; ≥1 required |
+| 3 | Identity | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
+| 4 | Review & submit | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
 
 - **Applicant types.** `company` (registered business — DTI/SEC) vs `individual`
-  (sole proprietor / freelancer). The type drives the **suggested** document
-  list (guidance only — uploads are free-form) and whether the
-  **accreditation/license no.** field is asked (**company-only**). Enforced
-  server-side in the atomic submit route —
-  `vendor/app/api/auth/register/route.ts:51` rejects a `company` submission with
-  no accreditation number before anything is written.
+  (sole proprietor / freelancer). The type drives the **suggested** document list
+  (guidance only — uploads are free-form) and whether the accreditation/license no.
+  is asked (**company-only**) — enforced server-side by `vendor/lib/kycSubmission.ts`.
 - **Identity step.** The two photos are captured with the device camera
   (`getUserMedia` + `<canvas>`, native — no dependency) behind an alignment
   overlay (an ID-card frame; for the selfie, a card frame plus a small
@@ -84,15 +113,15 @@ sign-in; the left info panel / mobile toggle behaviour is unchanged):
   stored image, since `captureImage` draws the raw video frame, and there is no
   face/ID detection or liveness behind it. A file-upload fallback covers a denied
   or absent camera. The photos ride the submit as two ordinary labelled
-  documents, `"Valid ID"` and `"Selfie with ID"` — **no backend special-casing.**
-- **Resume.** Form fields restore from `localStorage`; because upload/capture are
-  last, an interrupted vendor resumes at the pre-upload step and re-selects files
-  (a cross-session resume lands at step 2 to re-enter the password, which is
-  never persisted).
+  documents, `"Valid ID"` and `"Selfie with ID"` — **no backend special-casing**
+  (and no server-side check that both are present — plan S2-F3).
+- **Resume.** Nothing KYC-related is persisted — files cannot be, and the two
+  choices before them take seconds. A vendor who leaves simply signs in again and
+  lands back on the form.
 
-### Policy consent at step 6 (2026-08-19)
+### Policy consent at signup (2026-08-19; moved to signup step 2 on 2026-09-30)
 
-Step 6 carries a required agreement checkbox covering the Terms of Use, Privacy
+Signup step 2 (it was step 6 of the old combined flow) carries a required agreement checkbox covering the Terms of Use, Privacy
 Policy, Acceptable Use Policy and Refund & Cancellation Policy — the last of these
 because the vendor is the party a cancellation obligation binds.
 
@@ -101,46 +130,67 @@ Three things about it are load-bearing:
 - **The server re-checks it.** `app/api/auth/register/route.ts` rejects a missing or
   false flag before `createUser`. The checkbox only disables a button; it stops
   nobody posting to the route directly.
-- **It is never persisted to the KYC draft.** Consent lives in `useLoginPage` state
+- **It is never persisted to the signup draft.** Consent lives in `useLoginPage` state
   alongside the password, for the same reason: a draft resumed days later that
   restores a pre-ticked box is not consent.
 - **It is recorded, not just enforced.** Four rows land in `legal_acceptances` (one
   per document), written **last** in the route — after every step that could still
   roll back. See `schema.md` for why the ordering matters.
 
-The **resubmit** path (`KycStatusPage` → `resubmitKyc`) deliberately has **no**
-second gate: that vendor already has an account and already accepted at
-registration.
+Neither the **first KYC submission** (`KycSubmitForm` → `submitFirstKyc`) nor the
+**resubmit** path (`KycStatusPage` → `resubmitKyc`) asks again: the vendor already has
+an account and accepted at signup (plan D6).
 
-### What the atomic submit route does
+### The two server routes
 
-`POST /api/auth/register` (multipart: fields + `kycType` + `docLabels` JSON +
-files) runs, in order, with rollback on any failure:
+**`POST /api/auth/register`** (signup; service role; rollback on any failure):
 
 1. create a confirmed auth user → `profiles` row set **active**
 2. grant `vendor` portal access (`user_portals`)
-3. create the `vendors` row (**pending_activation**)
+3. create the `vendors` row (**pending_activation**, `accreditation_no` null)
 4. link the user as `vendor-admin` (`vendor_members`)
-5. create the `vendor_kyc` header (**submitted**)
-6. upload each file to `vendor-kyc/{vendor_id}/…` and insert a
-   `vendor_kyc_documents` row per file
-7. fire Command notifications (`vendor_pending_approval` + `new_user_registration`)
+5. referral row (if any), then the consent rows **last**
+6. notify: `vendor_registration_received` to the vendor, `new_user_registration` to Command
 
-Rollback removes uploaded objects, deletes the vendor (cascades), and deletes the
-auth user — so a failure leaves nothing behind. (This replaced the old
-pre-KYC register route, which created everything up-front on the form submit.)
+Rollback deletes the vendor (cascades membership + referral) and the auth user.
+
+**`POST /api/kyc/submit`** (first KYC submission; the browser has already uploaded the
+files to `{vendorId}/…` with the vendor's own session):
+
+1. verify the caller from the cookie session — portal grant, active profile,
+   vendor-admin of this vendor (`assertVendorAdmin`, `requireActiveVendor: false`)
+2. 409 if a `vendor_kyc` header exists (also caught as a PK race at insert)
+3. verify each named object exists under `{vendorId}/`, and total the **real** sizes
+4. insert the header (**submitted**) → document rows → `accreditation_no` (company),
+   rolling back (delete header → cascades docs) on failure
+5. notify Command (`vendor_pending_approval`)
+
+On failure the client removes the files it uploaded, as `resubmitKyc` does.
 
 ---
 
-## Pending-vendor surface (post-submit)
+## The KYC surface (vendor not yet usable)
 
-A logged-in vendor whose vendor is still pending sees `KycStatusPage` instead of
-the app (routed by `useAppShell` via `pendingKycVendorId`):
+The vendor portal opens only for a vendor that is **active AND KYC-approved**
+(`vendor/lib/vendorGate.ts`, used by sign-in, session restore, the kiosk and the
+vendor picker; the mobile app mirrors it). Anyone else signed in sees `KycStatusPage`
+(routed by `useAppShell` via `pendingKycVendorId`), whose view is decided by
+`vendor/lib/kycView.ts`:
 
+- **no packet** → the KYC form (`KycSubmitForm`), or the welcome step first when the
+  vendor has just signed up
+
+The frame's bottom exit follows `kycExitFor` (`vendor/lib/kycView.ts`): **Do it later**
+(soft blue) wherever a task is pending (no packet, rejected), **Sign Out** elsewhere,
+and none on the welcome step, which has its own Do it later. Both exits sign out.
 - **submitted** → "Application under review"
-- **approved** → "Documents verified — awaiting activation" (Command still flips
-  the vendor active; KYC approval is advisory, not a hard gate — see Deferred)
 - **rejected** → reviewer notes + a **revise & resubmit** editor
+- **approved** (not yet active) → "Documents verified — awaiting activation"
+- a failed read → a retry screen — **never** the form (a read error must not look
+  like "not submitted")
+- **suspended** → a suspended notice; shown **above** the form or resubmit editor when
+  the packet is missing or rejected (the vendor's only way back — a suspended vendor
+  can submit and resubmit), and on its own otherwise
 
 ### Resubmit is a selective edit (D-8 = B)
 
@@ -165,10 +215,37 @@ panel** (`KycPanel.tsx` + `useKycPanel.ts`): the applicant type, the per-type
 suggestions for context, the uploaded documents (each with **View** via a
 short-lived signed URL), and **one packet-level action** — Approve / Reject with
 notes. The action writes `status`, `review_notes`, `reviewed_by`, `reviewed_at`
-to the `vendor_kyc` header. Command then uses the existing activate control at its
-discretion.
+to the `vendor_kyc` header; the vendor is notified **by a database trigger**, not by
+Command (see *Vendor notifications* below).
+
+**Activation requires an approved packet** (since 2026-09-30; it was advisory before):
+
+- The vendor card's **Activate / Reinstate** is disabled, with the reason written on
+  the card, until the packet is approved (`command/lib/vendorActivation.ts`); the
+  create form starts vendors `pending`, and the edit form locks "Active" likewise.
+- The database enforces it regardless: trigger `enforce_vendor_activation_requires_kyc`
+  (`20260930000001`) refuses any move into `active` — or insert as active — without an
+  approved packet, raising hint `kyc_not_approved`, which Command maps to its own
+  message.
+- **Rejecting the packet of an ACTIVE vendor** opens a prompt to suspend it too
+  (the rejection is already saved). Not automatic — the admin may keep it active.
 
 ---
+
+### Vendor notifications (all from the database, 2026-10-01)
+
+Every message to the vendor about verification or account state is written by a
+SECURITY DEFINER trigger or a service-role route, never by a browser. Each is a
+`notifications` row that the email pipeline sends through the generic template (no
+email-function redeploy needed), skipped when its type is switched off in Command:
+
+| When | Type | Written by |
+|------|------|------------|
+| First KYC submission succeeds | `kyc_submitted` | `vendor/app/api/kyc/submit/route.ts`, after the whole submit succeeds (a trigger on the header INSERT would confirm rolled-back submissions) |
+| Resubmission (rejected → submitted) | `kyc_submitted` | trigger `notify_vendor_kyc_review` (`20261001000001`) |
+| Packet approved / rejected | `kyc_approved` / `kyc_rejected` (with the reason) | same trigger |
+| Activated / reinstated | `vendor_activated` | trigger on `vendors` (`20260930000002`) |
+| Suspended | `vendor_suspended` | same trigger; **not** sent while a vendor-closure request is pending (closure suspends first and sends its own messages) |
 
 ## Data model
 
@@ -181,8 +258,8 @@ Three tables (migration `20260706000001_vendor_kyc.sql`) + one bucket (migration
   (uploads carry a free-text label).
 - **`vendor_kyc`** — one header row per vendor (PK `vendor_id`): `kyc_type`,
   `status` (submitted/approved/rejected), review fields, `submitted_at`. Created
-  by the atomic route at submission time — there is **no** pre-submission
-  server-side state.
+  by `POST /api/kyc/submit` when the signed-in vendor submits — **no header** means
+  "not submitted yet" (the vendor exists from signup; since 2026-09-30).
 - **`vendor_kyc_documents`** — one row per uploaded file: free-text `label` +
   `storage_path`. Write-once (replace = delete + insert), mirroring
   `booking_documents`.
@@ -216,9 +293,12 @@ Enforced on both the tables and `storage.objects`, using the existing helpers
 
 | File | Functions |
 |------|-----------|
-| `vendor/services/kyc.service.ts` | `submitKyc` (→ atomic route), `getMyKyc` (header + docs), `signMyKycDocUrl`, `resubmitKyc` (selective edit); plus `KYC_SUGGESTIONS`, `KYC_ACCEPTED_MIME`, `KYC_MAX_FILE_BYTES` |
+| `vendor/services/kyc.service.ts` | `signUpVendor` (→ `/api/auth/register`), `submitFirstKyc` (upload → `/api/kyc/submit`), `getMyKyc` (found / none / error), `signMyKycDocUrl`, `resubmitKyc` (selective edit); plus `KYC_SUGGESTIONS`, `KYC_ACCEPTED_MIME`, `KYC_MAX_FILE_BYTES` |
+| `vendor/lib/kycSubmission.ts` · `vendor/lib/registration.ts` | pure input rules for the KYC route and for signup (unit-tested) |
+| `vendor/lib/vendorGate.ts` · `vendor/lib/kycView.ts` | the dashboard rule (active AND approved) and the KYC surface's view precedence (unit-tested) |
+| `command/lib/vendorActivation.ts` | why a vendor cannot be activated yet; the trigger's hint (unit-tested) |
 | `command/services/kyc-admin.service.ts` | `getVendorKyc` (header + docs), `reviewKyc` (approve/reject + notes), `signKycUrl` (signed view URL) |
-| `vendor/lib/kycDraft.ts` | `localStorage` draft (save/load/clear) — fields only, never password/files |
+| `vendor/lib/kycDraft.ts` | `localStorage` **signup** draft (save/load/clear) — fields only, never password; no KYC fields since 2026-09-30 |
 | `vendor/lib/captureImage.ts` | pure `<video>`-frame → JPEG `File` helper (no React) |
 
 Types are hand-written interfaces (this repo does not use `supabase gen types`).
@@ -296,19 +376,21 @@ empty. For a fully clean **local** slate including Storage:
 
 ---
 
-## Deferred (known future work)
+## Deferred / done
 
-Both are intentionally parked, not accidental gaps:
-
-- **Hard-gate activation (D-3 = B).** Today KYC approval is *advisory* — Command
-  can activate a vendor whose KYC is still `submitted`/`rejected`. A migration
-  trigger on `vendors` status (rejecting `pending → active` unless
-  `vendor_kyc.status = 'approved'`) is deferred. Plan item **8a**.
-- **KYC review → notification/email to the vendor.** A vendor learns of
-  approve/reject only on next login — no in-app notification or email. Deferred:
-  seed `kyc_approved`/`kyc_rejected` types + a trigger on `vendor_kyc` status that
-  inserts a `notifications` row (which then rides the existing email pipeline
-  automatically — see `email-notifications-guide.md`). Plan item **8b**.
+- ~~**Hard-gate activation (D-3 = B, plan item 8a).**~~ **Done 2026-09-30** — trigger
+  `enforce_vendor_activation_requires_kyc` (`20260930000001`) plus Command's UI
+  (`.plans/2026-09-30-vendor-signup-before-kyc.md` C1/C2).
+- ~~**KYC review → notification/email to the vendor (8b).**~~ **Done 2026-10-01** —
+  trigger `notify_vendor_kyc_review` (`20261001000001`). ⚠️ Before that, Command wrote
+  `kyc_approved` / `kyc_rejected` from the admin's browser, which RLS refused every time
+  (`authenticated` has no INSERT on `notifications`), so **no review email was ever
+  sent**; the browser insert was removed. Not back-filled.
+- **Still open:** no automatic deactivation when an active vendor's packet is
+  re-rejected (Command prompts instead — by decision); no cleanup of stale signups
+  that never submitted KYC; signup does not verify the email address
+  (`email_confirm: true`); orphaned objects if a vendor uploads and never completes the
+  POST. See the plan's DEFERRED list.
 
 ---
 

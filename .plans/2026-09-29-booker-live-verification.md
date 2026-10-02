@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **App / scope:** `booker/` **as deployed** — the checks that cannot be run from a terminal. No code changes belong to this plan; a failure here opens an item on the plan that owns the code.
-**Status:** DRAFT — ready to run. **No decision is open.** Gated on L0, which is yours.
+**Status:** IN PROGRESS — **L0 is COMPLETE (2026-10-01): L0-a, L0-b, L0-c and L0-d all passed by the user.** **L3-c decided** — the booker demo seed is staging-only, never production, now recorded in `architecture/database-reset-and-deploy.md`. ⏸ **L1, L2, L3-a and L3-b are PARKED at the user's request** — booker is not on staging yet and local testing continues; they unblock on the staging push, in that order. One finding logged for the user to close: **F1**, the booker demo seed has no double-run guard. **Nothing here is waiting on me.**
 
 > Split out of `.plans/2026-09-18-booker-home-search-redesign.md` on 2026-09-29 on the user's
 > instruction: *"All the stages that involve live testing (staging or prod), put them in a
@@ -40,15 +40,20 @@ environments at once.
 
 ---
 
-## L0 — Local acceptance gate  ⬜ TODO — **yours, and it blocks L1–L3**
+## L0 — Local acceptance gate  ✅ COMPLETE 2026-10-01 — passed by the user
 
 What you asked for: run booker locally and satisfy yourself before staging. Nothing below leaves
 your machine.
 
-**Machine checks already green as of 2026-09-29** (mine, re-run any time):
-`npx tsc --noEmit` clean · `npm test` **154/154** · `npm run lint` **18 problems, all pre-existing**
-· `npx playwright test visual-tests/pilot.spec.ts` **73/73**, twice consecutively · `csp.spec.ts`
-+ `seo.spec.ts` **4/4**.
+**Machine checks green as of 2026-10-01**, re-verified against booker `bb2ec84` (mine, re-run
+any time): `npx tsc --noEmit` clean · `npm test` **154/154** · `npm run lint` **18 problems, all
+pre-existing** · `npx playwright test visual-tests/` **77/77**.
+
+⚠️ **The earlier 2026-09-29 figures were stale.** Poppins landed after them (`ae85bd1`,
+`bb2ec84`) and a global typeface change moves nearly every baseline, so that run said nothing
+about the code as it stands. `threshold: 0.02` survived the font work — checked at
+`playwright.config.ts:47` — so the suite is still load-bearing for colour rather than back to
+counting zero pixels.
 
 **What only you can judge:**
 
@@ -65,8 +70,16 @@ your machine.
   Poppins — the column still aligns, measured at a 0.00px decimal spread, but you should confirm it
   looks right). ⚠️ The vendor **taglines** are the one thing no baseline covers at all, on either
   client — the gallery never renders them; their italic was verified by measurement only.
-- **L0-a — re-review the re-recorded baselines** (19 named below from the redesign; **69 in total**
-  after the Poppins change — see the amendment above).** ⚠️ **This is not a repeat of a check you
+- **L0-a — re-review the re-recorded baselines**  ✅ **DONE (2026-09-30) — passed by the user.**
+  The user reviewed booker after the Poppins change and accepted it (*"I've taken a look … that's
+  good"*), then instructed on 2026-09-30 that this item be marked done. Recorded as **their**
+  acceptance, not a machine result — no automated check can stand in for it, and the machine
+  evidence listed in the amendment above proves stability and colour, not that it reads well.
+  ⚠️ **What this does and does not unblock:** it clears L0-a's gate on L1–L3. **L0-b, L0-c and
+  L0-d are still ⬜ and still the user's** — the seeded-shelf check, both themes at 360/390/1280,
+  and the wizard end to end were not part of this pass and are not marked by it.
+  (19 named below from the redesign; **69 in total** after the Poppins change — see the
+  amendment above).** ⚠️ **This is not a repeat of a check you
   already passed.** Your earlier acceptance ("the baselines are all good") happened while the
   suite was still colour-blind — `threshold` defaulted to 0.2, so the palette you were shown was
   not necessarily the one on disk (redesign plan F64/F66). The 19 in question: `home`,
@@ -89,7 +102,7 @@ your machine.
 
 ---
 
-## L1 — [S3b-5] Staging: a second booker's booking lowers "N left"  ⬜ TODO — yours
+## L1 — [S3b-5] Staging: a second booker's booking lowers "N left"  ⏸ PARKED 2026-10-01
 
 **What:** with two real booker accounts on staging, book a slot as A and confirm the remaining
 count drops for B.
@@ -114,7 +127,7 @@ would mean Full). So on staging:
 
 ---
 
-## L2 — [S6-b] Staging: Explore → Offering → Schedule → Pay  ⬜ TODO — yours
+## L2 — [S6-b] Staging: Explore → Offering → Schedule → Pay  ⏸ PARKED 2026-10-01
 
 **What:** one full booking against PayMongo **test mode** on staging.
 
@@ -132,7 +145,7 @@ offering page; Steps 1–2 and the map are gone) and the money path.
 
 ---
 
-## L3 — Production posture  ⬜ TODO — yours
+## L3 — Production posture  ⏸ PARKED 2026-10-01 (L3-c ✅ decided)
 
 Booker production is **not serving users**, so this is a pre-launch checklist, not an incident
 queue.
@@ -143,13 +156,19 @@ queue.
   staging).
 - **L3-b — `architecture/production-env-checklist.md`**: per-variable Vercel requirements and the
   post-deploy probes. Not re-verified since this redesign landed.
-- **L3-c — decide whether the demo seed should ever run on a hosted environment.**
-  `booker-demo-seed.sql` is additive and tagged `de400000-`, with a teardown beside it. It was
-  written so the new widgets could be *seen* on staging. ⚠️ It has only ever been run on **local**.
-  Running it on production would put fabricated bookings in a real database — my recommendation is
-  **staging only, never production**, but it is your call and it is not currently written down
-  anywhere as a rule.
-
+- **L3-c — may the demo seed run on a hosted environment?** ✅ **DECIDED 2026-10-01 — staging
+  only, never production.** You agreed with the recommendation, and it is now **written down** in
+  `architecture/database-reset-and-deploy.md` → "The hosted-safe alternative", which is the doc
+  that answers "which seed is safe in which environment".
+  **The reason recorded is the honest one.** `booker-demo-seed.sql`'s mechanics are sound — I
+  checked rather than assumed: additive, tagged `de400000-`, one transaction (`begin;` line 57 …
+  `commit;` line 250), it raises and rolls back if the booker or vendor is missing (lines 115, 132,
+  147), and it disables `bookings_notify_new`, `bookings_notify_status_change` and the
+  `notifications` user trigger for the duration (61–63, restored 246–248) so ~14 bookings cannot
+  send real email to a real vendor's admins. The rule is not about mechanics; it is that
+  fabricated bookings and payments in a production database are a trust problem even when they can
+  be removed cleanly.
+  ⚠️ **Found while checking: no double-run guard** → logged as **F1** below, for you to close.
 ---
 
 ## Not in scope
@@ -165,18 +184,19 @@ queue.
 
 | Done | ID | What | Who | Status | Why / reason |
 |:-:|---|---|---|---|---|
-| [ ] | L0-a | Re-review the re-recorded visual baselines — **69**, not 19 (amended 2026-09-29) | You | ⬜ TODO — **blocks L1–L3** | ⚠️ Not a repeat: your earlier pass was shown a palette the suite could not verify (F64/F66). 5 of the original 19 are panes nobody has looked at since 2026-08-31. ⚠️ **Now also covers Poppins as the base font** (`2026-09-29-booker-poppins-base-font.md`), which re-recorded 69 of 71 baselines — judge palette **and** typeface in one pass |
-| [ ] | L0-b | Storefront Home against the local demo seed — all five shelves | You | ⬜ TODO | Empty shelves hide themselves; that is how three stayed dead for two stages (F58) |
-| [ ] | L0-c | Both themes at 360 / 390 / 1280 | You | ⬜ TODO | `defaultTheme="dark"` — dark is the default, not the variant |
-| [ ] | L0-d | Wizard end to end locally, up to the payment step | You | ⬜ TODO | The payment itself is L2 |
-| [ ] | L1 | [S3b-5] Staging: a second booker's booking lowers "N left" | You | ⬜ TODO | Two real accounts required. I49 means a dead RPC now shows **no badge** rather than a wrong number |
-| [ ] | L2 | [S6-b] Staging: Explore → Offering → Schedule → Pay, PayMongo test mode | You | ⬜ TODO | ⚠️ One attempt per booking — retry could double-charge (F3, parked P2) |
-| [ ] | L3-a | Re-run the occupancy check on **production** | You | ⬜ TODO | Both RPCs reached prod *before* the numbers were confirmed anywhere |
-| [ ] | L3-b | Walk `production-env-checklist.md` | You | ⬜ TODO | Not re-verified since the redesign landed |
-| [ ] | L3-c | Decide: may the demo seed ever run on a hosted environment? | You | ⬜ TODO | My recommendation: **staging only, never production**. Not written down as a rule anywhere today |
+| [x] | L0-a | Re-review the re-recorded visual baselines — **69**, not 19 (amended 2026-09-29) | You | ✅ **DONE 2026-09-30** — passed by you; no longer blocks L1–L3. ⚠️ L0-b/c/d are unaffected and still open | ⚠️ Not a repeat: your earlier pass was shown a palette the suite could not verify (F64/F66). 5 of the original 19 are panes nobody has looked at since 2026-08-31. ⚠️ **Now also covers Poppins as the base font** (`2026-09-29-booker-poppins-base-font.md`), which re-recorded 69 of 71 baselines — judge palette **and** typeface in one pass |
+| [x] | L0-b | Storefront Home against the local demo seed — all five shelves | You | ✅ DONE 2026-10-01 | **Your acceptance.** Checked against the local `de400000-` seed |
+| [x] | L0-c | Both themes at 360 / 390 / 1280 | You | ✅ DONE 2026-10-01 | **Your acceptance**, covering the Poppins face as shipped |
+| [x] | L0-d | Wizard end to end locally, up to the payment step | You | ✅ DONE 2026-10-01 | **Your acceptance.** The payment round trip itself stays L2 |
+| [ ] | L1 | [S3b-5] Staging: a second booker's booking lowers "N left" | You | ⏸ **PARKED 2026-10-01** | Your call — booker is not on staging yet and you are still testing locally. **Unblocks** the moment booker is pushed to staging. Still needs two real accounts; a dead RPC shows **no badge**, not a wrong number (I49) |
+| [ ] | L2 | [S6-b] Staging: Explore → Offering → Schedule → Pay, PayMongo test mode | You | ⏸ **PARKED 2026-10-01** | Your call, same reason as L1. **Unblocks** on the staging push. ⚠️ When it runs: one attempt per booking — retry could double-charge (F3, parked P2) |
+| [ ] | L3-a | Re-run the occupancy check on **production** | You | ⏸ **PARKED 2026-10-01** | Your call — still local-only. **Unblocks** after L1 passes on staging. ⚠️ Both RPCs reached prod *before* the numbers were confirmed anywhere, so this is still owed |
+| [ ] | L3-b | Walk `production-env-checklist.md` | You | ⏸ **PARKED 2026-10-01** | Your call. **Unblocks** when a production deploy is actually planned. Not re-verified since the redesign landed |
+| [x] | L3-c | Decide: may the demo seed ever run on a hosted environment? | You | ✅ **DECIDED 2026-10-01 — staging only, never production** | You agreed with the recommendation. ⚠️ Now **written down**, in `architecture/database-reset-and-deploy.md` → "The hosted-safe alternative", where someone looking for the rule will find it. Reason recorded as the real one: fabricated bookings in a production database are a trust problem even though the teardown is clean |
+| [ ] | F1 | `booker-demo-seed.sql` has **no double-run guard** | You to close | ⬜ TODO (found 2026-10-01) | Found while writing L3-c's rule. `demo-seed.sql` aborts with "Demo data is already present"; the booker pair does not, so a second run duplicates ~14 bookings. The teardown matches the whole `de400000-` prefix so it does clean up both sets. Logged, not fixed — your call whether it is worth a guard |
 | [x] | Grants | EXECUTE-grant query on staging **and** production | You | ✅ DONE 2026-09-28 | Both hosted environments match local; no `anon` on either function |
 | [x] | Apply | `20260922000001` + `20260927000001` on local, staging, production | You | ✅ DONE 2026-09-27 | All three environments level |
-| [x] | Machine | `tsc`, tests, lint, visual suite — local | Me | ✅ DONE 2026-09-29 | 154/154 · 73/73 twice · 4/4 · lint 18 pre-existing. ⚠️ Proves stability, not that it looks right |
+| [x] | Machine | `tsc`, tests, lint, visual suite — local | Me | ✅ **RE-VERIFIED 2026-10-01** against booker `bb2ec84` | ⚠️ The 2026-09-29 run was **stale**: Poppins landed after it (`ae85bd1`, `bb2ec84`), and a global typeface change moves nearly every baseline. Re-run on current HEAD: `tsc` clean · **154/154** · lint **18, all pre-existing** · visual **77/77** (the whole `visual-tests/` dir). `threshold: 0.02` survived the font work, so the suite is still load-bearing for colour. ⚠️ Still proves stability, not that it looks right |
 
 ---
 

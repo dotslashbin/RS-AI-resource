@@ -103,6 +103,35 @@ Philippine text correctly) and a print view.
 - **Password card** (2026-08-10, `components/settings/SecurityCard/`) — change your own password; see `auth-and-roles.md` → "Changing a password while signed in"
 - Logout
 
+#### Searching (2026-10-02)
+Two entry points into one transition, built in
+`.plans/2026-10-01-booker-search-transition-and-topbar.md`.
+
+- **Home's hero carries a real search field.** It used to be a button that only navigated, so
+  there was nothing to search *with*.
+- **The top bar carries one too**, hidden on Home and Explore — each already owns a field, which
+  was the redundancy this removed — and in the booking wizard, where a search invites abandoning a
+  flow that holds a slot. Below `md` it collapses to an icon that opens Explore.
+- **Submitting shows a transition, then lands on Explore with the results.** Division marks travel
+  right to left with the matched division lit; `SEARCH_TRANSITION_MS` (1600ms) is a **minimum**,
+  not a duration — the shell waits for whichever finishes last, the timer or the catalogue. The
+  progress bar is indeterminate for that reason. Reduced motion skips the pause entirely.
+- ⚠️ **The same query can return different results depending on where it was typed**, and that is
+  intended (plan F14). Searching *into* Explore from outside resolves the query to a division and
+  filters by it; typing in Explore's own field does not. So "court" from Home shows the EzzyCourt
+  catalogue, while "court" typed in Explore also surfaces an EzzyStay "Court-side Cabana".
+- Explore's result cards carry the division's mark and name in its own colours, and a card with no
+  cover photo shows the Ezzy mark beside the division's mark rather than a bare tint.
+
+⚠️ **Six stylesheets moved onto the derived division palette** in the same work — five Explore
+surfaces (result cards, vendor cards, the vendor and offering placeholders, the selected filter
+chip) plus **`DivisionBadge`, which is shared** and appears on Activity and Payments too, so the
+change reached well past Explore. Before that they used the older `--div-*-bg`/`-fg` badge pair, so `ezzy-court`
+rendered **green** on an Explore card and **blue** on a Home tile. 67 hand-written
+`[data-division]` blocks across six stylesheets were replaced by the single map in
+`app/globals.css`. See `booker/AGENTS.md` → "Division colours and icons" for the rules that now
+apply.
+
 #### Navigation (rebuilt 2026-09-27)
 - Tab bar under the top bar: **Home · Explore · Activity · Payments** — *it is not a bottom bar*.
   Booking is not a tab; a booking starts from an offering, so the wizard keeps Explore lit
@@ -185,12 +214,14 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
     today, which keeps it latent; "retry payment" is parked as P2 *because* of this.
 
 - **Left deliberately after the redesign** (plan I42, I43, and the S7 measurement):
-  - **Touch targets below 44px** across the shell — the hero search button is 288×25, the
-    "Open Explore" link 98×20, the TopBar icon buttons 34×34, the filter chips ~32 tall.
-    Measured, not estimated (`booker/visual-tests/a11y-audit.mjs` re-runs it). Raising them
-    changes the pinned design's metrics, so it needs a decision rather than a tweak.
-  - **`BookAgainCard` does not render through `HomeSection`**, so that one shelf has different
-    chrome from its four neighbours.
+  - **Touch targets below 44px (AAA) across the shell**, though nothing is under the 24px AA
+    minimum any more. ⚠️ **Two claims here were corrected on 2026-10-02:** the "hero search
+    button is 288×25" figure is gone twice over — the 25px collapse was a *bug*
+    (`flex: 1`'s `flex-basis: 0%` governing the vertical axis once the row became a column),
+    fixed in I43 tier 1, and the control itself is now a search **field** with a 36px submit
+    button rather than a button. What remains: the TopBar icon buttons at 34×34 and the filter
+    chips at ~32. Measured, not estimated (`booker/visual-tests/a11y-audit.mjs` re-runs it).
+    Tier 2 — raising everything to 32px+ — is deferred to the mobile work.
 
 ### In flight
 `.plans/2026-09-18-booker-home-search-redesign.md` — **S0–S13 shipped**; this section was
@@ -230,8 +261,8 @@ Allow vendor administrators to define their service catalogue, set up schedule a
 
 ### Current Features
 
-#### Registration Flow (KYC-gated)
-Vendor operators self-register via a **6-step** flow on the login screen: business details (including a required **division** pick — see `schema.md`'s `divisions` table) → account setup → applicant type (company/individual) → documents → identity (Valid ID + Selfie with ID via camera) → review. This is a required **KYC** stage and **no account or vendor record is created until it is submitted** — the form fields auto-save to `localStorage` and files are held in memory. The final submit sends multipart to `POST /api/auth/register`, which atomically (rollback on failure) creates and activates the user, grants vendor portal access, creates the vendor (`pending_activation`, with its chosen `division_id`), assigns `vendor-admin`, creates the `vendor_kyc` header, uploads the documents to the private `vendor-kyc` bucket, and notifies Command. After submit the vendor logs in to the KYC status surface (under review / approved-awaiting-activation / rejected → revise & resubmit) until Command reviews and activates. See `vendor-kyc.md`. The vendor's assigned division is shown read-only on the Vendor Profile page — only Command can change it.
+#### Registration Flow (sign up first, then KYC)
+Vendor operators sign up in a **2-step** flow on the login screen: business details (including a required **division** pick — see `schema.md`'s `divisions` table) → account setup + policy consent → **Create account**. That creates the account and a `pending_activation` vendor (`POST /api/auth/register`), signs the vendor in, and shows a one-time **welcome step** ("You're signed up! / Welcome to Ezzy": **Do it later** or **Start verification →**, 2026-10-01), then the **KYC form** — applicant type (company/individual) → documents → identity (Valid ID + Selfie with ID via camera) → review — submitted signed in through `POST /api/kyc/submit`. The dashboard opens only when the vendor is **active AND its KYC is approved**; until then every login and reload shows the KYC surface (form / under review / resubmit / awaiting activation). Revised 2026-09-30 (`.plans/2026-09-30-vendor-signup-before-kyc.md`) — before that, no account existed until a single 6-step form including KYC was submitted. Full detail: `vendor-kyc.md`.
 
 **Division deep link (campaign URLs).** `https://<vendor-host>/?division=<slug>` opens the registration flow with that division already selected on step 1. The parameter takes the **division slug** (`ezzy-drive`, `ezzy-care`, `ezzy-well`, … — see `schema.md`'s `divisions` table), never an id or a display name, and matching is forgiving: `ezzy-well`, `ezzywell`, `EzzyWell` and `ezzy_well` all resolve, because the hyphen is the first thing to go missing in a hand-written campaign link. An unknown or absent slug does nothing at all — the plain login screen, indistinguishable from passing no parameter. The slug resolves to a numeric `division_id` once; that id is what the form holds and what the server validates, so the slug is a **lookup key only** and is never stored. ⚠️ The parameter does **not** survive in the address bar — the shell rewrites the query string on load, so it is captured at module load before React renders (`lib/divisionDeepLink.ts`, and see conventions.md "The shell owns the query string"). It is also **one-shot**: it applies to the first registration surface of a page load and not to later remounts. Only the plain sign-in surface honours it — a password-recovery or vendor-picker session carrying the parameter is left alone.
 
@@ -597,8 +628,8 @@ they claim the account created for them, since `disputed` requires `v_booker`.
 
 | Feature | Status |
 |---------|--------|
-| Self-registration + vendor creation | ✅ Supabase-wired (KYC-gated atomic Route Handler) |
-| KYC onboarding (type → docs → ID/selfie) | ✅ Supabase-wired — private `vendor-kyc` bucket; camera capture; `localStorage` draft resume |
+| Self-registration + vendor creation | ✅ Supabase-wired — 2-step signup creates account + pending vendor, then auto sign-in (2026-09-30) |
+| KYC onboarding (type → docs → ID/selfie) | ✅ Supabase-wired — submitted signed in after signup (`KycSubmitForm` → `/api/kyc/submit`); private `vendor-kyc` bucket; camera capture |
 | KYC status surface + revise & resubmit | ✅ Supabase-wired — selective-edit resubmit with Storage cleanup |
 | Offerings CRUD | ✅ Supabase-wired |
 | Offering → Schedule handoff (post-save prompt) | ✅ Live — client-side only, no query; verified in dev 2026-08-15 |
@@ -634,8 +665,9 @@ they claim the account created for them, since `disputed` requires `v_booker`.
 - ⚠️ **The encryption key now exists in two apps.** `PAYOUT_ENCRYPTION_KEY` must be byte-identical in `vendor` and `command`, or Command decrypts garbage. Two copies is two places to leak it from; that is the accepted cost of there being no shared-secret path between apps.
 - **Paid-then-cancelled money is unreconciled.** A booking paid via PayMongo and then cancelled by the vendor is excluded from payout totals (the vendor didn't deliver), but no refund mechanism exists either, so that amount currently belongs to neither party in the ledger. Fully traceable (a `booking_transactions` row plus a `cancelled` status and a `booking_status_log` entry naming who cancelled), but it needs resolving when refunds or payouts are built — see `.plans/2026-07-25-vendor-transactions-platform-fee.md`.
 - **No photo/logo upload.** Vendor profile has no image support yet.
-- **KYC approval is advisory.** Command can activate a vendor whose KYC is still `submitted`/`rejected` — no hard gate yet (deferred item 8a; see `vendor-kyc.md`).
-- **No signal to the vendor on KYC review.** Approve/reject is only seen on next login — no in-app notification or email yet (deferred item 8b).
+- ~~**KYC approval is advisory.**~~ **Closed 2026-09-30** — activation requires an approved packet (trigger `20260930000001` + Command UI), and the vendor portal opens only for an active **and** approved vendor.
+- ~~**No signal to the vendor on KYC review.**~~ **Closed 2026-10-01** — database triggers send `kyc_approved` / `kyc_rejected` / `kyc_submitted` and the activate/reinstate/suspend notices (`20261001000001`, `20260930000002`). Command's earlier browser insert had been refused by RLS every time, so no review email was ever sent before this; see `vendor-kyc.md` *Vendor notifications*.
+- **Signups that never submit KYC are not cleaned up**, and signup does not verify the email address (`email_confirm: true`) — both accepted for now (plan 2026-09-30 D2 / DEFERRED).
 - **PWA install/camera behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors; offline fallback and install-flow logic tested via Playwright), but an actual home-screen install-and-launch on real Android/iOS hardware, and KYC camera capture (`getUserMedia`) from an *installed* iOS PWA specifically (historically quirky), still need physical-device testing.
 
 ### Roadmap (Approximate Priority)
@@ -810,12 +842,12 @@ A vendor group therefore reads "₱3,152.16 to transfer" above "2 payouts · ₱
 #### Vendors Page (fully wired)
 - List of all vendors, fetched from `vendors` + `statuses` + `divisions`, shown as a card grid with the assigned division displayed as a badge
 - **Refresh button** in the toolbar re-fetches the list in place (no page reload) — same rationale as the Users page.
-- Add vendor: inserts to `vendors` with `name`, `accreditation_no`, `region`, `branches`, `phone`, `email`, `division_id` (division is required on both add and edit)
+- Add vendor: inserts to `vendors` with `name`, `accreditation_no`, `region`, `branches`, `phone`, `email`, `division_id` (division is required on both add and edit). A new vendor always starts **pending** — it has no KYC packet, so it cannot be active (2026-09-30)
 - Edit vendor: updates the same fields, including reassigning the division at any time
-- Toggle status: flips `vendors.status_id` between active and suspended (governed by the `prevent_vendor_status_self_update` trigger — only command admins may change status)
+- Toggle status: Activate / Suspend / Reinstate on the card (governed by the `prevent_vendor_status_self_update` trigger — only command admins may change status). **Activate and Reinstate require an approved KYC packet** — disabled with the reason written on the card, and refused by the `enforce_vendor_activation_requires_kyc` trigger regardless (2026-09-30); the edit form's "Active" option is locked the same way
 - Delete vendor: only available to `root` role; deletes the `vendors` row (cascades to offerings, staff, schedules)
 - Vendor-list state is held in `useAppShell` and passed to both VendorsPage and OverviewPage so both see live counts
-- **KYC review:** the vendor detail modal (`VendorViewModal`) has a KYC panel showing the applicant type, status, and uploaded documents (View via signed URL), with a packet-level Approve / Reject + notes action that writes to the `vendor_kyc` header. Approval is advisory — the admin still uses the activate control (see `vendor-kyc.md`)
+- **KYC review:** the vendor detail modal (`VendorViewModal`) has a KYC panel showing the applicant type, status, and uploaded documents (View via signed URL), with a packet-level Approve / Reject + notes action that writes to the `vendor_kyc` header; the vendor's email comes from a database trigger on that write (`20261001000001`), not from Command. Approval does not activate anyone — the admin still uses the activate control, which approval unlocks. **Rejecting the packet of an active vendor prompts to suspend it** (2026-09-30; see `vendor-kyc.md`)
 
 #### Notifications Panel (fully wired)
 - Bell icon in the app header with an unread count badge (hidden when 0)
@@ -855,7 +887,7 @@ All four tabs are reachable by anyone who reaches the command portal at all — 
 | Vendor list | ✅ Supabase-wired |
 | Add / edit / delete vendors | ✅ Supabase-wired |
 | Vendor approval / suspension | ✅ Supabase-wired |
-| Vendor KYC review (approve/reject packet + notes) | ✅ Supabase-wired — in `VendorViewModal`; advisory (no hard activation gate yet) |
+| Vendor KYC review (approve/reject packet + notes) | ✅ Supabase-wired — in `VendorViewModal`; activation requires an approved packet (UI + DB trigger, 2026-09-30); reject of an active vendor prompts to suspend |
 | In-app notifications | ✅ Live — bell icon, panel (main + archive views), Realtime delivery + arrival toast, optimistic read/archive/delete |
 | Notification Type Settings | ✅ Live — platform-wide enable/disable per notification type |
 | Flag Queue (resolve booking disputes) | ✅ Supabase-wired — `disputes.service.ts` + `resolve_booking_dispute()` |
@@ -911,7 +943,7 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 | `sign-in` | Email/password. **No sign-up** — registration and KYC stay on the web, linked out to |
 | `forgot-password` / `reset-password` | Recovery by deep link. `reset-password` sits outside both auth guards deliberately: the recovery link *creates* a session, so a "signed out" guard would eject the user mid-exchange, while a "signed in" guard would block the expired-link error path |
 | `select-vendor` | Shown only when the user administers more than one vendor. The choice is remembered across launches |
-| `blocked` | KYC-pending, suspended, or no vendor access. Real copy and a way forward for each — a blank "no access" screen is a store rejection |
+| `blocked` | Verification required (no packet, or rejected — finish/resubmit on the web portal), verification in review, verified-awaiting-activation, suspended, or no vendor access. Real copy and a way forward for each — a blank "no access" screen is a store rejection. Since 2026-09-30 the app opens only for an **active AND KYC-approved** vendor (mirrors the web gate; device check parked until the web release) |
 | `(app)/dashboard` | Today's stats, including the monthly payout net of the platform fee, plus a **"Getting started" guide card** below them (`components/dashboard/GuideCard/`) — hideable, and the choice persists across launches |
 | `(app)/bookings` + `bookings/[id]` | The core screen. List, six lifecycle filters with badges, detail, **approve/reject and the full fulfilment actions** (hand over / mark as done / got it back / undo / flag). The detail also names the **offering** (name + code) and the booking's **own span** — a time range or a multi-day date range, via `fmtBookingSpan()` / `bookingDayCount()` in `lib/format.ts` — plus an **"i" affordance** on the action bar explaining what each action does to the vendor's money |
 | `(app)/transactions` | Payment history with a summary and search. **No print** — that is a desktop job |
