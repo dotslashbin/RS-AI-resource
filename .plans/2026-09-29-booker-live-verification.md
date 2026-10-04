@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **App / scope:** `booker/` **as deployed** — the checks that cannot be run from a terminal. No code changes belong to this plan; a failure here opens an item on the plan that owns the code.
-**Status:** IN PROGRESS — **L0 is COMPLETE (2026-10-01): L0-a, L0-b, L0-c and L0-d all passed by the user.** **L3-c decided** — the booker demo seed is staging-only, never production, now recorded in `architecture/database-reset-and-deploy.md`. ⏸ **L1, L2, L3-a and L3-b are PARKED at the user's request** — booker is not on staging yet and local testing continues; they unblock on the staging push, in that order. One finding logged for the user to close: **F1**, the booker demo seed has no double-run guard. **Nothing here is waiting on me.**
+**Status:** IN PROGRESS — **L0 is COMPLETE (2026-10-01): L0-a, L0-b, L0-c and L0-d all passed by the user.** **L3-c decided** — the booker demo seed is staging-only, never production, now recorded in `architecture/database-reset-and-deploy.md`. ⏸ **L1, L2, L3-a and L3-b are PARKED at the user's request** — booker is not on staging yet and local testing continues; they unblock on the staging push, in that order. One finding logged for the user to close: **F1**, the booker demo seed has no double-run guard. **L5 and L6 added 2026-10-03** — the booking-document upload (B1) and booker cancellation (K2), both built on 2026-10-03 behind gates the user applied; neither is exercisable without a real session. **L4 added 2026-10-02** — Explore's reveal cap, moved here from the 2026-10-02 UI plan because no local fixture can exercise it; parked with L1/L2 until the staging push. **Nothing here is waiting on me.**
 
 > Split out of `.plans/2026-09-18-booker-home-search-redesign.md` on 2026-09-29 on the user's
 > instruction: *"All the stages that involve live testing (staging or prod), put them in a
@@ -145,6 +145,43 @@ offering page; Steps 1–2 and the map are gone) and the money path.
 
 ---
 
+## L4 — [plan 2026-10-02 F3] Staging: Explore's reveal cap and its photo fetch  ⏸ PARKED 2026-10-02
+
+**What:** open Explore on staging against a real catalogue, with nothing typed, and confirm two
+things: **24** service cards render (not the whole catalogue), and the cover-photo requests are
+bounded to what is on screen.
+
+**Why it is here and not on the plan that built it.** `.plans/2026-10-02-booker-ui-fixes-and-explore-proposal.md`
+item I4 is code-complete and its branch logic is verified, but the cap itself has **no local
+exercise**: the only Explore fixture (`explorechips`) ships an **empty catalogue on purpose**,
+because `csp.spec.ts` asserts that fixture makes no network call. Seeding offerings into it would
+fire `getCoverPhotos` and break that test, so the one thing that would prove the cap is the one
+thing the fixture may not do.
+
+⚠️ **What the cap is protecting against, in numbers.** `fetchAllPages` pulls up to **10,000**
+offerings (`lib/pagedFetch.ts`) and `getCoverPhotos` chunks ids **50 at a time, sequentially**
+(`services/offeringPhotos.service.ts`). Unbounded, opening Explore on a large catalogue would fire
+up to **200 serial round-trips**. On a small staging catalogue the bug is invisible — which is
+exactly why this needs a real one, or a deliberate check of the request count rather than a glance
+at the page.
+
+**How to judge it:**
+
+| What you see | What it means |
+|---|---|
+| 24 cards, then "Show more (N remaining)" | ✅ The cap holds |
+| Every offering rendered at once | ❌ The slice is not being applied — reopen against `useExplorePage.ts` |
+| One `offering_attachments` request per 50 **visible** ids | ✅ The photo fetch is bounded |
+| Requests continuing past the visible cards | ❌ The effect is keyed to the wrong list |
+
+⚠️ If staging's catalogue has **fewer than 24 active offerings**, this check cannot fail and
+therefore proves nothing. Say so rather than passing it.
+
+**Verification type:** needs a live environment with real catalogue data. Not simulable here.
+**Related:** the plan that owns the code is `2026-10-02-booker-ui-fixes-and-explore-proposal.md` (I4).
+
+---
+
 ## L3 — Production posture  ⏸ PARKED 2026-10-01 (L3-c ✅ decided)
 
 Booker production is **not serving users**, so this is a pre-launch checklist, not an incident
@@ -171,6 +208,75 @@ queue.
   ⚠️ **Found while checking: no double-run guard** → logged as **F1** below, for you to close.
 ---
 
+## L5 — [plan 2026-10-02 B1] Staging: a booking document really arrives  ⏸ PARKED 2026-10-03
+
+**What:** make a booking for an offering that requires a document, attach a file, pay or abandon,
+then confirm **both halves landed**: an object in the private `booking-documents` bucket under
+`{booking_id}/…`, and a matching `booking_documents` row.
+
+**Why it cannot be done from here.** The upload runs as the signed-in booker — both the storage
+policy and the table policy resolve ownership through `bookings.booker_id` — and no local fixture
+has a session. `/ui-gallery` is client-only with no auth, by design.
+
+⚠️ **Why this one matters more than a normal smoke test.** Until 2026-10-03 this screen told the
+booker *"N of M required uploaded"* while **discarding the file on selection** — it asserted
+something that had not happened. The fix is only worth as much as the proof that bytes now arrive.
+
+**How to judge it:**
+
+| What you see | What it means |
+|---|---|
+| A file at `booking-documents/{booking_id}/…` **and** a `booking_documents` row | ✅ Both halves |
+| A row but no object | ❌ Should be impossible — the service removes the object only when the row fails, never the reverse. Reopen against `bookingDocuments.service.ts` |
+| An object but no row | ❌ The cleanup path failed; the object is orphaned |
+| "Booked, but we couldn't attach X" | The honest failure path working. Worth triggering deliberately once, with the bucket's MIME list violated |
+
+⚠️ **Also check what the vendor sees: nothing.** That is expected today and is **C1** on the owning
+plan — `booking_documents` has had a vendor-admin SELECT policy since 2026-05 and no vendor UI has
+ever read it. Do not record this as a bug here.
+
+**Verification type:** needs a live environment and a signed-in booker.
+**Owning plan:** `.plans/2026-10-02-booker-search-and-booking-gaps.md` (B1, gate G1 applied
+2026-10-03).
+
+---
+
+## L6 — [plan 2026-10-02 K2] Staging: a booker cancellation, and the three refusals  ⏸ PARKED 2026-10-03
+
+**What:** cancel an **unpaid** booking as the booker, and confirm the three refusals behave.
+
+**Why it cannot be done from here.** `booker_cancel_booking` resolves ownership from `auth.uid()`
+and the trigger it depends on is actor-aware; neither is exercisable without a real session.
+
+⚠️ **The riskiest part is not the button.** G3 also widened
+`validate_booking_status_transition()`, which governs **every** booking status write in booker,
+vendor, command and the kiosk. A mistake there does not break cancellation — it breaks something
+else entirely. **Exercise one vendor confirm, one kiosk close-out and one dispute resolution** as
+part of this check, not just the new path.
+
+**How to judge it:**
+
+| Case | Expected |
+|---|---|
+| Unpaid `pending` → Cancel | ✅ status `cancelled`, `cancelled_by` = the booker |
+| Unpaid `confirmed`, > 24h before | ✅ cancelled |
+| Unpaid `confirmed`, < 24h before | ❌ refused — "up to 24 hours before" |
+| **Paid**, any status | ❌ refused — names the refund route (G4 is not built) |
+| `fulfilled` / `returned` / etc. | No Cancel control offered at all |
+| **After any cancellation** | ⚠️ the booker must **not** receive a "Booking Rejected" email. That email fires on a `cancelled` transition carrying a `rejection_reason`, which this RPC deliberately never writes — this is the check that proves it |
+| Vendor confirm, kiosk close-out, dispute resolve | ✅ all still work — the trigger widening touched nothing else |
+
+⚠️ **The 24-hour boundary is the one worth testing near the edge**, in Manila time. The client and
+the RPC each compute it independently (`lib/bookerActions.ts` mirrors the SQL), so a timezone slip
+shows up as the button being offered for something the server then refuses.
+
+**Verification type:** needs a live environment, a signed-in booker, and a vendor account for the
+regression half.
+**Owning plan:** `.plans/2026-10-02-booker-search-and-booking-gaps.md` (K2, gate G3 applied
+2026-10-03).
+
+---
+
 ## Not in scope
 
 - **Any code change.** A failure here opens an item on the plan owning that code, usually
@@ -193,6 +299,9 @@ queue.
 | [ ] | L3-a | Re-run the occupancy check on **production** | You | ⏸ **PARKED 2026-10-01** | Your call — still local-only. **Unblocks** after L1 passes on staging. ⚠️ Both RPCs reached prod *before* the numbers were confirmed anywhere, so this is still owed |
 | [ ] | L3-b | Walk `production-env-checklist.md` | You | ⏸ **PARKED 2026-10-01** | Your call. **Unblocks** when a production deploy is actually planned. Not re-verified since the redesign landed |
 | [x] | L3-c | Decide: may the demo seed ever run on a hosted environment? | You | ✅ **DECIDED 2026-10-01 — staging only, never production** | You agreed with the recommendation. ⚠️ Now **written down**, in `architecture/database-reset-and-deploy.md` → "The hosted-safe alternative", where someone looking for the rule will find it. Reason recorded as the real one: fabricated bookings in a production database are a trust problem even though the teardown is clean |
+| [ ] | L4 | Staging: Explore renders **24** cards with nothing typed, and the photo fetch is bounded | You | ⏸ **PARKED 2026-10-02** | Moved here from `2026-10-02-booker-ui-fixes-and-explore-proposal.md` F3 on your instruction. **Unblocks** on the staging push, like L1/L2. ⚠️ Cannot be tested locally at all: the only Explore fixture ships an empty catalogue because `csp.spec.ts` asserts it makes no network call. ⚠️ Proves nothing if staging has fewer than 24 active offerings |
+| [ ] | L5 | Staging: a booking document really reaches the bucket **and** the table | You | ⏸ **PARKED 2026-10-03** | Added from `2026-10-02-booker-search-and-booking-gaps.md` B1. **Unblocks** on the staging push. ⚠️ Matters more than a smoke test: this screen used to claim "uploaded" while discarding the file. ⚠️ The vendor seeing nothing is expected — that is C1, not a bug |
+| [ ] | L6 | Staging: booker cancellation, its three refusals, **and the trigger regression** | You | ⏸ **PARKED 2026-10-03** | Added from the same plan (K2). **Unblocks** on the staging push. ⚠️ The risk is not the button — G3 widened the shared status-transition trigger, so also exercise a vendor confirm, a kiosk close-out and a dispute resolve. ⚠️ Confirm **no "Booking Rejected" email** follows a booker cancellation |
 | [ ] | F1 | `booker-demo-seed.sql` has **no double-run guard** | You to close | ⬜ TODO (found 2026-10-01) | Found while writing L3-c's rule. `demo-seed.sql` aborts with "Demo data is already present"; the booker pair does not, so a second run duplicates ~14 bookings. The teardown matches the whole `de400000-` prefix so it does clean up both sets. Logged, not fixed — your call whether it is worth a guard |
 | [x] | Grants | EXECUTE-grant query on staging **and** production | You | ✅ DONE 2026-09-28 | Both hosted environments match local; no `anon` on either function |
 | [x] | Apply | `20260922000001` + `20260927000001` on local, staging, production | You | ✅ DONE 2026-09-27 | All three environments level |

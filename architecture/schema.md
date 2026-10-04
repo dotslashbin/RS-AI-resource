@@ -307,7 +307,7 @@ Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyF
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `smallint` | PK, identity |
-| `name` | `text` | Unique, e.g. `"EzzyDrive"` |
+| `name` | `text` | Unique, e.g. `"EzzyDrive"`. ⚠️ **This is the canonical name, and the booker portal does not print it** (2026-10-02): booker shows a short label — "Drive", not "EzzyDrive" — derived by `booker/lib/divisions.ts` → `divisionLabel(slug, name)`, which reads a curated label per slug and falls back to stripping the brand prefix from this value for a division added after that build. Nothing is stored for it, Command still edits `name`, and vendor and Command still display `name` in full. So a Command admin renaming a division **will not change what booker shows for the thirteen seeded ones** — that needs an edit to booker's label list. If per-division display control is ever wanted, the smallest change is a nullable `display_name` column plus the Command form field and a `display_name ?? name` read |
 | `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation; treated as immutable afterward though **not** DB-enforced immutable. ⚠️ The "future filter URLs" this column was reserved for **now exist** (2026-08): it is the public handle in the vendor registration deep link `/?division=<slug>` (see `portals.md`), so renaming a slug silently breaks every campaign link already in circulation — and the break is invisible, looking identical to a mistyped link. Matching is normalised (case- and punctuation-insensitive), so a rename that only changes case or hyphens is safe; any other edit is not. Lookup key only — it resolves to `id`, which is what is stored and validated |
 | `sort_order` | `smallint` | Default `0`. Display order |
 | `is_active` | `boolean` | Default `true`. Soft-disable — hides from new vendor selection (app-layer filter, not RLS) without breaking existing `vendors.division_id` references |
@@ -853,7 +853,15 @@ Files uploaded by the booker at booking time.
 
 Write-once semantics — to replace a document, delete + insert. Only bookers may insert documents for their own bookings (INSERT policy checks ownership + `is_active()`). The `pending`-only restriction applies to DELETE: bookers may remove documents only while the booking is still `pending`.
 
-> **Current state:** Document uploads in the booker portal are in-memory only (file metadata stored in React state). Supabase Storage integration and `booking_documents` writes are a planned follow-up task.
+> **Current state (2026-10-03):** ✅ **Live.** The booker uploads to the private
+> **`booking-documents`** bucket (`20261002000001_booking_documents_storage.sql`) and writes
+> these rows, in `booker/services/bookingDocuments.service.ts`. Path is
+> `{booking_id}/{uuid}.{ext}`, which every storage policy keys on.
+> ⚠️ **Writes happen after the booking row exists** — both this table's INSERT policy and the
+> storage policies resolve ownership through `bookings`, so there is nothing to own before then.
+> ⚠️ **No vendor UI reads these rows yet**, despite the vendor-admin SELECT policy that has
+> existed since this table shipped. Tracked as C1 in
+> `.plans/2026-10-02-booker-search-and-booking-gaps.md`.
 
 ---
 
@@ -1427,7 +1435,7 @@ blank vendor-user columns, because closure deletes its memberships.
 |--------|--------|--------|-----------------|--------|
 | `vendor-kyc` | No (private) | 10 MB; `image/jpeg`, `image/png`, `application/pdf` | `{vendor_id}/{uuid}-{filename}` | `storage.objects` RLS keyed on `(storage.foldername(name))[1]::uuid` = vendor id: vendor admins read own + write while `rejected`; Command admins read all. Viewed via time-limited signed URLs only |
 
-> Booking-document uploads (`booking_documents`) are **not** yet wired to Storage — still in-memory in the booker UI (see `portals.md`). `vendor-kyc` is the first live bucket.
+> ✅ **Booking-document uploads went live 2026-10-03** — the private `booking-documents` bucket (`20261002000001`), written by the booker after the booking row exists. `vendor-kyc` was the first live bucket.
 >
 > ⚠️ **There is no bucket for division icons either**, and the booker's Home screen draws 13 of
 > them. They are repo files under `booker/public/division-icons/`. See `divisions` → "Division

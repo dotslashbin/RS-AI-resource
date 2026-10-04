@@ -41,12 +41,25 @@ service and the Leaflet map were deleted and `leaflet` / `react-leaflet` uninsta
 `components/home/HomePage/`. Home answers "what can I book?", and carries **no** dashboard
 widgets — those moved to Activity. Sections, top to bottom:
 
-- **Hero**: "What do you need today?", a search button into Explore, and a Book something CTA.
+- **Hero**: "What do you need today?" and a **real search field** — not a button, and there is no
+  separate CTA. Its submit control is a **magnifier** (2026-10-02); the field carries no second,
+  decorative magnifier, so the one search mark on screen is the one that acts.
 - **In-progress strip** — the one personal thing on Home, and only while a booking is actually
   running. Hidden otherwise.
-- **Browse by division** — all 13 divisions as tinted tiles with a coloured name band. It is the
-  section that *always* has content, which is what keeps Home from ever being a blank page.
-  Renders whatever `lib/divisions.ts` holds; nothing hardcodes 12 or 13.
+- **Browse by division** — all 13 divisions as **tinted discs with the name beneath** (D22-c,
+  2026-09-28; the banded card it replaced is gone). It is the section that *always* has content,
+  which is what keeps Home from ever being a blank page. Renders whatever `lib/divisions.ts`
+  holds; nothing hardcodes 12 or 13.
+  ⚠️ **The label is the short one — "Care", not "EzzyCare"** (2026-10-02). `divisions.name` in the
+  database is unchanged and Command still edits that; booker prints `divisionLabel()`, a curated
+  label per slug with the brand prefix stripped from the stored name only for a division Command
+  adds later. Search still matches the canonical name, so "ezzy", "ezzycare" and "care" all find
+  it. See `schema.md` → `divisions`.
+- **Popular this month** — **shipped 2026-09-27** (plan I37). It needs a booking count per
+  offering, which RLS will not give a booker — they can only read their own rows — so it is served
+  by `get_popular_offerings`, a read-only `SECURITY DEFINER` function (`20260927000001`, applied to
+  local, staging and production on 2026-09-27). It owns its own fetch and hides itself when the
+  month has nothing, so it cannot delay or break the shelves around it.
 - **Available today** — the soonest remaining opening for up to 3 offerings in the booker's
   city. ⚠️ **Capped at 12 candidate offerings** (`lib/openingsToday.ts`): a "what is open today"
   shelf over a whole catalogue is one schedules fetch per offering, and a test fails if the cap
@@ -54,12 +67,6 @@ widgets — those moved to Activity. Sections, top to bottom:
 - **Book again**, then **Vendors in your city** — both hidden when empty, so a new booker sees
   fewer shelves rather than empty boxes.
 - **Guide panel** for a booker with nothing booked yet.
-
-⚠️ **"Popular this month" is designed but NOT built.** It needs a booking count per offering,
-which RLS will not give a booker — they can only read their own rows. The `SECURITY DEFINER`
-function that would serve it (`get_popular_offerings`, read-only, counts only) is drafted in the
-plan and **waits on the user's approval** (D26-gate). The shelf is deliberately absent rather
-than faked.
 
 ⚠️ **No proximity anywhere.** "Near you" means *same city string*, never a distance:
 `vendors` has no `lat`/`lng`, there is no PostGIS or `earthdistance`, and the map that people
@@ -81,10 +88,30 @@ Bookings tab is the second one — which is why the tab bar still has four entri
 These widgets were **re-homed, not rewritten**: they arrived from the old Dashboard with their
 hooks and tests unchanged.
 
-#### Explore
+#### Explore (reshaped 2026-10-02)
 `components/explore/`. Search across offerings and vendors, filtered by city and division, with
 a vendor page and an offering page. **The offering page is where a booking starts** — its Book
 button opens the wizard at Schedule (plan D1).
+
+- **With nothing typed, Explore shows the whole catalogue**, not a shortcut panel. The matcher
+  always returned everything for an empty query; until 2026-10-02 the page simply rendered a
+  different branch. Clearing the search or the filters returns to that state.
+- ⚠️ **The board reveals 24 cards at a time**, with "Show more (N remaining)". This is a guard,
+  not pagination polish: `fetchAllPages` pulls up to 10,000 offerings and `getCoverPhotos` chunks
+  ids **50 at a time, sequentially**, so an unbounded board could fire ~200 serial requests on
+  open. The cap has **no local test** — the one Explore fixture ships an empty catalogue because
+  `csp.spec.ts` asserts it makes no network call — and is checked on staging as L4 in
+  `.plans/2026-09-29-booker-live-verification.md`.
+- **Recent searches and Popular categories** sit above the board in that state, and collapse to
+  one scrolling row of pills below 640px.
+- **The filter bar pins** to the top of the shell's scroll container while the catalogue scrolls
+  under it. ⚠️ Its `top`/`margin` offsets mirror `AppShell`'s `p-5` on that container; change one
+  and the other breaks silently.
+- **Each division pill carries its mark**, painted through a CSS mask (never an `<img>` — four of
+  the thirteen marks are near-black line art and vanish otherwise) and coloured by
+  `currentColor`, so it follows the pill's own selected/unselected colour. Below 640px the
+  thirteen pills are one horizontally scrolling row, and selecting one keeps it on screen —
+  a division tapped on Home arrives pre-selected, and "Law" is the thirteenth.
 
 #### Payments Page (renamed from Transactions, 2026-09-26)
 `components/payments/`. Period presets (Manila-anchored), state and vendor filters, sort, month
@@ -108,7 +135,8 @@ Two entry points into one transition, built in
 `.plans/2026-10-01-booker-search-transition-and-topbar.md`.
 
 - **Home's hero carries a real search field.** It used to be a button that only navigated, so
-  there was nothing to search *with*.
+  there was nothing to search *with*. Its submit control, and the top bar's, is a **magnifier**
+  (2026-10-02) — both lost the decorative leading magnifier that did nothing.
 - **The top bar carries one too**, hidden on Home and Explore — each already owns a field, which
   was the redundancy this removed — and in the booking wizard, where a search invites abandoning a
   flow that holds a slot. Below `md` it collapses to an icon that opens Explore.
@@ -118,10 +146,13 @@ Two entry points into one transition, built in
   progress bar is indeterminate for that reason. Reduced motion skips the pause entirely.
 - ⚠️ **The same query can return different results depending on where it was typed**, and that is
   intended (plan F14). Searching *into* Explore from outside resolves the query to a division and
-  filters by it; typing in Explore's own field does not. So "court" from Home shows the EzzyCourt
-  catalogue, while "court" typed in Explore also surfaces an EzzyStay "Court-side Cabana".
+  filters by it; typing in Explore's own field does not. So "court" from Home shows the Court
+  division's catalogue, while "court" typed in Explore also surfaces a Stay vendor's "Court-side
+  Cabana". (Those are the on-screen labels since 2026-10-02; the stored names are still
+  `EzzyCourt` and `EzzyStay`, and both spellings still match.)
 - Explore's result cards carry the division's mark and name in its own colours, and a card with no
-  cover photo shows the Ezzy mark beside the division's mark rather than a bare tint.
+  cover photo shows the Ezzy mark beside the division's mark rather than a bare tint. The filter
+  pills carry the same marks since 2026-10-02.
 
 ⚠️ **Six stylesheets moved onto the derived division palette** in the same work — five Explore
 surfaces (result cards, vendor cards, the vendor and offering placeholders, the selected filter
@@ -191,7 +222,12 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 ### Known Gaps
 
 - **A date-granular offering cannot be booked at all.** Step 3 detects the mode correctly and computes the bookable span, but `Step3Schedule.tsx` never renders it: the panel shows *"No time slots available for this date."* and `canNext` (`!!date && !!time`) can never pass, because nothing sets a time in this mode. Any offering measured in `day`/`week`/`month` is therefore a dead end for the booker, even though the database validates such bookings fine. The vendor portal can create these schedules today, so the two sides disagree. Full trace in `booking-flow.md` → "Date-granular offerings"; the existing Playwright test is green because it only asserts the absence of slots
-- **Document uploads not persisted.** Files are selected and shown in the UI but not sent to Supabase Storage or written to `booking_documents`. The booking record exists but has no attached documents.
+- ~~**Document uploads not persisted.**~~ ✅ **Fixed 2026-10-03.** Files now go to the private
+  `booking-documents` bucket with a `booking_documents` row each, sent once the booking row
+  exists. ⚠️ The gap was worse than this line said: the step reported *"N of M required
+  uploaded"* while discarding the `File` on selection, so it was affirmatively wrong rather than
+  merely incomplete. ⚠️ **Still open: no vendor UI reads them**, so the vendor who required the
+  document cannot yet see it (C1 in `.plans/2026-10-02-booker-search-and-booking-gaps.md`).
 - ~~**Vendor map has no vendor markers.**~~ **Resolved 2026-09-22 by removal** — the map is gone
   (plan D4, S6-a; `leaflet` and `react-leaflet` uninstalled). Directions are a Maps link and
   location is a city filter. The underlying fact remains and now blocks something else:
@@ -224,9 +260,19 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
     Tier 2 — raising everything to 32px+ — is deferred to the mobile work.
 
 ### In flight
-`.plans/2026-09-18-booker-home-search-redesign.md` — **S0–S13 shipped**; this section was
-rewritten from the built code on 2026-09-27 (its S8). Two things remain in that plan: the
-Popular shelf, which waits on the **D26-gate** approval, and the deferred polish items above.
+`.plans/2026-09-18-booker-home-search-redesign.md` — **S0–S13 shipped**, including the Popular
+shelf (I37, 2026-09-27); its build scope is complete and only the deferred polish items above
+remain.
+
+`.plans/2026-10-02-booker-ui-fixes-and-explore-proposal.md` — **COMPLETE (build scope)
+2026-10-02.** The account-popup fix, the search icon, the division labels, Explore's
+all-offerings default and reveal cap, the Activity row layout, the offering-code chip, and Home's
+shelf heading extracted to `.db-shelf-head` / `.db-shelf-pipe` in `globals.css` and adopted by
+Activity and Payments.
+
+`.plans/2026-10-02-booker-explore-option-a.md` — **COMPLETE (build scope) 2026-10-02.** The
+pinned filter bar, marks on the division pills, and the phone layout for the pills and the
+shortcut row.
 
 `.plans/2026-09-25-booker-mobile-redesign.md` (DRAFT) carries the same design to
 `ezzy-booker-mobile`. It depends on this work for the division colours and the resized assets,
@@ -235,9 +281,9 @@ and its Popular shelf waits on the same gate.
 ### Roadmap (Approximate Priority)
 
 1. ~~Add lat/lng to `vendors` table; show vendor markers on Step 2 map~~ **Superseded 2026-09-21** by the redesign plan's D4: the map is removed; directions become a Maps link and location a city filter. Proximity is parked there (P11, which supersedes P1)
-2. **Approve `get_popular_offerings`** (plan D26-gate) — one read-only `SECURITY DEFINER`
-   function; it is the only thing between the designed "Popular this month" shelf and a shipped
-   one, on web **and** on mobile
+2. ~~**Approve `get_popular_offerings`** (plan D26-gate)~~ **Done 2026-09-27** — approved,
+   applied to all three environments, and the "Popular this month" shelf shipped on web (I37).
+   The mobile shelf still waits on `.plans/2026-09-25-booker-mobile-redesign.md`
 3. Implement real document uploads (Supabase Storage + `booking_documents`)
 4. Add booking cancellation flow (booker sets status to `cancelled` while still `pending`)
 5. Wallet: `wallet_accounts` + `wallet_transactions` tables; deduct price on booking confirm
@@ -987,7 +1033,7 @@ Feature parity with the vendor portal is an explicit **non-goal**. Adding a feat
 - **Not submitted to either store.** Blocked on a public privacy policy and a Play Console account-type decision. **Brand assets no longer block** — the real icon and splash landed 2026-07-30 (`.plans/2026-07-30-vendor-mobile-brand-assets.md`); only the store *listing* assets (screenshots, descriptions) remain outstanding. See `ezzy-vendor-mobile/STORE-SUBMISSION.md`.
 - **Password reset deep links** need the mobile redirect URLs added to `backbone/supabase/config.toml` — a cross-app change, not yet made.
 - **The app version now comes from `package.json`** (2026-08-02). `app.config.js` sets `expo.version` from it, and `expo.version` was **removed from `app.json`** so nothing can drift — by then the two had reached 0.7.0 and 1.0.0 respectively. Those are the *pre-fix* figures, not the current version, which is **0.4.1** and moves with every `npm version <x>` — that command now updates the OS-reported version, the store version and the Settings display together.
-- ~~**Only two of the five legal booking status transitions are reachable from any UI.**~~ **Resolved 2026-08-02 — and the premise is obsolete.** This described `validate_booking_status_transition` as of `20260516000004`, a five-transition machine. `20260801000002` replaced it with the nine-status dual-acknowledgement model, and **both** the vendor web portal and this app now implement the full vendor side. The "No action needed" copy it complained about is gone: the detail screen offers the correct action per state and, where there is none, names the state properly instead of claiming nothing is needed. The plan it cited (`.plans/2026-07-31-vendor-mobile-booking-status-actions.md`) was **✖ ABORTED** — written a day before the feature landed, it proposed `confirmed → completed`, a transition the trigger now rejects. Shipped instead via `.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`. The note's closing point still stands: **`refunded` is written by nothing in any app** — there is no refund flow, and that is a payments question, not a UI gap.
+- ~~**Only two of the five legal booking status transitions are reachable from any UI.**~~ **Resolved 2026-08-02 — and the premise is obsolete.** This described `validate_booking_status_transition` as of `20260516000004`, a five-transition machine. `20260801000002` replaced it with the nine-status dual-acknowledgement model, and **both** the vendor web portal and this app now implement the full vendor side. The "No action needed" copy it complained about is gone: the detail screen offers the correct action per state and, where there is none, names the state properly instead of claiming nothing is needed. The plan it cited (`.plans/2026-07-31-vendor-mobile-booking-status-actions.md`) was **✖ ABORTED** — written a day before the feature landed, it proposed `confirmed → completed`, a transition the trigger now rejects. Shipped instead via `.plans/2026-08-02-vendor-mobile-fulfilment-sync.md`. ⚠️ **The note's closing point is itself now wrong, corrected 2026-10-03.** It said `refunded` is written by nothing in any app. It is written by **Command's Flag Queue**: `resolve_booking_dispute(p_outcome)` accepts `completed` / `refunded` / `cancelled` and sets the booking status (`20260801000005`). What remains true, and is the real point, is that **no money moves** — PayMongo's refund API is called nowhere in any app, so `refunded` is a bookkeeping state plus a transfer someone makes by hand.
 - **Device verification is the standing bottleneck, and it is per-plan — not one backlog.** The old blanket note here ("bugs found on the first real-device run are outstanding") was wrong by 2026-08-03: filter density, the keyboard/version fixes and the action-UI-and-guide work were all completed *and* confirmed on an Android device. What is genuinely unverified today, each traceable to its own plan:
 
   | Unverified work | Plan | State |

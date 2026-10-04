@@ -19,7 +19,7 @@ The platform's core purpose is to let vendors sell bookable offerings (facility 
 **Purpose:** Book offerings, track booking history, upload required documents  
 **Domain:** `booker` portal in Supabase
 
-A customer-facing booking application. Bookers **discover** on a storefront Home (division tiles, what is available today, book again) or search in Explore, open a vendor's offering, then run a guided **4-step** wizard: pick a schedule slot, upload requirement documents, review, and pay. The Pay step creates a PayMongo Checkout Session and redirects the booker to a hosted payment page (Card, GCash, GrabPay, Maya, BillEase, QRPh). Booking history, status and the acknowledgement actions live on an **Activity** tab; spend lives on **Payments**. *(Rewritten 2026-09-27 — it was a 6-step wizard starting with "which service?", a Dashboard and a Transactions page.)*
+A customer-facing booking application. Bookers **discover** on a storefront Home (division tiles, popular this month, what is available today, book again) or in Explore — which shows the whole catalogue by default and narrows as they type or filter — open a vendor's offering, then run a guided **4-step** wizard: pick a schedule slot, upload requirement documents, review, and pay. The Pay step creates a PayMongo Checkout Session and redirects the booker to a hosted payment page (Card, GCash, GrabPay, Maya, BillEase, QRPh). Booking history, status and the acknowledgement actions live on an **Activity** tab; spend lives on **Payments**. *(Rewritten 2026-09-27 — it was a 6-step wizard starting with "which service?", a Dashboard and a Transactions page.)*
 
 ### Vendor Portal (`./vendor`)
 **Audience:** Vendor administrators (vendor-admin role)  

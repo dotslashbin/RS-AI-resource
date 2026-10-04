@@ -22,7 +22,7 @@
 
 ## BLOCKERS
 
-### B1 — Add and load the exact bundled Poppins faces  🔄 IN PROGRESS
+### B1 — Add and load the exact bundled Poppins faces  ✅ DONE (2026-10-02)
 **Files:** `ezzy-vendor-mobile/package.json:11-48`; `ezzy-vendor-mobile/package-lock.json`; `ezzy-vendor-mobile/src/app/_layout.tsx:1-55`.
 
 The app currently loads four unused Inter assets. A custom face must be bundled and registered before any style can name it; otherwise iOS/Android silently fall back or synthesize a different weight.
@@ -35,7 +35,7 @@ The app currently loads four unused Inter assets. A custom face must be bundled 
 
 **Verification:** machine — package lock resolves only the intended Poppins package; `npm run lint`, `npm test`, and `npx expo-doctor` pass. Live — cold-launch a native build with network disabled and confirm the splash does not hang and Poppins renders after launch.
 
-**Progress (2026-09-29):** replaced `@expo-google-fonts/inter` with `@expo-google-fonts/poppins` and registered Poppins 400 Regular, 500 Medium, 600 SemiBold, 700 Bold, 700 Bold Italic, and 800 ExtraBold in the existing splash-gated root loader. Machine checks passed for the lockfile, lint, TypeScript, and 25 unit tests. Expo Doctor completed but currently reports seven newer Expo SDK patch versions; see I3. The native cold-launch check belongs to B3 and has not run.
+**Completed / verified (2026-10-02):** replaced `@expo-google-fonts/inter` with `@expo-google-fonts/poppins` and registered Poppins 400 Regular, 500 Medium, 600 SemiBold, 700 Bold, 700 Bold Italic, and 800 ExtraBold in the existing splash-gated root loader. The user completed the B3 native preview-build validation. Machine checks pass: lockfile inspection, `npx expo-doctor` (21/21), `npm run lint`, `npx tsc --noEmit`, and 25/25 unit tests.
 
 ### B2 — Apply weight-matched Poppins to every mobile text and input style  ✅ DONE (2026-09-29)
 **Files:** `ezzy-vendor-mobile/src/theme/tokens.ts:315-325`; `ezzy-vendor-mobile/src/components/**/*.styles.ts`; `ezzy-vendor-mobile/src/components/bookings/ActionInfoTrigger/ActionInfoTrigger.styles.ts:45-48`; `ezzy-vendor-mobile/src/components/kiosk/KioskCheckout/KioskCheckout.styles.ts:29`.
@@ -86,12 +86,12 @@ The request is for the mobile app. Changing the Vendor web portal would be a sec
 
 **Resolved / verified (2026-09-29):** scope is limited to `ezzy-vendor-mobile`; no web files, backend/schema, EAS secrets, or store-console state will change during the typography implementation.
 
-### I3 — Reconcile newly reported Expo SDK patch drift  ⬜ TODO
+### I3 — Reconcile newly reported Expo SDK patch drift  ✅ DONE (2026-10-02)
 **Files:** `ezzy-vendor-mobile/package.json`; `ezzy-vendor-mobile/package-lock.json`.
 
 `npx expo-doctor` on 2026-09-29 completed 20/21 checks and reported newer expected patch versions for seven existing Expo packages: `@expo/ui`, `expo`, `expo-constants`, `expo-glass-effect`, `expo-linking`, `expo-notifications`, and `expo-router`. This was not introduced by the Poppins package and the earlier project check had passed, but the new result means the plan's clean-Doctor verification is not yet satisfied.
 
-**Next action:** review the precise SDK-57 patch upgrade with the user before changing dependencies; do not use an unreviewed bulk upgrade. Re-run Expo Doctor afterward. This is separate from the completed typography-style mapping and is not authorised by the B1–B2 approval.
+**Completed / verified (2026-10-02):** the user applied the expected SDK-57 patch-only upgrades. The direct package changes are limited to the seven reported packages. `npx expo-doctor` now passes all 21 checks; `npm run lint`, `npx tsc --noEmit`, and 25/25 unit tests also pass.
 
 ## DECISIONS
 

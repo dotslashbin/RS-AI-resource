@@ -179,14 +179,24 @@ would offer a span that is refused at the final step.
 **Occupancy** comes from a count query keyed by overlap, not equality — an existing
 2-unit booking occupies its second slot too.
 
-> ⚠️ **In the booker app this count is wrong (found 2026-09-18).** The query reads
-> `bookings`, and the only booker SELECT policy is `booker_id = auth.uid()`, so it sees
-> **only the booker's own** bookings. Every slot reads nearly free until the placement
-> trigger refuses the insert as full. The database still prevents overbooking; the UI just
-> can't warn. Fix planned as a counts-only RPC in `.plans/2026-09-18-booker-home-search-redesign.md` (F1, I14). Vendor and kiosk
-> read under vendor RLS and are unaffected. It is fetched asynchronously, and until it
-lands every slot reads as available: the DB refuses an overbooking regardless, whereas
-greying out a free slot on a slow network would block a legitimate booking.
+> ✅ **FIXED — the counts-only RPC shipped** (`20260922000001_slot_occupancy_rpc.sql`;
+> corrected here 2026-10-03, the warning below had outlived the fix).
+>
+> The problem it solved: a direct read of `bookings` sees only the booker's own rows, because
+> the booker SELECT policy is `booker_id = auth.uid()` — so every slot read nearly free until
+> the placement trigger refused the insert as full. The database always prevented the
+> overbooking; the UI simply could not warn.
+>
+> `services/schedules.service.ts` → `getSlotOccupancy()` now calls `get_slot_occupancy`, a
+> `SECURITY DEFINER` counts-only function, and `useStep3Schedule` keeps the result in
+> `occupancy` alongside an **`occupancyKnown`** flag.
+>
+> ⚠️ **`occupancyKnown` is the non-obvious half, and it must not be collapsed.** A failed
+> lookup renders **no badge at all** rather than `0`, because `0` reads as *Full* — a dead RPC
+> and a genuinely full slot would otherwise look identical. Until the count lands every slot
+> reads as available, deliberately: the DB refuses an overbooking regardless, whereas greying
+> out a free slot on a slow network would block a legitimate booking.
+> Vendor and kiosk read under vendor RLS and were never affected.
 
 **Duration is read per schedule, not from the offering card.** `getSchedulesForOffering()`
 selects `duration_minutes`/`duration_unit` through the `!inner` join it already had. Two
@@ -219,10 +229,17 @@ wizard can never open in the wrong mode.
 > | So the panel renders the wrong copy | `Step3Schedule.tsx:101-102` — *"No time slots available for this date."* |
 > | And the step can never be passed | `useBookingWizard.ts:116` — `step === 3 && !!date && !!time`, and nothing sets `time` in this mode |
 >
-> A booker who picks a day/week/month offering therefore reaches a calendar that works,
-> selects an available date, and is told there are no slots — with **Next** permanently
-> disabled. The database side is complete (`check_booking_placement()` validates
-> date-granular spans); only the booker's render arm and `canNext` are missing.
+> ⚠️ **CORRECTED 2026-10-03 — that dead end is no longer reachable.** The paragraph below
+> described the pre-guard behaviour and outlived it. `OfferingPage.tsx:145-151` **refuses to
+> start the wizard** for a date-granular offering: the Book button is disabled and reads
+> *"Booking by date isn't available yet"*, with a line explaining that it is booked by the
+> day/week/month. `useBookingWizard.ts:96-100` records the same guard at the other end.
+>
+> So the honest statement is: **a day/week/month offering is listed and not bookable, and the
+> booker is told so before entering the flow** — not that they get trapped in a calendar. The
+> inventory above is still accurate about what is half-built, and the database side is still
+> complete (`check_booking_placement()` validates date-granular spans); only the booker's
+> render arm and `canNext` are missing.
 >
 > **`booker/visual-tests/pilot.spec.ts:78` does not catch this.** It asserts the *absence*
 > of time slots, which is the intended half of the behaviour, and never asserts that the
@@ -239,23 +256,28 @@ mode cannot be completed.
 
 ---
 
-## Step 4 — Upload Documents  *(now wizard step 2; file name unchanged)*
+## Step 4 — Documents  *(now wizard step 2; file name unchanged)*
 
 **Component:** `Step4Documents/Step4Documents.tsx`
 
 Document requirements come directly from `offering.requirements` — the `RequirementItem[]` array fetched from the `offerings` table (JSONB column). Each item has an `id`, `label`, and `required` flag. Vendor admins define these in the offering form; different vendors or offerings can have different requirements for the same offering code.
 
-Files are stored in React state as `{ name: string, size: number }` — no actual file content is stored or uploaded. The progress bar and "X of N required uploaded" counter are purely client-side.
+**Documents are really stored since 2026-10-03** (`.plans/2026-10-02-booker-search-and-booking-gaps.md` B1, after gate G1). What used to be here — *"files are stored in React state as `{ name, size }`, no actual file content is uploaded"* — described a step that **also told the booker "X of N required uploaded"** while discarding the `File` at the moment it was chosen. That is the bug B1 fixed, and the wording is kept here because the lesson is the dangerous half: the screen was not merely incomplete, it was affirmatively wrong.
 
-**`canNext`:** All required documents (those with `required: true`) have an upload entry. Optional documents do not block progression. If an offering has no requirements, `canNext` is immediately true.
+**How it works now:**
+1. The file is **selected** at this step and held in `UploadEntry.file`. The copy says *selected*, never *uploaded*, and a line states the files are sent on confirm.
+2. Type and size are checked immediately (`lib/bookingDocuments.ts` — JPG/PNG/PDF, **5 MB**), and the reason appears against that requirement's row.
+3. `confirmBooking()` creates the booking, then `services/bookingDocuments.service.ts` uploads each file to the private **`booking-documents`** bucket at `{booking_id}/{uuid}.{ext}` and writes one `booking_documents` row per file.
 
-**Current limitation:** Nothing is written to Supabase Storage or the `booking_documents` table. Real uploads are a planned follow-up.
+⚠️ **The order is forced, not a preference.** Both the storage policy and the table policy resolve ownership through a `bookings` row, so **nothing can be uploaded before the booking exists** — which is why the file waits in memory rather than going up at this step.
 
-**Planned flow for real uploads:**
-1. The booking is created first (Step 5 writes to `bookings`)
-2. Files are uploaded to Supabase Storage under a path like `bookings/{booking_id}/{doc_id}`
-3. `booking_documents` rows are written linking back to the booking
-4. The booker portal needs a Storage policy allowing authenticated uploads under their booking's path
+⚠️ **A failed upload is named, never swallowed.** By then the booking row exists, so there is no "abort and retry the whole thing"; the booker is told which document did not attach. Swallowing it would recreate the original bug exactly.
+
+⚠️ **The 5 MB limit is the UI's promise; the bucket's 10 MB is the backstop.** Both are asserted by `lib/bookingDocuments.test.ts`, including that the client limit stays the lower of the two.
+
+⚠️ **Nothing reads these documents yet.** `booking_documents` has had a vendor-admin SELECT policy since 2026-05 and **no vendor UI has ever used it** — so the vendor who required the document still cannot see it. Tracked as C1 in that plan; it is a vendor-app change.
+
+**`canNext`:** All required documents (those with `required: true`) have an entry. Optional documents do not block progression. If an offering has no requirements, `canNext` is immediately true.
 
 ---
 
