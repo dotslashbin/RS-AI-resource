@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-02
 **App / scope:** `./booker` web — Explore/search (`lib/search.ts`, `components/explore/`) and the booking path (`components/booking/`, `services/schedules.service.ts`, `services/bookings.service.ts`). Read-only: `backbone/supabase/migrations/` and `architecture/`.
-**Status:** IN PROGRESS — **done 2026-10-03: G1, G3, G4, G4-command, B1, S1, S3, K1, K2, K3, X1, X2.** booker: `tsc` clean, **199** unit tests, lint at its 18 baseline, `next build` compiles, visual suite **94/94 on two consecutive full runs**. command: `tsc` clean, **144** unit tests (4 new), lint at its 24 baseline, build compiles. ⬜ **K5 is unparked** — it needs no decision, only time. **Remaining and needing the user:** K7 (product call), C1 (cross-app, vendor), D5 → G2 → S2, K4 (payment-adjacent). History: D1–D4, D6, D7, D8 resolved; G1, G3, G4 applied by the user.
+**Status:** IN PROGRESS — **done: B1, S1, S3, K1, K2, K3, K5, K6, K8, K10, K11, X1, X2, C2, G1, G3, G4, G4-command, G5.** Committed 2026-10-04 across booker, command, backbone and root. booker: `tsc` clean, **210** unit tests, lint **17**, **97/97 visual on two consecutive runs**. command: `tsc` clean, **147** unit tests, lint at its 24 baseline. **Remaining, all needing the user:** K7 (product call), K9 (payment call deleted in f331560), C1 (cross-app, vendor), D5 → G2 → S2, K4, and the wrong data left on booking `0d5481dd`. History: D1–D8 resolved; G1, G3, G4, G5 applied by the user.
 
 > One-line framing: find what is missing or wrong in booker's search and booking features, grounded in the code rather than in the docs — which turned out to disagree with the code twice.
 
@@ -91,7 +91,7 @@ So the worst realistic case is ~4 ms per keystroke against an in-memory list —
 and no argument for P6 yet. **Verified:** 2 new tests (a description-only match; an offering with
 no description still matching and not crashing).
 
-### S2 — Explore advertises offerings that cannot be booked  ⬜ TODO
+### S2 — Explore advertises offerings that cannot be booked  ✅ DONE — build (2026-10-04), live after G2 is applied
 **Files:** `services/offerings.service.ts:60-121` · `components/explore/ExplorePage/ExplorePage.tsx` · `components/explore/OfferingPage/OfferingPage.tsx:164`
 The catalogue is `offerings` joined to `vendors` and `divisions`. **Nothing in it knows whether an offering has a schedule.** An offering with no schedule rows, or whose schedules have all elapsed, is listed in Explore like any other, with its price and its division mark. The booker learns the truth only after opening it, where the Book button is replaced by a disabled **"No times available"**.
 The same is true of date-granular offerings (K1), which are listed and then refused.
@@ -103,6 +103,31 @@ The same is true of date-granular offerings (K1), which are listed and then refu
 ⚠️ **So marking it treats a symptom whose causes are mostly vendor-side.** The durable fix is prompting the vendor (1 and 4 are both "you published something nobody can book"), and that is a vendor-app change. Marking is still worth doing — a booker should not click into a dead end — but it should not be mistaken for the cure.
 
 **Fix direction:** there is no cheap correct answer, which is why this is a decision — see **D2**. ⚠️ **Filtering the catalogue by "has a schedule" is the tempting wrong fix**: it is one schedules query per offering, which is exactly the fan-out `useExplorePage.ts:26-29` refused for the "When" filter (parked P10), and it would hide an offering whose vendor publishes schedules weekly.
+
+**✅ BUILT 2026-10-04** on G2's signal. `services/offerings.service.ts` gains
+`getUnbookableOfferings()`; `useExplorePage` fetches it **once for the whole catalogue** (not per
+visible card — the answer does not depend on the filter, and one call is the point of G2);
+`OfferingResultCard` renders a **"No dates yet"** chip.
+
+⚠️ **MARKED, NOT HIDDEN OR DIMMED.** With 25 of 35 unbookable in the seed, dimming would grey out
+most of the catalogue and read as a broken page. The card stays fully interactive: the offering and
+its vendor are real, and a booker may still want to see them.
+⚠️ **"No dates yet", not "Unavailable"** — the usual cause is a vendor who has not published a
+schedule *yet*, and it matches what the Offering page already says on arrival.
+⚠️ **`null` from the lookup marks NOTHING**, exactly like an empty set. Empty means "all bookable";
+`null` means the call failed. Both render the same, but only one is a fact — the F1 rule again.
+
+⚠️ **The first chip was broken and the baseline caught it.** Placed beside the division chip in the
+cover's flex row, it wrapped to **three lines** inside a blob and overflowed the 236px card. It is
+now absolutely positioned at the cover's top-right with `white-space: nowrap`, clear of the
+division chip. Both captures reviewed in both themes.
+
+**Verified:** `tsc` clean, 210 unit tests, lint **17**, `next build` compiles, and the capture run
+failed on exactly the two new snapshots out of 99 — nothing else moved. Then **99/99 on two
+consecutive full runs**.
+⏸ **Not live until the user applies `20261004000002`.** Until then `getUnbookableOfferings()`
+returns `null` (the RPC does not exist) and **nothing is marked**, which is the correct degradation
+rather than an error.
 
 ### S3 — a blank category produces a blank pill  ✅ DONE (2026-10-03)
 **File:** `lib/search.ts:147-154`
@@ -349,7 +374,7 @@ slots on one day. Delete both rows when finished; they are local-only test data.
 **Live impact right now:** the user's own refund request `b83c9849` on booking `afadfef7`
 (`confirmed`, paid, booker `…0003`, payout `held`) is open and **will hit this** on Mark refunded.
 
-### K9 — booker cannot take payment at all: the PayMongo call is missing from the client  ⬜ TODO — decision needed (found 2026-10-03)
+### K9 — booker cannot take payment at all: the PayMongo call is missing from the client  ✅ DONE (2026-10-04)
 **File:** `components/booking/BookingWizard/useBookingWizard.ts` — the call is **absent**;
 `app/api/payment/create-session/route.ts` is intact and has **no caller**.
 
@@ -387,10 +412,27 @@ worse than leaving both.
 **Consequence for the remaining tests:** the refund path can only be exercised on **seeded** paid
 bookings; no booking made through the UI can ever reach it.
 
-**Fix direction:** restore the four lines in `confirmBooking()` after the booking insert and the
-document upload. The route, `lib/siteUrl.ts` and the webhook are untouched and need no change.
-⚠️ **Not started — payment was excluded from this plan's scope, so this needs the user's explicit
-go-ahead rather than being folded into a booking-gaps stage.**
+**✅ DONE 2026-10-04**, on the user's explicit go-ahead. Restored in `confirmBooking()`; the route,
+`lib/siteUrl.ts` and the webhook needed no change — they were never broken, just unreachable.
+
+⚠️ **IT RUNS AFTER THE DOCUMENT UPLOAD.** The redirect navigates the browser away, and anything
+started but not awaited before it is abandoned — the documents would have been the casualty. The
+pre-`f331560` code had no documents step to order against; this one does.
+
+⚠️ **The failure path offers CANCELLING, not retrying**, and that wording is load-bearing. If the
+session cannot be created the booking already exists, and this wizard is the **only caller of
+`/api/payment/create-session` in the app** — so "try again from Activity" would name a button that
+does not exist. Cancelling is real: the booking is unpaid, so K2's control applies to it. A proper
+"pay this booking" entry point belongs with **K4**.
+
+⚠️ **A stale comment was removed in the same place**: `"Payment is the next step, handled by
+StepPayment's redirect"`. `StepPayment` has no redirect and never did after f331560 — the comment
+is the likeliest reason the deletion went unnoticed for twelve days.
+
+**Verified:** `tsc` clean, 210 unit tests, lint 17, `next build` compiles. `PAYMONGO_SECRET_KEY` is
+confirmed an **`sk_test`** key, so exercising this locally cannot move real money.
+⏸ **The redirect itself is unverified** — reaching PayMongo's hosted page needs a signed-in booker
+and a real click. **This is the one thing on this item that needs the user.**
 
 ### C2 — ⚠️ A flag could be resolved with NO outcome chosen, releasing a payout nobody authorised  ✅ FIXED (2026-10-04)
 **Files:** `command/components/flags/FlagQueue/useFlagQueue.ts:14,28,40` · `FlagQueue.tsx` (submit button).
@@ -596,9 +638,29 @@ Error: img-src must list http://127.0.0.1:54321 or every Supabase Storage image 
 The config was then restored and verified to still contain the fix. Full suite: **97/97 on two
 consecutive runs** (exit 0, zero ✘ both) — the 97th test is this guard.
 
-⚠️ **`command` may have the same gap** — its `img-src` is `'self' data: blob:` with no Supabase
-origin (`command/next.config.ts:101`). Whether that matters depends on whether Command renders any
-storage image; **not investigated, and cross-app regardless.** Flagged, not fixed.
+### K11-command — Command's `img-src` has the same shape, and it is CORRECT  ✅ INVESTIGATED, no change needed (2026-10-04)
+
+Approved by the user as a cross-app item and **investigated rather than assumed**. The conclusion is
+the opposite of booker's K11: **Command needs no Supabase origin in `img-src`.**
+
+- Command renders **no Supabase-hosted image anywhere**. The only storage it touches is a KYC file.
+- `useKycPanel.ts:96` opens it with `window.open(url, "_blank", "noopener")` — a **top-level
+  navigation** into a document of its own, which no CSP directive of the opener governs.
+- The `createSignedUrl` call that produces that URL is a **fetch**, and Command's `connect-src`
+  already carries the origin, so the one governed request works.
+
+**Adding the origin would widen a security policy for a request that is never made**, so it was not
+added. The identical-looking directive is right in one app and wrong in the other, for a reason that
+only shows up by reading the consumer — which is the point worth keeping.
+
+**One real defect found: a comment that lied.** `img-src`'s note claimed `blob:` existed to cover
+"signed-URL document previews opened from the KYC panel". There is no such preview. The blob URLs in
+Command are **CSV downloads** (`useUsers.ts:205`, `usePayoutsPage.ts:383`) handed to an
+`<a download>`, which `img-src` does not govern either. The comment is corrected; the directive is
+left as-is, because removing `blob:` is a separate decision from fixing a comment.
+
+**Verified:** `tsc` clean, 148 tests, lint at Command's 24 baseline, `next build` compiles, and the
+live header on :3000 is unchanged (`'self' data: blob:`) — as intended, since only a comment moved.
 
 ### K8 — the wizard never shows what is being booked  ✅ DONE (2026-10-04)
 **Files:** every step under `components/booking/` — the absence is the finding.
@@ -670,7 +732,28 @@ refuses a second server from the same directory, and the suite's own server want
 **File:** `components/booking/BookingWizard/useBookingWizard.ts:131-163`
 `confirmBooking()` inserts the booking **before** the payment step, so capacity is consumed at step 4 and `is_paid` stays `false` if the booker never pays. The placement trigger counts that row against the slot like any other.
 **Why it is here at all:** the user excluded payment, and the *fix* is payment-shaped (expiry, a sweep, or a hold). But the **symptom is a booking-capacity one** — a slot that reads full because of a checkout nobody completed — so burying it under "payments" would hide a booking gap behind a scope line.
-**Not proposed for action in this plan.** Raised for the user's call on where it belongs.
+**→ MOVED OUT OF THIS PLAN (decided 2026-10-04): it belongs to a payment workstream.** The fix is
+an expiry, a sweep or a hold, all of which are tied to the PayMongo session lifecycle rather than to
+booking capacity. ⚠️ **It became live again on 2026-10-04**, when K9 restored the payment call —
+until then no booking could reach a checkout to abandon.
+⚠️ **A sibling belongs with it:** there is still **no way to pay an existing booking**. The wizard
+is the only caller of `/api/payment/create-session`, so a booking whose payment setup fails, or
+whose checkout is abandoned, can only be cancelled and remade. K9's failure-path message says
+exactly that, deliberately.
+**Status here: ⬜ CARRIED to `.plans/2026-10-04-booker-payment-lifecycle.md`** (written 2026-10-04),
+not aborted — the gap is real and unfixed. That plan is DRAFT with D1–D3 open.
+
+⚠️ **Writing it turned up a correction to work shipped TODAY.** `bookings_no_duplicate` is
+`UNIQUE (booker_id, schedule_id, booked_date, coalesce(start_time,'00:00'))` **with no status
+predicate**, so a cancelled booking keeps its slot key and the same booker **cannot rebook it** —
+the insert raises 23505 and the UI says "You've already booked this slot." K9's payment-failure
+message says *"You can cancel it from Activity and book again"*; the cancel works, the rebooking
+does not. Logged as that plan's **B4**.
+
+⚠️ **It also found a live overlap:** `.plans/2026-09-29-vendor-kiosk-custom-checkout.md` (IN
+PROGRESS) already designs this lifecycle for the kiosk and **explicitly excludes booker
+reservations** from its sweep. So booker's gap is uncovered while the machinery to fix it is being
+built elsewhere — which is the new plan's central decision, D1.
 
 ---
 
@@ -803,7 +886,13 @@ is **cross-app** — Command needs to display and act on the new kind.
   ⚠️ Whichever is chosen, it touches that shared trigger again or accepts a permanent gap — there is
   no option here that is free.
 
-- **OPEN D5 — what does "bookable" mean for the S2 marker?** (a) has any published schedule · (b) has a **future** occurrence · (c) has a future occurrence with free capacity. *Recommended: (b)* — (a) marks elapsed schedules as fine, and (c) makes the catalogue read depend on live occupancy, which is per-slot and changes constantly.
+- **D5 — what does "bookable" mean for the S2 marker?** → **(b) has a FUTURE OCCURRENCE** (resolved
+  2026-10-04). (a) would mark an elapsed schedule as fine — exactly the Equipment Hire case that
+  wasted a testing session — and (c) would tie a catalogue-wide read to live per-slot occupancy.
+  **Unblocks G2**, which must now answer "does any schedule of this offering still have an
+  occurrence ahead?" server-side; the client cannot evaluate that across 10,000 offerings.
+  The options are kept as the record: (a) any published schedule · (c) future occurrence with free
+  capacity.
 - **D6 — is there a cutoff on booker cancellation?** → **freely while `pending`; once `confirmed`, up to 24 hours before the booked time** (resolved 2026-10-03).
   ⚠️ **How much this rule bites depends entirely on D4.** A booker pays at booking time, and nothing gates vendor confirmation on `is_paid` — so in practice a `confirmed` booking is a *paid* one, and a `confirmed` **unpaid** booking means an abandoned checkout the vendor accepted anyway. If D4 lands on unpaid-only, the 24-hour arm will almost never be reached. Recorded because it may change the D4 answer, not to re-open D6.
   ✅ **Design confirmation found while checking this:** `20260801000002:10-18` states outright that a booker's write path **must** be a `SECURITY DEFINER` RPC — an RLS UPDATE policy on `bookings` would expose `price_paid`, `is_paid` and `payment_reference`, and a column-level grant is role-wide. G3's shape is the one the schema already prescribes, not a preference.
@@ -892,11 +981,41 @@ real test — see Verification.
 - ⚠️ `(storage.foldername(name))[1]::uuid` throws on a path whose first segment is not a UUID. That is the existing `offering-attachments` pattern, so it is consistent rather than novel — but it means the **client must never write a malformed path**, and a cast error surfaces as a storage failure, not a policy denial.
 - ⚠️ **Read is scoped here, unlike `offering-attachments`.** That bucket deliberately allows any active user to read, because its contents are vendor-published material. These are a booker's identity documents, so read is restricted to the owning booker and the vendor who must check them. Command admins are **not** granted read — the table policy gives them metadata only. Say so if that is wrong for support.
 
-### G2 — a server-side availability signal (unblocks S2 / D2)  ⬜ AWAITING APPROVAL
+### G2 — a server-side availability signal (unblocks S2 / D2)  🔄 MIGRATION WRITTEN (2026-10-04), awaiting the user applying it
 "Mark it" needs to know, per offering, whether anything is bookable — and the catalogue carries no schedule data. A client-side fan-out is one schedules query per offering, which is exactly what `useExplorePage.ts:26-29` refused for the parked "When" filter.
 **Proposed shape:** a read-only view or `SECURITY DEFINER` function returning `(offering_id, has_future_slot boolean)`, joined into the catalogue read in one go.
 ⚠️ **Deliberately not drafted in SQL yet.** The correct definition depends on what "bookable" means — a published schedule, a schedule with a future occurrence, or one with free capacity — and that is a product question, not a SQL one (**OPEN D5**).
 **Blast radius (shape only):** read-only, additive, no existing object altered; reversible by dropping it. Cost is one extra join on the catalogue read, which happens once per session.
+
+**🔄 WRITTEN 2026-10-04, NOT APPLIED:** `backbone/supabase/migrations/20261004000002_unbookable_offerings.sql`.
+
+⚠️ **`security invoker`, NOT `security definer` — against the shape this item first sketched.**
+Both tables it reads are already visible to the caller (*"active users can read active offerings"*
+and *"…active schedules"*, both `is_active AND is_active()`), so definer rights would take
+privilege the function has no use for. Checked in `pg_policies` rather than assumed.
+
+⚠️ **It returns `uuid[]`, ONE array value, and the reason is the wire format.** The first draft
+returned `setof uuid`; the second tried `returns table (offering_id uuid)` to make the payload
+self-describing. **That does not work** — PostgreSQL collapses a single-column `returns table` back
+to a scalar set, which `to_jsonb()` on a row shows plainly: it yields a bare string, not an object.
+A client written for the wrong shape marks nothing, silently. One array has exactly one rendering,
+verified: `["1c09bf48-…", …]`, and `[]` when empty.
+
+⚠️ **It returns the UNBOOKABLE set, the small one**, so the payload stays tiny and an offering
+simply absent from it is bookable.
+
+**The rule, from D5(b):** a schedule counts if it is active, its window has not closed
+(`end_date is null or end_date >= today`), and — if one-time — its date has not passed.
+⚠️ **It errs toward "bookable" on purpose.** A recurring schedule whose remaining window contains
+no matching weekday is still called bookable; being exact means generating occurrences for every
+offering on every catalogue load. The asymmetry is what makes that safe: a false "bookable" costs
+one click, a false "unbookable" would hide a real offering and cost a vendor a sale.
+⚠️ **Date-granular offerings are NOT special-cased**, and must not be — S2's cause 3 said they were
+unbookable, which stopped being true when K1 shipped.
+
+**Measured on the local seed, in a rolled-back transaction: 25 of 35 active offerings are
+unbookable — 23 with no schedule at all and 2 whose schedules have elapsed.** Those are causes 1
+and 2 from S2's own list, which is the item's premise confirmed rather than assumed.
 
 ### G3 — booker cancellation: a trigger widening **and** an RPC (unblocks K2 / D3·D4·D6)  ✅ DONE (applied by the user 2026-10-03)
 Bookers hold no UPDATE on `bookings`, and every booker action goes through a `SECURITY DEFINER` RPC. A cancel follows that pattern: a new function that validates ownership, checks the status is cancellable, and writes the status — the client never names a status (`schema.md` → RLS Philosophy).
@@ -1253,7 +1372,7 @@ that long.
 
 ## COUPLINGS
 
-### K7 — a vendor can strand an open refund request  ⬜ TODO (decision needed) — ⚠️ **RE-SCOPED 2026-10-04, it is narrower than first written**
+### K7 — a vendor can strand an open refund request  ✅ DONE — decided + migration written (2026-10-04)
 Raised with the user 2026-10-03 while drawing the refund flow; **not yet answered**.
 Because D8(c) leaves the booking in its real status, the vendor is not blocked and may advance it.
 If they take a `confirmed` booking to **`fulfilled`** while a refund request is open, Command can no
@@ -1339,10 +1458,60 @@ flags — a bigger change than this item. **The live check is the user's**, and 
 asked for: request a refund as a booker → the row says "Refund requested" → "Complete it" is absent
 → resolve as refunded → separately flag a delivered booking and confirm that path is unchanged.
 
-### C1 — uploaded documents have no reader  ⬜ TODO (vendor app)
+### C1 — uploaded documents have no reader  ✅ DONE (2026-10-04)
 Grepped: **nothing in `vendor/` references `booking_documents`.** The table has had a vendor-admin SELECT policy since 2026-05 and no vendor UI has ever used it.
 So B1 on its own moves the problem rather than solving it: the booker's document would be stored and visible to them, and the vendor — the person who required it — still would not see it. **Closing the loop needs a vendor-side change**, which is a second app and its own approval under AGENTS.md's cross-app rule.
 **Recommended order:** G1 + B1 first (the booker stops being lied to and the file is really kept), then the vendor reader as a separate, explicitly-approved piece. Say if you want them batched instead.
+
+**🔄 BUILT 2026-10-04**, cross-app approval given by the user. `vendor/` only — no booker, no
+command, **no migration**.
+
+⚠️ **NO MIGRATION WAS NEEDED, and that is the surprise worth recording.** Both halves of the
+permission already existed and had never once been used:
+- table — *"vendor admins can read their booking documents"* (SELECT, since 2026-05)
+- bucket — *"booking docs vendor admin read"* (SELECT, shipped with the bucket in `20261002000001`)
+
+Both resolve the vendor through `bookings` and `has_vendor_role(…, 'vendor-admin')`. Verified by
+reading `pg_policies` for the table and for `storage.objects`. The service therefore does **no**
+vendor filtering of its own — RLS is the boundary, and duplicating it in the query would invite the
+two to drift.
+
+**Files:**
+- `services/bookingDocuments.service.ts` (new) — `getBookingDocuments()`, `bookingDocumentUrl()`.
+- `components/bookings/BookingDetails/useBookingDetails.ts` — a `DocumentsView` union mirroring the
+  existing `AgreementsView`, plus `viewDocument()`.
+- `components/bookings/BookingDetailsModal/` — a "Customer documents" section + `.docView` style.
+- `app/ui-gallery/page.tsx` — the `bookingdetails` fixture gains documents.
+
+⚠️ **Signed ON CLICK, not on open** — unlike the kiosk signatures beside it in the same modal.
+Those are images rendered inline, so they must be signed to appear at all. A document is a file
+someone opens: signing every row on open would be a round trip per file for files mostly never
+viewed, and a 300-second URL minted then would already have expired by the time a vendor working
+through a queue clicked it.
+
+⚠️ **`window.open` is called BEFORE the await, then redirected.** Opening it after the signed URL
+resolves would be blocked as a popup, because the browser no longer attributes the call to the
+click. On failure the blank tab is closed rather than left on `about:blank`.
+
+⚠️ **Empty renders NOTHING, deliberately.** `hidden` and an empty `ready` are different claims, and
+this component cannot tell them apart: the offering's `requirements` are not on the booking, so it
+cannot say whether anything was *asked for*. Inventing "0 of 2 uploaded" from a list it cannot see
+would be a worse lie than silence. **Showing what is MISSING needs the offering** — not built here.
+
+**Verified:** `tsc` clean, **525** unit tests pass, lint at vendor's **29 baseline** (confirmed by
+stashing and re-running — none of the 29 is in a file I touched), `next build` compiles.
+**Visual: the capture run failed on exactly `bookingdetails-light` and `bookingdetails-dark` and
+NOTHING else** — across vendor's 199 tests — which is what proves the new section changed only its
+own pane. Both captures were reviewed before re-recording: the section renders between Payment and
+Agreements, `· required` distinguishes the two rows, and the "View" pill is legible in **both**
+themes. Then **199/199 on two consecutive full runs** (exit 0, zero ✘ both).
+
+⚠️ Running the suite needed the **vendor dev server stopped** (the user approved it): `next dev`
+refuses a second server for the same directory, whatever port is asked for — vendor's own AGENTS.md
+warns about this. **It is still stopped** — restart with `npm run dev` in `vendor/`.
+
+⏸ **Not verified: a real document opening.** That needs a vendor session and a booking with
+uploads. Booking `ec3e226f` has three, so it is the one to open.
 
 ## BASELINES
 
