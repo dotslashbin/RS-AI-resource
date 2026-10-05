@@ -134,6 +134,43 @@ Constrain automated cancellation to unpaid pending kiosk bookings explicitly man
 
 **Verify:** last-slot concurrency; payment concurrent with expiry; provider timeout; lost webhook; server worker retry; abandoned browser; same-email same-slot after release; late GCash payment after the slot is sold again; service-start boundary. Coupled to B3/B5 and the approval-gated schema draft.
 
+---
+
+#### ⬜ OPEN QUESTION raised 2026-10-04 — does the release path admit BOOKER reservations, or only kiosk ones?
+
+Raised from `.plans/2026-10-04-booker-payment-lifecycle.md` (its **B1**), at the user's request. **No
+item of this plan is changed by this note** — it asks a question of B4's authors rather than
+answering it.
+
+**The situation.** booker has the identical defect: `confirmBooking()` inserts the booking before a
+checkout session exists, so capacity is consumed the moment "Pay" is pressed, and an unpaid
+`pending` row holds the slot for ever. Nothing expires it. That was dormant between `f331560`
+(2026-09-22) and 2026-10-04, because booker's PayMongo call had been deleted and no checkout could
+be reached at all; **restoring the call (gaps plan K9) made it live again.**
+
+**Why it lands here.** The booker plan's **D1** was decided as *"wait and reuse"* precisely to avoid
+a second expiry mechanism: one definition of "an unpaid reservation has died", one guarded release
+RPC, one audit trail. ⚠️ **But the paragraph above excludes `booker/mobile reservations` by name**,
+so as written the reuse is a no-op and booker stays unfixed indefinitely.
+
+That exclusion reads as a guard against a *blanket* sweep of historical rows — which is right, and
+booker needs the same protection — rather than a decision that booker must never be managed. **If
+that reading is correct, the wording wants widening** to something like *"only unpaid pending
+bookings explicitly managed by this checkout lifecycle, whichever surface created them"*, keeping
+every other exclusion intact.
+
+**What the booker side would bring, if admitted:**
+- a hold window of **30 minutes** from session creation, capped by the booked start, server-measured
+  (that plan's **D2**) — deliberately **not** the kiosk's five minutes, because a booker at home is
+  not a walk-in with a queue behind them. ⚠️ **Two different windows on one release path is a design
+  question for B4**, not something the booker plan can settle alone.
+- the same two constraints already established here: `pending → cancelled` admits **no system
+  actor** in the live trigger, and `bookings_no_duplicate` is unconditional, so a released booking
+  still blocks the same customer rebooking the same slot (this plan's **D5**).
+
+**Deciding it needs this plan's authors**, since it changes B4's scope and possibly D3's window.
+Until then booker's B1 stays ⏸ PARKED with its unblock condition pointing here.
+
 ### B5 — Settlement can lose payments and mishandle late money · ⬜ TODO
 
 **Files:** `booker/app/api/payment/webhook/route.ts:63`, `:100`, `:125`, `:132`; `backbone/supabase/migrations/20260911000001_withholding_tax.sql:164`; `20260801000003_booking_payout_status.sql:25`, `:101`.

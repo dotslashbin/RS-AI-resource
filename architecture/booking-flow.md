@@ -29,8 +29,10 @@ Step 2: Documents           (component: Step4Documents)
 Step 3: Review              (component: Step6Confirm)
     ↓ review screen — no DB writes yet
 Step 4: Pay                 (component: StepPayment)
-    ↓ writes booking to Supabase → creates PayMongo Checkout Session → redirects to PayMongo
-    ↓ on return: /?payment=success → toast + Activity; /?payment=cancel → toast (booking stays pending)
+    ↓ writes booking to Supabase → uploads the chosen documents → creates PayMongo
+    ↓ Checkout Session → redirects to PayMongo
+    ↓ on return: /?payment=success → toast DEPENDING ON is_paid (see "Returning from PayMongo");
+    ↓            /?payment=cancel → toast (booking stays pending, and can be paid from Activity)
 ```
 
 ---
@@ -316,9 +318,22 @@ The hook's `confirmBooking` is `async`. It:
    - **`price_paid` is NOT sent.** The DB derives it as `offering.price × quantity`
      and pins it (`20260803000004`)
 3. On `"already_booked"` / `"full"` / `"error"` — shows toast, aborts
-4. Calls `POST /api/payment/create-session` with `{ bookingId }` (the client also sends legacy `amountCentavos`/`description`, but the **server ignores them**)
-5. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.booker_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
-6. Browser redirects to `checkout_url` (PayMongo's hosted payment page)
+4. **Uploads the chosen documents** (`uploadBookingDocuments`, plan B1) — the booking row must
+   exist first, because every storage and table policy resolves ownership through `bookings`.
+   ⚠️ **This happens BEFORE the payment call, and the order is load-bearing:** the redirect in
+   step 6 navigates the browser away, and anything started but not awaited before it is
+   abandoned mid-flight. A failure here is reported and never swallowed — the booking already
+   exists, so the only honest options are to say what did not attach or to lie.
+5. Calls `POST /api/payment/create-session` with `{ bookingId }` — and **only** that.
+   ⚠️ The client sent legacy `amountCentavos`/`description` until 2026-10-04; the server always
+   ignored them, and the restored call no longer sends them.
+   ⚠️ **This call was MISSING ENTIRELY between 2026-09-22 and 2026-10-04** — deleted by
+   `f331560` and restored by the search-and-booking-gaps plan's K9. For those twelve days
+   pressing "Pay" created a booking, uploaded documents and showed a confirmation, with no
+   checkout session, no redirect and no payment: every booking was free. The route, the webhook
+   and `lib/siteUrl.ts` were untouched throughout — they simply had no caller.
+6. The route **authenticates the caller** (SSR cookie client → 401 if no session), fetches the booking with the service-role client (404 if missing), verifies `booking.booker_id === auth user` (403 otherwise), and **derives the amount from `booking.price_paid`** — never from the request body. It then creates the PayMongo Checkout Session, stores the session ID as `bookings.payment_reference`, and returns `checkout_url`. The line-item description is built server-side from the offering (`CODE — Name`).
+7. Browser redirects to `checkout_url` (PayMongo's hosted payment page)
 
 > **Security note:** the amount is authoritative from the DB, so a tampered client request cannot underpay; the route is not callable without an authenticated session that owns the booking. (Hardened 2026-06-12 — prod-readiness booker B1.)
 >
@@ -332,7 +347,24 @@ The hook's `confirmBooking` is `async`. It:
 
 ### Payment return
 
-PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&booking_id=xxx`. `useAppShell` reads these params on mount (after auth) and clears the URL with `history.replaceState`. On `success`, it **verifies the `booking_id` belongs to the current user** (RLS-scoped select) before showing the success toast — a spoofed/foreign id stays silent. The bookings list is reloaded from DB so the new booking appears on **Activity** (the dashboard was replaced 2026-09-27).
+PayMongo redirects to `/?payment=success&booking_id=xxx` or `/?payment=cancel&booking_id=xxx`. `useAppShell` reads these params on mount (after auth) and clears the URL with `history.replaceState`. On `success`, it **verifies the `booking_id` belongs to the current user** (RLS-scoped select) — a spoofed/foreign id stays silent. The bookings list is reloaded from DB so the new booking appears on **Activity** (the dashboard was replaced 2026-09-27).
+
+⚠️ **THE REDIRECT IS NOT PROOF OF PAYMENT, and since 2026-10-04 the message says so.** The same
+query now reads `is_paid` alongside the id, and the wording comes from `lib/paymentReturn.ts`
+(pure, unit-tested):
+
+| owned | `is_paid` | shown |
+|---|---|---|
+| yes | true | "Payment successful! Your booking is pending confirmation." |
+| yes | **false** | **"We're confirming your payment — your booking will update shortly."** |
+| no | either | nothing at all |
+
+Until then the success toast fired on ownership alone, so a booker could be told their money had
+gone through while `is_paid` was still false. **Ownership answers "is this yours?", never "is it
+paid?"** — the two were easy to conflate because one query happened to serve both. The webhook
+below remains the only authority.
+⚠️ The not-yet-paid wording deliberately avoids "try again": the ordinary cause is a webhook in
+flight, and inviting a second payment risks a double charge.
 
 Cancelled bookings remain in the DB as `status = "pending"` with no `payment_reference`.
 
@@ -341,6 +373,40 @@ Cancelled bookings remain in the DB as `status = "pending"` with no `payment_ref
 Once a booking exists, its status keeps updating on the booker's **Activity** tab **without a refresh** — a Realtime `postgres_changes` subscription on `bookings` (`event: "UPDATE"`, `filter: booker_id=eq.<uid>`) patches the status in place whenever the vendor confirms/rejects/cancels it. The payload carries only the flat `bookings` columns (no joins), so the handler patches the mutable `status` field onto the row already in state rather than re-mapping a full `Booking`; if the row isn't in local state (e.g. booked on another device after login) it falls back to a full `getBookings()` refetch. This shares the same realtime channel as in-app notifications (`useAppShell.ts`). The equivalent exists on the vendor side for incoming bookings + status/payment changes.
 
 ### Webhook
+
+### Paying a booking that already exists (2026-10-04)
+
+The wizard is **no longer the only way to reach `create-session`**. An unpaid booking that is still
+`pending` — an abandoned or failed checkout — carries a **"Pay now"** action in its Activity detail
+modal, which calls the same route with the same booking id (`payForBooking`, plan
+`2026-10-04-booker-payment-lifecycle` B2).
+
+⚠️ **`pending` ONLY, which is narrower than the refund rule** (that one also allows `confirmed`). A
+vendor confirming an unpaid booking is them choosing to honour it; charging for it afterwards is a
+different transaction, and the payout ledger is written from `is_paid` at creation.
+⚠️ **An existing `payment_reference` from the abandoned attempt is not an error** — the route
+overwrites it, and the old session is simply never completed.
+⚠️ **Before this existed there was no way to pay a booking at all** once the wizard was left, and
+cancelling did not help: `bookings_no_duplicate` is unconditional, so a cancelled row keeps its slot
+key and the same booker cannot rebook the same slot (23505). An abandoned checkout therefore had no
+path to a paid booking. The slot is still held in the meantime — that is **B1** on the same plan,
+parked and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`.
+
+⚠️ **THE WEBHOOK CANNOT REACH A LOCAL MACHINE, so `is_paid` NEVER SETTLES ON localhost.** PayMongo
+posts to this endpoint from their own servers; `http://localhost:3000/api/payment/webhook` is not
+addressable from the internet. A real test payment made against a local build therefore produces a
+booking with a `payment_reference` (the session was created) and **`is_paid = false` for ever**.
+Observed 2026-10-04 on two bookings made through the restored "Pay now" path.
+
+**What that means for anyone testing:**
+- The *only* outcome a local payment can produce on return is **"We're confirming your payment"**,
+  which is correct behaviour, not a failure — it is exactly the settlement lag the message exists
+  to stop misreporting. Before 2026-10-04 that same situation claimed "Payment successful!".
+- The paid branch can still be exercised locally by visiting the return URL directly with a booking
+  that is already `is_paid`, e.g. `/?payment=success&booking_id=<a paid booking of the signed-in
+  booker>`. The toast reads ownership and `is_paid`, nothing else.
+- **A genuinely end-to-end paid booking needs a deployed environment** where PayMongo can reach the
+  endpoint. That is a staging check, not a local one.
 
 `POST /api/payment/webhook` — verifies PayMongo HMAC-SHA256 signature, handles `checkout_session.payment.paid`, sets `is_paid = true` on the booking via service role. This is the authoritative payment confirmation (independent of the browser redirect).
 

@@ -2,7 +2,9 @@
 
 **Date:** 2026-10-04
 **App / scope:** `booker/` primarily; `backbone/` for any lifecycle change (approval-gated). **Not** the vendor kiosk — see the coupling note.
-**Status:** DRAFT — **D1–D3 resolved 2026-10-04**; awaiting execution approval. No code written yet.
+**Status:** ✅ **COMPLETE for its executable scope (2026-10-05)** — B2, B3, B4, I1, I2 all done. ⏸ **B1 is PARKED, not done**, and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`: **booker still holds a slot for every abandoned checkout.** Decisions D1–D3 resolved. ⏸ Also unverified locally: booker's own `create-session` + redirect, and B3's success branch — both need staging.
+PARKED, not done**, and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`: booker still
+holds a slot for every abandoned checkout. Decisions D1–D3 resolved.
 
 > Carved out of `.plans/2026-10-02-booker-search-and-booking-gaps.md` item **K4** on the user's
 > decision (2026-10-04): the symptom is booking-capacity, but every fix is payment-shaped, so it
@@ -71,7 +73,7 @@ mitigation** — it keeps the slot payable instead of merely held.
 sweep wins; a confirmed booking is never touched; concurrent release and placement cannot double
 sell. Needs a live environment.
 
-### B2 — a booking that failed or abandoned checkout can never be paid  ⬜ TODO
+### B2 — a booking that failed or abandoned checkout can never be paid  ✅ DONE (2026-10-04)
 **Files:** `booker/components/booking/BookingWizard/useBookingWizard.ts` (the only caller of
 `/api/payment/create-session`) · `booker/components/activity/BookingDetailModal/`.
 
@@ -93,14 +95,37 @@ and derives the amount server-side, so no new server surface is needed.
 existing `payment_reference` from the abandoned attempt — kiosk-checkout **B3** ("payment attempts
 can multiply or become untraceable") is the same hazard and its conclusion should be reused.
 
-**Component separation:** the control belongs in `BookingDetailModal` beside Cancel and Request a
-refund; state and the call go in `useBookingDetailModal`; any styling in the existing
-`BookingDetailModal.module.css`. No new component is needed.
+**Component separation:** as planned — the control is in `BookingDetailModal`, the state and call
+in `useBookingDetailModal`, no new component, no new stylesheet.
 
-**Verify:** unit-testable predicate for "payable" (as `lib/bookerActions.ts` does for cancel and
-refund); the redirect itself needs a live environment.
+**✅ DONE 2026-10-04.**
+- `lib/bookerActions.ts` — `payBlockedReason()` / `canPay()`, **5 new tests**.
+- `services/bookings.service.ts` — `payForBooking()`, reusing the wizard's route unchanged.
+- `useBookingDetailModal` / `BookingDetailModal` — a **"Pay now"** primary button.
 
-### B3 — success is claimed on the redirect, not on settlement  ⬜ TODO
+⚠️ **`pending` ONLY, deliberately narrower than the refund rule**, which also allows `confirmed`. A
+vendor confirming an unpaid booking is them choosing to honour it; taking money for it afterwards is
+a different transaction, and the payout ledger is written from `is_paid` at creation. A test walks
+every status to hold that line.
+⚠️ **`setBusy(true)` is never undone on success** — the browser is navigating away, and re-enabling
+the button on a page that is leaving invites a second checkout session.
+⚠️ **An existing `payment_reference` from the abandoned attempt is not an error.** The route
+overwrites it; treating a retry as a conflict would strand exactly the booking this rescues.
+⚠️ **The provider lives entirely behind `/api/payment/create-session`**, so a change of payment
+provider does not reach this function — relevant given the user's planned PayMongo rework.
+
+⚠️ **A redundant fixture was added and removed the same day.** A dedicated `bookingpay` gallery mode
+selected the same unpaid `pending` booking as `bookingcancel` and produced a **byte-identical**
+screenshot (confirmed by md5). It was two more baselines to maintain for no signal, so it was
+dropped and `bookingcancel`'s comment now records that the pane covers both controls.
+
+**Verified:** `tsc` clean, **219 unit tests**, lint **17** (booker's baseline), `next build`
+compiles, and the capture run failed on exactly `bookingcancel` ×2 — the expected gain of a button —
+then **99/99 on two consecutive full runs**.
+⏸ **The redirect itself is unverified** — it needs a live payment, which the user has deferred
+pending their PayMongo rework.
+
+### B3 — success is claimed on the redirect, not on settlement  ✅ DONE (2026-10-04)
 **File:** `booker/components/layout/AppShell/useAppShell.ts:230-243`.
 
 Returning with `?payment=success` shows *"Payment successful!"* after checking only that the
@@ -113,14 +138,55 @@ check, which is good, can be mistaken for a settlement check, which it is not.
 ⚠️ **This is kiosk-checkout B2 in booker's own code**, and the two should agree on what counts as
 proof of payment.
 
-**Fix approach:** select `is_paid` with the id and let the message follow the row — paid, or
-"we're confirming your payment" while it is not yet. Do **not** block on a poll without a bounded,
-visible fallback.
+**✅ DONE 2026-10-04.** `useAppShell.ts` now selects `id, is_paid` in the same query and the wording
+comes from **`lib/paymentReturn.ts`**, a pure function with **4 tests**.
 
-**Verify:** machine-verifiable as a pure function over `(owned, isPaid)`; the real timing needs a
-live webhook.
+- owned + paid → success, as before
+- **owned + NOT paid → `info`: "We're confirming your payment — your booking will update
+  shortly."** This is the case that previously announced success.
+- not owned → silence, unchanged
 
-### B4 — cancelling does not free the slot for the same booker  ⬜ TODO
+⚠️ **The not-yet-paid message must not alarm and must not say "try again".** The ordinary cause is a
+webhook in flight, which resolves in seconds; telling someone to pay again invites a double charge.
+A test asserts the text matches neither `/success/i` nor `/again|retry|failed/i`.
+⚠️ **Ownership was always checked and still is** — it answers "is this yours?", never "is it paid?".
+The two were easy to conflate because one query happened to serve both.
+
+**Verified:** 4 unit tests, `tsc`, lint 17, build.
+
+⚠️ **AND LOCALLY, THE "SLOW" BRANCH IS THE ONLY ONE A REAL PAYMENT CAN PRODUCE** — which makes this
+item easier to test than expected, and easier to misread as broken. PayMongo posts the webhook from
+their servers and cannot reach `localhost`, so a local test payment leaves `payment_reference` set
+and **`is_paid = false` permanently**. Observed 2026-10-04 on two bookings made through "Pay now".
+So "We're confirming your payment" is the correct local outcome, every time.
+
+The other two branches are reachable by visiting the return URL directly, since the toast reads
+only ownership and `is_paid`:
+`/?payment=success&booking_id=<paid booking of the signed-in booker>` → success;
+`<any id not theirs>` → silence.
+
+**✅ THE LOCAL BRANCHES WERE SEEN BY THE USER (2026-10-04)** and read correctly.
+
+⏸ **A genuinely settled payment still needs a deployed environment** — locally it is unreachable by
+construction, not by configuration.
+
+⚠️ **BUT THE HARD HALF IS ALREADY PROVEN ON STAGING, through a different front door.** The user
+reports kiosk payments settling there, and **`vendor` has no webhook route at all** — verified:
+`vendor/app/api/kiosk/payment/` contains only `create-session`. Settlement for every surface runs
+through **`booker/app/api/payment/webhook`**, the sole endpoint (`booking-flow.md:471`). So a kiosk
+payment settling on staging demonstrates that booker's endpoint is deployed and reachable, its HMAC
+verification passes, and its service-role `is_paid` write lands.
+
+**What that leaves genuinely unverified is narrower than "a settled payment":**
+1. **booker's own `create-session`** producing a working `checkout_url` — a different file from the
+   kiosk's route.
+2. **The restored client call (gaps plan K9)**, which has never run anywhere but locally.
+3. **B3's `success` branch** — the "Payment successful!" wording on a payment that really did
+   settle. The `info` branch is exercised locally every time; the success branch is not.
+
+Recorded in `architecture/booking-flow.md` under the webhook section so it is not rediscovered.
+
+### B4 — cancelling does not free the slot for the same booker  ✅ DONE (2026-10-04)
 **Index:** `bookings_no_duplicate` — `UNIQUE (booker_id, schedule_id, booked_date, coalesce(start_time,'00:00'))`,
 read from `pg_indexes` on 2026-10-04. **It has no status predicate.**
 
@@ -136,17 +202,92 @@ later.
 ⚠️ kiosk-checkout **B4** reaches the same index from the kiosk side and ties relaxing it to a
 verified managed release (its D5). A unilateral change here would pre-empt that.
 
-**Fix approach (D3(b), 2026-10-04):** change the message, not the index — one string in
-`useBookingWizard.ts`. It must stop offering "book again" for the same slot; cancelling and
-choosing a *different* slot works, and once **B2** lands the honest instruction is "pay it from
-Activity".
-⚠️ **The index itself stays**, pending kiosk-checkout D5.
+**✅ DONE 2026-10-04.** The message in `useBookingWizard.ts` now reads *"Your booking is saved but
+not paid. Cancel it from Activity if you no longer want it — to try again, book a different time."*
+The index is untouched, pending kiosk-checkout D5.
+
+**Both halves measured** against the live database in a rolled-back transaction, rather than
+asserted:
+```
+created an unpaid pending booking (an abandoned checkout)
+booker cancelled it            -> status=cancelled
+rebooked the SAME slot         -> REFUSED 23505   (B4 confirmed)
+booked a DIFFERENT time        -> ALLOWED         (what the new message says to do)
+```
+⚠️ **B2 supersedes this wording** — now that a booking can be paid from Activity, cancelling is no
+longer the only route. Left as-is deliberately: this message fires when payment *setup* failed, so
+"pay it from Activity" would send the booker to a button whose own call just failed.
+
+**✅ THE PREMISE WAS CONFIRMED LIVE (2026-10-05), by accident.** While trying to reach this message,
+the user re-booked a slot they had cancelled earlier and got **"You've already booked this slot."**
+That is `bookings_no_duplicate` refusing the retry — the exact wall this wording exists to warn
+about, previously demonstrated only in a rolled-back SQL transaction.
+
+⏸ **The rendered toast itself is still unobserved**, and two attempts to reach it failed earlier in
+the chain:
+1. **Stopping Supabase** fails booking *creation*, not payment setup — `getUser()` cannot complete,
+   so `createBooking` returns `not_signed_in` and the wizard aborts before the payment call. That
+   attempt produced item **I2**.
+2. **Blocking `*create-session*` in DevTools** is the right lever, but the booking must succeed
+   first — a duplicate slot aborts before the request is ever made (DevTools showed "0 affected").
+
+**To reach it:** block `*create-session*`, then book a slot the booker does not already hold —
+**Boat Parking** had no bookings at all. ⚠️ **Lowest-risk item outstanding**: the string is in the
+file, type-checked and built; only its rendering is unseen.
 
 ---
 
 ## IMPORTANT
 
-### I1 — `booking-flow.md` is accurate again, with two small drifts  ⬜ TODO
+### I2 — "Your session expired" is shown when Supabase is merely unreachable  ✅ DONE (2026-10-05)
+**Files:** `services/bookings.service.ts:24` · `components/booking/BookingWizard/useBookingWizard.ts:182`.
+
+With the database down, pressing "Pay" reports **"Your session expired. Please sign in again."** The
+session is usually fine; the server is simply unreachable. `createBooking` calls
+`supabase.auth.getUser()`, gets no user because the call cannot complete, and returns
+`not_signed_in` — which the wizard renders as an expired session.
+
+⚠️ **The message is not careless — it was chosen for a real case**, and its comment says so: a
+session can outlive its refresh token (e.g. after a local `db reset`) while a still-valid access
+token keeps serving reads, so the wizard loads normally right up to the booking write. That case
+deserves exactly this wording. **The defect is that one symptom now carries two causes**, and the
+instruction it gives — sign in again — cannot work during an outage, and will itself fail.
+
+**Found while trying to test B4**: stopping Supabase was expected to fail the *payment* call, but it
+fails booking *creation* first, so execution never reaches B4's message at all.
+
+**Fix direction:** distinguish "no user" from "could not ask". `getUser()` returns an error object;
+a transport failure is not an absent session. Something like *"We can't reach the server right now.
+Please try again in a moment."* for the error case, keeping the current wording for a genuinely
+absent user.
+⚠️ **Not urgent and not a blocker** — it misdiagnoses an outage, it does not lose a booking. Logged
+because it is a real wrong answer given to a customer, and because it is two lines.
+
+**✅ DONE 2026-10-05.** `CreateBookingResult` and `PayResult` gain **`unreachable`**, distinguished
+with **`isAuthRetryableFetchError`** — which is how supabase-js itself tells the two apart, and is
+already exported from the client in use, so no new dependency. Checked **before** `!user`, because a
+failed call also has no user and would otherwise fall through to the old message.
+
+The new wording: *"We can't reach the server right now. Please try again in a moment."* — which,
+unlike "sign in again", is an instruction that can actually succeed.
+
+⚠️ **TWO call sites, not one.** `payForBooking` (B2, written the day before) had the identical flaw
+and is fixed in the same breath.
+
+**The discrimination was measured, not assumed:**
+```
+network failure (AuthRetryableFetchError) -> true
+no session      (AuthSessionMissingError) -> false
+null (no error)                           -> false
+```
+So a genuinely dead session still gets "Your session expired", which is the case that wording was
+chosen for and which its original comment defends.
+
+**Verified:** `tsc` clean, 219 unit tests, lint 17, `next build` compiles, plus the helper check
+above. ⏸ The outage path itself needs the database stopped — the user has already seen the *old*
+message that way, so the route is known to be reachable.
+
+### I1 — `booking-flow.md` is accurate again, with two small drifts  ✅ DONE (2026-10-04) — ⚠️ there were FIVE
 **File:** `architecture/booking-flow.md:319-321`.
 
 The documented call exists again after K9, so the serious drift is closed. Two details remain:
@@ -154,7 +295,23 @@ step 4 still says the client sends "legacy `amountCentavos`/`description`" — t
 sends **only** `{ bookingId }` — and the sequence does not mention that **documents upload before
 the payment call**, which is a deliberate ordering (the redirect abandons anything not awaited).
 
-**Fix approach:** two sentences. No code.
+**✅ DONE 2026-10-04 — and the item under-counted its own scope.** It predicted two drifts; reading
+the whole payment section found **five**, because B2 and B3 changed behaviour the same pages
+describe and the plan was written before either existed.
+
+1. **The flow diagram** (line ~31) omitted the document upload and promised an unconditional
+   success toast.
+2. **The ordered steps** omitted the upload entirely, and did not say the ordering is load-bearing.
+3. **Step 4's "legacy `amountCentavos`/`description`"** — no longer sent. ⚠️ Also recorded there:
+   the call was **missing entirely from 2026-09-22 to 2026-10-04**, which the document never
+   acknowledged.
+4. **"Returning from PayMongo"** claimed a success toast on ownership alone; it now carries the
+   three-row table of what `is_paid` produces.
+5. **"Pay now" was undocumented** — a new section, since the wizard is no longer the only caller of
+   `create-session`.
+
+**Verified:** re-read against the code at each cited point. Documentation only — no code, no tests,
+no baselines.
 
 ---
 

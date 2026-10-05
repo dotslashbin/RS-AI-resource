@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-02
 **App / scope:** `./booker` web — Explore/search (`lib/search.ts`, `components/explore/`) and the booking path (`components/booking/`, `services/schedules.service.ts`, `services/bookings.service.ts`). Read-only: `backbone/supabase/migrations/` and `architecture/`.
-**Status:** IN PROGRESS — **done: B1, S1, S3, K1, K2, K3, K5, K6, K8, K10, K11, X1, X2, C2, G1, G3, G4, G4-command, G5.** Committed 2026-10-04 across booker, command, backbone and root. booker: `tsc` clean, **210** unit tests, lint **17**, **97/97 visual on two consecutive runs**. command: `tsc` clean, **147** unit tests, lint at its 24 baseline. **Remaining, all needing the user:** K7 (product call), K9 (payment call deleted in f331560), C1 (cross-app, vendor), D5 → G2 → S2, K4, and the wrong data left on booking `0d5481dd`. History: D1–D8 resolved; G1, G3, G4, G5 applied by the user.
+**Status:** ✅ **COMPLETE (2026-10-05).** Every item is done and almost all are live-verified by the user: B1, S1, S2, S3, K1, K2, K3, K5, K6, K7, K8, K9, K10, K11, K11-command, X1, X2, X3, C1, C2, G1, G2, G3, G4, G4-command, G5. **K4 was carried to `.plans/2026-10-04-booker-payment-lifecycle.md`**, not aborted — the gap is real and its fix is payment-shaped. ⏸ **Not verified locally and correctly deferred:** booker's own payment redirect on staging (the webhook half is already proven there by kiosk traffic), and C1's RLS boundary as a second vendor. booker: `tsc` clean, 219 unit tests, lint 17, 99/99 visual twice. command: 148 unit tests, 6 behavioural flag tests, lint 24. vendor: 525 unit tests, 199/199 visual twice. Five migrations applied by the user; four bugs of mine found and fixed during testing — the dead `hasDateSchedule` flag, the CSP blocking every photo, the payout released with no outcome chosen, and the blank-tab document link.
 
 > One-line framing: find what is missing or wrong in booker's search and booking features, grounded in the code rather than in the docs — which turned out to disagree with the code twice.
 
@@ -125,9 +125,10 @@ division chip. Both captures reviewed in both themes.
 **Verified:** `tsc` clean, 210 unit tests, lint **17**, `next build` compiles, and the capture run
 failed on exactly the two new snapshots out of 99 — nothing else moved. Then **99/99 on two
 consecutive full runs**.
-⏸ **Not live until the user applies `20261004000002`.** Until then `getUnbookableOfferings()`
-returns `null` (the RPC does not exist) and **nothing is marked**, which is the correct degradation
-rather than an error.
+**✅ VERIFIED LIVE BY THE USER (2026-10-05), both directions:** the migration is applied, "No dates
+yet" appears on a good number of Explore results, and **Boat Parking — which has a live 9–14 October
+schedule — is correctly NOT marked**. The negative case is the one that matters: a rule that marks
+everything would look the same as a working one at a glance.
 
 ### S3 — a blank category produces a blank pill  ✅ DONE (2026-10-03)
 **File:** `lib/search.ts:147-154`
@@ -273,6 +274,27 @@ on"*. The stepper dots above it are kept, because as a record of **how far they 
 true; it was only the sentence that implied the wizard would resume there.
 **Verified:** `tsc` clean; the claim itself was verified by reading `useAppShell.ts:507-510` and
 `useBookingWizard.ts:44`, which is what showed the original item to be wrong.
+
+### X3 — the COMPLAINT path, verified live  ✅ DONE (2026-10-05)
+
+The one path nobody had watched. It mattered because **G5 made every resolution set
+`app.status_change_note`, complaints included**, where before they set none — so the ordinary
+complaint ran through changed code.
+
+**Verified by the user on 2026-10-05, in both directions:**
+
+| dispute | resolved as | booking | payout |
+|---|---|---|---|
+| `a0700ab7` (Badminton Game on Court 1) | **completed** | `completed` | `releasable` |
+| `26225f51` (Badminton Game on Court 1) | **refunded** | `refunded` | **`reversed`** |
+
+Two different outcomes on the same path, which is more than was asked for: it confirms the queue
+offers more than one choice for a `disputed` booking and that each is applied correctly, with the
+payout following in both directions.
+
+Together with the disabled-Confirm check (C2) this closes the last behaviour on either plan that had
+only ever been verified in SQL. The SQL half had been run against the applied database on 2026-10-04
+in a rolled-back transaction; this is the UI half.
 
 ### G5 — BLOCKER: a refund request can never be closed  ✅ DONE — applied by the user + **live check passed** (2026-10-03)
 **Files:** `resolve_booking_dispute()` (needs a new migration) · trigger
@@ -464,6 +486,10 @@ type narrowing — the disabled button alone would be a UI-only defence.
 
 **Verified:** `tsc` clean, 147 tests pass, lint at Command's 24 baseline, `next build` compiles.
 
+**✅ THE DISABLED BUTTON WAS CONFIRMED LIVE BY THE USER (2026-10-05)** — "Confirm resolution" is
+greyed out until an outcome is chosen. That was the **last unobserved piece** of this fix, and the
+one no fixture could reach: `FlagQueue` fetches its own data, so nothing can mount it.
+
 **✅ THE CORRECTED LOGIC WAS EXERCISED LIVE 2026-10-04 by the user**, on a new offering
 ("Basics Intro", booking `35b45583`). `booking_status_log` gives the whole run:
 
@@ -484,11 +510,21 @@ all**.
 made. The run above proves a choice *was* made and honoured; it does not prove the button was
 greyed out beforehand. One glance at the panel closes it.
 
-⚠️ **DATA LEFT WRONG BY THIS, FOR THE USER TO DECIDE ON — NOT TOUCHED.** Booking `0d5481dd`
-(Recovery Massage, 8 Oct) is `completed` with payout `releasable` and its refund request closed as
-`completed`. `completed → refunded` is a legal Command transition, so it is correctable — but the
-dispute is already resolved, so the route is the admin override RPC rather than the flag queue.
-**Reported, deliberately left for the user to close.**
+**✅ THE DAMAGED ROW IS CORRECTED (2026-10-05, by the user).** `0d5481dd` is now **`refunded`** with
+payout **`reversed`**, and no dispute is open anywhere.
+
+⚠️ **The route was NOT the one I first gave, and the correction matters.** I twice told the user to
+"Request a refund" on it. **Booker never offers that on a `completed` booking** —
+`refundBlockedReason` allows only `pending` and `confirmed`. I had conflated two different layers:
+the *trigger* lets Command move `completed → refunded` (K7's work), while the *booker's button*
+governs only whether a customer may **ask**, and only before delivery. The working route was
+**"Something's wrong"** — a complaint, which `canFlag` permits on `completed` — moving the booking
+to `disputed`, where Command may resolve it as `refunded`.
+
+⚠️ **A product rule nobody has written down fell out of this: a booker cannot request a refund after
+delivery.** They can only complain, and an admin decides. That may well be intended; it is recorded
+here because it is the reason the obvious route did not exist, and it will confuse the next person
+the same way.
 
 ### K10 — BLOCKER: "Check dates" is dead — `hasDateSchedule` is never set  ✅ DONE (2026-10-04)
 **File:** `components/explore/OfferingPage/useOfferingPage.ts:41`.
@@ -549,9 +585,13 @@ world.
 `next build` compiles. The schedule's visibility was confirmed by querying as the booker under RLS
 — 1 row, so the fix has real data to act on.
 Full visual suite **97/97 on two consecutive runs** after both fixes — nothing else moved.
-⏸ **Not verified live.** `OfferingPage` fetches on mount and still has **no fixture** (F12), so
-this needs a human: open **Boat Parking** (Harbor Sports Complex) and expect "Check dates" enabled,
-the calendar offering **9–14 October**, and K5's "N left on this date" visible at last.
+**✅ VERIFIED LIVE BY THE USER (2026-10-04)** on **Boat Parking** (Harbor Sports Complex):
+"Check dates" is enabled, the calendar offers **9–14 October**, and the booking proceeds. Before
+this the button read "No dates available" and was disabled for **every** date-granular offering,
+because the flag gating it was declared and never set.
+⚠️ `OfferingPage` still has **no fixture** (F12), so there is no automated guard on this — the
+component that gates the whole date-granular flow is covered by a human looking at it and nothing
+else.
 
 ---
 
@@ -724,9 +764,13 @@ the worst case measured on 2026-10-02 — mean luminance **1**, 100% of opaque p
 it is the baseline that goes blank if anyone ever changes it. Both captures were reviewed: the mark
 renders in the division's deep colour on the light tile, legible in **both** themes.
 
+**✅ VERIFIED LIVE BY THE USER (2026-10-04)**: the cover renders in the wizard on **Boat Parking**,
+showing the real uploaded photo rather than the placeholder. Both arms of the component are now
+confirmed — the placeholder by baseline, the photo by eye.
+
 ⚠️ **Running the suite needed the user's booker dev server stopped** (they approved it): `next dev`
 refuses a second server from the same directory, and the suite's own server wants `:3200` with
-`PW_TEST=1`. **It is still stopped** — restart with `npm run dev` in `booker/`.
+`PW_TEST=1`.
 
 ### K4 — boundary item, flagged not buried: an abandoned payment holds the slot  ⬜ TODO (payment-adjacent)
 **File:** `components/booking/BookingWizard/useBookingWizard.ts:131-163`
@@ -981,7 +1025,7 @@ real test — see Verification.
 - ⚠️ `(storage.foldername(name))[1]::uuid` throws on a path whose first segment is not a UUID. That is the existing `offering-attachments` pattern, so it is consistent rather than novel — but it means the **client must never write a malformed path**, and a cast error surfaces as a storage failure, not a policy denial.
 - ⚠️ **Read is scoped here, unlike `offering-attachments`.** That bucket deliberately allows any active user to read, because its contents are vendor-published material. These are a booker's identity documents, so read is restricted to the owning booker and the vendor who must check them. Command admins are **not** granted read — the table policy gives them metadata only. Say so if that is wrong for support.
 
-### G2 — a server-side availability signal (unblocks S2 / D2)  🔄 MIGRATION WRITTEN (2026-10-04), awaiting the user applying it
+### G2 — a server-side availability signal (unblocks S2 / D2)  ✅ DONE — applied by the user + verified (2026-10-04)
 "Mark it" needs to know, per offering, whether anything is bookable — and the catalogue carries no schedule data. A client-side fan-out is one schedules query per offering, which is exactly what `useExplorePage.ts:26-29` refused for the parked "When" filter.
 **Proposed shape:** a read-only view or `SECURITY DEFINER` function returning `(offering_id, has_future_slot boolean)`, joined into the catalogue read in one go.
 ⚠️ **Deliberately not drafted in SQL yet.** The correct definition depends on what "bookable" means — a published schedule, a schedule with a future occurrence, or one with free capacity — and that is a product question, not a SQL one (**OPEN D5**).
@@ -1016,6 +1060,17 @@ unbookable, which stopped being true when K1 shipped.
 **Measured on the local seed, in a rolled-back transaction: 25 of 35 active offerings are
 unbookable — 23 with no schedule at all and 2 whose schedules have elapsed.** Those are causes 1
 and 2 from S2's own list, which is the item's premise confirmed rather than assumed.
+
+**✅ APPLIED BY THE USER 2026-10-04 and verified against the live database:**
+
+| check | result |
+|---|---|
+| `security invoker`, not definer | ✅ |
+| `stable`, `returns uuid[]` | ✅ |
+| grants | ✅ `postgres, authenticated, service_role` — **`anon` cannot call it** |
+| count | ✅ 25 of 35 |
+| **Boat Parking not marked** | ✅ — it has a live 9–14 Oct schedule |
+| **called as a real booker under RLS** | ✅ 25 — `invoker` rights mean RLS applies, so this mattered |
 
 ### G3 — booker cancellation: a trigger widening **and** an RPC (unblocks K2 / D3·D4·D6)  ✅ DONE (applied by the user 2026-10-03)
 Bookers hold no UPDATE on `bookings`, and every booker action goes through a `SECURITY DEFINER` RPC. A cancel follows that pattern: a new function that validates ownership, checks the status is cancellable, and writes the status — the client never names a status (`schema.md` → RLS Philosophy).
@@ -1356,10 +1411,14 @@ arithmetic) and what is not. **Bringing vendor into line is cross-app and needs 
 
 **Verified:** `tsc` clean, **205 unit tests**, lint at booker's 18 baseline, `next build` compiles,
 and the RPC premise measured above.
-⏸ **No visual coverage for the new line.** `dateRemaining` comes from a fetch, and the gallery's
-`step3date` fixture makes no backend call, so the count is `null` there and the arm renders
-nothing. The arithmetic behind it is unit-tested; the rendered line needs a human on a
-date-granular offering ("Equipment Hire" is the only one with a live schedule).
+**✅ VERIFIED LIVE BY THE USER (2026-10-04)** on **Boat Parking**: picking 9 October shows
+**"1 left on this date"**, with the quantity selector and the "ends on" line beside it. That line
+had never been reachable — date bookings were invisible to the occupancy query, and K10's dead flag
+blocked the only route to the screen.
+
+⏸ **Still no visual coverage.** `dateRemaining` comes from a fetch and the gallery's `step3date`
+fixture makes no backend call, so the count is `null` there and the arm renders nothing. The
+arithmetic is unit-tested; the rendered line is guarded by a human and nothing else.
 
 ⚠️ **UNPARKED 2026-10-03.** ⏸ implies "waiting on something", and this is not: it was a scope
 boundary I drew while building K1, not a blocker. It needs **no decision from the user** — the fix
@@ -1510,8 +1569,38 @@ themes. Then **199/199 on two consecutive full runs** (exit 0, zero ✘ both).
 refuses a second server for the same directory, whatever port is asked for — vendor's own AGENTS.md
 warns about this. **It is still stopped** — restart with `npm run dev` in `vendor/`.
 
-⏸ **Not verified: a real document opening.** That needs a vendor session and a booking with
-uploads. Booking `ec3e226f` has three, so it is the one to open.
+⚠️ **A BUG IN THIS ITEM, REPORTED BY THE USER AND FIXED 2026-10-04: "View" opened a blank page.**
+
+`window.open(url, target, "noopener")` **returns `null`** — severing the opener means no handle
+comes back. The first implementation opened a blank tab, awaited the signed URL, then set
+`tab.location.href`; since `tab` was always null, the navigation never happened and every click left
+an empty page. The `.catch` and the `tab?.close()` made it look defensive while doing nothing.
+
+⚠️ **The deeper mistake was design, not syntax.** I argued *against* signing up front because a
+300-second URL would expire while a vendor worked through a queue. That concern is real — and
+`components/kiosk/KioskBooking/useStepAgreements.ts` **had already solved it**, with a header
+explaining this precise trap: *"THE LINK MUST EXIST BEFORE THE TAP … fetching it on tap and then
+calling window.open runs outside the tap's user gesture, and Safari's pop-up blocker silently
+swallows that"*, plus a re-sign every 240s for the expiry. I reasoned my way past an existing,
+documented answer and produced a worse one. **Locating the pattern before inventing is the rule
+this broke.**
+
+**The fix follows that pattern:** links are signed when the modal opens, re-signed every
+`DOC_REFRESH_MS` (240s, inside the 300s lifetime), and the render layer is a plain
+`<a target="_blank" rel="noopener noreferrer">`. A failed signature renders **"Couldn't open"**
+rather than a dead link — `DocumentsView` now carries `{ doc, href }` so that state is explicit.
+
+**Verified:** `tsc` clean, 525 unit tests, lint at vendor's 29 baseline, build compiles, and the
+gallery fixture now covers **both** arms (one row with a link, one without) — reviewed, re-recorded,
+then the full suite.
+**✅ VERIFIED LIVE BY THE USER (2026-10-05)** on `ec3e226f` (Private Coaching Session, Harbor
+Sports Complex, three required documents): the section renders and **each document opens**. C1 is
+complete — a booker uploads what the offering requires, the bytes land in a private bucket, and the
+vendor who asked for it can read it.
+⚠️ **One gap worth knowing:** every booking with documents in the local data belongs to **one
+booker**, and almost all to one vendor. The RLS boundary — a vendor seeing only their own bookings'
+documents — is enforced by policy and was read from `pg_policies`, but has **not** been exercised by
+signing in as a second vendor.
 
 ## BASELINES
 
