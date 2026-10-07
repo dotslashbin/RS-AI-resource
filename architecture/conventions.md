@@ -173,6 +173,32 @@ established there, to follow for future buckets (see `vendor-kyc.md`, `schema.md
   metadata rows, or they orphan and keep consuming quota. A maintenance script
   lives at `backbone/scripts/wipe-kyc-storage.mjs`.
 
+### Opening a private file from the browser (2026-10-04, learned the hard way twice)
+
+⚠️ **Sign the URL BEFORE the click, and render a plain `<a>`.** Two traps, and the second is
+silent:
+
+1. Signing inside the click handler puts the subsequent `window.open` **outside the user
+   gesture**, where a pop-up blocker swallows it. Safari especially.
+2. The obvious workaround — open a blank tab first, redirect it once the URL arrives — **does
+   not work**: `window.open(url, target, "noopener")` **returns `null`**, because severing the
+   opener means no handle comes back. Every click then leaves an empty page, and a `tab?.close()`
+   fallback looks defensive while doing nothing.
+
+**The pattern that works**, established by `vendor/components/kiosk/KioskBooking/useStepAgreements.ts`
+and reused by the booking-documents reader: sign every file when the list mounts, **re-sign on a
+timer inside the URL's lifetime** (240 s against a 300 s signature — a user can sit on a screen
+longer than the link lives), and render `<a target="_blank" rel="noopener noreferrer">`. A file
+whose signature failed shows a message, never a dead link.
+
+⚠️ The cost is one round trip per file on open, for files that may never be viewed. Pay it; the
+alternative is a link that works on a fast machine and not on a blocked one.
+
+- **A metadata row can outlive its object.** Seeded `booking_documents` rows have no blob behind
+  them, so a reader must handle "signed URL unavailable" as an ordinary state. Write the **object
+  first and the row second**, removing the object if the row insert fails, so application code
+  never creates the reverse.
+
 ---
 
 ## Auth Service Pattern

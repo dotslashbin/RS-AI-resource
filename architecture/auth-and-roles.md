@@ -557,6 +557,31 @@ using (
 )
 ```
 
+### The booker write pattern: a `SECURITY DEFINER` RPC, never an UPDATE policy
+
+A booker holds **SELECT and INSERT on `bookings` and no UPDATE policy at all**, and that is
+deliberate — `20260801000002` states it outright: an UPDATE policy would expose `price_paid`,
+`is_paid` and `payment_reference`, and a column-level grant is role-wide. So every booker-initiated
+change of state is an RPC.
+
+| RPC | What it is for | Guard that is NOT in the trigger |
+|---|---|---|
+| `booker_cancel_booking(uuid)` | Cancel one's own booking | unpaid only; 24 h before the booked time once `confirmed` |
+| `raise_booking_dispute(uuid, text, text)` | Flag a booking, or ask for a refund | `kind` decides which; the role is derived server-side |
+| `resolve_booking_dispute(uuid, text, text)` | **Command only** — close a flag | sets `app.status_change_note` so the transition trigger accepts the write |
+
+⚠️ **The conditions live in the RPC, not the trigger, and that split matters.**
+`validate_booking_status_transition()` is **actor-aware but not intent-aware** — it cannot tell a
+booker-initiated write from a vendor's or Command's. Putting "unpaid only" or the 24-hour rule
+there would impose them on vendor and Command cancellations too. The trigger therefore answers only
+*"may this actor make this move?"*; the RPC answers *"should they, right now?"*.
+
+⚠️ **`auth.uid()` survives inside `SECURITY DEFINER`**, so the trigger still sees the booker. An
+RPC does not let a booker bypass the transition rules — it only gives them a write path at all.
+
+⚠️ **Widening the trigger opens no second door**, because the booker still has no UPDATE grant. That
+is why `20261003000001` could safely add `v_booker` to two arms.
+
 ### Privilege-tiered write pattern (`profiles`, `user_portals`, `user_roles`)
 These three tables gate writes on the **target's** privilege as well as the
 caller's. `profiles`, `user_portals` and `user_roles` are the only tables using

@@ -732,7 +732,7 @@ component, consumed by all four steps; `useBookingWizard` already holds the offe
 **Component separation:** a pure display component (no state, effects or handlers) — the one
 exception the convention allows — so a `.tsx` plus a `.module.css`, no companion hook.
 
-**🔄 BUILT 2026-10-04.** Narrower than the item first proposed, because the wizard's head
+**✅ BUILT 2026-10-04.** Narrower than the item first proposed, because the wizard's head
 **already carried the name, the vendor and the city** — only the image was missing. So this adds a
 cover thumbnail to the existing head rather than a new header that would have duplicated the text.
 
@@ -1028,10 +1028,11 @@ real test — see Verification.
 ### G2 — a server-side availability signal (unblocks S2 / D2)  ✅ DONE — applied by the user + verified (2026-10-04)
 "Mark it" needs to know, per offering, whether anything is bookable — and the catalogue carries no schedule data. A client-side fan-out is one schedules query per offering, which is exactly what `useExplorePage.ts:26-29` refused for the parked "When" filter.
 **Proposed shape:** a read-only view or `SECURITY DEFINER` function returning `(offering_id, has_future_slot boolean)`, joined into the catalogue read in one go.
-⚠️ **Deliberately not drafted in SQL yet.** The correct definition depends on what "bookable" means — a published schedule, a schedule with a future occurrence, or one with free capacity — and that is a product question, not a SQL one (**OPEN D5**).
+⚠️ **Was deliberately not drafted in SQL until D5 resolved** (it is now written and applied — see
+below). The correct definition depended on what "bookable" means — a published schedule, a schedule with a future occurrence, or one with free capacity — and that is a product question, not a SQL one (**OPEN D5**).
 **Blast radius (shape only):** read-only, additive, no existing object altered; reversible by dropping it. Cost is one extra join on the catalogue read, which happens once per session.
 
-**🔄 WRITTEN 2026-10-04, NOT APPLIED:** `backbone/supabase/migrations/20261004000002_unbookable_offerings.sql`.
+**✅ WRITTEN 2026-10-04 AND APPLIED BY THE USER:** `backbone/supabase/migrations/20261004000002_unbookable_offerings.sql`.
 
 ⚠️ **`security invoker`, NOT `security definer` — against the shape this item first sketched.**
 Both tables it reads are already visible to the caller (*"active users can read active offerings"*
@@ -1522,7 +1523,7 @@ Grepped: **nothing in `vendor/` references `booking_documents`.** The table has 
 So B1 on its own moves the problem rather than solving it: the booker's document would be stored and visible to them, and the vendor — the person who required it — still would not see it. **Closing the loop needs a vendor-side change**, which is a second app and its own approval under AGENTS.md's cross-app rule.
 **Recommended order:** G1 + B1 first (the booker stops being lied to and the file is really kept), then the vendor reader as a separate, explicitly-approved piece. Say if you want them batched instead.
 
-**🔄 BUILT 2026-10-04**, cross-app approval given by the user. `vendor/` only — no booker, no
+**✅ BUILT 2026-10-04**, cross-app approval given by the user. `vendor/` only — no booker, no
 command, **no migration**.
 
 ⚠️ **NO MIGRATION WAS NEEDED, and that is the surprise worth recording.** Both halves of the
@@ -1597,10 +1598,26 @@ then the full suite.
 Sports Complex, three required documents): the section renders and **each document opens**. C1 is
 complete — a booker uploads what the offering requires, the bytes land in a private bucket, and the
 vendor who asked for it can read it.
-⚠️ **One gap worth knowing:** every booking with documents in the local data belongs to **one
-booker**, and almost all to one vendor. The RLS boundary — a vendor seeing only their own bookings'
-documents — is enforced by policy and was read from `pg_policies`, but has **not** been exercised by
-signing in as a second vendor.
+**✅ THE RLS BOUNDARY WAS THEN MEASURED (2026-10-05), not merely read.** Tested as **Jose Dela
+Cruz**, vendor-admin of **Citywide Sports Center only** (most seed admins belong to several vendors,
+so the subject had to be chosen carefully):
+
+| check | result |
+|---|---|
+| document rows visible | **10 of 25** — exactly Citywide's |
+| can he see Harbor's `ec3e226f` documents? | **no** |
+| storage objects visible | 7 |
+
+⚠️ **The 10-vs-7 gap is not an RLS hole — it is seed data.** 5 of the 25 rows platform-wide have
+**no object behind them**, and all 5 belong to seeded bookings (`30000000…`); 3 of those are
+Citywide's. The seed inserts `booking_documents` rows without uploading files. Application code
+cannot produce that state: `uploadBookingDocuments` writes the **object first and the row second**,
+removing the object if the row insert fails. It is also exactly why the reader renders
+**"Couldn't open"** for a row it cannot sign.
+
+⏸ **Only the UI half is left, and it is low value:** signing into vendor as a Citywide admin to see
+the same component render for a second tenant. The data boundary — the part that could actually have
+differed — is now proven.
 
 ## BASELINES
 

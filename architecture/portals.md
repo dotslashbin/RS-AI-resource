@@ -196,6 +196,29 @@ Refund & Cancellation Policy **notice**, deliberately not a second checkbox.
 #### Progressive Web App (2026-07, live)
 Installable to a home screen on Android and iOS. `app/manifest.ts` declares name/icons/`display: "standalone"`; the same hand-rolled service worker pattern as vendor (`public/sw.js`, no dependency) serves a self-contained `offline.html` fallback on failed navigations and cache-first for same-origin static assets (⚠️ in practice **every** same-origin GET, including RSC payloads and `/api` GETs. Vendor's copy was narrowed to `/_next/static/` on 2026-09-14 and booker's was not; see the TODO in `.plans/2026-07-18-booker-vendor-pwa-readiness.md` Notes), with cross-origin requests (Supabase, Realtime, PayMongo) explicitly never intercepted or cached. A dismissible "Install App" banner (`components/layout/InstallPrompt`) offers a real one-tap install on Android/Chromium, instructions-only on iOS Safari, or a "reopen in Safari" message on other iOS browsers. **Known gap specific to booker:** the Step 6 PayMongo redirect leaves the app's origin — in standalone mode, the return trip from PayMongo's hosted checkout page is not guaranteed to land back inside the installed app window (may open in a browser tab instead); the booking record and webhook `is_paid` flag remain authoritative regardless, so this is a cosmetic risk, not a data-integrity one, but it has not yet been live-tested on real devices. See `.plans/2026-07-18-booker-vendor-pwa-readiness.md`.
 
+#### Payment, cancellation and refunds (2026-10-03/05)
+
+- **Cancel a booking** — unpaid only, free while `pending`, up to 24 h before once `confirmed`
+  (`booker_cancel_booking`). ⚠️ The conditions live in the RPC, not the trigger, because the
+  trigger cannot tell a booker-initiated write from any other.
+- **Request a refund** — paid bookings, **before delivery only** (`pending`/`confirmed`).
+  ⚠️ After delivery a booker's only route is a complaint, and Command decides. Mutually
+  exclusive with Cancel; a booking never offers both.
+- **"Pay now"** on an unpaid `pending` booking — an abandoned or failed checkout can be paid
+  from Activity. ⚠️ Before this the wizard was the **only** caller of `create-session`, so such
+  a booking could not be paid at all — and cancelling did not help, because
+  `bookings_no_duplicate` keeps a cancelled row's slot key and the same booker cannot rebook it.
+- **The payment return no longer claims success on a redirect.** It reads `is_paid`; a booking
+  that has not settled says *"We're confirming your payment"*.
+- ⚠️ **An unpaid booking still holds its slot indefinitely** — there is no expiry. Parked as B1
+  in `.plans/2026-10-04-booker-payment-lifecycle.md`, handed to the kiosk checkout plan.
+
+#### Explore (2026-10-04)
+
+- Offerings with **no bookable date** carry a "No dates yet" chip (`get_unbookable_offerings`).
+  Marked, not hidden: 25 of 35 in local seed data are unbookable, mostly because a vendor has
+  published no schedule yet, and hiding them would erase most of the catalogue.
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -221,13 +244,18 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 
 ### Known Gaps
 
-- **A date-granular offering cannot be booked at all.** Step 3 detects the mode correctly and computes the bookable span, but `Step3Schedule.tsx` never renders it: the panel shows *"No time slots available for this date."* and `canNext` (`!!date && !!time`) can never pass, because nothing sets a time in this mode. Any offering measured in `day`/`week`/`month` is therefore a dead end for the booker, even though the database validates such bookings fine. The vendor portal can create these schedules today, so the two sides disagree. Full trace in `booking-flow.md` → "Date-granular offerings"; the existing Playwright test is green because it only asserts the absence of slots
+- ~~**A date-granular offering cannot be booked at all.**~~ ✅ **Fixed 2026-10-03/04.** The
+  wizard gained the mode (one date plus a quantity), the Offering page gained a working
+  "Check dates", and the date mode now shows "N left on this date".
+  ⚠️ **It shipped behind a dead gate for a day**: `hasDateSchedule` was declared and never
+  set, so "Check dates" was disabled for **every** such offering and nobody could reach the
+  mode. `OfferingPage` fetches on mount and has **no fixture**, so nothing caught it.
 - ~~**Document uploads not persisted.**~~ ✅ **Fixed 2026-10-03.** Files now go to the private
   `booking-documents` bucket with a `booking_documents` row each, sent once the booking row
   exists. ⚠️ The gap was worse than this line said: the step reported *"N of M required
   uploaded"* while discarding the `File` on selection, so it was affirmatively wrong rather than
-  merely incomplete. ⚠️ **Still open: no vendor UI reads them**, so the vendor who required the
-  document cannot yet see it (C1 in `.plans/2026-10-02-booker-search-and-booking-gaps.md`).
+  merely incomplete. ✅ **And the vendor can now read them** (C1, 2026-10-04): a "Customer documents" section on
+  the vendor's booking detail. The loop is closed end to end.
 - ~~**Vendor map has no vendor markers.**~~ **Resolved 2026-09-22 by removal** — the map is gone
   (plan D4, S6-a; `leaflet` and `react-leaflet` uninstalled). Directions are a Maps link and
   location is a city filter. The underlying fact remains and now blocks something else:
@@ -670,6 +698,22 @@ they claim the account created for them, since `disputed` requires `v_booker`.
   reading **Free**. The booking reads "Free / No payment needed" in the vendor's booking
   details. The booker app still cannot book a ₱0 offering (launch follow-up F15)
 
+#### Customer documents on a booking (2026-10-04)
+
+The vendor side of booker's document upload. A "Customer documents" section on the booking
+detail lists what the customer attached, with a **View** link per file.
+
+⚠️ **No migration was needed, and that is the surprise**: the table policy ("vendor admins can
+read their booking documents", since 2026-05) and the bucket policy (shipped with the bucket in
+`20261002000001`) both already existed and had **never been used**.
+⚠️ **Links are signed when the modal opens and re-signed every 240 s**, and the control is a
+plain `<a>`. Signing on click puts `window.open` outside the user gesture, where a pop-up
+blocker swallows it — and `window.open(…, "noopener")` **returns null**, so the
+open-a-blank-tab-then-redirect workaround leaves an empty page. `useStepAgreements` had already
+solved this; see its header.
+⚠️ A row whose file cannot be signed shows **"Couldn't open"**, never a dead link. Seeded
+`booking_documents` rows have no object behind them, so they land there legitimately.
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -921,6 +965,20 @@ All four tabs are reachable by anyone who reaches the command portal at all — 
 #### Transactions Page (mock)
 - Full transaction table with search, filter panel, sorting, and pagination
 - Sourced from `ALL_TXNS` constant (`genTxns()`) — no `wallet_transactions` table exists yet
+
+#### Flag queue — refund requests and outcome filtering (2026-10-03/05)
+
+- The queue distinguishes a **refund request** from a complaint (`booking_disputes.kind`).
+- **Outcomes are filtered to what the transition trigger will accept** for that booking's
+  status (`lib/flagOutcomes.ts`, which mirrors it). A status with none shows an explanation
+  instead of buttons.
+- ⚠️ **"Confirm resolution" is disabled until an outcome is chosen.** It used to be enabled with
+  an invisible `completed` default, so a panel rendering **zero** outcome buttons still
+  resolved the flag as completed — releasing a vendor payout nobody had chosen, on a booking
+  whose customer had asked for a refund. It reached a real booking before it was caught.
+- The queue was split into `FlagQueue` (container) + `FlagQueueView` (pure) so a fixture can
+  mount it; `visual-tests/flags.spec.ts` carries 6 **behavioural** tests. Before that this
+  screen had **no coverage of any kind**, which is how the above shipped.
 
 ### What Is Live vs. Mock
 

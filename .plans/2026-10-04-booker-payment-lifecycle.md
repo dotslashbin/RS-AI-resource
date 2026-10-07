@@ -3,8 +3,47 @@
 **Date:** 2026-10-04
 **App / scope:** `booker/` primarily; `backbone/` for any lifecycle change (approval-gated). **Not** the vendor kiosk — see the coupling note.
 **Status:** ✅ **COMPLETE for its executable scope (2026-10-05)** — B2, B3, B4, I1, I2 all done. ⏸ **B1 is PARKED, not done**, and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`: **booker still holds a slot for every abandoned checkout.** Decisions D1–D3 resolved. ⏸ Also unverified locally: booker's own `create-session` + redirect, and B3's success branch — both need staging.
-PARKED, not done**, and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`: booker still
-holds a slot for every abandoned checkout. Decisions D1–D3 resolved.
+
+---
+
+## ⏭️ PICKING THIS UP COLD? START HERE
+
+**One thing is unfinished, and it is a live defect: B1.** Everything else on this plan and on
+`.plans/2026-10-02-booker-search-and-booking-gaps.md` is built and verified.
+
+**The defect:** `confirmBooking()` inserts the booking **before** a checkout session exists, so
+capacity is consumed the moment "Pay" is pressed. If the customer never pays, the row stays
+`pending`/unpaid **for ever** and the placement trigger counts it against the slot. Nothing
+expires it. It was dormant while booker's payment call was missing (2026-09-22 → 2026-10-04) and
+went live again when K9 restored it.
+
+**Why it is parked rather than fixed —** decision **D1(a)**, 2026-10-04:
+`.plans/2026-09-29-vendor-kiosk-custom-checkout.md` **B4** is already designing this exact
+lifecycle (a server-run expiry with a guarded release RPC). Building a second mechanism would give
+the platform two answers to "when does an unpaid reservation die".
+
+**⚠️ THE ONE ACTION THAT UNBLOCKS IT, and it is not a code change:** that plan's B4 currently says
+*"never blanket-cancel … paid/free bookings, confirmed bookings **or booker/mobile reservations**"*.
+That sentence reads as a guard against sweeping historical rows, not a decision that booker must
+never be managed — but as written it makes the handoff a no-op. **Its authors must widen it.** An
+OPEN QUESTION is already recorded there, under B4, with the detail. Until that is answered, do not
+build a booker-side expiry: that is the thing D1 deliberately rejected.
+
+**Two constraints any implementation inherits**, both measured:
+- `pending → cancelled` admits **no system actor** in the live trigger, so a service-role sweeper
+  is refused. An expiry needs a trigger change or an RPC — both approval gates.
+- `bookings_no_duplicate` is **unconditional**, so a released booking still blocks the same
+  customer rebooking the same slot (that plan's D5).
+
+**The agreed hold window, provisional:** 30 minutes from session creation, capped by the booked
+start, server-measured (**D2**) — deliberately not the kiosk's five minutes, because a booker at
+home is not a walk-in with a queue behind them. It must be agreed against that plan's D3 rather
+than set here.
+
+**What makes the parking tolerable:** **B2** shipped, so a held slot can still be *paid* from
+Activity. A slot that is held but payable is a much smaller problem than one that is neither.
+
+---
 
 > Carved out of `.plans/2026-10-02-booker-search-and-booking-gaps.md` item **K4** on the user's
 > decision (2026-10-04): the symptom is booking-capacity, but every fix is payment-shaped, so it

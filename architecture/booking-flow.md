@@ -198,6 +198,20 @@ would offer a span that is refused at the final step.
 > and a genuinely full slot would otherwise look identical. Until the count lands every slot
 > reads as available, deliberately: the DB refuses an overbooking regardless, whereas greying
 > out a free slot on a slow network would block a legitimate booking.
+>
+> ⚠️ **Date-granular bookings needed a SECOND function (2026-10-04, plan K5).** They have no
+> `start_time`, so `getSlotOccupancy`'s instant-keyed mapping dropped them and a day/week/month
+> offering could show no count at all. `getDateOccupancy()` asks the question whole days pose,
+> and **queries BACKWARDS**: `get_slot_occupancy` filters `booked_date between p_from and p_to`
+> — on the booking's *start* date — so asking about one day returns only bookings that BEGAN
+> that day, and a five-day booking covering it is invisible. The window opens `lookback` days
+> earlier, where `lookback = daysPerUnit × maxUnits - 1`.
+>
+> ⚠️ **The RPC caps any window at 31 days**, so a span longer than that is genuinely unknowable
+> from the client and returns `known: false` — rendered, correctly, as no number. Removing that
+> limit means an overlap predicate in the RPC, e.g.
+> `daterange(booked_date, coalesce(end_date, booked_date) + 1) && daterange(p_from, p_to + 1)`.
+> Not done; it is a function change and therefore an approval gate.
 > Vendor and kiosk read under vendor RLS and were never affected.
 
 **Duration is read per schedule, not from the offering card.** `getSchedulesForOffering()`
