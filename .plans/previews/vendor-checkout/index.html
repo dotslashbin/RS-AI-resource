@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vendor checkout — design preview</title>
+    <link rel="stylesheet" href="preview.css">
+    <script src="preview.js" defer></script>
+  </head>
+  <body>
+    <aside class="preview-tools" aria-label="Design preview controls">
+      <span><strong>DESIGN PREVIEW</strong> · Fake data · No payments</span>
+      <div class="preview-controls">
+        <label for="screen">Screen</label>
+        <select id="screen">
+          <option value="choice">01 · Choose payment</option>
+          <option value="preparing">02 · Preparing payment</option>
+          <option value="qr">03 · Scan QR Ph</option>
+          <option value="gcash">04 · GCash handoff</option>
+          <option value="checking">05 · Checking payment / return</option>
+          <option value="received">06 · Payment received, awaiting vendor</option>
+          <option value="expired">07 · Released booking</option>
+          <option value="late">08 · Late payment exception</option>
+          <option value="offline">09 · Connection lost</option>
+          <option value="reset">10 · Clearing kiosk, waiting for server</option>
+          <option value="inuse">11 · Another tab is in use</option>
+          <option value="recovery">12 · Staff recovery confirmation</option>
+          <option value="free">13 · Free booking receipt</option>
+        </select>
+        <label for="theme">Theme</label>
+        <select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+      </div>
+    </aside>
+    <div class="kiosk">
+      <header class="brand-bar">
+        <div class="brand"><span class="mark" aria-hidden="true">S</span><div><p class="vendor-name">Sample Studio</p><p class="vendor-sub">Self-service booking</p></div></div>
+        <span class="pill">Kiosk</span>
+      </header>
+      <main class="flow" id="preview" aria-live="polite"></main>
+      <footer class="staff-footer"><span>Design assets: existing theme + outline icons. <strong>No new packages.</strong></span><button class="staff-button" type="button" data-screen="recovery">Staff recovery</button></footer>
+    </div>
+  </body>
+</html>
