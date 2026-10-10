@@ -17,6 +17,7 @@ async function verify() {
     });
     const root = pathToFileURL(path.join(__dirname, 'index.html')).href;
     const screens = ['choice', 'preparing', 'qr', 'gcash', 'checking', 'received', 'expired', 'late', 'offline', 'reset', 'inuse', 'recovery', 'free'];
+    let compactSummaryChecks = 0;
     async function open(screen, theme = 'light') {
       await page.goto(`${root}?theme=${theme}&screen=${screen}`);
       await page.locator('#preview h1').waitFor();
@@ -32,6 +33,18 @@ async function verify() {
         return rect.top < 0 || rect.bottom > innerHeight;
       }).map((element) => element.className));
       if (await page.evaluate(() => innerWidth > 760)) assert.deepEqual(croppedChrome, [], `${theme}/${screen}: fixed kiosk chrome cropped`);
+      if (await page.evaluate(() => innerWidth <= 760) && ['choice', 'qr', 'gcash'].includes(screen)) {
+        const summary = page.locator('.booking-summary');
+        const bounds = await summary.boundingBox();
+        assert.ok(bounds.height <= 150, `${theme}/${screen}: phone summary exceeds 150px`);
+        assert.match(await summary.innerText(), /Studio session/);
+        assert.match(await summary.innerText(), /2:00–3:00 PM · Manila/);
+        assert.match(await summary.innerText(), /₱500/);
+        const action = screen === 'choice' ? page.locator('.method').first() : page.locator('.qr-view .payment-title');
+        const actionBounds = await action.boundingBox();
+        assert.ok(actionBounds.y < await page.evaluate(() => innerHeight), `${theme}/${screen}: payment action below initial viewport`);
+        compactSummaryChecks++;
+      }
     }
     for (const theme of ['light', 'dark']) {
       for (const screen of screens) {
@@ -78,7 +91,7 @@ async function verify() {
     }
     assert.deepEqual(errors, [], 'Browser JavaScript errors');
     assert.deepEqual(externalRequests, [], 'Unexpected external requests');
-    console.log('PASS: 26 desktop theme/state checks; 18 initial responsive checks; 78 phone theme/state checks (360/390/430px); 44px touch targets; kiosk chrome bounds; privacy-screen copy; mock navigation; no JS errors or external HTTP requests. Eight desktop and sixteen phone PNGs generated.');
+    console.log(`PASS: 26 desktop theme/state checks; 18 initial responsive checks; 78 phone theme/state checks (360/390/430px); ${compactSummaryChecks} compact summary/action-placement checks; 44px touch targets; kiosk chrome bounds; privacy-screen copy; mock navigation; no JS errors or external HTTP requests. Eight desktop and sixteen phone PNGs generated.`);
   } finally {
     await browser.close();
   }

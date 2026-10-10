@@ -12,8 +12,11 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 
 ## Migration History
 
+**Local consolidation reconciliation (2026-10-10):** the working tree replaces the four historical `20261003000001_booker_cancel_booking.sql`, `20261003000002_refund_requests.sql`, `20261003000003_resolve_dispute_status_note.sql` and `20261004000001_refund_from_delivered.sql` files with `20261003000001_booker_refunds_and_cancellation.sql`. Their entries below are retained as historical provenance, not four additional files to apply alongside the replacement. Claude reports successful local replay/validation on 2026-10-09; Codex independently checked source-body equivalence and repaired declarations/comments, not the live database. The replacement remains untracked and the originals are uncommitted deletions at this checkpoint. Staging/production migration history and durable replay evidence remain B7 inputs in [CHECKOUT-HANDOFF.md](../CHECKOUT-HANDOFF.md#evidence-completion-request--2026-10-10). This inventory is not deployment approval or authority to rewrite any applied migration.
+
 | File | Description |
 |------|-------------|
+| `20261003000001_booker_refunds_and_cancellation.sql` | Current local consolidation of the four historical October cancellation/refund migrations named above. Adds `booking_disputes.kind`; preserves the final `validate_booking_status_transition()`, `booker_cancel_booking()`, UUID-returning three-argument `raise_booking_dispute()` and `resolve_booking_dispute()` definitions, comments and RPC grants. Local replay reported by Claude; remote deployment unverified. No custom-checkout expiry implementation is introduced by consolidation. |
 | `20260504000001_lookup_tables.sql` | Seed data: `statuses`, `portals`, `roles` |
 | `20260504000002_schema.sql` | Core tables: `profiles`, `user_portals`, `user_roles`, `vendors`, `vendor_members` + all RLS helper functions |
 | `20260504000003_rls.sql` | RLS policies for core tables |
