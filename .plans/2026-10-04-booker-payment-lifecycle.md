@@ -161,7 +161,7 @@ dropped and `bookingcancel`'s comment now records that the pane covers both cont
 **Verified:** `tsc` clean, **219 unit tests**, lint **17** (booker's baseline), `next build`
 compiles, and the capture run failed on exactly `bookingcancel` ×2 — the expected gain of a button —
 then **99/99 on two consecutive full runs**.
-⏸ **The redirect itself is unverified** — it needs a live payment, which the user has deferred
+✅ **The redirect is now verified (staging, 2026-10-13).** Repeated bookings through the deployed booker reached PayMongo's hosted page, and each left `payment_reference` populated — written at `create-session/route.ts:120` only after PayMongo returns a checkout session. So the route, the session creation and the redirect all work on a deployed environment. Recorded via `.plans/2026-09-29-booker-live-verification.md` L5/L6 setup.
 pending their PayMongo rework.
 
 ### B3 — success is claimed on the redirect, not on settlement  ✅ DONE (2026-10-04)
@@ -206,7 +206,7 @@ only ownership and `is_paid`:
 
 **✅ THE LOCAL BRANCHES WERE SEEN BY THE USER (2026-10-04)** and read correctly.
 
-⏸ **A genuinely settled payment still needs a deployed environment** — locally it is unreachable by
+✅ **Settlement is now evidenced on staging (2026-10-14).** Two bookings created 2026-10-13 are `is_paid` with a `payment_reference` **and carry a `booking_transactions` row** — and `bookings_create_transaction` fires `AFTER UPDATE OF is_paid`, never on insert, so `is_paid` was flipped *after* creation. That is the webhook's signature and nothing else produces it. ⚠️ The booker-facing success branch was still not observed deliberately; that remains L2.
 construction, not by configuration.
 
 ⚠️ **BUT THE HARD HALF IS ALREADY PROVEN ON STAGING, through a different front door.** The user

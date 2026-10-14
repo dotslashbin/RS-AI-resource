@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-29
 **App / scope:** `booker/` **as deployed** — the checks that cannot be run from a terminal. No code changes belong to this plan; a failure here opens an item on the plan that owns the code.
-**Status:** IN PROGRESS — **L0 is COMPLETE (2026-10-01): L0-a, L0-b, L0-c and L0-d all passed by the user.** **L3-c decided** — the booker demo seed is staging-only, never production, now recorded in `architecture/database-reset-and-deploy.md`. ⏸ **L1, L2, L3-a and L3-b are PARKED at the user's request** — booker is not on staging yet and local testing continues; they unblock on the staging push, in that order. One finding logged for the user to close: **F1**, the booker demo seed has no double-run guard. **L5 and L6 added 2026-10-03** — the booking-document upload (B1) and booker cancellation (K2), both built on 2026-10-03 behind gates the user applied; neither is exercisable without a real session. **L4 added 2026-10-02** — Explore's reveal cap, moved here from the 2026-10-02 UI plan because no local fixture can exercise it; parked with L1/L2 until the staging push. **Nothing here is waiting on me.**
+**Status:** ✅ **COMPLETE for its staging scope (2026-10-14).** Every staging check passed: ✅ **L0** (2026-10-01), ✅ **L6**, ✅ **L5** (2026-10-13), ✅ **L1**, ✅ **L4**, ✅ **L2** (2026-10-14) — all performed by the user in the real UI, with read-only database verification alongside. ⏸ **L3-a and L3-b remain PARKED** — production posture is deliberately deferred as a pre-production gate, and is the only reason this plan is not closed outright. ⚠️ The run **found and fixed a defect** (F3, closed 2026-10-14): no confirmed booking carrying a clock time had ever been cancellable from booker's UI, in any environment. It also **withdrew a false finding** (F2) that had been written from an unverified assumption. **L3-c decided** — the booker demo seed is staging-only, never production (`architecture/database-reset-and-deploy.md`). ⬜ **F1** remains open and documented: `booker-demo-seed.sql` has no double-run guard. ⚠️ One presentational detail unconfirmed — **I15**, the wizard opening at Schedule; see L2.
 
 > Split out of `.plans/2026-09-18-booker-home-search-redesign.md` on 2026-09-29 on the user's
 > instruction: *"All the stages that involve live testing (staging or prod), put them in a
@@ -102,7 +102,34 @@ counting zero pixels.
 
 ---
 
-## L1 — [S3b-5] Staging: a second booker's booking lowers "N left"  ⏸ PARKED 2026-10-01
+## L1 — [S3b-5] Staging: a second booker's booking lowers "N left"  ✅ COMPLETE (2026-10-14)
+
+**Verified on staging 2026-10-14** with two real accounts, clean before/after.
+
+**Subject:** schedule `de300000-0000-4000-8000-000000000301` — Demo Court Hire, Citywide Sports
+Center, window 08:00 + 720 min, 60-minute slots, **capacity 30**. Slot **2026-10-16 10:00**, chosen
+because it held zero bookings.
+
+| Step | Who | Observed |
+|---|---|---|
+| before | liza@bookdeck.com | badge **30 left** |
+| book | ben@bookdeck.com | booking `2df74e47`, `pending`, unpaid |
+| ground truth | read-only query | `bookings_now = 1`, `badge_should_say = 29` |
+| after | liza@bookdeck.com | badge **29 left** |
+
+⚠️ **Why the drop is the proof and the number alone is not.** Ben's row is invisible to liza under
+RLS. A booker counting client-side sees only their own bookings and would therefore still have read
+**30** — which is exactly what F61 was, and the wizard rendered a confident number either way. Liza
+reading 29 is only possible if `get_slot_occupancy` ran `SECURITY DEFINER` and counted across
+bookers.
+
+The badge also never had to be distinguished from a failure: I49 made Step 3 track `occupancyKnown`
+and render **no badge** when the lookup fails, rather than `0` (which reads as Full). A number
+appeared, so the RPC answered.
+
+**Ground truth was computed WITHOUT the RPC** — a direct aggregate over `bookings` with the same
+`status not in ('cancelled','refunded')` filter — so a broken RPC could not have supplied both sides
+of the comparison.
 
 **What:** with two real booker accounts on staging, book a slot as A and confirm the remaining
 count drops for B.
@@ -127,25 +154,77 @@ would mean Full). So on staging:
 
 ---
 
-## L2 — [S6-b] Staging: Explore → Offering → Schedule → Pay  ⏸ PARKED 2026-10-01
+## L2 — [S6-b] Staging: Explore → Offering → Schedule → Pay  ✅ COMPLETE (2026-10-14)
 
-**What:** one full booking against PayMongo **test mode** on staging.
+**Completed on staging 2026-10-14** by the user, booking `12f830a5` — Demo Equipment Hire,
+Citywide Sports Center, ₱250, PayMongo **test mode**.
 
-Covers the redesign plan's live rows for **I15** (the wizard now starts at Schedule from the
-offering page; Steps 1–2 and the map are gone) and the money path.
+**Route taken:** the wizard run was abandoned at the PayMongo page (the user refreshed it), leaving
+a `pending`, unpaid booking with a session reference. Payment was then completed from **Activity →
+Pay**, so this run also exercises **B2** — paying a booking whose checkout was abandoned. Before B2
+that booking could only have been cancelled, and not even rebooked for the same slot, because
+`bookings_no_duplicate` holds a cancelled row's slot.
 
-**Watch for:**
-- The return URL resolving. `lib/siteUrl.ts` throws on a Vercel build with no usable site URL —
-  see the comment in `app/api/payment/create-session/route.ts`.
-- `is_paid` flipping on the booking after the webhook, **without a reload** (realtime, trap (i)).
-- ⚠️ **Do not retry a failed payment.** Retry is parked as **P2** precisely because
-  `create-session` could charge twice today (F3). One attempt per booking.
+⚠️ **The earlier "one attempt per booking" caution was wrong and is withdrawn.** The webhook matches
+on `booking_id` in the session metadata, not on `payment_reference`, so a second checkout session
+settles the same booking correctly. Only traceability is affected.
 
-**Verification type:** needs staging keys and a browser. Not simulable here.
+**Settlement — the decisive evidence:**
 
----
+| | |
+|---|---|
+| Booking created | 23:35:39 UTC |
+| **Ledger row written** | **23:46:08 UTC** |
+| `is_paid` | **true** |
 
-## L4 — [plan 2026-10-02 F3] Staging: Explore's reveal cap and its photo fetch  ⏸ PARKED 2026-10-02
+`bookings_create_transaction` fires `AFTER UPDATE OF is_paid`, **never on insert** — so a ledger row
+ten minutes after creation can only mean the webhook arrived and flipped it. Totals moved 140 → 141
+for both paid bookings and ledger rows. **This is PayMongo settlement working end to end, the one
+thing never demonstrated in any environment before 2026-10-13** (the webhook cannot reach localhost).
+
+**Money path, computed by the trigger:** `amount_paid` 250.00 · platform fee 11% = 27.50 ·
+`payout_amount` 222.50 · `net_payout_amount` 221.39 after withholding · `payout_status` **held**.
+
+**B3 verified — the point of the item.** The user saw *"Payment successful! Your booking is pending
+confirmation."*, the `is_paid = true` branch of `paymentReturnMessage`. That means the webhook landed
+**before** the redirect returned, and — critically — the toast was chosen by **reading `is_paid`**,
+not by trusting `?payment=success`. Until 2026-10-04 the code read ownership alone and announced
+success regardless, so a booker could be told their money had gone through while `is_paid` was false.
+
+**Notifications:** `new_booking` ×3 and `payment_confirmed` ×3, all portal `vendor` — Citywide has
+exactly 3 vendor-admins, so that is one each, not duplication. No booker-facing row, which is correct:
+`payment_confirmed` is seeded "Sent to vendor when PayMongo confirms" and the webhook's fan-out is
+vendor-only by design.
+
+⚠️ **Not explicitly confirmed: I15** — that the wizard opens at **Schedule** when entered from the
+offering page. The user walked the wizard to the PayMongo page on the first attempt but did not
+report which step it opened on, and the second attempt bypassed the wizard via Activity → Pay. The
+money path is fully verified; this one presentational detail is not.
+
+## L4 — [plan 2026-10-02 F3] Staging: Explore's reveal cap and its photo fetch  ✅ COMPLETE (2026-10-14)
+
+**Verified on staging 2026-10-14**, signed in as ben@bookdeck.com, Explore with nothing typed.
+
+**Catalogue measured read-only first, so the check could actually fail:** **32** active offerings,
+all with a vendor row (the `vendors!inner` join drops none). Above 24, so the cap is falsifiable —
+below it the test would have proved nothing.
+
+| Half | Observed | Verdict |
+|---|---|---|
+| Reveal cap | "32" total shown, **24 cards rendered**, "**8 remaining**" revealed on Show more | ✅ the slice is applied |
+| Bounded photo fetch | the `offering_attachments` request payload carried **exactly 24 ids**, not 32 | ✅ keyed to `visibleIds`, not the full result set |
+
+⚠️ **Counting requests would NOT have worked, and the first instruction given was wrong.**
+`getCoverPhotos` batches 50 ids per request, so at 32 offerings both the bounded (24) and unbounded
+(32) cases produce exactly **one** request. Only the **id count inside the payload** discriminates.
+At 10,000 offerings — what `fetchAllPages` can return — the unbounded form becomes up to **200
+serial round-trips**, which is what the cap exists to prevent and what no local fixture can show.
+
+**Bonus, verified incidentally and significant:** several cards rendered **real photographs**. Until
+K11 (2026-10-05) `img-src` omitted the Supabase origin, so **no offering photo had ever rendered in
+booker in any environment** — this is the first time that fix has been exercised anywhere. 12 of the
+32 active offerings carry photos (15 rows, all 15 with real objects, zero orphans), so placeholder
+marks on the remainder are correct rather than a failure.
 
 **What:** open Explore on staging against a real catalogue, with nothing typed, and confirm two
 things: **24** service cards render (not the whole catalogue), and the cover-photo requests are
@@ -208,7 +287,33 @@ queue.
   ⚠️ **Found while checking: no double-run guard** → logged as **F1** below, for you to close.
 ---
 
-## L5 — [plan 2026-10-02 B1] Staging: a booking document really arrives  ⏸ PARKED 2026-10-03
+## L5 — [plan 2026-10-02 B1] Staging: a booking document really arrives  ✅ COMPLETE (2026-10-13)
+
+**Verified on staging 2026-10-13**, booking `d60a0ebb-6297-4e0a-a106-949c6fb5776b`, by the user in
+the real booker UI with `.plans` queries run against staging.
+
+**Happy path — both halves landed.** `booking_documents` row `label='Valid Government ID'`,
+`is_required=true`, and the object genuinely present: **276,888 bytes, `image/jpeg`**, at
+`d60a0ebb…/cda254a9….jpg`. `path_convention_ok` true — the first segment is the booking id, so the
+`(storage.foldername(name))[1]::uuid` cast every policy depends on parses rather than raising. The
+orphan query returned **no rows**: no bytes without metadata.
+
+**Client-side rejection — verified both rules.** A `.docx` produced *"That file type isn't accepted
+— use a JPG, PNG or PDF."*; a JPEG over 5 MB produced *"That file is over 5 MB…"*. ⚠️ **The counter
+stayed at "0 of 1" in both cases** — which is the actual assertion under test, since until
+2026-10-03 this screen reported files as uploaded while discarding them on selection.
+
+⚠️ **The server-side failure message was NOT tested, and cannot be reached through the UI.**
+`lib/bookingDocuments.ts` accepts JPEG/PNG/PDF under **5 MB** while the bucket accepts the same
+types under **10 MB** — the client's rules are a strict SUBSET of the bucket's, deliberately
+(`"5 MB, deliberately BELOW the bucket's 10 MB"`). So nothing the client accepts can the bucket
+refuse, and *"Booked, but we couldn't attach X"* is reserved for genuine infrastructure failures.
+This is good design, not a gap — but **if anyone later widens the client limits to match the
+bucket's, that path becomes reachable and would then be untested.**
+
+**Not a bug, per the owning plan:** the vendor sees nothing. `booking_documents` has had a
+vendor-admin SELECT policy since 2026-05 and no vendor UI has ever read it — that is **C1** on
+`.plans/2026-10-02-booker-search-and-booking-gaps.md`, not a finding here.
 
 **What:** make a booking for an offering that requires a document, attach a file, pay or abandon,
 then confirm **both halves landed**: an object in the private `booking-documents` bucket under
@@ -241,7 +346,32 @@ ever read it. Do not record this as a bug here.
 
 ---
 
-## L6 — [plan 2026-10-02 K2] Staging: a booker cancellation, and the three refusals  ⏸ PARKED 2026-10-03
+## L6 — [plan 2026-10-02 K2] Staging: a booker cancellation, and the three refusals  ✅ COMPLETE (2026-10-13)
+
+**Run 2026-10-13 against staging, booker `00000000-…-0014`.** Vendor confirmations were
+performed as a real vendor-admin by simulating `request.jwt.claims` in a transaction, since
+the user holds no credentials for that vendor — so the trigger's **vendor branch** was
+exercised, but not the vendor **UI**.
+
+| Case | Subject | Result |
+|---|---|---|
+| 1 — unpaid `pending` → Cancel | Car Detailing `5af30974` | ✅ **PASS** — succeeded 48 minutes before start, proving the `pending` exemption from the 24h rule. `status=cancelled`, `cancelled_by` = booker, `rejection_reason` empty |
+| 2 — unpaid `confirmed`, >24h | Consultation `c9144643` | ✅ **PASS (2026-10-13, after the F3 fix was deployed)** — Cancel appeared on the same booking that had offered no control an hour earlier, and succeeded. `status=cancelled`, `cancelled_by` = booker, `rejection_reason` empty, `cancel_log_rows=1`, notifications `new_booking, booking_confirmed, booking_cancelled`, **`rejected_emails=0`** |
+| 3 — unpaid `confirmed`, <24h | Consultation `3776d4ab` | ✅ **PASS** — RPC refused with `Confirmed bookings can only be cancelled up to 24 hours before the booked time [22023]`; row untouched (`still_confirmed`, `never_cancelled`, `reason_untouched`, 0 log rows, 0 notifications) |
+| 4 — paid, any status | 4 paid confirmed bookings | ✅ **PASS** — no Cancel control; "Request a refund" offered instead. ⚠️ The RPC's paid refusal is a **backstop only**: `cancelBlockedReason` is unpaid-only, so the UI never reaches it |
+| 5 — non-cancellable status | Court Rental `bcfd4e13` (`in_progress`, unpaid) | ✅ **PASS** — no Cancel control. Chosen unpaid deliberately, to isolate the *status* refusal from the *paid* one |
+| 6 — no "Booking Rejected" email | cases 1, 2 and 3 | ✅ **PASS across all three outcomes of one RPC.** `pending → cancelled` produced **no** notification (that branch requires `old.status='confirmed'`); `confirmed → cancelled` produced **`booking_cancelled`**; a refused cancellation produced nothing. **`booking_rejected` never appeared.** The only other row was `new_booking`, written by `notify_on_new_booking` at insert time to the vendor |
+| 7 — regression trio | vendor confirm ×2; both dispute kinds; kiosk close-out | ✅ **COMPLETE (2026-10-13).** **Vendor confirm** — `pending → confirmed` twice through the real trigger with a genuine vendor-admin actor. **Complaint** — booker flagged `bcfd4e13`, booking → `disputed`; Command resolved to `completed` (`in_progress→disputed`, then `disputed→completed` with notes). **Refund request** — booker raised one on paid confirmed `092593c8`; Command resolved to `refunded`. Log shows **`confirmed→refunded` with NO `disputed` hop**, and the notes carried through — so `app.status_change_note` reached the trigger on the one transition that requires it. **Migration `20261003000003` verified.** **Kiosk close-out** — tested as a PAIR, because a positive alone proves nothing: (A) vendor-admin `…0012` moved kiosk booking `82f7befa` `in_progress→returned` — **allowed**; (B) clean vendor-admin `…0008` attempted the same on booker-origin `30000000-…-0003` — **refused**, `Invalid booking status transition … actor not permitted` at `validate_booking_status_transition()` line 84. The only difference between them is `booked_via`, so the kiosk condition is proven enforced. Both rolled back. ⚠️ Actors for the vendor and kiosk halves were **simulated via `request.jwt.claims`** — the trigger's branches are verified, the vendor and kiosk **UIs** are not, as no credentials exist for those vendors |
+
+⚠️ **Case 6 is stronger than a single check:** one RPC produced three different notification
+outcomes — none from `pending`, `booking_cancelled` from `confirmed` (pending case 2's retest),
+and **never** `booking_rejected` from either.
+
+**Limits of this run, stated rather than glossed:** the vendor confirm and kiosk close-out were
+exercised at the **trigger** level with simulated actors, not through the vendor or kiosk UIs,
+because no credentials exist for those vendors. Every booker-facing case was performed in the
+real UI by the user. ⚠️ L6 also **found and fixed a defect** — see F3 — which is why cases 1–5
+span two days: case 2 was impossible until booker 0.26.1 shipped.
 
 **What:** cancel an **unpaid** booking as the booker, and confirm the three refusals behave.
 
@@ -294,15 +424,18 @@ regression half.
 | [x] | L0-b | Storefront Home against the local demo seed — all five shelves | You | ✅ DONE 2026-10-01 | **Your acceptance.** Checked against the local `de400000-` seed |
 | [x] | L0-c | Both themes at 360 / 390 / 1280 | You | ✅ DONE 2026-10-01 | **Your acceptance**, covering the Poppins face as shipped |
 | [x] | L0-d | Wizard end to end locally, up to the payment step | You | ✅ DONE 2026-10-01 | **Your acceptance.** The payment round trip itself stays L2 |
-| [ ] | L1 | [S3b-5] Staging: a second booker's booking lowers "N left" | You | ⏸ **PARKED 2026-10-01** | Your call — booker is not on staging yet and you are still testing locally. **Unblocks** the moment booker is pushed to staging. Still needs two real accounts; a dead RPC shows **no badge**, not a wrong number (I49) |
-| [ ] | L2 | [S6-b] Staging: Explore → Offering → Schedule → Pay, PayMongo test mode | You | ⏸ **PARKED 2026-10-01** | Your call, same reason as L1. **Unblocks** on the staging push. ⚠️ When it runs: one attempt per booking — retry could double-charge (F3, parked P2) |
+| [x] | L1 | [S3b-5] Staging: a second booker's booking lowers "N left" | You | ✅ **COMPLETE 2026-10-14** — liza saw 30, ben booked, liza saw 29. Ground truth computed independently of the RPC; the drop proves the `SECURITY DEFINER` cross-booker count | Booker is now on staging and the migrations are applied, so the old "not on staging yet" reason is gone. Still needs two real accounts; a dead RPC shows **no badge**, not a wrong number (I49) |
+| [x] | L2 | [S6-b] Staging: Explore → Offering → Schedule → Pay, PayMongo test mode | You | ✅ **COMPLETE 2026-10-14** — settled via the webhook (ledger row 10 min after creation), money path correct, B3's `is_paid`-checked toast shown. I15 not explicitly confirmed | Staging push done. ⚠️ Coordinate with `.plans/2026-10-11-checkout-provider-verification.md`, which is also driving PayMongo test mode. ⚠️ When it runs: one attempt per booking — retry could double-charge (F3, parked P2) |
 | [ ] | L3-a | Re-run the occupancy check on **production** | You | ⏸ **PARKED 2026-10-01** | Your call — still local-only. **Unblocks** after L1 passes on staging. ⚠️ Both RPCs reached prod *before* the numbers were confirmed anywhere, so this is still owed |
 | [ ] | L3-b | Walk `production-env-checklist.md` | You | ⏸ **PARKED 2026-10-01** | Your call. **Unblocks** when a production deploy is actually planned. Not re-verified since the redesign landed |
 | [x] | L3-c | Decide: may the demo seed ever run on a hosted environment? | You | ✅ **DECIDED 2026-10-01 — staging only, never production** | You agreed with the recommendation. ⚠️ Now **written down**, in `architecture/database-reset-and-deploy.md` → "The hosted-safe alternative", where someone looking for the rule will find it. Reason recorded as the real one: fabricated bookings in a production database are a trust problem even though the teardown is clean |
-| [ ] | L4 | Staging: Explore renders **24** cards with nothing typed, and the photo fetch is bounded | You | ⏸ **PARKED 2026-10-02** | Moved here from `2026-10-02-booker-ui-fixes-and-explore-proposal.md` F3 on your instruction. **Unblocks** on the staging push, like L1/L2. ⚠️ Cannot be tested locally at all: the only Explore fixture ships an empty catalogue because `csp.spec.ts` asserts it makes no network call. ⚠️ Proves nothing if staging has fewer than 24 active offerings |
-| [ ] | L5 | Staging: a booking document really reaches the bucket **and** the table | You | ⏸ **PARKED 2026-10-03** | Added from `2026-10-02-booker-search-and-booking-gaps.md` B1. **Unblocks** on the staging push. ⚠️ Matters more than a smoke test: this screen used to claim "uploaded" while discarding the file. ⚠️ The vendor seeing nothing is expected — that is C1, not a bug |
-| [ ] | L6 | Staging: booker cancellation, its three refusals, **and the trigger regression** | You | ⏸ **PARKED 2026-10-03** | Added from the same plan (K2). **Unblocks** on the staging push. ⚠️ The risk is not the button — G3 widened the shared status-transition trigger, so also exercise a vendor confirm, a kiosk close-out and a dispute resolve. ⚠️ Confirm **no "Booking Rejected" email** follows a booker cancellation |
+| [x] | L4 | Staging: Explore renders **24** cards with nothing typed, and the photo fetch is bounded | You | ✅ **COMPLETE 2026-10-14** — 32 catalogue / 24 rendered / 8 remaining, and the photo request payload carried exactly 24 ids. Also the first time an offering photo has ever rendered in booker, anywhere (K11) | Moved here from `2026-10-02-booker-ui-fixes-and-explore-proposal.md` F3 on your instruction. ✅ **Both halves runnable.** Staging holds 32 catalogue entries (so the 24 cap is falsifiable) and 12 active offerings carry photos, so cover-photo requests do occur and can be counted. The earlier claim that no offering had a photo was wrong — see F2. Was unblocked on the staging push, like L1/L2. ⚠️ Cannot be tested locally at all: the only Explore fixture ships an empty catalogue because `csp.spec.ts` asserts it makes no network call. ⚠️ Proves nothing if staging has fewer than 24 active offerings |
+| [x] | L5 | Staging: a booking document really reaches the bucket **and** the table | You | ✅ **COMPLETE 2026-10-13** — row + 276,888 bytes + path convention + no orphans; both client rejections verified with the counter holding at 0 of 1. Server-side failure path unreachable by construction, stated in the L5 section | Added from `2026-10-02-booker-search-and-booking-gaps.md` B1. `20261002000001_booking_documents_storage` is now applied to staging and all four policies verified present, so the bucket half is finally reachable. ⚠️ Matters more than a smoke test: this screen used to claim "uploaded" while discarding the file. ⚠️ The vendor seeing nothing is expected — that is C1, not a bug |
+| [x] | L6 | Staging: booker cancellation, its three refusals, **and the trigger regression** | You | ✅ **COMPLETE 2026-10-13** | All 5 cases, the no-rejection-email check across all three RPC outcomes, and the full regression trio. Found and fixed **F3** on the way — confirmed bookings had never been cancellable from the UI in any environment. Vendor/kiosk halves verified at trigger level only; see the L6 section. ⚠️ The risk is not the button — G3 widened the shared status-transition trigger, so also exercise a vendor confirm, a kiosk close-out and a dispute resolve. ⚠️ Confirm **no "Booking Rejected" email** follows a booker cancellation |
 | [ ] | F1 | `booker-demo-seed.sql` has **no double-run guard** | You to close | ⬜ TODO (found 2026-10-01) | Found while writing L3-c's rule. `demo-seed.sql` aborts with "Demo data is already present"; the booker pair does not, so a second run duplicates ~14 bookings. The teardown matches the whole `de400000-` prefix so it does clean up both sets. Logged, not fixed — your call whether it is worth a guard |
+| [ ] | F2 | ~~No offering on staging has a photo, so L4's bounded-photo-fetch half cannot be observed~~ | — | ✖ **WITHDRAWN 2026-10-14 — THE CLAIM WAS FALSE.** Measured against staging: **15 active `kind='photo'` rows across 12 active offerings, and all 15 have real objects in `offering-photos` (zero orphans)**. The original entry was written on 2026-10-12 from an assumption that was never checked against the database, and it then sat in this plan as if it were a measurement — the exact failure the status model exists to prevent. **L4's bounded-photo-fetch half is runnable** and L4 is not half-blocked. ⚠️ Retained rather than deleted so the mistake stays visible. The one true part: `getPublicUrl(storage_path)` means a row without an object renders a broken `<img>` — which is why the orphan count was worth measuring, and it is zero |
+| | F2-original | **No offering on staging has a photo, so L4's bounded-photo-fetch half cannot be observed** | You to close | ✖ superseded by the row above — kept verbatim as the original wording | Found while unparking L4. `offering_attachments` rows with `kind='photo'` resolve through `getPublicUrl(storage_path)` (`booker/services/offeringPhotos.service.ts:37`), so a row without a real object in the public `offering-photos` bucket renders a broken `<img>`, and no rows at all means **zero** cover-photo requests — the assertion "the photo fetch is bounded" then passes while testing nothing. ⚠️ Note this would be the **first** offering photo ever rendered in booker in any environment: `img-src` omitted the Supabase origin until K11 fixed it. Seeding needs an upload to the bucket plus the row, in that order — a SQL-only seeder cannot work. Logged, not fixed; the user set this aside deliberately on 2026-10-12. L4's 24-card half is unaffected and runnable now
+| [x] | F3 | **No `confirmed` booking with a clock time could be cancelled from booker's UI, in any environment** | You | ✅ **CLOSED 2026-10-14 by the user** | Found by L6 case 2. `services/bookings.service.ts:132` passed `row.start_time` through raw while the type claimed `"HH:MM"`; PostgREST serialises a `time` column as `"HH:MM:SS"`, so `cancelBlockedReason` built `…T10:00:00:00+08:00` → `Date.parse` NaN → the fail-safe guard returned `too_late` → **the control was never rendered**. Failed SAFE, so nothing looked broken. `pending` was unaffected (the parse sits inside the `confirmed` branch), which is why case 1 passed and why plan K2 shipped green. ⚠️ **Every unit fixture used `"09:00"` and the ui-gallery fixtures bypass `toBooking()` entirely** — so neither the 219 unit tests nor the visual suite could have caught it. Fixed on booker `feature/cancel_booking_fix`: mapper now slices `startTime` **and** `endTime`, the parse slices defensively, and a regression test asserts both shapes (proven to fail without the fix: 219/220). ⚠️ Side effect: `PaymentReceipt.tsx:60` renders `startTime` **raw**, so real users saw `"10:00:00"` and will now see `"10:00"` — still not 12-hour like every other surface, which is a separate cosmetic inconsistency left untouched. **Fix deployed as booker 0.26.1 (`702ffe1`) and retested: the same booking that offered no Cancel control now cancels correctly (case 2 ✅). Left open for the user to close**
 | [x] | Grants | EXECUTE-grant query on staging **and** production | You | ✅ DONE 2026-09-28 | Both hosted environments match local; no `anon` on either function |
 | [x] | Apply | `20260922000001` + `20260927000001` on local, staging, production | You | ✅ DONE 2026-09-27 | All three environments level |
 | [x] | Machine | `tsc`, tests, lint, visual suite — local | Me | ✅ **RE-VERIFIED 2026-10-01** against booker `bb2ec84` | ⚠️ The 2026-09-29 run was **stale**: Poppins landed after it (`ae85bd1`, `bb2ec84`), and a global typeface change moves nearly every baseline. Re-run on current HEAD: `tsc` clean · **154/154** · lint **18, all pre-existing** · visual **77/77** (the whole `visual-tests/` dir). `threshold: 0.02` survived the font work, so the suite is still load-bearing for colour. ⚠️ Still proves stability, not that it looks right |
