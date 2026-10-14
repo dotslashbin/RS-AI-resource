@@ -36,6 +36,7 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 | `booking-flow.md` | The 6-step booking wizard, payment provider surface, kiosk-origin bookings |
 | `vendor-kyc.md` | Vendor verification: onboarding, command review, data model |
 | `database-reset-and-deploy.md` | Which migration/seed command is safe in which environment, drift checks, rollback |
+| `staging-readonly-role.md` | The temporary read-only Postgres login on staging: what it can see, how to park it between rounds, how to tear it down |
 | `supabase-production-setup.md` | Runbook for standing up a new Supabase project (production done 2026-08-10) |
 | `production-env-checklist.md` | Per-variable Vercel env requirements and post-deploy probes |
 | `email-notifications-guide.md` | Master reference for the notification-email system, local and hosted |
