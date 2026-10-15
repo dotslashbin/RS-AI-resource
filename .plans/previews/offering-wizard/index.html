@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>Offering wizard — preview</title>
+  <link rel="stylesheet" href="./preview.css">
+  <script src="./preview.js" defer></script>
+</head>
+<body>
+  <!-- The dashboard page the wizard opens over (simplified Offerings page). -->
+  <div class="page" aria-hidden="true">
+    <div class="page-head">
+      <div>
+        <p class="page-title">Offerings</p>
+        <p class="page-sub">Manage the offerings your business provides.</p>
+      </div>
+      <span class="btn-primary page-add">+ Add Offering</span>
+    </div>
+    <div class="page-grid">
+      <div class="sp-card fake-card"><p class="fc-title">Court A — Hourly</p><p class="fc-sub">COURTA · ₱850 / hour</p></div>
+      <div class="sp-card fake-card"><p class="fc-title">Private Coaching</p><p class="fc-sub">COACH · ₱1,200 / hour</p></div>
+      <div class="sp-card fake-card"><p class="fc-title">Equipment Rental</p><p class="fc-sub">RENT · ₱300 / day</p></div>
+    </div>
+  </div>
+
+  <div id="root"></div>
+
+  <!-- Preview-only controls. Not part of the design. -->
+  <div class="pv-bar" id="pvbar">
+    <span class="pv-label">PREVIEW</span>
+    <label>Screen <select id="pv-screen"></select></label>
+    <label>Theme <select id="pv-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </div>
+</body>
+</html>
