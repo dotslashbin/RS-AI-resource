@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-12
 **App / scope:** vendor/ only — `components/offerings/` (new `OfferingCreateWizard/`, `OfferingFormModal/` field extraction, `OfferingsPage/` wiring), `components/dashboard/GuideModal/guideItems.ts` copy, an appended `app/ui-gallery` fixture mode, a new scoped Playwright spec, and `architecture/portals.md`. No schema, migration, service-contract break, or dependency.
-**Status:** IN PROGRESS — D1–D8 resolved; execution approved 2026-10-13 (user); all 5 stages executed 2026-10-13; B3, B4, I4 passed and F6 closed by user 2026-10-14; only I3's real-phone keyboard check remains, parked until staging
+**Status:** COMPLETE — for its executable scope (2026-10-15). Shipped in vendor 0.58.1 (wizard, F1–F3, F6–F9) and 0.58.2 (F10, date fields on phones); every stage and I1–I6 verified, I3/F2/F7/F10 on a real iPhone on staging. ✖ B2 aborted (D1). ⏸ F4/F5 deferred and G4 parked by the user. Still with the user: the live edit-and-save (F3) and the keyboard check on the edit form's Active switch (F1)
 
 > Turn **creating** an offering into a step-by-step wizard a first-time vendor cannot get
 > wrong: one job per screen, Back never loses work, Next is never a mystery, and the moment
@@ -365,7 +365,7 @@ vendor's real codes, and an expired session.
   baseline, including the unchanged warning in `offerings.service.ts`; scoped `eslint` is clean.
   Not yet done: the field error, the return to step 1 and the live checks (Stages 3–4).
 
-### I3 — Mobile-first shell (per D5)  ⏸ PARKED (2026-10-14) — built + keyboard fix machine-verified 2026-10-13; the real-phone keyboard check waits for a staging deployment
+### I3 — Mobile-first shell (per D5)  ✅ DONE (closed by the user 2026-10-15) — built + keyboard fix machine-verified 2026-10-13; real-phone check passed on staging 0.58.1 2026-10-15 (user: "the fields do not get covered by the keyboard")
 **File:** `OfferingCreateWizard.module.css`
 Below `sm` (640px): full-screen sheet (`inset: 0`, `height: 100dvh`, no radius), opaque
 surface, header and footer fixed in the flex column, body scrolls, footer padded by
@@ -522,7 +522,7 @@ with nothing updated. That means the changed kiosk copy is not inside the baseli
   when on, as before. Screenshots inspected; the only visible change is the focus ring.
   `tsc` clean; `npm test` 532/532; lint shows the same 29 problems; the duration-picker and wizard
   specs passed 12/12 against the user's :3000 server (temporary config, now trashed).
-- **F2** — `sp-input` text is 13px, which makes iOS Safari zoom on focus in **every** vendor
+- **F2** ✅ DONE (closed by the user 2026-10-15 after an iPhone check on staging 0.58.1) — `sp-input` text is 13px, which makes iOS Safari zoom on focus in **every** vendor
   form, not just this one. A shared-token change; reported, not fixed here.
   **Correction (2026-10-14):** this is not a shared token. `.sp-input` (`globals.css:189`) sets no
   font size; each field carries its own `text-[13px]` (20 places) or `text-[12px]` (4).
@@ -540,7 +540,7 @@ with nothing updated. That means the changed kiosk copy is not inside the baseli
   `tsc` clean; `npm test` 532/532; lint shows the same 29 problems.
   **Still open (user, needs an iPhone, so staging):** focus a field in the wizard and the schedule
   form; the page must not zoom.
-- **F7 (found 2026-10-14, during F2) ⬜ TODO — fields that F2's rule does not reach still zoom on
+- **F7 (found 2026-10-14, during F2) ✅ DONE (closed by the user 2026-10-15 after an iPhone check on staging 0.58.1) — fields that F2's rule does not reach still zoom on
   iPhone.** They do not use `.sp-input`; their size comes from module CSS or local class strings.
   Measured or read: settings `SecurityCard` and `PayoutMethodFields` (13px), `LoginPage`,
   `RegisterField`, `AddressFields`, `KycSubmitForm`, `KycStatusPage`, `DeletionRequestModal`,
@@ -569,6 +569,21 @@ with nothing updated. That means the changed kiosk copy is not inside the baseli
   every login screenshot including the 480px `login-mobile-info`, the 320px responsive sweep, the
   360px staff form, the duration picker and the wizard.
   **Still open (user, iPhone on staging):** sign-in, register, settings → password; no zoom on focus.
+- **F10 (found 2026-10-15 by the user, on staging 0.58.1) ✅ DONE (passed and closed by the user 2026-10-15: "F10 pass") — the Overview "Period"
+  filter's From/To date fields overflow their card on a phone.** `DateRangeFilter.tsx` already
+  uses `w-full` in a `grid-cols-1` (`minmax(0,1fr)`) grid, so the grid isn't the cause. iOS Safari
+  sizes a native `<input type="date">` to its content and ignores `width: 100%`. F2's 16px text on
+  phones made that content wider, so this release probably triggered it. **Fix applied 2026-10-15
+  (user: "Fix that"):** one rule inside F2's `@media (max-width: 639px)` block in
+  `app/globals.css`: `input[type="date"].sp-input` gets `appearance: none`, `display: block`,
+  `min-width: 0` and `min-height: 42px` (so an empty Bookings "All dates" field keeps its height),
+  with the value left-aligned. Every date field in the app uses `.sp-input`, so this covers Overview,
+  Bookings, Transactions and the schedule form. Desktop is untouched. Not reproducible here: only
+  Chromium is installed, not WebKit. tsc clean, `npm test` 532/532, lint 29 (unchanged). Full
+  visual suite, read-only, on Playwright's own :3100 server (the user's :3000 was not running):
+  **207/207 passed**, including the 320px "dashboard/bookings keep content inside every box" sweep,
+  and no baseline changed. Shipped as vendor patch 0.58.2 (`f3a6a39`); the user confirmed the fix
+  on an iPhone on staging.
 - **F9 (found 2026-10-14, during F7) ✅ DONE (closed by the user 2026-10-15: "close F9") — the settings fields are white in dark mode.**
   The `INPUT` strings in `SecurityCard.tsx`, `PayoutMethodFields.tsx` and `DeletionRequestModal.tsx` use
   `bg-sp-input-bg`, `border-sp-input-bdr` and `text-sp-input-color`, but `tailwind.config.ts`
@@ -655,7 +670,7 @@ with nothing updated. That means the changed kiosk copy is not inside the baseli
   attachments editor is mid-upload unmounts the editor; the upload still completes and the row
   appears on the card, but the vendor saw no confirmation. The editor's `busy` flag is internal,
   so guarding Finish needs a change to a shared component; same behaviour as today, reported.
-- **G4 (review 2026-10-12) — "Change" from step 4 walks forward again.** After jumping back to
+- **G4 (review 2026-10-12) ⏸ PARKED (kept parked by the user 2026-10-14) — "Change" from step 4 walks forward again.** After jumping back to
   step 2, Next goes 2 → 3 → 4; there is no "Back to review" shortcut. Deliberate: one way through,
   and steps 3–4 re-validate on the way. Revisit only if live testing shows friction.
 - **F4 + F5 — ⏸ DEFERRED by the user (2026-10-14: "no need for a fix … revisit later if we need
