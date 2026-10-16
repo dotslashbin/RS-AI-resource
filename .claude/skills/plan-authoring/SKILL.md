@@ -6,7 +6,8 @@ description: Use when asked to create a plan, run an audit, or scope any multi-s
 # Plan Authoring
 
 How to turn a non-trivial request into a `.plans/` document that stays honest as
-work happens. Extends the Plan flow in `AGENTS.md` (filenames date-prefixed,
+work happens. Extends the Plan flow in the core rules
+(`.claude/skills/core-rules/SKILL.md`; filenames date-prefixed,
 under `.plans/`, kept up to date) — this skill is the *method* behind that flow.
 
 Use this whenever a task is large enough to need a plan: audits, multi-step
@@ -67,10 +68,11 @@ Rules:
   the underlying approach is poor engineering: over-engineered, violates an
   existing pattern for no reason, adds an abstraction nothing else needs yet,
   or ignores a simpler fix that was sitting right there.
-- Before an item is written down, run its proposed approach through
-  `.claude/skills/developerboss/SKILL.md`'s judgment checks — scope, locate
-  existing patterns before inventing new ones, data-layer implications, risk
-  surface, SOLID, simplicity-first — the same discipline that skill requires
+- Before an item is written down, run its proposed approach through the
+  pre-flight in `AGENTS.md` → "Working Flow" (scope, assumptions, sizing) and
+  `.claude/skills/developerboss/SKILL.md`'s coding checks — locate existing
+  patterns before inventing new ones, data-layer implications, risk surface,
+  SOLID, simplicity-first — the same discipline that skill requires
   before writing code applies equally before *planning* code.
 - This is a design-quality check, distinct from §2's investigation (finding out
   what the code currently does) and §6's decision-surfacing (choosing between
@@ -243,7 +245,7 @@ Alongside the sequence:
   permit a weak or incorrect implementation.
 - Resolve or document ambiguities before execution starts.
 - **Execution cadence is one stage at a time by default** — see
-  `.claude/skills/developerboss/SKILL.md`. Running a stage range, or the full
+  `AGENTS.md` → "Working Flow" → Execution Cadence. Running a stage range, or the full
   scope in one pass, happens when the user asks for it.
 - After each major step or phase, review the work done and update the plan with
   completion state, important findings, and any newly discovered required work.

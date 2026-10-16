@@ -23,8 +23,9 @@ navigation, notifications and config are stale at this SDK.
 
 ## 1. Pre-flight
 
-`.claude/skills/developerboss/SKILL.md` is the full pre-flight checklist and still applies
-in full. Work it through, then add these mobile-specific deltas at the matching step:
+The general pre-flight in `AGENTS.md` → "Working Flow" and the coding pre-flight in
+`.claude/skills/developerboss/SKILL.md` still apply in full. Work them through, then add
+these mobile-specific deltas at the matching step:
 
 **Scope.** Does this touch `backbone` or one of the web apps as well as the mobile app?
 Push notifications, new RPCs and anything service-role-adjacent do — that is a cross-app

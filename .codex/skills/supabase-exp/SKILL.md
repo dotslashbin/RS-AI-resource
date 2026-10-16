@@ -7,8 +7,9 @@ description: Use for any task touching Supabase — schema/migration changes, RL
 
 Apply this whenever a task touches the shared Supabase project (the "backbone"):
 migrations, RLS, grants, functions/triggers, Storage, Realtime, or how an app
-talks to Supabase. This supplements `AGENTS.md` — where they overlap,
-`AGENTS.md`'s invariants win; this skill is the depth behind them.
+talks to Supabase. This supplements the core rules
+(`.claude/skills/core-rules/SKILL.md`) — where they overlap, the core rules'
+invariants win; this skill is the depth behind them.
 
 ---
 
@@ -44,7 +45,7 @@ does:
 - **Reality diverges from a documented decision** (e.g. a grant broader than
   `auth-and-roles.md` implies, a policy that doesn't match the three-layer
   model) — this is a finding, not something to quietly "correct" by
-  reinterpreting the doc. Surface it and ask, per `AGENTS.md`'s "if uncertain,
+  reinterpreting the doc. Surface it and ask, per the core rules' "if uncertain,
   stop and ask."
 
 A change or an audit finding that isn't traceable to an actual file (a
@@ -54,7 +55,7 @@ explicitly rather than presenting it as verified.
 ## 2. Schema changes are an approval gate — draft first
 
 - Any new table, column, index, constraint, or RLS policy requires explicit
-  user approval before the migration file is written (`AGENTS.md`).
+  user approval before the migration file is written (core rules → Ask Before).
 - Draft the exact SQL in the plan/response first. Do not create the migration
   file until the user says go.
 - Never edit an applied migration — a new migration is always the fix, even
@@ -199,7 +200,7 @@ table's migration must include both, and they must agree:
 
 ## 10. Realtime
 
-- Use only where explicitly needed (per `AGENTS.md`) — it has a cost (open
+- Use only where explicitly needed (per the core rules) — it has a cost (open
   connections, replication load) that a polling/refetch pattern usually
   doesn't.
 - Anything published over Realtime is filtered by the table's RLS, but
