@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>Near me — preview</title>
+  <link rel="stylesheet" href="./preview.css">
+  <script src="./preview.js" defer></script>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ───────────────── Top bar (simplified, present on every screen) ───────────────── -->
+  <header class="topbar">
+    <span class="tb-brand">Ezzy Booker</span>
+    <nav class="tb-tabs">
+      <span class="tb-tab" data-tab="home">Home</span>
+      <span class="tb-tab" data-tab="explore">Explore</span>
+      <span class="tb-tab">Activity</span>
+      <span class="tb-tab">Payments</span>
+    </nav>
+    <span class="tb-avatar" aria-hidden="true">JD</span>
+  </header>
+
+  <main class="main">
+
+    <!-- ════════════════════════ HOME ════════════════════════ -->
+    <section class="screen" data-screen="home-unset home-city home-thin home-empty">
+
+      <!-- Hero: the search field, with the location line beneath it -->
+      <div class="hero">
+        <p class="hero-kicker">Book something today</p>
+        <h1 class="hero-title">What do you need?</h1>
+        <div class="hero-search">
+          <span class="hs-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          </span>
+          <span class="hs-text">Try a service, a vendor or a city</span>
+          <span class="hs-go" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          </span>
+        </div>
+
+        <!-- ▼ NEW IN THIS PLAN — the location line (S1 / LocationChip) -->
+        <button type="button" class="locchip" data-only="home-city home-thin home-empty">
+          <span class="lc-pin" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          </span>
+          <span class="lc-city" data-fixture="cityLabel">Makati City</span>
+          <span class="lc-dot" aria-hidden="true">·</span>
+          <span class="lc-change">Change</span>
+        </button>
+
+        <button type="button" class="locchip locchip-unset" data-only="home-unset">
+          <span class="lc-pin" aria-hidden="true">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          </span>
+          <span class="lc-city">Set your location</span>
+        </button>
+      </div>
+
+      <!-- In-progress strip: unchanged, stays first (plan D21) -->
+      <div class="strip">
+        <span class="strip-dot" aria-hidden="true"></span>
+        <span class="strip-body">
+          <span class="strip-title">In progress</span>
+          <span class="strip-text">Court A — Hourly · Bangkal Sports Hub</span>
+        </span>
+        <span class="strip-chev" aria-hidden="true">›</span>
+      </div>
+
+      <!-- ▼ NEW IN THIS PLAN — "Near you", above Browse by division (S2 / I1) -->
+
+      <!-- (a) populated, all same-city -->
+      <div class="section" data-tone="near" data-only="home-city">
+        <div class="head db-shelf-head">
+          <span class="db-shelf-pipe" aria-hidden="true"></span>
+          <span class="h-title">Near you</span>
+          <span class="h-meta">In Makati City</span>
+          <span class="h-spacer"></span>
+          <span class="h-link">See all</span>
+        </div>
+        <div class="body">
+          <div class="cards3">
+            <div class="ocard" data-division="ezzy-court">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Indoor Court — Hourly</p>
+              <p class="oc-sub">Bangkal Sports Hub · Makati City</p>
+              <p class="oc-price">₱850 <span class="oc-unit">/ hour</span></p>
+            </div>
+            <div class="ocard" data-division="ezzy-well">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Sports Massage</p>
+              <p class="oc-sub">Chino Roces Recovery · Makati City</p>
+              <p class="oc-price">₱1,200 <span class="oc-unit">/ session</span></p>
+            </div>
+            <div class="ocard" data-division="ezzy-work">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Hot Desk — Day Pass</p>
+              <p class="oc-sub">Legazpi Workspace · Makati City</p>
+              <p class="oc-price">₱550 <span class="oc-unit">/ day</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- (b) thin city — tier groups, each labelled -->
+      <div class="section" data-tone="near" data-only="home-thin">
+        <div class="head db-shelf-head">
+          <span class="db-shelf-pipe" aria-hidden="true"></span>
+          <span class="h-title">Near you</span>
+          <span class="h-meta">In Pila</span>
+          <span class="h-spacer"></span>
+          <span class="h-link">See all</span>
+        </div>
+        <div class="body">
+          <p class="tierlabel">In Pila</p>
+          <div class="cards3">
+            <div class="ocard" data-division="ezzy-court">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Outdoor Court — Hourly</p>
+              <p class="oc-sub">Citywide Sports Center · Pila</p>
+              <p class="oc-price">₱600 <span class="oc-unit">/ hour</span></p>
+            </div>
+          </div>
+
+          <p class="tierlabel tierlabel-2">Also in Laguna</p>
+          <div class="cards3">
+            <div class="ocard" data-division="ezzy-well">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Thermal Pool — Half Day</p>
+              <p class="oc-sub">Calamba Springs · Calamba City</p>
+              <p class="oc-price">₱450 <span class="oc-unit">/ visit</span></p>
+            </div>
+          </div>
+
+          <p class="tierlabel tierlabel-2">Elsewhere in CALABARZON</p>
+          <div class="cards3">
+            <div class="ocard" data-division="ezzy-stay">
+              <div class="oc-art" aria-hidden="true"></div>
+              <p class="oc-title">Garden Room — Nightly</p>
+              <p class="oc-sub">Ridgeview Guesthouse · Antipolo City</p>
+              <p class="oc-price">₱1,800 <span class="oc-unit">/ night</span></p>
+            </div>
+          </div>
+          <p class="tiernote">Grouped by distance from your city. No distances are shown — these are city-level groups, not measured kilometres.</p>
+        </div>
+      </div>
+
+      <!-- (c) nothing in city, province or region — the honest empty state -->
+      <div class="section" data-tone="near" data-only="home-empty">
+        <div class="head db-shelf-head">
+          <span class="db-shelf-pipe" aria-hidden="true"></span>
+          <span class="h-title">Near you</span>
+          <span class="h-meta">In Burgos</span>
+        </div>
+        <div class="body">
+          <div class="emptybox">
+            <span class="eb-pin" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico"><path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+            </span>
+            <p class="eb-title">No vendors in Burgos yet.</p>
+            <p class="eb-sub">Nothing in Ilocos Norte or the Ilocos Region either. We'll show them here as soon as one joins.</p>
+            <span class="btn-primary">Browse everything</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Existing shelves below, unchanged — shown trimmed for context -->
+      <div class="section" data-tone="divisions">
+        <div class="head db-shelf-head">
+          <span class="db-shelf-pipe" aria-hidden="true"></span>
+          <span class="h-title">Browse by division</span>
+          <span class="h-meta">Every category we book for</span>
+          <span class="h-spacer"></span>
+          <span class="h-link">Open Explore</span>
+        </div>
+        <div class="body">
+          <div class="divgrid">
+            <span class="dtile" data-division="ezzy-court"><span class="dt-disc"></span><span class="dt-name">Court</span></span>
+            <span class="dtile" data-division="ezzy-well"><span class="dt-disc"></span><span class="dt-name">Well</span></span>
+            <span class="dtile" data-division="ezzy-ride"><span class="dt-disc"></span><span class="dt-name">Ride</span></span>
+            <span class="dtile" data-division="ezzy-work"><span class="dt-disc"></span><span class="dt-name">Work</span></span>
+            <span class="dtile" data-division="ezzy-stay"><span class="dt-disc"></span><span class="dt-name">Stay</span></span>
+            <span class="dtile" data-division="ezzy-park"><span class="dt-disc"></span><span class="dt-name">Park</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section section-ghost" data-tone="popular">
+        <div class="head db-shelf-head">
+          <span class="db-shelf-pipe" aria-hidden="true"></span>
+          <span class="h-title">Popular this month</span>
+          <span class="h-meta" data-fixture="popularMeta">Most booked in Makati City this month</span>
+        </div>
+        <div class="body"><p class="ghost-note">Existing shelf — unchanged by this plan.</p></div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ PICKER ════════════════════════ -->
+    <section class="screen screen-dim" data-screen="picker picker-dupe">
+      <div class="hero hero-flat">
+        <h1 class="hero-title">What do you need?</h1>
+        <div class="hero-search"><span class="hs-text">Try a service, a vendor or a city</span></div>
+      </div>
+
+      <div class="sheet-scrim">
+        <div class="sheet db-panel">
+          <div class="sheet-head">
+            <p class="sheet-title">Where are you?</p>
+            <span class="sheet-x" aria-hidden="true">×</span>
+          </div>
+          <p class="sheet-sub">We'll put vendors in your city first. You can change this any time.</p>
+
+          <div class="field">
+            <span class="f-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            </span>
+            <span class="f-text" data-only="picker">City or municipality</span>
+            <span class="f-text f-typed" data-only="picker-dupe">Burgos</span>
+          </div>
+
+          <!-- default list: cities with vendors first, carrying counts -->
+          <div class="optlist" data-only="picker">
+            <span class="opt opt-any">
+              <span class="o-main">Anywhere</span>
+              <span class="o-sub">Show every city</span>
+            </span>
+            <span class="opt opt-on">
+              <span class="o-body"><span class="o-main">Makati City</span><span class="o-sub">Metro Manila</span></span>
+              <span class="o-count">4 vendors</span>
+              <span class="o-tick" aria-hidden="true">✓</span>
+            </span>
+            <span class="opt">
+              <span class="o-body"><span class="o-main">Quezon City</span><span class="o-sub">Metro Manila</span></span>
+              <span class="o-count">3 vendors</span>
+            </span>
+            <span class="opt">
+              <span class="o-body"><span class="o-main">City of Pasig</span><span class="o-sub">Metro Manila</span></span>
+              <span class="o-count">2 vendors</span>
+            </span>
+            <span class="opt">
+              <span class="o-body"><span class="o-main">Cebu City</span><span class="o-sub">Cebu</span></span>
+              <span class="o-count">2 vendors</span>
+            </span>
+            <span class="opt">
+              <span class="o-body"><span class="o-main">Pila</span><span class="o-sub">Laguna</span></span>
+              <span class="o-count">1 vendor</span>
+            </span>
+            <p class="optdiv">Every other city and municipality</p>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Alaminos</span><span class="o-sub">Laguna</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Alaminos City</span><span class="o-sub">Pangasinan</span></span>
+            </span>
+          </div>
+
+          <!-- typed "Burgos": six real municipalities, told apart by province -->
+          <div class="optlist" data-only="picker-dupe">
+            <p class="optdiv optdiv-top">6 municipalities named “Burgos”</p>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">Ilocos Norte</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">Ilocos Sur</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">La Union</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">Pangasinan</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">Isabela</span></span>
+            </span>
+            <span class="opt opt-quiet">
+              <span class="o-body"><span class="o-main">Burgos</span><span class="o-sub">Surigao Del Norte</span></span>
+            </span>
+            <p class="tiernote tiernote-flush">Six different places, hundreds of kilometres apart. Today's filter lists one “Burgos” and matches all six at once — the defect this plan fixes (B1). Real PSGC codes: 012806000, 012904000, 013308000, 015516000, 023105000, 166704000.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ EXPLORE ════════════════════════ -->
+    <section class="screen" data-screen="explore explore-nosort explore-empty map map-fail">
+      <div class="ex-search">
+        <span class="hs-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </span>
+        <span class="hs-text">Try a service, a vendor or a city</span>
+      </div>
+
+      <div class="chiprow">
+        <span class="chip chip-on">All</span>
+        <span class="chip">Court</span>
+        <span class="chip">Well</span>
+        <span class="chip">Ride</span>
+        <span class="chip">Work</span>
+        <span class="chip">Stay</span>
+      </div>
+
+      <!-- ▼ NEW IN THIS PLAN — the two controls, side by side and labelled differently -->
+      <div class="ctrlrow">
+        <div class="ctrl">
+          <span class="ctrl-label">Where</span>
+          <span class="select" data-only="explore map map-fail explore-nosort">Anywhere</span>
+          <span class="select select-on" data-only="explore-empty">Burgos, Ilocos Norte</span>
+          <span class="ctrl-help" data-only="explore map map-fail explore-nosort">Only this city</span>
+          <span class="ctrl-help ctrl-help-on" data-only="explore-empty">Filtering to this city</span>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-label">Sort</span>
+          <span class="select select-on" data-only="explore map map-fail explore-empty">Near me (closest first)</span>
+          <span class="select select-off" data-only="explore-nosort">Relevance</span>
+          <span class="ctrl-help" data-only="explore map map-fail explore-empty">Keeps everything, closest first</span>
+          <span class="ctrl-help ctrl-help-warn" data-only="explore-nosort">Set your location to sort by distance</span>
+        </div>
+        <span class="ctrl-spacer"></span>
+        <!-- ▼ NEW IN THIS PLAN (S3b) — the map toggle, collapsed by default -->
+        <span class="maptoggle" data-only="explore explore-empty">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+          Map
+        </span>
+        <span class="maptoggle maptoggle-on" data-only="map map-fail">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>
+          Map
+        </span>
+      </div>
+
+      <!-- ░░░░ MAP PANEL (S3b) ░░░░ -->
+      <div class="mappanel" data-only="map">
+        <div class="mp-canvas">
+          <svg class="mp-base" viewBox="0 0 800 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect class="mp-water" x="0" y="0" width="800" height="420"/>
+            <g class="mp-grid">
+              <path d="M100 0v420M200 0v420M300 0v420M400 0v420M500 0v420M600 0v420M700 0v420"/>
+              <path d="M0 70h800M0 140h800M0 210h800M0 280h800M0 350h800"/>
+            </g>
+            <path class="mp-land" d="M250 30 C320 20 380 48 400 92 C424 142 404 180 420 214 C436 248 476 254 492 288 C508 322 480 366 430 384 C372 404 300 392 262 360 C222 326 232 282 212 248 C190 210 150 198 142 158 C134 112 184 44 250 30 Z"/>
+            <path class="mp-land" d="M548 252 C586 240 624 258 634 288 C644 320 622 348 588 354 C552 360 524 340 520 310 C516 282 520 262 548 252 Z"/>
+            <path class="mp-landline" d="M250 30 C320 20 380 48 400 92 C424 142 404 180 420 214 C436 248 476 254 492 288 C508 322 480 366 430 384 C372 404 300 392 262 360 C222 326 232 282 212 248 C190 210 150 198 142 158 C134 112 184 44 250 30 Z"/>
+          </svg>
+
+          <!-- Markers: ONE PER CITY, carrying a vendor count. Never one per vendor. -->
+          <span class="mk mk-you mk-makati">
+            <span class="mk-ring" aria-hidden="true"></span>
+            <span class="mk-label"><span class="mk-city">Makati City</span><span class="mk-n">4 vendors</span></span>
+            <span class="mk-badge">You</span>
+          </span>
+          <span class="mk mk-qc">
+            <span class="mk-ring" aria-hidden="true"></span>
+            <span class="mk-label"><span class="mk-city">Quezon City</span><span class="mk-n">3 vendors</span></span>
+          </span>
+          <span class="mk mk-pasig">
+            <span class="mk-ring" aria-hidden="true"></span>
+            <span class="mk-label"><span class="mk-city">City of Pasig</span><span class="mk-n">2 vendors</span></span>
+          </span>
+          <span class="mk mk-pila">
+            <span class="mk-ring" aria-hidden="true"></span>
+            <span class="mk-label"><span class="mk-city">Pila</span><span class="mk-n">1 vendor</span></span>
+          </span>
+          <span class="mk mk-cebu">
+            <span class="mk-ring" aria-hidden="true"></span>
+            <span class="mk-label"><span class="mk-city">Cebu City</span><span class="mk-n">2 vendors</span></span>
+          </span>
+
+          <span class="mp-stamp">Basemap stand-in — this preview fetches no map tiles</span>
+          <span class="mp-zoomnote">Zoom capped at city level</span>
+        </div>
+        <p class="mp-foot">
+          <strong>One marker per city, not per vendor.</strong> A marker sits at the city's centre point and says how many vendors are in it.
+          It is not a vendor's address, and no distance is shown. · 1 city not shown on the map (no centre point on record).
+        </p>
+      </div>
+
+      <!-- ░░░░ MAP PANEL — tiles failed ░░░░ -->
+      <div class="mappanel" data-only="map-fail">
+        <div class="mp-canvas mp-canvas-dead">
+          <span class="mp-dead">
+            <svg viewBox="0 0 24 24" class="ico ico-lg"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M4 4l16 16"/></svg>
+            <span class="mp-dead-title">Map unavailable</span>
+            <span class="mp-dead-sub">The cities with vendors are listed below instead.</span>
+          </span>
+          <div class="mp-deadlist">
+            <span class="dl-row"><span class="dl-city">Makati City</span><span class="dl-n">4 vendors</span></span>
+            <span class="dl-row"><span class="dl-city">Quezon City</span><span class="dl-n">3 vendors</span></span>
+            <span class="dl-row"><span class="dl-city">City of Pasig</span><span class="dl-n">2 vendors</span></span>
+            <span class="dl-row"><span class="dl-city">Cebu City</span><span class="dl-n">2 vendors</span></span>
+            <span class="dl-row"><span class="dl-city">Pila</span><span class="dl-n">1 vendor</span></span>
+          </div>
+        </div>
+        <p class="mp-foot">A blocked tile renders as a blank grey square with no error, so the panel says so instead of showing an empty grid — plan §4.4.</p>
+      </div>
+
+      <!-- ░░░░ RESULTS — grouped by tier ░░░░ -->
+      <div data-only="explore map map-fail">
+        <p class="resline">28 results</p>
+
+        <p class="grouphead"><span class="gh-dot gh-0" aria-hidden="true"></span>In Makati City <span class="gh-n">7</span></p>
+        <div class="rlist">
+          <span class="rrow" data-division="ezzy-court">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Indoor Court — Hourly</span><span class="rr-sub">Bangkal Sports Hub · Makati City</span></span>
+            <span class="rr-price">₱850</span>
+          </span>
+          <span class="rrow" data-division="ezzy-well">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Sports Massage</span><span class="rr-sub">Chino Roces Recovery · Makati City</span></span>
+            <span class="rr-price">₱1,200</span>
+          </span>
+          <span class="rrow" data-division="ezzy-work">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Hot Desk — Day Pass</span><span class="rr-sub">Legazpi Workspace · Makati City</span></span>
+            <span class="rr-price">₱550</span>
+          </span>
+        </div>
+
+        <p class="grouphead"><span class="gh-dot gh-1" aria-hidden="true"></span>Also in Metro Manila <span class="gh-n">12</span></p>
+        <div class="rlist">
+          <span class="rrow" data-division="ezzy-park">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Covered Parking — Daily</span><span class="rr-sub">Ortigas Parking Deck · City of Pasig</span></span>
+            <span class="rr-price">₱300</span>
+          </span>
+          <span class="rrow" data-division="ezzy-court">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Badminton Court — Hourly</span><span class="rr-sub">Tandang Sora Courts · Quezon City</span></span>
+            <span class="rr-price">₱480</span>
+          </span>
+        </div>
+
+        <p class="grouphead"><span class="gh-dot gh-2" aria-hidden="true"></span>Elsewhere <span class="gh-n">9</span></p>
+        <div class="rlist">
+          <span class="rrow" data-division="ezzy-stay">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Garden Room — Nightly</span><span class="rr-sub">Ridgeview Guesthouse · Antipolo City</span></span>
+            <span class="rr-price">₱1,800</span>
+          </span>
+          <span class="rrow" data-division="ezzy-ride">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Van Charter — Day</span><span class="rr-sub">Harbor Transit · City of Tagum</span></span>
+            <span class="rr-price">₱6,500</span>
+          </span>
+        </div>
+        <span class="btn-more">Show more</span>
+      </div>
+
+      <!-- ░░░░ RESULTS — unsorted (no location) ░░░░ -->
+      <div data-only="explore-nosort">
+        <p class="resline">28 results</p>
+        <div class="rlist">
+          <span class="rrow" data-division="ezzy-ride">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Van Charter — Day</span><span class="rr-sub">Harbor Transit · City of Tagum</span></span>
+            <span class="rr-price">₱6,500</span>
+          </span>
+          <span class="rrow" data-division="ezzy-court">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Indoor Court — Hourly</span><span class="rr-sub">Bangkal Sports Hub · Makati City</span></span>
+            <span class="rr-price">₱850</span>
+          </span>
+          <span class="rrow" data-division="ezzy-well">
+            <span class="rr-art" aria-hidden="true"></span>
+            <span class="rr-body"><span class="rr-title">Thermal Pool — Half Day</span><span class="rr-sub">Calamba Springs · Calamba City</span></span>
+            <span class="rr-price">₱450</span>
+          </span>
+        </div>
+        <p class="tiernote">No location set, so nothing is reordered and no group headers appear. Catalogue order, exactly as today.</p>
+      </div>
+
+      <!-- ░░░░ NO RESULTS IN THE CHOSEN CITY ░░░░ -->
+      <div data-only="explore-empty">
+        <p class="resline">0 results</p>
+        <div class="emptybox emptybox-wide">
+          <p class="eb-title">Nothing in Burgos, Ilocos Norte.</p>
+          <p class="eb-sub">Try a broader word, a different city, or clear the filters to see everything.</p>
+          <span class="btn-primary">Show nearby cities instead</span>
+        </div>
+        <p class="tiernote">The empty state is never silently filled with other cities — expanding is an action you take, and the results that follow carry their own labels.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Preview-only controls. Not part of the design. -->
+<div class="pv-bar">
+  <span class="pv-label">PREVIEW</span>
+  <label>Screen <select id="pv-screen"></select></label>
+  <label>Theme <select id="pv-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+</div>
+
+</body>
+</html>
