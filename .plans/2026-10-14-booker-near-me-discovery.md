@@ -327,6 +327,13 @@ Rationale: the prompt asks for nearby offerings "at the front of the shopping pa
 grid is a taxonomy, not an answer. The in-progress strip stays first because it is the only personal
 *live* state on the page (plan D21).
 
+⚠️ **REVERSED 2026-10-17 BY THE USER, AFTER SEEING IT BUILT.** "Browse by division" now sits **above**
+"Near you"; the in-progress strip is unchanged and still first. The rationale above is kept because it
+is still a reasonable case — it simply lost to the user's judgement on a real screen, which outranks
+it. ⚠️ **If this is ever revisited, the question is which section a returning booker scans first, not
+which argument reads better.** Implemented in `components/home/HomePage/HomePage.tsx`, where the
+comment records the same thing.
+
 The control is a single line of text, not a form: **`📍 Makati City · Change`**. One tap opens the
 picker sheet.
 
@@ -870,8 +877,10 @@ stays unexercised, which is exactly how K11 shipped with every offering photo bl
 
 ## 11. IMPORTANT
 
-### I1 — "Near you" shelf at the front of Home  ⬜ TODO
-**File:** `components/home/HomePage.tsx` (insert after the in-progress strip, before "Browse by division")
+### I1 — "Near you" shelf on Home  ⬜ TODO — ⚠️ placement reversed 2026-10-17 (see §6.1)
+**File:** `components/home/HomePage.tsx` (after the in-progress strip; ⚠️ **below** "Browse by
+division" since 2026-10-17, the user's call — the title said "at the front of Home" and no longer
+describes where it sits)
 The prompt's core ask. Up to `NEAR_YOU_LIMIT` (6) offerings, tier 0 first with labelled tier-1/2
 groups to fill, hidden entirely when the location is unset, honest empty state when the city and its
 expansions are genuinely empty (§4.1). Owns its own cover-photo fetch (the `PopularShelf` pattern) so
