@@ -3,15 +3,21 @@
 **Date:** 2026-10-16
 **App / scope:** `booker/` web only. **No `backbone/` migration is proposed or needed.** No `vendor/`
 or `command/` change. One security-header change (`booker/next.config.ts`) behind a gate.
-**Status:** IN PROGRESS — ✅ **S1, S2, S3 and S4 are all DONE (2026-10-17).** The barangay rung
+**Status:** COMPLETE (2026-10-17) — ✅ **S1, S2, S3 and S4 are all DONE (2026-10-17).** The barangay rung
 ships: `barangay_code` reaches booker, the picker narrows optionally, `BookerLocation` carries the
 pair, and `rankTier`/`tierLabel`/B2 all work one rung finer. All five decisions are resolved
 (D1–D5). **286/286 unit tests, tsc clean, lint at the agreed 18, production build clean.**
 ⚠️ **The rung is DORMANT on live data by design** (D4's gate; 14 vendors in 14 barangays), and
-✅ **All five execution findings are closed** (F1 chip, F2 baselines, F3/F4 recorded, F5 fixed).
-**Visual suite: 112 passed**, including 6 new baselines for the picker, its barangay step and the
-chip — the picker had never been shot before. **Remaining: S5** (needs **G3**) and **S6** (needs
-**G2**), plus the live checks.
+✅ **EVERY STAGE IS DONE (S0–S6, 2026-10-17).** G1, G2 and G3 all given and used. The ladder has a
+barangay rung, the picker narrows optionally, intra-city ordering is real, and device location
+suggests a **city** that the booker confirms — never applied silently.
+**303 unit tests, 115 visual (105 baselines), tsc clean, lint at the agreed 18, production build clean.**
+⚠️ **Still dormant on live data** by D4's density gate (14 vendors across 14 barangays), and
+⚠️ **eight findings came out of execution (F1–F8)**, three of them data traps that only an
+assertion or a rendered pixel could have caught: Manila's barangays are **not** prefixed by its city
+code (F6), South Upi's barangays inherit a **misplaced HDX unit** (F7), and nearest-centroid names
+**Mandaue for a fix in downtown Cebu City** (F8).
+**Remaining: the live checks on a device, and the commits** — both the user's.
 
 **The two things that unblocked it, both on 2026-10-17:**
 
@@ -103,8 +109,9 @@ shipped ladder**; it does not reorder it.
   not use the `barangays/` tree at all — it never resolves below city level"), and neither
   `booker/lib/types.ts` nor any file in `booker/services/` mentions `barangay`.
 - **V3 — the barangay reference data is already sharded, and cheaply.**
-  `vendor/public/ph-address/barangays/<cityCode>.json` — **1,634 files, 6.6 MB in total but
-  ~700–1,400 bytes each** (Makati 1,352 B / 33 barangays; Pila 711 B). Shape: `[{code, name}]`.
+  `vendor/public/ph-address/barangays/<cityCode>.json` — **1,634 files, ~700–1,400 bytes each**
+  (⚠️ **1.7 MB of content**; an earlier note here said 6.6 MB, which was `du -sh` reporting 4 KB
+  block padding on ~1 KB files — corrected 2026-10-17) (Makati 1,352 B / 33 barangays; Pila 711 B). Shape: `[{code, name}]`.
   ⚠️ **Names only — no coordinates.** It solves the *delivery* shape and gives the join key; it does
   not satisfy U1.
 - **V4 — barangay codes are alphabetical, not spatial.** Makati runs Bangkal `…001`, Bel-Air `…002`,
@@ -355,7 +362,7 @@ never reordered by a table, and the city rung still keeps the caller's order **f
 reason than before** (measured-and-tied, not skipped) — the old test's comment says so explicitly
 rather than leaving a passing test that quietly means something else.
 
-### B3 — A device-derived place must never be applied silently  ⬜ TODO
+### B3 — A device-derived place must never be applied silently  ✅ DONE (2026-10-17, S6)
 **File:** new picker/hook work (§6 I2, I3) · the pattern is specified in near-me **P4**
 
 The device gives a *point*. Turning it into a barangay is **nearest-centroid, which is a guess** —
@@ -372,7 +379,23 @@ no UI can distinguish them later. ⚠️ Point-in-polygon would be *correct* rat
 needs ~42,000 boundary polygons (tens of MB) and is **out of scope** — which is why the confirmation
 step is load-bearing rather than polish.
 
-### B4 — Nothing device-related works until the header changes  ⬜ TODO — gate **G2**
+✅ **DONE 2026-10-17 (S6).** `hooks/useDeviceCity.ts` produces a suggestion and **cannot set the
+location**: the only path from a fix to `onPick` is `acceptDevice`, reached by tapping "Yes, use
+this". `BookerLocation.source?: "device"` records a confirmed guess, optional and conditionally
+spread like the barangay pair, so every pre-existing stored location stays valid.
+⚠️ **The guess is measurably wrong sometimes, and that is now pinned rather than described.** A
+precise fix in **downtown Cebu City resolves to Mandaue** — Mandaue's centroid is 6.91 km away,
+Cebu City's own is 7.59 km, because Cebu City's territory runs inland. `lib/deviceLocation.test.ts`
+asserts that wrong-by-design answer on purpose, with a comment telling anyone who tries to "fix" it
+with weighting or second-nearest to read B3 first: the remedy is the confirmation step, not a
+cleverer guess.
+Three further refusals, each deliberate: a fix worse than **50 km accuracy** suggests nothing (an
+IP-derived fix is confidently wrong); a point more than **120 km** from every city suggests nothing;
+and without the address file there is no NAME to show, so it degrades rather than offering a code.
+**Verified:** 8 unit tests + an end-to-end Playwright test that mocks a fix, clicks the control and
+asserts both answers are present and tappable.
+
+### B4 — Nothing device-related works until the header changes  ✅ DONE (2026-10-17, S6) — gate **G2** given
 **File:** `booker/next.config.ts:243`
 
 `Permissions-Policy: … geolocation=() …` denies the API to **every** origin (V8). Until it is
@@ -383,6 +406,20 @@ that looks like the booker declining.
 ahead of it, and extend `visual-tests/csp.spec.ts` the way near-me's B6 did for the map — assert the
 policy *permits* what the feature needs rather than reasoning about it. ⚠️ Security-header change:
 **approval gate G2**, not covered by approving this plan.
+
+✅ **DONE 2026-10-17 (S6), G2 given by the user.** `next.config.ts` now ships
+`geolocation=(self)` — this origin only; no embedder inherits it — flipped in the same change that
+first calls the API, as specified. `camera=()`, `microphone=()` and `payment=()` are unchanged.
+⚠️ **A stale comment 90 lines above the header said the token "is now `()`", with instructions to
+flip it back when a device feature arrives. That note is corrected**, not left to contradict the
+value it explains.
+**Two tests, because one is not enough here:** `csp.spec.ts` asserts the **shipped header string**
+(and that the three closed tokens stayed closed), and the new `locationdevice-*` test proves the
+capability actually **works through it** — under `geolocation=()` the API never calls back at all,
+so that test would hang and fail rather than quietly passing.
+⚠️ **No `connect-src` change, and none is needed:** resolution is offline against the shipped city
+centroids and the coordinates never leave the device. If a reverse-geocoding service is ever added,
+that becomes part of this decision again.
 
 ---
 
@@ -449,7 +486,7 @@ storage, not a key holding `undefined` — otherwise a `"barangayCode" in locati
 as present. A stored **code with no name** is kept (the code is the identity; I6 has a wordy label
 for it); a **name with no code** is discarded.
 
-### I4 — `centroidOf` is reusable as-is; resist renaming it  ⬜ TODO
+### I4 — `centroidOf` is reusable as-is; resist renaming it  ✅ DONE (2026-10-17, S5)
 **File:** `lib/geoCentroids.ts:36, 66, 97`
 
 `CentroidTable` is `Record<string, [number, number]>` and `centroidOf` is a key lookup (V5), so it
@@ -457,7 +494,7 @@ serves barangay codes unchanged. Only `cityDistanceKm:97` is city-named. ⚠️ 
 lookup used twice** over a parallel barangay module — two copies of a haversine is how two answers
 appear for one question.
 
-### I5 — F27's count-of-1 rule belongs in the derivation, not in review  ⬜ TODO
+### I5 — F27's count-of-1 rule belongs in the derivation, not in review  ✅ DONE (2026-10-17, S4)
 **File:** wherever barangay markers or breakdowns are derived (sibling of `lib/cityMarkers.ts`)
 
 near-me **F27**: at one vendor per barangay, a "barangay · 1" marker **is** a vendor pin by
@@ -496,7 +533,7 @@ expectations are still written as **literals** — a comment explains that rewri
 `TIER.SAME_CITY` would make the next renumbering silent, which would destroy the tripwire that just
 earned its keep.
 
-### I9 — A barangay centroid must carry its provenance  ⬜ TODO — **REQUIRED** (D5 = (b), resolved 2026-10-17)
+### I9 — A barangay centroid must carry its provenance  ✅ DONE (2026-10-17, S5) — D5 = (b)
 **File:** the generated asset in `booker/public/` · its build script in `.plans/scripts/` ·
 `lib/geoCentroids.ts` (the table type at `:36`)
 
@@ -637,13 +674,13 @@ click lands at the same place every run, so that baseline would have **passed fo
 documenting a hover as the step's resting appearance. The spec now parks the pointer at `(0, 0)`.
 A deterministic wrong baseline is worse than a flaky one — it never asks to be looked at again.
 
-### F3 — booker now carries 1,634 extra files / 6.6 MB, reversing a documented decision  ⬜ RECORDED
+### F3 — booker now carries 1,634 extra files (1.7 MB), reversing a documented decision  ⬜ RECORDED
 **File:** `booker/public/ph-address/barangays/` (new) · `booker/lib/phAddress.ts` header ·
 `booker/AGENTS.md` → "PSGC address data"
 
 I2 specified a per-city loader over the sharded barangay data but never said where booker gets it.
-It gets it by **copying `vendor/public/ph-address/barangays/`** — 1,634 files, 6.6 MB, verified
-identical by `diff -r` **and** by a content-only digest (⚠️ the first check used `md5sum`, whose
+It gets it by **copying `vendor/public/ph-address/barangays/`** — 1,634 files, **1.7 MB of
+content**, verified identical by `diff -r` **and** by a content-only digest (⚠️ the first check used `md5sum`, whose
 output includes the path, so the two trees' digests could never have matched — the comparison was
 wrong, not the data).
 
@@ -651,9 +688,13 @@ This **reverses** the note in `lib/phAddress.ts` that booker "does not use the `
 all". Both that comment and `booker/AGENTS.md` now say so, including the **drift warning**: the
 copies are independent, so a PSGC update must be applied to both with no error on either side.
 ⚠️ **Nothing loads the tree as a whole** — one shard per narrowed city, ~700 B–38 KB.
-⚠️ **The user controls the commit**, so the 6.6 MB is reversible by simply not committing it; it is
+⚠️ **The user controls the commit**, so it is reversible by simply not committing it; it is
 flagged here because a plan reader six months from now will want to know why booker gained 1,634
 files.
+⚠️ **SIZE CORRECTION (2026-10-17):** this finding first said **6.6 MB**, taken from `du -sh`. That
+is the **block-padded** figure — 1,634 files of ~1 KB each occupying 4 KB blocks. The content is
+**1.7 MB**, which is what git stores and what a deploy ships. The same error reached
+`booker/AGENTS.md`, `lib/phAddress.ts` and a drafted commit message; all corrected.
 
 ### F4 — The barangay loader had to be derived, not reset, to hold the lint baseline  ⬜ RECORDED
 **File:** `components/location/LocationPicker/useLocationPicker.ts`
@@ -667,6 +708,98 @@ reset version rendered the *previous* city's barangays for one frame on a city s
 effect runs after that render. Same shape as `useExplorePage`'s derived reveal counter.
 
 ---
+
+### S5 — execution notes (2026-10-17)
+
+**The asset.** `.plans/scripts/build-ph-barangay-centroids.py` → `booker/public/ph-barangay-centroids/`:
+**1,633 shards, 41,894 barangays, 2.0 MB of content, ~1.2 KB per shard (583 B gzipped)**.
+
+⚠️ **SHARDED PER CITY, not one table — a deviation from G3's wording ("a table", modelled on the
+city one), taken deliberately.** One file would be **~1.7 MB**, and a booker would download all of
+it to order the vendors in *one* city. The gradient only ever applies **within** the booker's own
+city (every other tier is still ordered by city centroid), so the only shard anyone needs is their
+own. The per-city delivery shape already existed for barangay names (I2), so this reuses an
+established pattern rather than inventing one.
+
+⚠️ **No venv this time.** The script opens the wheel with `zipfile` and never imports it — the
+pattern `build-ph-city-centroids.py` already set, and strictly safer than the U1 probe's venv.
+
+**I9 is enforced in TWO places, on purpose.** The build applies D5's filter *and* every row ships
+its provenance letter, which `parseBarangayCentroidAsset` re-checks before a row enters the table.
+On a correctly-built asset the parser never drops anything — which is exactly why it is there: the
+invariant must not depend on a future rebuild remembering the filter.
+
+**I4 honoured:** `centroidOf` was not renamed, not generalised and not duplicated. The parser
+returns a plain `CentroidTable`, so one lookup serves both granularities.
+
+**The gradient's contract, and the one decision inside it:** barangay precision applies **only when
+the booker has narrowed to a barangay**. With a city alone, the city centroid is the finest honest
+statement about where they are — ordering vendors by distance from the municipal centre would imply
+a precision about the *booker* that nobody supplied, and would mislead anyone at the city edge.
+A vendor missing from the shard (152 of 42,046) falls back to its **city** centroid, never to
+"last within tier": it has a true coarser position, and demoting it would be a visible penalty for
+an invisible cause. Origin and vendors resolve through the **same** function, so both ends move to
+barangay precision together.
+
+### F6 — A barangay code is NOT always prefixed by its city's code  ✅ FIXED (2026-10-17)
+**File:** `.plans/scripts/build-ph-barangay-centroids.py` check 5 · `booker/lib/nearby.ts`
+(`rankTier`'s comment) · `booker/lib/nearby.test.ts`
+
+S4's `rankTier` comment justified comparing bare barangay codes like this: *"a PSGC barangay code
+carries its city's code as its own prefix, so equal barangay codes cannot span cities."* The build
+script asserted the same thing and **failed on `133901001`**.
+
+⚠️ **The City of Manila (`133900000`) is the exception — all 897 of its barangays.** They are coded
+under its **six districts** (`133901`…`133906`), not under the city's own `133900`. One city in
+1,634, which is precisely the kind of lone exception that survives every test and dies in
+production.
+
+**The conclusion still holds; the stated reason did not.** Measured 2026-10-17: **42,046 codes, 0
+appearing in more than one city** — a barangay code is a nationally unique identifier, so equality
+genuinely cannot span cities. The comment now says that, the build script asserts *uniqueness*
+(plus a 4-digit province check) instead of a 6-digit prefix, and a test pins a Manila district code
+so the real exception is covered rather than assumed away.
+
+### F7 — South Upi's barangays inherit a misplaced HDX unit  ✅ EXCLUDED (2026-10-17)
+**File:** `.plans/scripts/build-ph-barangay-centroids.py` (`EXCLUDED_CITIES`)
+
+The distance check caught 11 trusted rows **>60 km** from their own city — all of them South Upi
+(`153817000`), **the same row the city script already overrides**. Measured: its barangays cluster
+3–7 km around HDX's South Upi centroid, which sits **74.1 km** from the GeoNames point this
+workspace ships for that city; published references put South Upi at ~6.75N, matching GeoNames,
+while HDX's 7.06N/124.77E is ~70 km east — and HDX's South Upi centroid is byte-identical to
+Pagagawan's. The HDX **unit** is in the wrong place, so everything derived from it is too.
+
+⚠️ **D5's provenance filter cannot catch this**: all 11 rows are labelled `hdx_exact_2023`. This is
+the residual risk U1 recorded — "`hdx_exact_2023` is the package's own label" — showing up in real
+data, and the distance check is what found it. Excluded, so those vendors fall back to the
+(corrected) city centroid.
+⚠️ The script also asserts the exclusion is **still justified**: if a future package vintage fixes
+South Upi, the build fails and asks for the override to be removed rather than silently dropping 11
+good rows for ever.
+
+### F8 — Nearest-centroid names the wrong city in a real, common case  ✅ RECORDED (2026-10-17)
+**File:** `booker/lib/deviceLocation.ts` · `booker/lib/deviceLocation.test.ts`
+
+B3 said nearest-centroid "is a guess". S6 measured **how** wrong, and it is worse than the
+hand-waving suggested: a **precise** fix in **downtown Cebu City** resolves to **Mandaue** — 6.91 km
+to Mandaue's centroid against 7.59 km to Cebu City's own, because Cebu City's territory runs far
+inland and its centroid sits in the hills above the port. The booker is unambiguously standing in
+Cebu City and the app would name its neighbour.
+
+⚠️ **This is not an edge case at a border; it is a city centre.** Any municipality whose shape is
+lopsided — a long coastal strip, a city with a mountainous hinterland — has the same property, and
+Metro Manila's cities are small enough that boundary cases are routine on top.
+
+**Why nothing was "fixed":** weighting by area, or picking the second-nearest, would trade one
+unprincipled guess for another. Point-in-polygon would be correct and needs ~42,000 boundary
+polygons (tens of MB) that this app does not ship. **The confirmation step is the remedy**, which is
+exactly what B3 argued before the number existed — so this finding strengthens the design rather
+than challenging it.
+
+**What was done:** the wrong-by-design answer is asserted in a test, with a comment telling the next
+person to read B3 before "fixing" it. The UI names the city in words and offers an equally
+prominent refusal, so the cost of a wrong guess is one tap.
 
 ### I8 — Mobile parity  ⬜ REPORT ONLY
 `ezzy-booker-mobile` has no "near" feature. Tracked in
@@ -770,8 +903,8 @@ effect runs after that render. Same shape as `useExplorePage`'s derived reveal c
 | Gate | What | When | Status |
 |---|---|---|---|
 | **G1** | **Execution approval** for this plan | before S1 | ⬜ **NOT GIVEN — but nothing blocks it now.** D1–D5 all resolved 2026-10-17; the hard gate is cleared |
-| **G2** | **Security header** — `geolocation=()` → `(self)` (`next.config.ts:243`) | the stage that first calls the API (S6) | ⬜ **RESTORED by near-me D11, NOT GIVEN.** Its own approval |
-| **G3** | **New asset** — a generated barangay centroid table into `booker/public/`, built by a script in `.plans/scripts/` as the city table was | S5 step 1 | ⬜ **NOT GIVEN** — but its **shape is now settled** by D5 = (b) (2026-10-17): per-row provenance, `fallback_unverified` excluded. ✅ U1 confirms the source exists (99.8%, CC BY-IGO). ⚠️ The asset must carry the **provenance flag** (**I9**) and the **CC BY-IGO credit is owed** — MIT covers the package code, not the data |
+| **G2** | **Security header** — `geolocation=()` → `(self)` (`next.config.ts`) | the stage that first calls the API (S6) | ✅ **GIVEN and APPLIED 2026-10-17.** `(self)` only; asserted by `csp.spec.ts` and exercised end-to-end by `locationdevice-*` |
+| **G3** | **New asset** — a generated barangay centroid table into `booker/public/`, built by a script in `.plans/scripts/` as the city table was | S5 step 1 | ✅ **GIVEN and USED 2026-10-17.** Shape as D5 = (b) settled it: per-row provenance, `fallback_unverified` excluded. ⚠️ Delivered as 1,633 per-city shards rather than one table — see S5's notes for why. ✅ U1 confirms the source exists (99.8%, CC BY-IGO). ⚠️ The asset must carry the **provenance flag** (**I9**) and the **CC BY-IGO credit is owed** — MIT covers the package code, not the data |
 | — | **No migration gate** | — | ✅ **none needed** — `vendors.barangay_code` already exists and is populated (V1) |
 
 ---
@@ -786,10 +919,10 @@ start without waiting on U1 or G2.
 | **S0** | **U1 — the dataset investigation.** No code. Licence verified at source, PSGC coverage counted, sample cross-checked. Record the outcome against §4's conditional table | nothing |
 | ✅ **S1** | **B1** — make the ladder extensible. **Pure refactor, zero behaviour change**, proven by `lib/nearby.test.ts` staying green **unmodified** | ✅ **DONE 2026-10-17** — 15/15 unmodified, 272/272 suite, tsc clean, plus a 1,600-case differential |
 | ✅ **S2** | **I1** — carry `barangay_code` into the catalogue, `CatalogueVendor` and `RankableVendor` (optional) | ✅ **DONE 2026-10-17** — tsc clean, 272/272, lint at baseline |
-| ✅ **S3** | **I2, I3** — the picker's optional barangay level + the widened, backward-compatible `BookerLocation` | ✅ **DONE 2026-10-17** — new `lib/phBarangays.ts` (+6 tests), per-city loader, 1,634 shards copied into booker, one-tap city flow unchanged |
+| ✅ **S3** | **I2, I3** — the picker's optional barangay level + the widened, backward-compatible `BookerLocation` | ✅ **DONE 2026-10-17** — new `lib/phBarangays.ts` (+6 tests), per-city loader, 1,634 shards (1.7 MB) copied into booker, one-tap city flow unchanged |
 | ✅ **S4** | **The barangay tier** — `rankTier` + `tierLabel` + **B2** + **I6**, **I7**. ⚠️ **Needs no dataset** (this is near-me's P1a) and ⚠️ **ships dormant** at today's density | ✅ **DONE 2026-10-17** — rung added, B2 moved to the narrowest rung, `BARANGAY_GROUP_MIN` = 2, 286/286, production build clean |
-| **S5** | **The gradient** — barangay-centroid distance within a city (**I4**, **I5**, **I9** — now required), **G3** | S4, **G3**. ✅ **Fully unblocked on its own terms 2026-10-17**: U1 cleared the data (99.8%) and D5 = (b) settled the filter. Nothing specific to S5 is open any more |
-| **S6** | **Device suggestion, CITY LEVEL ONLY** — **B3**, **B4/G2**, `csp.spec.ts` extended. Barangay-level suggestion is a separate follow-on step (D3) | **G2**, S3. ✅ **D3 decoupled it from S5** |
+| ✅ **S5** | **The gradient** — barangay-centroid distance within a city (**I4**, **I5**, **I9**), **G3** | ✅ **DONE 2026-10-17** — 1,633 shards / 41,894 barangays / 2.0 MB generated with 9 passing checks; 294/294 tests, build clean. ⚠️ Sharded per city, not one table (see S5 notes) |
+| ✅ **S6** | **Device suggestion, CITY LEVEL ONLY** — **B3**, **B4/G2**, `csp.spec.ts` extended. Barangay-level suggestion remains a separate follow-on step (D3) | ✅ **DONE 2026-10-17** — G2 given; `geolocation=(self)`; offline nearest-centroid; suggestion-with-confirmation; 2 new baselines + an end-to-end geolocation test |
 
 ⚠️ **S5 and S6 are independent of each other.** S6 at *city* level can ship without S5 or U1 (V10).
 
@@ -834,24 +967,25 @@ see. **Density is a precondition, not a detail** — see D4.
 | [ ] | U2 | Hosted `barangay_code` coverage | — | ⬜ OPEN — the user's | Local is 14/14; hosted unmeasured. Query in §4 |
 | [x] | B1 | Tier ladder cannot be extended safely — magic `3` in four places | S1 | ✅ **DONE 2026-10-17** | One `TIER` map, `NearTier` + `TIERS` derived, all 7 literals named. Verified: test file green **unmodified** (15/15), suite 272/272, tsc clean, **1,600-case differential vs the pre-refactor file**. ⚠️ Does **not** resolve B2 |
 | [x] | B2 | "Narrowest tier is unorderable" becomes wrong | S4 | ⬜ TODO | If missed, city-tier ordering stays dead and the feature delivers nothing |
-| [ ] | B3 | Device-derived place must never apply silently | S6 | ⬜ TODO | Nearest-centroid is a guess; `BookerLocation` must record *how* it was set |
-| [ ] | B4 | `geolocation=()` blocks the API for every origin | S6 | ⬜ TODO — **G2** | `next.config.ts:243`. Fails looking like the booker declined |
+| [x] | B3 | Device-derived place must never apply silently | S6 | ⬜ TODO | Nearest-centroid is a guess; `BookerLocation` must record *how* it was set |
+| [x] | B4 | `geolocation=()` blocks the API for every origin | S6 | ⬜ TODO — **G2** | `next.config.ts:243`. Fails looking like the booker declined |
 | [x] | I1 | `barangay_code` must reach booker at all | S2 | ⬜ TODO | Optional on `RankableVendor` so nothing existing breaks |
 | [x] | I2 | Picker barangay level — **per-city** loader, a new pattern | S3 | ⬜ TODO | 1,634 shards, ~700–1,400 B each. Do not copy the single-file city loader |
 | [x] | I3 | `BookerLocation` widening, backward-compatible | S3 | ⬜ TODO | Optional fields, or every remembered city is discarded (V9) |
-| [ ] | I4 | Reuse `centroidOf`; don't fork a barangay module | S5 | ⬜ TODO | Already code-agnostic (V5) |
-| [ ] | I5 | Count-of-1 barangay must not render | S5 | ⬜ TODO | near-me **F27**; structural, with a test. **D4 fixed the threshold at ≥ 2** — below it, fall back to the city level |
+| [x] | I4 | Reuse `centroidOf`; don't fork a barangay module | S5 | ⬜ TODO | Already code-agnostic (V5) |
+| [x] | I5 | Count-of-1 barangay must not render | S5 | ⬜ TODO | near-me **F27**; structural, with a test. **D4 fixed the threshold at ≥ 2** — below it, fall back to the city level |
 | [x] | I6 | Tier labels shift; barangay needs its own | S4 | ⬜ TODO | ⚠️ `displayCityName` does not apply to barangay names |
 | [x] | I7 | Existing tier tests are the safety net | S1, S4 | ⬜ TODO | Green through S1; deliberately updated in S4 |
 | [ ] | I8 | Mobile parity | — | ⬜ **REPORT ONLY** | Not closed by this plan |
-| [ ] | I9 | A barangay centroid must carry its provenance | S5 | ⬜ TODO — **REQUIRED** (D5=(b) resolved 2026-10-17) | 0.2% of rows are `fallback_unverified` and that is where all 3 implausible rows live (one **385 km** from its parent city). One exclusion removes them all; the plain table shape cannot express it. Structural, like near-me B5. The exact filter is tabulated at I9 |
+| [x] | I9 | A barangay centroid must carry its provenance | S5 | ⬜ TODO — **REQUIRED** (D5=(b) resolved 2026-10-17) | 0.2% of rows are `fallback_unverified` and that is where all 3 implausible rows live (one **385 km** from its parent city). One exclusion removes them all; the plain table shape cannot express it. Structural, like near-me B5. The exact filter is tabulated at I9 |
 | [x] | D1–D4 | Tier representation · picker shape · device scope · density gate | — | ✅ **RESOLVED 2026-10-17** | §7, each as recommended: (a) numeric + named constants · optional barangay · city-first device suggestion · ship gated at **≥ 2**. 🤖 The ≥ 2 threshold was set by me when recording D4, not asked — override if you want headroom |
 | [x] | D5 | **The S5 trust filter** | — | ✅ **RESOLVED (b)** 2026-10-17 | Exclude `fallback_unverified`, carry provenance per row, degrade the rest to the city tier. Decided on U1's measurement, which ruled out (a) abort and (c) re-source. Makes **I9** required and settles **G3**'s shape |
 | [x] | F1 | Barangay choice was invisible — chip now shows `Bel-Air · Makati City` | — | ✅ **DONE 2026-10-17** | §6b. Option (a), user's call. Truncates rather than widening; comma in the accessible name; still a pure display component. ⚠️ Barangay form unseen in a browser → F2 |
 | [x] | F2 | The location picker had **no** visual baseline; three fixtures + 6 baselines added | — | ✅ **DONE 2026-10-17** | §6b. Full suite **112 passed**, exit 0. ⚠️ The baselines caught a design defect (60 shouting pills) and a hover state nearly recorded as truth — see **F5** |
 | [x] | F5 | The barangay affordance was visually wrong; a hover state nearly became a baseline | — | ✅ **FIXED 2026-10-17** | §6b. Both found by *looking* at the new baselines — neither is reachable by tsc, lint or a unit test |
-| [x] | F3 | booker gained 1,634 files / 6.6 MB of barangay shards | S3 | ✅ RECORDED | §6b. Verified identical to vendor's by `diff -r`; drift warning in `phAddress.ts` + `booker/AGENTS.md` |
+| [x] | F3 | booker gained 1,634 barangay-name files (1.7 MB; `du` says 6.6 MB — block padding) | S3 | ✅ RECORDED | §6b. Verified identical to vendor's by `diff -r`; drift warning in `phAddress.ts` + `booker/AGENTS.md` |
 | [x] | F4 | Loader derived rather than reset, to hold the 18-problem lint baseline | S3 | ✅ FIXED | §6b. The rewrite also removed a stale-data frame on city switch |
+| [x] | F8 | Nearest-centroid names the wrong city for a fix in **downtown Cebu City** (resolves to Mandaue) | S6 | ✅ RECORDED | §6b. Pinned in a test as wrong-by-design; the remedy is B3's confirmation step, not a cleverer guess |
 | [ ] | G1 | Execution approval | before S1 | ⬜ **NOT GIVEN** | ✅ Nothing blocks it — all five decisions resolved 2026-10-17. **This is now the next action on the plan** |
 | [ ] | G2 | `geolocation=(self)` | S6 | ⬜ NOT GIVEN | Security header, own approval |
 | [ ] | G3 | Barangay centroid asset (generated, with provenance) | S5 | ⬜ **NOT GIVEN** — shape settled by D5=(b) | U1 confirms the source: 99.8% coverage, CC BY-IGO. ⚠️ Attribution owed; generated by a script like `build-ph-city-centroids.py`, never a runtime dependency |
