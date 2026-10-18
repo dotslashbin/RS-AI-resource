@@ -73,7 +73,7 @@ What the deletion took with it, so nobody hunts for it:
 |---|---|
 | `Step1Offering/`, its `dedupeByCode()` and the "from ₱X" multi-price prefix | Explore's search and offering cards |
 | `Step2Vendor/` and `services/vendors.service.ts` → `getVendorsForOffering()` | Explore's vendor list and the vendor page |
-| The Leaflet map and the browser-geolocation dot | Nothing. Directions are a Maps link; location is a **city filter** |
+| The Leaflet map and the browser-geolocation dot | ⚠️ **Both came back elsewhere, in a different shape (2026-10-16/17).** Directions are still a Maps link, and location is still a filter — but it is now a **city plus an optional barangay** (`LocationPicker`), and the browser geolocation API is used again by `hooks/useDeviceCity.ts` to **suggest a city the booker must confirm**, never a dot on a booking step. The map is a city-marker map in Explore, not a wizard step. See `portals.md` and `booker/AGENTS.md` |
 | `leaflet`, `react-leaflet` | Uninstalled |
 
 ⚠️ **The RLS dependency did not go away.** `20260515000001_booker_vendor_read_policy.sql` grants

@@ -3,21 +3,35 @@
 **Date:** 2026-10-16
 **App / scope:** `booker/` web only. **No `backbone/` migration is proposed or needed.** No `vendor/`
 or `command/` change. One security-header change (`booker/next.config.ts`) behind a gate.
-**Status:** COMPLETE (2026-10-17) — ✅ **S1, S2, S3 and S4 are all DONE (2026-10-17).** The barangay rung
-ships: `barangay_code` reaches booker, the picker narrows optionally, `BookerLocation` carries the
-pair, and `rankTier`/`tierLabel`/B2 all work one rung finer. All five decisions are resolved
-(D1–D5). **286/286 unit tests, tsc clean, lint at the agreed 18, production build clean.**
-⚠️ **The rung is DORMANT on live data by design** (D4's gate; 14 vendors in 14 barangays), and
+**Status:** COMPLETE (2026-10-17) — the barangay rung ships: `barangay_code` reaches booker, the
+picker narrows optionally, `BookerLocation` carries the pair, and `rankTier`/`tierLabel`/B2 all work
+one rung finer. All five decisions are resolved (D1–D5).
+<!-- Mid-run snapshot, kept for the record and SUPERSEDED by the figures below: at S4 this read
+     "S1–S4 DONE, 286/286 unit tests", and "the rung is DORMANT on live data (14 vendors in 14
+     barangays)" — which was the LOCAL SEED, not live data; staging is measured further down. -->
 ✅ **EVERY STAGE IS DONE (S0–S6, 2026-10-17).** G1, G2 and G3 all given and used. The ladder has a
 barangay rung, the picker narrows optionally, intra-city ordering is real, and device location
 suggests a **city** that the booker confirms — never applied silently.
 **303 unit tests, 115 visual (105 baselines), tsc clean, lint at the agreed 18, production build clean.**
-⚠️ **Still dormant on live data** by D4's density gate (14 vendors across 14 barangays), and
+⚠️ **DORMANT LOCALLY BUT NOT ON STAGING — measured 2026-10-17, correcting what this plan says
+elsewhere.** The "14 vendors in 14 barangays, every count 1" figure is the **local seed**. Staging
+holds **22 active vendors across 15 barangays**, and **5 of those barangays clear
+`BARANGAY_GROUP_MIN`** (four with 2 vendors, one with 3) — so the barangay heading **does** render
+there and the rung is genuinely testable. ⚠️ Where it is still 1, the gate correctly collapses it.
+Also measured: **1 of 22 active vendors has a blank `city_code`** (near-me U4; 4.5%), which ranks
+"Elsewhere" by B2's guard. And
 ⚠️ **eight findings came out of execution (F1–F8)**, three of them data traps that only an
 assertion or a rendered pixel could have caught: Manila's barangays are **not** prefixed by its city
 code (F6), South Upi's barangays inherit a **misplaced HDX unit** (F7), and nearest-centroid names
 **Mandaue for a fix in downtown Cebu City** (F8).
-**Remaining: the live checks on a device, and the commits** — both the user's.
+✅ **NOTHING REMAINS IN THIS PLAN (2026-10-17).** The two items that were outstanding are both
+closed: the **live checks passed** (the user confirmed the Home sections, the near-me shelf and the
+picker on a real session) and the **commits are done** by the user. ⚠️ **This plan needs no
+production round of its own** — it introduced **no migration**; its only hosted dependency is
+booker's own deploy, which carries the `geolocation=(self)` header (verified on staging by
+`csp.spec.ts` and by the shipped header). The production item that is still open belongs to the
+**predecessor** plan, `.plans/2026-10-14-booker-near-me-discovery.md` → **▶ RESUME HERE** (the S3d
+`get_popular_offerings` migration).
 
 **The two things that unblocked it, both on 2026-10-17:**
 

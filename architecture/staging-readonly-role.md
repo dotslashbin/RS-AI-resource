@@ -7,8 +7,15 @@ Created 2026-10-14 during the booker staging verification round
 (`.plans/2026-09-29-booker-live-verification.md`, L1–L6), where it replaced a long sequence of
 copy-paste-the-query-result round trips.
 
-> **Status:** live and in use. Park it between rounds; tear it down when the production work
-> starts. Both procedures are below.
+> **Status:** live and **left armed deliberately** (2026-10-17, the user's call: "leave the role
+> alone"), because a second round is expected — the booker near-me production pass. Park it between
+> rounds; tear it down when the production work starts. Both procedures are below.
+>
+> ⚠️ **Do not widen its scope to get a round unblocked.** During the 2026-10-17 round it was
+> proposed that `claude_ro` be granted read access to `supabase_migrations` to check applied
+> migrations; that was **declined** and the question was answered another way (`supabase migration
+> list`, run by the user). The role stays scoped to `public` + `storage`. Widening it is a
+> security change and therefore an approval gate.
 
 ---
 
@@ -179,3 +186,11 @@ statements, which breaks the `begin … rollback` pattern every safe verificatio
 - `supabase-production-setup.md` — standing up a project from scratch
 - `.plans/2026-09-29-booker-live-verification.md` — the round this was created for, and what each
   query was actually used to prove
+- `.plans/2026-10-14-booker-near-me-discovery.md` — its **second** round (2026-10-17), stage S3d:
+  Phases 0 and 2a/2b of the hosted runbook were run over this role, plus the vendor-density census
+  for U4. ⚠️ **Two limits of the role were discovered there, both now written into the runbook
+  itself:** it holds **no EXECUTE**, so verifying a `SECURITY DEFINER` RPC's *results* (Phases
+  2c–2e) had to be handed to the user; and `information_schema.routine_privileges` returns **0 rows
+  for a non-privileged caller**, which reads exactly like a clean pass — query `pg_proc.proacl`
+  instead. ⚠️ Everything read through this role lands in a transcript, so keep queries to
+  **aggregates**, never rows with booker data

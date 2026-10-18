@@ -3,7 +3,7 @@
 **Date:** 2026-10-14
 **App / scope:** `booker/` web only. No `vendor/` change proposed. **No migration required in any
 approved stage** — see §8.
-**Status:** IN PROGRESS — **every stage is BUILT and verified: S1 ✅, S2 ✅ (2026-10-15), S3 ✅,
+**Status:** IN PROGRESS — ⏸ **pinned on the production round alone (2026-10-17).** Everything else is complete and verified; the only remaining work is S3d's production pass (runbook Phases 0–3), which the user will run in a few days. No decision, no code and no dependency is waiting. ⚠️ Not `COMPLETE` until production is done, and not `BLOCKED` — nothing prevents it. — **every stage is BUILT and verified: S1 ✅, S2 ✅ (2026-10-15), S3 ✅,
 S3b ✅ and S3c ✅ (2026-10-16). The map draws OpenFreeMap tiles in both themes with no account and
 no API key, and `csp.spec.ts` proves the policy allows it.** All gates are taken (G1, G5, G6a, G6b,
 G7, G8, G9, **G3**). **S3d (I6 — code-keyed popularity) is DONE on local as of 2026-10-16**:
@@ -13,17 +13,50 @@ with `p_city_code`, **no `anon`**, and **proven** by `.plans/scripts/s3d-popular
 version pooled them (5/5 assertions, fixture rolled back). A pre-apply review the same day cleared
 the SQL on ten checks; its one blocker — the migration sitting on a `backbone/develop` that was
 missing three migrations — was resolved by merging `feature/booker_gaps` into `develop` (**F26**).
-⚠️ **What remains for S3d is the HOSTED apply** (staging, then production), with the overload query
-run there first. Otherwise what remains is **not construction**: **the live checks, and U4**.
+⏸ **THIS PLAN IS PARKED ON PRODUCTION ONLY (2026-10-17).** Everything else is done and verified:
+every stage built, S3d verified on staging at all three layers, U4 answered, and the live checks
+passed. **The single remaining item is the production round — Phases 0–3 of the S3d runbook —
+which the user will do in a few days.** Nothing else in this plan is waiting on anybody.
+
+✅ **S3d IS FULLY VERIFIED ON STAGING (2026-10-17) — database, API layer and app.** Phase 3 closed
+with a logged-in session on Pila: the shelf renders and there is **no 404** on the RPC. The
+migration is applied there and all five Phase 2 checks pass — one overload with `p_city_code`, grants without `anon`, the `22023` raise on a blank
+code, `null` still platform-wide, and per-city counts matching an independent recomputation (Pila 2
+rows/3 bookings, Talisay 2/3, Bacolod 1/1, platform-wide 5/7). ⚠️ **What remains for S3d is
+PRODUCTION** (Phases 0–3 repeated) plus Phase 3's in-app check on staging. Otherwise what remains is
+**not construction**: **the live checks**. ✅ **U4 is answered** (2026-10-17: 22 active vendors on
+staging, 1 blank `city_code` = 4.5%; A2 holds).
 ⚠️ **A DIRECTION WAS SET FOR THE PARKED GEO WORK on 2026-10-16 — see D11.** "Near" is capped at
 **barangay**; the booker's position may come from the free device API (which **reverses D4** and
 **restores gate G2**); a vendor's address is **never** sent to a geocoding provider, so P2 stays
-parked and U1/U2 are moot. **Nothing in D11 is built** — it governs P1, P1a and P4, all parked, and
-all blocked on one unanswered question: whether a licensed, PSGC-keyed **barangay centroid dataset**
-exists. Recorded for later reference in `architecture/portals.md` → "How far 'near' is allowed to go".
-**Successor plan drafted 2026-10-16: `.plans/2026-10-16-booker-barangay-near.md`** — it carries P1,
-P1a and P4 forward and is DRAFT with **five** open decisions. ⚠️ **That plan supersedes this one for
-all barangay and device-location work**; this plan keeps only its own S1–S3d record.
+parked and U1/U2 are moot. Recorded in `architecture/portals.md` → "How far 'near' is allowed to go",
+which was **updated 2026-10-17** to mark which parts are now live invariants rather than intentions.
+**Successor:** `.plans/2026-10-16-booker-barangay-near.md` — **COMPLETE (2026-10-17)**.
+✅ **D11 IS NOW MOSTLY BUILT — and two earlier lines here said the opposite.** They read "Nothing in
+D11 is built" and described the successor as "DRAFT with five open decisions", blocked on whether a
+barangay centroid dataset exists. All three statements are now wrong:
+**`.plans/2026-10-16-booker-barangay-near.md` is COMPLETE (2026-10-17)** — all five decisions
+resolved (D1–D5), stages S0–S6 done, gates G1/G2/G3 given, 303 unit tests and 115 visual tests.
+The barangay rung, the optional barangay in the picker, intra-city centroid ordering and
+device-derived **city suggestions** all ship. ⚠️ **P1 (barangay map MARKERS) and P2 remain parked** —
+the successor carried P1a and P4, not P1; the count-of-1 marker hazard at the end of this plan still
+governs it. ⚠️ **That plan supersedes this one for all barangay and device-location work**; this plan
+keeps only its own S1–S3d record.
+
+> ## ▶ RESUME HERE (for a fresh session)
+>
+> **One thing is left in this plan: the S3d PRODUCTION round.** Nothing else is waiting on anybody.
+>
+> 1. Read **§S3d → "HOSTED APPLY: the staging runbook"** (search `HOSTED APPLY`) and its
+>    **Phase 5 — production**: repeat Phases 0, 1, 2 and 3 verbatim against production.
+> 2. ⚠️ **Order: migration first, deploy second.** The migration is
+>    `20261016000001_popular_offerings_by_city_code.sql`, already applied to local and staging.
+> 3. ⚠️ **The user applies migrations** — never apply it from here. ⚠️ **`claude_ro` is STAGING ONLY
+>    and holds no EXECUTE**, so Phases 2c–2e are the user's on production too.
+> 4. ⚠️ **Two runbook bugs were already found and fixed in place** — event triggers use `evtname`
+>    (not `tgname`), and `information_schema.routine_privileges` returns 0 rows for a non-privileged
+>    caller, which reads like a pass; use `pg_proc.proacl`. Do not reintroduce either.
+> 5. Then flip this plan to **COMPLETE** and re-run `python3 scripts/plans-index.py`.
 ✅ **Its U1 is resolved and the barangay dataset DOES exist** (measured 2026-10-17): a licensed,
 PSGC-keyed coordinate set joins **99.8%** of booker's barangay codes, so **both** forms of P1 are
 buildable. ⚠️ An earlier line here said it "largely does not exist" at ~28% — an inference, not a
@@ -912,7 +945,7 @@ V14: the data says `City of Makati`, customers type `Makati`. Presentation-only 
 → `X City`), applied to **labels and match text**, never to the stored `city` string or code. Keep the
 raw name searchable too, so typing either form finds it.
 
-### I6 — Code-keyed `get_popular_offerings`  ✅ BUILT, AWAITING APPLY (2026-10-16) — stage S3d
+### I6 — Code-keyed `get_popular_offerings`  ✅ DONE — applied and verified on STAGING (2026-10-17) — stage S3d
 **Files:** `backbone/supabase/migrations/20261016000001_popular_offerings_by_city_code.sql` (new) ·
 `booker/services/offerings.service.ts` · `components/home/PopularShelf/{PopularShelf.tsx,usePopularShelf.ts}` ·
 `components/home/HomePage/HomePage.tsx` · `lib/popular.ts` · `lib/popular.test.ts` · `lib/phCities.ts`
@@ -1640,7 +1673,7 @@ before/after initial-JS measurement, and `csp.spec.ts` extended per B6.
 run — dev and prod CSP are the same here, but K11 is the reason that gets confirmed rather than
 assumed.
 
-### S3d — Code-keyed popularity (I6, D10, F25, I7 item 1)  ✅ DONE 2026-10-16 (local) — hosted apply outstanding
+### S3d — Code-keyed popularity (I6, D10, F25, I7 item 1)  ✅ DONE on LOCAL (2026-10-16) and STAGING (2026-10-17) — production outstanding
 Depends on: nothing in this plan — the RPC is independent of the location picker, the ranking
 ladder and the map. Gate: **G3** (migration) — ✅ **GIVEN 2026-10-16**.
 ⚠️ **Named S3d, not S4**, because "Stage 4" is this plan's name for the parked geocoding phase
@@ -1753,6 +1786,220 @@ The file was removed for a clean branch move and **restored byte-identically** f
 
 ---
 
+#### S3d — HOSTED APPLY: the staging runbook (drafted 2026-10-17)
+
+⚠️ **ORDER IS THE WHOLE POINT, AND IT IS NOT RECOVERABLE AFTER THE FACT.** booker's committed code
+calls `get_popular_offerings` with `p_city_code`. Against the *old* function PostgREST answers
+**`PGRST202`** — an unknown-argument 404 — and `usePopularShelf` catches it into an empty shelf
+(`.catch(() => setResult({ key, rows: [] }))`, "a failed shelf is an absent shelf"). So the wrong
+order produces **no error anywhere**: the shelf simply disappears and the page looks fine.
+**Apply the migration to staging BEFORE deploying booker to staging.** Same rule for production.
+
+⚠️ **Every step below is the user's to run** — hosted DB access and migrations are theirs.
+
+**Phase 0 — before applying (answers the one question local could not)**
+
+```sql
+-- 0a. How many overloads does staging actually have?
+select p.oid::regprocedure as signature, p.prosecdef as security_definer
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'get_popular_offerings';
+```
+**Expect exactly ONE row**, `get_popular_offerings(date,date,text,integer)`, `security_definer = t`.
+⚠️ **More than one row is a STOP.** The migration's `drop` targets one signature; a second one
+hand-applied in a hosted environment would survive the drop and leave PostgREST with an ambiguous
+name. Report it rather than running the migration — the fix depends on what the extra one is.
+
+```sql
+-- 0b. Is the migration somehow already recorded?
+select version from supabase_migrations.schema_migrations
+where version = '20261016000001';
+
+-- 0c. Will PostgREST notice the swap by itself?
+--     ⚠️ `evtname`, NOT `tgname` — this query was drafted with `tgname` and failed on staging
+--     with "column does not exist". Event triggers are not table triggers.
+select evtname, evtevent, evtenabled
+from pg_event_trigger where evtname in ('pgrst_ddl_watch', 'pgrst_drop_watch');
+```
+0b expects **no rows**. 0c expects **both triggers**; if either is missing, a manual
+`notify pgrst, 'reload schema';` is required after the apply or the API keeps serving the old
+signature from cache.
+
+✅ **PHASE 0 RUN ON STAGING 2026-10-17** via the `claude_ro` read-only role
+(`architecture/staging-readonly-role.md`), results inline:
+
+| Check | Result |
+|---|---|
+| **0a — overloads** | ✅ **exactly one**, `get_popular_offerings(date,date,text,integer)`, `security_definer = t`. **The stop-condition is clear: no hand-applied second overload to orphan.** |
+| **0a — current shape** | `p_since date, p_until date, p_city text, p_limit integer` — ⚠️ still the **OLD** `p_city` signature, confirming the migration is genuinely pending on staging |
+| **0b — migration ledger** | ⛔ **could not run**: `permission denied for schema supabase_migrations`. `claude_ro` holds SELECT on `public` and `storage` only. **Left for the user** — or inferred from 0a, which already shows the old signature |
+| **0c — PostgREST triggers** | ✅ both present and enabled (`pgrst_ddl_watch` / `ddl_command_end`, `pgrst_drop_watch` / `sql_drop`). **No manual `notify pgrst` needed** |
+
+**So Phase 1 is safe to run whenever you are.**
+
+**Phase 1 — apply**
+
+`supabase db push` from `backbone/` (⚠️ the CLI is linked to **staging**, per
+`architecture/supabase-environments` notes — confirm with `supabase projects list` before pushing).
+The migration runs in a transaction, so there is no window where the function does not exist.
+
+**Phase 2 — immediately after the apply, in SQL**
+
+```sql
+-- 2a. One overload, and it is the NEW shape.
+select p.oid::regprocedure, pg_get_function_arguments(p.oid) as args
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'get_popular_offerings';
+```
+Expect **one** row whose args read
+`p_since date, p_until date DEFAULT NULL::date, p_city_code text DEFAULT NULL::text, p_limit integer DEFAULT 8`.
+
+```sql
+-- 2b. ⚠️ THE SECURITY CHECK, AND IT IS NOT OPTIONAL.
+--
+-- ⚠️ USE THE RAW ACL, NOT `information_schema`. That view only shows privileges the CALLER is
+-- party to, so running the commented-out form below as a read-only role returns ZERO ROWS —
+-- which reads like "no grants at all" and is easy to misinterpret as a pass. `pg_proc.proacl`
+-- is visible to everyone and cannot hide a grant. (Measured 2026-10-17: the information_schema
+-- form returned 0 rows while the ACL showed three correct grantees.)
+select p.proname, p.proacl::text as acl, p.prosecdef as security_definer
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'get_popular_offerings';
+
+-- superseded: select grantee, privilege_type from information_schema.routine_privileges
+--             where routine_schema='public' and routine_name='get_popular_offerings';
+```
+Expect `service_role`, `authenticated`, `postgres` — and ⚠️ **NO `anon`**. This schema's
+`pg_default_acl` grants EXECUTE to `anon` on every new function, and **that grant does not survive
+a DROP+CREATE on its own** — the migration re-issues `revoke all … from public, anon` precisely
+because of it. An `anon` row here means the revoke did not take, and an unauthenticated caller can
+read platform-wide booking counts. **Stop and report it.**
+
+```sql
+-- 2c. A blank code must RAISE, not quietly mean "everywhere".
+select public.get_popular_offerings('2026-10-01', '2026-10-31', '', 8);
+```
+Expect **SQLSTATE 22023**. ⚠️ A result set here means the guard is missing and a blank code would
+silently return national popularity to a booker who thinks they are seeing their own city.
+
+```sql
+-- 2d. NULL still means platform-wide (the "Anywhere" case must not have been swallowed).
+select count(*) from public.get_popular_offerings('2026-10-01', '2026-10-31', null, 8);
+
+-- 2e. A real code returns only that city's vendors. Pick a city that HAS bookings on staging:
+select v.city_code, v.city, count(*) from public.vendors v
+join public.offerings o on o.vendor_id = v.id
+join public.bookings b on b.offering_id = o.id
+where v.status_id = 1 group by 1, 2 order by 3 desc limit 5;
+```
+Then call the function with that `city_code` and confirm every row belongs to it.
+
+✅ **PHASES 1 AND 2a/2b DONE ON STAGING — 2026-10-17.**
+
+⚠️ **The apply happened between two of my own checks, and the plan says so rather than tidying
+it away.** Phase 0 (earlier the same evening) measured the live function as `p_city` — the OLD
+signature — and this plan recorded "the migration is genuinely pending on staging". Re-measured at
+23:51 UTC it reads **`p_city_code`**. The user's `supabase migration list` showing local == remote
+is consistent with the later state; **the earlier reading was accurate when taken and stale by the
+time it was acted on.** The lesson for the next round: a schema fact measured once is a fact about
+that moment, and the runbook's own Phase 2 is what confirms the current one.
+
+| Check | Result (staging, 2026-10-17 23:51 UTC) |
+|---|---|
+| **2a — one overload, new shape** | ✅ exactly one: `get_popular_offerings(date,date,text,integer)`, args `p_since date, p_until date DEFAULT NULL, p_city_code text DEFAULT NULL, p_limit integer DEFAULT 8` |
+| **2b — grants** | ✅ `{postgres=X/postgres, authenticated=X/postgres, service_role=X/postgres}`, `security definer = t`. **No `anon`, no PUBLIC** — the `revoke … from public, anon` took, which is the grant that does *not* survive a DROP+CREATE on its own |
+| 2c–2e | ⬜ **the user's** — they need EXECUTE, which `claude_ro` does not have and must not be given (`architecture/staging-readonly-role.md`: this role cannot execute a `SECURITY DEFINER` RPC gating on `is_active()`, by design) |
+
+**Independent expectations for 2c–2e, recomputed from the tables rather than from the function**
+(the doc's own rule — recomputing is what makes the comparison meaningful). Staging, current
+Manila month, mirroring the migration's predicate exactly (`is_active`, status `active`,
+`booked_date` in window, excluding `cancelled`/`refunded`):
+
+| `p_city_code` | Expect rows | Expect total `booking_count` |
+|---|---|---|
+| `'043422000'` (Pila) | **2** | **3** |
+| `'064528000'` (City of Talisay) | **2** | **3** |
+| `'064501000'` (City of Bacolod) | **1** | **1** |
+| `null` (platform-wide) | **5** | **7** |
+| `''` | — | ⚠️ must raise **22023** |
+
+⚠️ **Pila and Talisay both totalling 3 is the point of the whole migration**: under the old
+name-keyed function a booker in either would have seen a pooled figure. Note also that
+`064528000` is *City of Talisay* — there is a second Talisay (`061926000`, Negros Occidental is
+one of several), which is exactly the 331-municipality collision class the migration fixes.
+
+**Phase 3 — in the app, on staging** (⚠️ CI cannot do this: the RPC signature only exists in a
+database, so nothing in the repo can prove the call matches)
+
+1. Deploy booker to staging **after** Phase 2 passes.
+2. Open Home with a location set. **"Popular this month" must render**, and its caption must read
+   "Most booked in <City> this month".
+3. ⚠️ **Open the network tab and look for a 404 on `/rest/v1/rpc/get_popular_offerings`.** This is
+   the one failure that leaves no trace on screen — an absent shelf looks like a quiet month.
+4. Set the location to **Anywhere** and confirm the shelf still renders with the plain caption.
+5. If staging has two vendors in same-named municipalities, confirm their counts no longer pool.
+
+✅ **PHASE 3 — PARTLY DONE 2026-10-17, and the part that could be done without credentials is the
+part that matters most.** Everything below was checked against `https://staging-booker.ezzy.ph`
+and the staging Supabase project (ref confirmed identical to the `rs-staging` service), with **no
+login and no customer data touched**.
+
+| Check | Result |
+|---|---|
+| **Is the NEW booker build deployed?** | ✅ **yes** — staging serves `Permissions-Policy: … geolocation=(self) …`, a token that exists only in the S6 code. The old build serves `geolocation=()` |
+| S5's asset ships | ✅ `/ph-barangay-centroids/137602000.json` → **200, 1,490 B**, and its `attribution` (CC BY 3.0 IGO) survived the deploy intact |
+| S3's name shards ship | ✅ `/ph-address/barangays/043422000.json` → **200, 711 B** |
+| City centroids still ship | ✅ `/ph-city-centroids.json` → **200, 50,519 B** |
+| **⚠️ The RPC, called ANONYMOUSLY** | ✅ **401 `42501 permission denied for function`** |
+
+⚠️ **THE ANONYMOUS CALL PROVES TWO THINGS AT ONCE, AND THE SECOND IS THE ONE PHASE 3 EXISTS FOR.**
+`42501 permission denied` is **not** `PGRST202 no function matches` — PostgREST only reaches a
+permission check once it has **resolved a function with those exact argument names**. So the API
+layer's schema cache is serving the **new `p_city_code` signature**, which is precisely the failure
+Phase 3 was written to catch (an unreloaded cache keeps answering with the old shape, and the app's
+shelf empties silently). And `anon` is refused end to end, not merely in the ACL.
+
+✅ **THE AUTHENTICATED RENDER IS CONFIRMED (2026-10-17, by the user).** Signed in on staging with
+the location set to **Pila**: the Popular shelf renders, the caption is as expected, and ⚠️ **no
+404 on `/rest/v1/rpc/get_popular_offerings`** — the silent failure this phase exists to catch did
+not occur. **S3d is therefore fully verified on staging: database, API layer and app.**
+
+<details><summary>The steps that were handed over (kept for the production round)</summary>
+
+**What needed a human:** the authenticated render. The RPC is `authenticated`-only by
+design, so confirming the shelf *renders with rows* needs a logged-in booker session on staging —
+a credential, which stays with the user (`architecture/staging-readonly-role.md`'s posture, and the
+root rules on credentials). Steps: sign in, set the location to **Pila** or **City of Talisay**
+(the two cities with live bookings this month), confirm the caption reads "Most booked in <City>
+this month", and ⚠️ **watch the network tab for a 404 on `/rest/v1/rpc/get_popular_offerings`** —
+the one failure that leaves nothing on screen.
+
+</details>
+
+**Phase 4 — rollback, if Phase 2 fails**
+
+⚠️ **There is no down migration, and writing one now would be worse than not having it.** The
+recovery is a new migration that recreates the previous signature from `20260927000001`, which also
+means reverting booker's deploy — the app and the function must move together. ⚠️ Do **not**
+hand-edit the function in the hosted SQL editor: that leaves the schema in a state no migration file
+describes, which is the drift `database-reset-and-deploy.md` exists to prevent.
+
+✅ **PHASE 2 COMPLETE ON STAGING — 2026-10-17, all five checks pass.** 2a and 2b were run over the
+read-only role; **2c, 2d and 2e were run by the user** (they need EXECUTE, which `claude_ro` does
+not have by design) and **every result matched the independent recomputation above** — Pila 2 rows
+/ 3 bookings, Talisay 2 / 3, Bacolod 1 / 1, platform-wide 5 / 7, and a blank code raised `22023`.
+
+⚠️ **That the recomputation and the function agree is the real result**, not just that the function
+returned something: the numbers came from the tables by a separate query, so a function that was
+subtly wrong could not have supplied both sides.
+
+**Phase 5 — production**
+
+Repeat Phases 0, 1, 2 and 3 verbatim against production, **after** staging has been exercised by a
+real booker session. The same order rule applies: migration first, deploy second.
+
+---
+
 #### S3d — PROOF (ran 2026-10-16, local, `.plans/scripts/s3d-popular-city-code-proof.sql`)
 
 ⚠️ **The local seed cannot reproduce the bug** — none of its 14 active vendors sits on a shared
@@ -1862,20 +2109,20 @@ override to run several stages never waives one).
 | [x] | I9 | City-level map panel on Explore | S3b | ✅ DONE (2026-10-16) | Built, collapsed by default, +108 bytes initial JS. Panel, derivation and tests are renderer-agnostic and survive S3c |
 | [x] | B6 | MapLibre + OpenFreeMap cannot load a byte under the current CSP | S3c | ✅ DONE (2026-10-16) | Host in `connect-src` + `img-src`, `blob:` added, comments rewritten. `csp.spec.ts` now opens the map and asserts tiles were really fetched |
 | [x] | I12 | Swap the drawing layer from Leaflet to MapLibre GL | S3c | ✅ DONE (2026-10-16) | Confined to `CityMapView` + its hook + `lib/mapTiles.ts` exactly as planned. `setStyle` was dropped entirely in favour of rebuilding — see F20 |
-| [x] | I6 | Code-keyed `get_popular_offerings` | S3d | ✅ **DONE 2026-10-16 (local)** | G3 given; migration `20261016000001` applied to **local** by the user; one overload, `p_city_code`, **no `anon`**. Proven by `.plans/scripts/s3d-popular-city-code-proof.sql`: two `Pilar`s, 13 regions apart → **28 and 7 bookings separated, 35 platform-wide**, 5/5 assertions. ⚠️ **Hosted apply (staging/production) still outstanding** — run the overload query there first |
+| [x] | I6 | Code-keyed `get_popular_offerings` | S3d | ✅ **DONE — local 2026-10-16; STAGING FULLY VERIFIED 2026-10-17** (Phase 2 5/5, Phase 3 app check clean, anon refused `42501` end to end; ⚠️ **production still outstanding**) | G3 given; migration `20261016000001` applied to **local** by the user; one overload, `p_city_code`, **no `anon`**. Proven by `.plans/scripts/s3d-popular-city-code-proof.sql`: two `Pilar`s, 13 regions apart → **28 and 7 bookings separated, 35 platform-wide**, 5/5 assertions. ⚠️ **Hosted apply (staging/production) still outstanding** — run the overload query there first |
 | [x] | F25 | Home's Popular caption printed the raw PSGC name ("City of Makati") | S3d | ✅ DONE 2026-10-16 | Found while splitting I6's overloaded `city` prop. `popularMeta` now normalises internally, so no call site can get it wrong; 2 new tests |
 | [x] | F26 | The backbone migration landed on a branch missing three migrations | S3d | ✅ DONE 2026-10-16 (the user) | Fixed by `git flow feature finish booker_gaps` into `develop` (`2a28ab5`) — **better than this plan's own advice to relocate the file**, which would have left `develop` behind. Now 88 files / 87 applied, **one pending migration**, zero applied-with-no-file. File restored byte-identically (sha256 `4048634e4fe9f953…`) |
 | [x] | — | **S3d pre-apply review** — audit the migration before it runs | S3d | ✅ DONE 2026-10-16 | 10 checks clean against the real DB and repo (deps, PostgREST cache reload, drop signature, no ghost overload, `pg_temp` syntax check, atomicity, NULL handling, no other caller). Found F26 + 2 doc gaps (fixed). ⚠️ Corrected this plan's own "tsc clean" claim: the Supabase client is untyped, so **nothing in CI validates `p_city_code`** |
 | [x] | U3 | Centroid dataset — source, licence, PSGC mapping, coverage count | S3 step 1 | ✅ **CLEARED** 2026-10-16 | HDX/OCHA COD-AB admin-3, **CC BY 3.0 IGO verified at the HDX API**, joined on PSA `correspondence_code`. **1,634/1,634 = 100%.** Cross-checked against GeoNames at median 1.68 km. See §15 and F9, F10 |
 | [x] | — | **S3 — city-centroid distance ordering** | S3 | ✅ DONE 2026-10-16 | `ph-city-centroids.json` + `lib/geoCentroids.ts` + the within-tier tiebreak in `lib/nearby.ts`. 17 new tests; tier 0 asserted byte-identical with and without centroids |
-| [ ] | U4 | Count of active vendors with empty `city_code` (A2) | before S2 | ⬜ TODO | Needs the user — hosted DB access is theirs |
+| [x] | U4 | Count of active vendors with empty `city_code` (A2) | before S2 | ✅ **ANSWERED 2026-10-17 (staging)** | **22 active vendors, 1 blank `city_code` = 4.5%.** A2 **holds** — city-first discovery is sound. The one blank vendor ranks "Elsewhere" via B2's empty-code guard, which is the correct behaviour, not a gap. Also 1 blank `province_code`, 1 blank `barangay_code`, 0 vendors with a city but no barangay |
 | — | U1, U2 | Google price · provider caching/storage rights | — | ⏸ PARKED | With P2 — and **moot while D11 holds** (no vendor address is sent to a provider). Kept, not aborted: reviving P2 revives them unchanged. ⚠️ U2 is a **legal** gate, not a price |
 | — | D11 | **How far "near" goes, and where coordinates come from** | — | ✅ RESOLVED 2026-10-16 | **Barangay is the ceiling**; booker's position from the free device API; vendor's never geocoded; compare by `barangay_code`. **Reverses D4, restores G2.** ⚠️ Corrected the proposed hierarchy — it is `barangay → city → province → region`, region being *broader* than city. §12 |
 | — | D4 | ~~No device location~~ | — | ✖ **REVERSED 2026-10-16 by D11** | Correct for the scope it governed (S1–S3d shipped under it). Record kept, not deleted |
 | — | P1, P2, P3, P4 | Barangay centroids · street geocoding + pins · mobile parity · device location | — | ⏸ PARKED | Reasons and unblock conditions in §14 |
 | [x] | — | **Dataset question for P1 — measured** | — | ✅ **ANSWERED 2026-10-17: YES** | **41,972/42,046 = 99.8%** join; 96.2% exact/correspondence HDX geometry; 0.2% flagged unverified. Data **CC BY-IGO**. ⚠️ **Reverses an earlier "largely NO, ~28%" entry** — that was an inference, not a measurement. Successor plan U1/D5, script `.plans/scripts/barangay-centroid-probe.py`. ✅ The follow-on decision is also taken: successor **D5 = (b) trust filter** (2026-10-17) — provenance per row, `fallback_unverified` excluded |
 | — | P1a | **Same-barangay tier** — `barangay_code` equality, no dataset, no coordinates | — | ⏸ PARKED | User's proposal 2026-10-16 to avoid P2's cost, and it does — no provider, no U1/U2, no migration. **Unblocked by** a decision on asking for the booker's barangay in the picker (recommend optional) + vendor density. Binary, not a gradient; codes are alphabetical, not spatial. §14 |
-| [ ] | F27 | Barangay granularity is **less** honest at low density | P1 | ⬜ RECORDED | A "barangay · 1" marker is a vendor pin by arithmetic — B5 collapses on sparse data, not on code. **P1 needs a count-of-1 fallback to the city marker, and waits for density.** Measured: 14 vendors, 14 cities, 14 barangays, every count 1 |
+| [x] | F27 | Barangay granularity is **less** honest at low density | P1 | ⚠️ **MEASURED ON STAGING 2026-10-17 — the premise has changed** | ⚠️ **Staging is NOT the local seed: 5 barangays already clear the ≥2 threshold** (four with 2 vendors, one with 3), so the rung is **live there, not dormant**. The count-of-1 rule still governs the other 10. A "barangay · 1" marker is a vendor pin by arithmetic — B5 collapses on sparse data, not on code. **P1 needs a count-of-1 fallback to the city marker, and waits for density.** Measured: 14 vendors, 14 cities, 14 barangays, every count 1 |
 | — | X1–X9 | Rejected alternatives | — | ✖ ABORTED | Reasons in §13 |
 | [x] | G1 | **Execution approval** | before S1 | ✅ **GIVEN 2026-10-15** | For the range S1–S3; S3b and S3c authorised separately on 2026-10-16 |
 | [x] | D7–D9 | Basemap stack, worker hosting, style pair | — | ✅ RESOLVED 2026-10-16 | MapLibre GL + OpenFreeMap; same-origin worker; `positron`/`dark`. §12 |
@@ -1885,7 +2132,8 @@ override to run several stages never waives one).
 | — | F5 | `set-state-in-effect` lint exception on `useAppShell.ts` | — | ✖ **CLOSED 2026-10-16** | **The user declined the fix (option a).** 18 problems is now the agreed baseline, not a carried regression; 19 would be. Documented at the line. If reopened, go to option (c) — the shared hook — never the one-site fix |
 | [x] | F13 | 0-byte orphan `booker/hooks/useAppShell.ts` | — | ✅ DONE 2026-10-16 | Deleted via `gio trash` (recoverable) on the user's authority. 0 bytes, no importers anywhere — verified before and after: `tsc`, lint 18, 270 tests, build. **Git-tracked, so it is a deletion to commit** |
 | [x] | F24 | `booker/hooks/useTheme.ts` — an orphan signpost, not code | — | ✅ DONE 2026-10-16 | Deleted via `gio trash` on the user's explicit approval. Contents were a comment + `export {}`; nothing imported it, and `booker/AGENTS.md:12` already records that theming is next-themes. Verified after: `tsc`, 272 tests, build. **Git-tracked, so it is a deletion to commit** |
-| [ ] | — | **Live checks** — 360px phone, runtime theme flip with the map open, ordering across provinces | — | 🔄 **WITH THE USER** | Testable locally (14 vendors / 10 provinces seeded). **The user is exercising the feature themselves** as of 2026-10-16 and asked that these not be pre-run |
+| [x] | — | **Push + `git flow feature finish`** — `feature/near_me` merged to develop | — | ✅ DONE 2026-10-17 (user) | |
+| [x] | — | **Live checks** — 360px phone, runtime theme flip with the map open, ordering across provinces | — | ✅ **PASSED 2026-10-17 (user, staging)** | Confirmed good by the user. The barangay rung is genuinely exercised there: 5 staging barangays hold 2+ vendors |
 | [x] | F22 | The map toggle scrolled out of sight under the sticky filter bar | — | ✅ DONE 2026-10-16 | Toggle moved into `.head` as its own labelled row; panel stays outside it. Found by the user in local use, not by any test |
 | [x] | F23 | The F22 fix left an orphan "Map" label on Explore's empty state | — | ✅ DONE 2026-10-16 | Caught by `explorechips-light/dark` at 61,403 / 60,377 pixels. `CityMapToggle` made a pure renderer; the whole row now guarded by `map.available` in `ExplorePage.tsx`. Re-run clean |
 
@@ -2590,7 +2838,15 @@ So barangay markers would deliver P2's sensitivity while skipping P2's gates.
 
 **The same applies to the free, dataset-free version.** Vendors can be *counted* per barangay today
 — `vendors.barangay_code` is populated 14/14 and needs only a query and a type field, no coordinates
-— so a text breakdown under `CityLegend` is available now. But a breakdown reading "fourteen places,
+— so a text breakdown under `CityLegend` is available now.
+
+> ⚠️ **UPDATE 2026-10-17 — the density premise below has partly changed, but P1 stays parked.**
+> "14/14, one each" is the **local seed**. Staging holds **22 active vendors across 15 barangays,
+> 5 of them with ≥ 2 vendors** (four at 2, one at 3). So consequence 2's "observable effect today is
+> zero" no longer holds everywhere — which is exactly why the successor plan shipped the barangay
+> **rung** with `BARANGAY_GROUP_MIN = 2`, the count threshold this section demanded, written into
+> the data rather than into review. ⚠️ **Consequence 1 is untouched and still blocks P1**: barangay
+> map **markers** are not built, and a marker must not render at a count of 1. But a breakdown reading "fourteen places,
 one each" is a vendor directory with geography as decoration, and it carries the same B5 hazard
 without even needing a map.
 

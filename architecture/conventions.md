@@ -563,16 +563,19 @@ earlier version of this note**. Recorded precisely, because each was a silent br
   `/_next/image?url=%2Fdivision-icons%2Fx.png`, so the test decodes each URL before
   matching; matching the raw URL finds nothing and the test goes green having checked
   nothing.
-- ~~**`geolocation=(self)`, NOT `geolocation=()`.**~~ **Obsolete 2026-09-22.** The original
-  reason: `booker/hooks/useGeolocation.ts:15` called `navigator.geolocation.getCurrentPosition`
-  from booking step 2 to place the "You are here" marker, and copying vendor's
-  `geolocation=()` disabled it silently, with no console error worth the name.
-  ⚠️ **That hook, that step and that marker are all deleted, but the grant is still live:**
-  `booker/next.config.ts:153` still sends `geolocation=(self)`, and the comment above it still
-  cites the deleted file. Nothing in booker asks for location any more, so this is a permission
-  granted to no one — the same shape as the dead `img-src` tile host two bullets up. Both are
-  **security-header changes and therefore approval gates**; tracked together as S7-b in
-  `.plans/2026-09-18-booker-home-search-redesign.md`.
+- **`geolocation=(self)`, NOT `geolocation=()` — live and load-bearing again as of 2026-10-17**
+  (`booker/next.config.ts:256`; plan `.plans/2026-10-16-booker-barangay-near.md` B4, gate **G2**).
+  ⚠️ **This directive has now been flipped three times, so read the history before touching it.**
+  Originally `(self)` for `hooks/useGeolocation.ts` and the deleted booking-step "You are here"
+  marker; set to `()` on 2026-09-22 when that hook was deleted; **restored to `(self)` on
+  2026-10-17** for `hooks/useDeviceCity.ts`, which asks for a fix to **suggest a city the booker
+  confirms** (nothing is sent anywhere — the point is matched against the shipped city centroids
+  in the browser).
+  ⚠️ **A `Permissions-Policy` denial is SILENT** — `getCurrentPosition` simply never calls back, no
+  error, indistinguishable from a booker ignoring the prompt. That is why
+  `booker/visual-tests/csp.spec.ts` **asserts the shipped header value** rather than trusting that
+  it stayed: it pins `geolocation=(self)` *and* that `camera`, `microphone` and `payment` remain
+  `()`. Any change here is a security-header change and therefore an **approval gate**.
 
 ⚠️ **booker does NOT need `api.paymongo.com`, and an earlier version of this note wrongly
 said it did**, calling booker "the only app with … a browser-side payment provider". It

@@ -272,7 +272,7 @@ These are architectural invariants that must not be violated regardless of how f
 | Theming | next-themes (light/dark via `class`) | All three portals |
 | Icons | lucide-react | All three portals |
 | Notifications | sonner | All three portals |
-| Maps | **None** — removed 2026-09-22, Leaflet uninstalled | Was booker-only. `vendors` has no coordinates, so no proximity feature exists |
+| Maps | **MapLibre GL JS 6.14 on OpenFreeMap vector tiles** — booker only, since 2026-10-16. ⚠️ Leaflet was removed 2026-09-22 and briefly reinstalled 2026-10-15; it **cannot draw vector tiles** and was uninstalled again a day later — do not reintroduce it | Loads only when a booker opens the map (0 bytes of initial JS). ⚠️ **A marker is a CITY with a vendor count, never a vendor pin.** ⚠️ `vendors` still has no coordinates, so there is no per-vendor distance — but **proximity DOES exist**: a five-tier PSGC *membership* ranking (barangay → city → province → region → elsewhere), ordered internally by administrative **centroid** distance that is **never rendered**. See `portals.md` → "How far 'near' is allowed to go" |
 | Database | Supabase (PostgreSQL) | Shared |
 | Auth | Supabase Auth | Shared |
 | Storage | Supabase Storage | Shared. Live for vendor KYC (private `vendor-kyc` bucket); booking-document uploads not yet wired |

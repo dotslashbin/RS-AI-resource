@@ -55,6 +55,12 @@ widgets — those moved to Activity. Sections, top to bottom:
   label per slug with the brand prefix stripped from the stored name only for a division Command
   adds later. Search still matches the canonical name, so "ezzy", "ezzycare" and "care" all find
   it. See `schema.md` → `divisions`.
+- **Near you** — shipped 2026-10-15, barangay rung added 2026-10-17 (`NearYouShelf`). ⚠️ **It sits
+  BELOW "Browse by division", and that order was reversed on 2026-10-17 at the user's request** —
+  the original rationale had the location-dependent shelf first; the shipped order puts the section
+  that *always* has content first, so Home never opens with a shelf that may be empty. The comment
+  in `HomePage.tsx` keeps the superseded reasoning. Hidden entirely when no location is set, which
+  is why a `mode=home` visual fixture does **not** cover it — `mode=homenear` was added for that.
 - **Popular this month** — **shipped 2026-09-27** (plan I37). It needs a booking count per
   offering, which RLS will not give a booker — they can only read their own rows — so it is served
   by `get_popular_offerings`, a read-only `SECURITY DEFINER` function (`20260927000001`, applied to
@@ -68,12 +74,18 @@ widgets — those moved to Activity. Sections, top to bottom:
   fewer shelves rather than empty boxes.
 - **Guide panel** for a booker with nothing booked yet.
 
-⚠️ **Proximity is CITY-LEVEL today, never a distance** (updated 2026-10-15, plan
-`.plans/2026-10-14-booker-near-me-discovery.md` S2). "Near you" is a four-tier membership
-ranking built from PSGC codes — same city → same province → same PSGC region → elsewhere —
-and every tier above the first is **labelled on screen** with the place it names.
-⚠️ **Barangay is the agreed ceiling for any future refinement** — see "How far 'near' is allowed to
-go" below before planning anything finer.
+⚠️ **Proximity is MEMBERSHIP, never a distance** (updated 2026-10-17, plans
+`.plans/2026-10-14-booker-near-me-discovery.md` S2 and `.plans/2026-10-16-booker-barangay-near.md`).
+"Near you" is a **five-tier** ranking built from PSGC codes — same **barangay** → same city → same
+province → same PSGC region → elsewhere — and every tier above the first is **labelled on screen**
+with the place it names. Membership is decided by **code equality**, never by name and never by
+geometry.
+⚠️ **The barangay rung is gated on a count of ≥ 2** (`BARANGAY_GROUP_MIN`): a heading over a single
+card is a vendor pin by arithmetic (near-me **F27**), so a one-vendor barangay collapses into the
+city heading. Do not "fix" that silence by lowering the threshold. On staging this fires for real —
+measured 2026-10-17: **22 active vendors across 15 barangays, 5 of them clearing the threshold.**
+⚠️ **Barangay is the agreed ceiling** — it is now also the *floor of what ships*. See "How far
+'near' is allowed to go" below before planning anything finer.
 
 `vendors` still has no `lat`/`lng`, there is no PostGIS or `earthdistance`, and **no kilometre
 figure is produced or rendered anywhere**. A distance derived from city-level data would be a
@@ -81,9 +93,11 @@ false statement about where a business is.
 
 ### How far "near" is allowed to go — the standing direction (decided 2026-10-16)
 
-⚠️ **This is a DIRECTION, not a description of what ships.** What ships today is the four-tier
-city-level ranking above. The decisions below govern future work and are recorded here so they are
-not re-litigated from scratch. Source: plan `.plans/2026-10-14-booker-near-me-discovery.md` **D11**.
+⚠️ **Updated 2026-10-17: most of this direction is now BUILT, not pending.** It was written as a
+forward direction on 2026-10-16 (source: `.plans/2026-10-14-booker-near-me-discovery.md` **D11**)
+and was executed by `.plans/2026-10-16-booker-barangay-near.md`, which shipped the barangay rung,
+the optional barangay in the picker, and device-derived city **suggestions**. The constraints below
+are therefore **live invariants to preserve**, not options still open — each is marked.
 
 1. **"Near" resolves no finer than BARANGAY.** No street-level precision. A barangay is the smallest
    administrative unit this platform stores, and it is where "near" stops.
@@ -92,11 +106,17 @@ not re-litigated from scratch. Source: plan `.plans/2026-10-14-booker-near-me-di
    third-party geocoding results**, which is the gate that would otherwise decide the whole approach
    (some providers forbid permanent storage outright; Mapbox sells a separate *Permanent Geocoding*
    product precisely for it).
-3. **The booker's own position may come from the browser Geolocation API** — free, no key, no quota.
-   ⚠️ **It is blocked today**: `Permissions-Policy: … geolocation=() …`
-   (`booker/next.config.ts:243`) denies the API to every origin, so this needs a deliberate
-   security-header change first (that plan's gate **G2**). Any device-derived place must be offered
-   as **a suggestion the booker confirms, never applied silently.**
+3. ✅ **BUILT (2026-10-17) — the booker's own position comes from the browser Geolocation API**
+   (free, no key, no quota), in `booker/hooks/useDeviceCity.ts`. Gate **G2** was given and
+   `Permissions-Policy` now sends `geolocation=(self)` (`booker/next.config.ts:256`); a denial
+   there is **silent**, so `visual-tests/csp.spec.ts` asserts the header.
+   ⚠️ **INVARIANT: a device-derived place is offered as a suggestion the booker confirms, never
+   applied silently** — nearest-centroid is a guess, and it guesses wrong in real cases (a fix in
+   downtown Cebu City resolves to **Mandaue**, pinned as a test). ⚠️ **The request is only ever made
+   from a click**, never on mount. ⚠️ **The coordinates never leave the device and are not stored** —
+   matching happens in the browser against the shipped centroids, so there is no reverse-geocoding
+   call and `connect-src` is unchanged. ⚠️ **Device resolution stops at CITY** (D3); inventing a
+   barangay from a fix is exactly the silent precision this section forbids.
 4. **Vendors are matched by `barangay_code`**, the same discipline as `city_code` — never by name.
 
 **The hierarchy, because it is easy to state backwards.** PSGC containment is
@@ -113,10 +133,37 @@ above the shipped ladder**; it does not reorder it.
 - **no per-vendor map pins** — several vendors share one barangay point, so a marker stays a *place
   with a count* (that plan's **B5**), and a count-of-1 barangay marker is a vendor pin by arithmetic
   (**F27**);
-- **no kilometre figure rendered** — a barangay centroid is still the middle of an area;
-- **nothing at barangay level is possible without barangay reference data**, which this repo does not
-  have. City-level resolution works today against the 1,634 committed centroids; barangay-level is
-  blocked on sourcing a licensed, PSGC-keyed barangay centroid dataset.
+- **no kilometre figure rendered** — a barangay centroid is still the middle of an area, ±0.5–2 km,
+  and a city centroid is 5–15 km from anything real (~31 km for Davao City). The distance is an
+  **ordering key only**, and `lib/geoCentroids.ts` says so at the top.
+
+⚠️ **The reference-data question is CLOSED — and this section said the opposite until 2026-10-17.**
+It read "nothing at barangay level is possible without barangay reference data, which this repo does
+not have… blocked on sourcing a licensed, PSGC-keyed barangay centroid dataset." That was an
+**inference from two documents, not a measurement** (an earlier reading put coverage at ~28%). When
+actually measured (`.plans/scripts/barangay-centroid-probe.py`, 2026-10-17): **41,972 of booker's
+42,046 barangay codes join — 99.8%**, 96.2% with exact or correspondence-matched geometry, only 0.2%
+flagged unverified. Both the dataset-free rung and the coordinate-backed ordering shipped the same
+day. **The lesson is the one the plan records: measure the join, do not infer it from prose.**
+
+**What the data actually is**, since the licence travels with it:
+
+| | |
+|---|---|
+| Dataset | OCHA **HDX** — *Philippines: Subnational Administrative Boundaries* (COD-AB), admin level 4 |
+| Original sources | **NAMRIA** and the **PSA** |
+| Licence | **CC BY 3.0 IGO** — attribution is a condition, and it is stored **inside each asset** (`attribution` key) so it cannot be separated from the data |
+| Centroids | computed by the `psgc` PyPI package (MIT — covers the *code*; the *data* stays CC BY 3.0 IGO) |
+| Join key | PSGC **9-digit `correspondence_code`**, not the 10-digit form |
+| Delivery | ⚠️ **NOT a live API.** A static dataset compiled at build time into `booker/public/` JSON — 1,633 per-city shards, 41,894 barangays. Nothing is queried at runtime; there is no provider, key or per-request cost |
+| One exception | a single *city* coordinate (South Upi) is from **GeoNames, CC BY 4.0** |
+
+⚠️ **Membership is never geometric.** "Is this vendor in my barangay?" is **PSGC code equality** — a
+yes/no, never a gradient — because codes are assigned **alphabetically, not spatially**. Coordinates
+are used only to *order* within a tier. ⚠️ **And ordering by barangay centroid applies only when the
+booker has narrowed to a barangay**: with a city alone, the city is the finest honest statement about
+where they are, so same-city vendors keep their prior order rather than being ranked "closest to the
+middle of your municipality".
 
 ⚠️ **Match on `city_code`, never the city name.** 114 of the 1,634 PSGC municipality names are
 duplicated across provinces, so a name-keyed filter returns several unrelated places at once —
@@ -279,7 +326,8 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
 | Home "Popular this month" | ✅ Supabase-wired (2026-09-27) — `get_popular_offerings`, a `SECURITY DEFINER` counts-only RPC, because RLS cannot give a booker a cross-booker count. ⚠️ This row said "Not built — blocked on the D26-gate" until 2026-10-16; the gate was approved and the shelf shipped on 2026-09-27. Since `20261016000001` it narrows by **`city_code`**, not the city name (331 of 1,634 municipalities share a name, so the name-keyed version pooled them) |
 | Activity tab (stat strip, Needs you, Up next, resume draft, booking list) | ✅ Supabase-wired (2026-09-27); the strip is derived in memory, no second query |
 | Explore: search, city + division filters, vendor page, offering page | ✅ Supabase-wired |
-| Proximity / "within N km" filtering | ❌ Not possible — no coordinates on `vendors`, no PostGIS. ⚠️ **City-level proximity DOES ship** (2026-10-15): a four-tier city/province/region ranking with labelled groups, and no distance shown anywhere. ⚠️ **And it will not become a km filter**: the standing direction (2026-10-16) caps "near" at **barangay** and never geocodes a vendor — see "How far 'near' is allowed to go" above |
+| Location picker (`Where`) — city, optional barangay, "Use my location" | ✅ Ships (2026-10-15, barangay + device added 2026-10-17). Static PSGC reference data in `booker/public/`, **no query and no table** — the full 1,634-municipality tree, plus 1,634 per-city barangay shards fetched **one city at a time** (never the whole 1.7 MB tree). ⚠️ **"All of \<city\>" is always available** — narrowing to a barangay is optional and reversible. ⚠️ **No vendor counts on barangay rows** (near-me F27), unlike city rows: at barangay granularity a count is usually 1, which points at one business's neighbourhood. The chip reads `Barangay · City` |
+| Proximity / "within N km" filtering | ❌ Not possible, and **deliberately never will be** — no coordinates on `vendors`, no PostGIS, and no vendor address is ever sent to a geocoding provider. ⚠️ **Membership-based proximity DOES ship** (2026-10-15, extended 2026-10-17): a **five**-tier barangay/city/province/region ranking with labelled groups, plus an optional barangay in the picker and a device-derived **city suggestion** the booker confirms. ⚠️ **No distance is shown anywhere** — centroid distance orders within a tier and is never rendered. See "How far 'near' is allowed to go" above |
 | PayMongo payment integration | ✅ Live — Checkout Sessions; webhook sets `is_paid` on confirmation |
 | Booking history (now on Activity) | ✅ Supabase-wired (fetched on login); status updates **live** via Realtime (no refresh needed) when a vendor confirms/rejects/cancels |
 | Needs you widget (was "Offering Status") | ✅ Live — bookings with acknowledgement / flag actions |
@@ -308,8 +356,15 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
   the vendor's booking detail. The loop is closed end to end.
 - ~~**Vendor map has no vendor markers.**~~ **Resolved 2026-09-22 by removal** — the map is gone
   (plan D4, S6-a; `leaflet` and `react-leaflet` uninstalled). Directions are a Maps link and
-  location is a city filter. The underlying fact remains and now blocks something else:
-  `vendors` has no `lat`/`lng`, so no proximity feature is possible. Parked as plan P11.
+  location is a city filter. ⚠️ **Both halves of that sentence are now out of date (2026-10-17).**
+  A map is back — **MapLibre on OpenFreeMap**, with **city** markers carrying vendor counts, never
+  vendor pins — and location is a city **plus an optional barangay**. The underlying fact still
+  holds: `vendors` has no `lat`/`lng`. ⚠️ But it no longer blocks proximity — proximity ships as
+  **PSGC membership** (five tiers) ordered by administrative **centroid**, needing no vendor
+  coordinates. What `lat`/`lng` would buy is **per-vendor** distance, which is deliberately not
+  wanted: see "How far 'near' is allowed to go" above, and plan
+  `.plans/2026-10-14-booker-near-me-discovery.md` **P2**, which stays parked behind both a migration
+  and a licensing review.
 - **PWA install/payment behaviour on real devices not yet confirmed.** The manifest, service worker, and install-banner logic are machine-verified (Chrome's own installability check reports zero errors), but an actual home-screen install-and-launch on real Android/iOS hardware, and specifically **the PayMongo checkout round-trip from an installed standalone app**, still need physical-device testing before this is considered fully done.
 
 - **Found 2026-09-18/20 while planning the redesign** (details in
