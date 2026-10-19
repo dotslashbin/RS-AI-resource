@@ -26,6 +26,10 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 - Nested `AGENTS.md` files layer on top of this one (see the AGENTS.md Use section in `AGENTS.md`). The mobile apps carry React Native overrides to the web-oriented rules below.
 - Package and toolchain commands are **not** root-relative. Run them against the target app, e.g. `npm --prefix ezzy-vendor-mobile run start`, or from inside the app folder. `tsconfig.json`, `node_modules/`, and `@/*` path aliases are all app-local.
 - Git commits for an app must be made inside that app's folder — this root repo does not contain their history.
+- ⚠️ **Nobody commits in this workspace except the user.** Before writing any commit summary,
+  read and apply `.claude/skills/commit-drafting/SKILL.md`: no git write commands, one draft
+  per repository, and a copy-paste scoped `git add` with the excluded paths named. A bare
+  `git add .` here commits someone else's work in progress.
 
 ### Where to look
 
