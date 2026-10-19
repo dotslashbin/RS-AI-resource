@@ -9,3 +9,8 @@ backbone/
 # `.plans/previews/_shared/shoot.mjs`, and committing them would undo the point of contact
 # sheets. See .plans/2026-10-18-design-preview-harness.md D2/D4.
 .plans/previews/*/flagged/
+
+# Windows alternate-data-stream markers. WSL surfaces them as a sibling file when an asset is
+# copied from Windows, and 12 of them reached `division_logos/` before anyone noticed. 25 bytes
+# each, no function in the repo.
+*:Zone.Identifier
