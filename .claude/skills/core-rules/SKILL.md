@@ -154,6 +154,11 @@ Before creating any new component, read and apply `.claude/skills/component-sepa
 
 Before making any visual or interaction change, read and apply `.claude/skills/ux-design/SKILL.md`.
 
+Before building a static preview of a screen that does not exist yet — for design review ahead
+of implementation — read and apply `.claude/skills/design-preview/SKILL.md`. Scaffold it with
+`node .plans/previews/_shared/shoot.mjs --new <topic> --app <app>`; never hand-write the
+boilerplate.
+
 - Every component with state, effects, or handlers must have a companion `useComponentName.ts` hook in the same directory
 - The `.tsx` file is a pure render layer — no `useState`, `useEffect`, business logic, or static inline `style={{}}` blocks
 - Non-trivial styling goes in a co-located `ComponentName.module.css` (or shared Tailwind tokens/utilities), not inline in the `.tsx`; only genuinely dynamic one-off values may stay inline

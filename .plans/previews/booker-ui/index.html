@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>booker-ui — preview</title>
+  <link rel="stylesheet" href="./tokens.css">
+  <link rel="stylesheet" href="./chrome.css">
+  <link rel="stylesheet" href="./preview.css">
+  <!-- Generated: the division marks as data: URIs, for `mask-image` only. A CSS mask cannot
+       load a sibling file:// PNG (CORS); a plain <img> of the same file can. See masks.css. -->
+  <link rel="stylesheet" href="./masks.css">
+  <script src="./base.js" defer></script>
+  <script src="./chrome.js" defer></script>
+  <script src="./screens.js" defer></script>
+  <script src="./controller.js" defer></script>
+</head>
+<body>
+  <!-- Shown ONLY when this is served over http(s) — see `screens.js`. The isolation claim in
+       README.md is about the committed file:// bytes and the run that checked them; it is not
+       inherited by a hosted rendering of them. -->
+  <p class="pv-web-note">Hosted rendering of the committed preview. The "no network, no
+    Supabase" claim in <code>README.md</code> describes the <code>file://</code> copy and the
+    run that verified it &mdash; not this page.</p>
+
+  <div id="root"></div>
+
+  <!-- Preview-only controls. Not part of the design; hidden by ?chrome=off. -->
+  <div class="pv-bar">
+    <span class="pv-label">PREVIEW</span>
+    <label>Screen <select id="pv-screen"></select></label>
+    <label>Theme <select id="pv-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </div>
+</body>
+</html>

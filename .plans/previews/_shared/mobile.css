@@ -1,0 +1,100 @@
+/*
+ * mobile — device-frame and native-chrome layout for the markup `_shared/mobile.js` emits.
+ * Synced into a mobile preview as `mobile.css`, alongside the palette it borrows
+ * (`tokens.css` ← `_shared/vendor.css` or `_shared/booker.css`).
+ *
+ * ⚠️ NO TOKENS HERE AND NO APP TOKEN NAMES — everything resolves through the `--pv-*` aliases
+ * that each app stylesheet defines, exactly like `preview-chrome.css`.
+ *
+ * ⚠️ NO GRADIENT, NO BLUR, NO MULTI-LAYER SHADOW in this file, and none in a mobile preview's
+ * own CSS. React Native has no equivalent for any of the three without an extra package
+ * (`ezzy-vendor-mobile/src/theme/tokens.ts:7–11`), and the runner fails a mobile preview that
+ * uses one. A single-layer `box-shadow` maps to RN's `shadow()` and is allowed.
+ */
+
+/* ── The device frame ─────────────────────────────────────────────────────────────────────
+   Insets are hard numbers, not `env(safe-area-inset-*)`: in a desktop Chromium viewport those
+   resolve to 0, which would hide the one layout risk a phone preview exists to show. */
+.mdev {
+  display: flex; flex-direction: column;
+  min-height: 100vh;
+  background: var(--pv-panel-bg);
+}
+.mdev-status {
+  flex: 0 0 auto;
+  /* Keep in step with `INSET` in mobile.js. */
+  height: 47px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px;
+  font-size: 13px; font-weight: 600; color: var(--pv-strong);
+}
+.mdev-time { letter-spacing: 0.01em; }
+.mdev-icons { display: flex; align-items: center; gap: 4px; color: var(--pv-strong); }
+.mdev-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.mdev-home { flex: 0 0 auto; height: 34px; display: flex; align-items: center; justify-content: center; }
+.mdev-bar { width: 134px; height: 5px; border-radius: 99px; background: var(--pv-strong); opacity: 0.35; }
+
+/* ── Native stack header ──────────────────────────────────────────────────────────────────
+   iOS centres the title with a chevron-and-label back control; Android left-aligns the title
+   behind a plain arrow. They are not interchangeable and a reviewer will notice. */
+.mnav {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 4px;
+  min-height: 44px; padding: 0 8px;
+  border-bottom: 1px solid var(--pv-divider);
+}
+.mnav-back {
+  min-height: 44px; min-width: 44px;
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 8px; background: transparent; border: none;
+  color: var(--pv-strong); font-size: 15px;
+}
+.mnav-back-label { font-size: 15px; }
+.mnav-title { flex: 1 1 auto; min-width: 0; font-size: 16px; font-weight: 600; color: var(--pv-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mnav-spacer { flex: 0 0 44px; }
+
+.mnav[data-platform="ios"] .mnav-title { text-align: center; }
+.mnav[data-platform="android"] .mnav-title { text-align: left; padding-left: 4px; }
+.mnav[data-platform="android"] .mnav-back-label { display: none; }
+
+/* ── Body ─────────────────────────────────────────────────────────────────────────────────*/
+.mbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; }
+
+/* ── Bottom tab bar ───────────────────────────────────────────────────────────────────────
+   ⚠️ Sits above the home indicator, never flush to the bottom edge — a tab bar under the
+   gesture area is unreachable on a modern phone. The `.mdev-home` row below it is what
+   guarantees that, so do not give this `position: fixed`. */
+.mtabs {
+  flex: 0 0 auto;
+  display: flex;
+  border-top: 1px solid var(--pv-divider);
+}
+.mtab {
+  flex: 1 1 0; min-width: 0;
+  min-height: 52px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 6px 2px;
+  background: transparent; border: none;
+  color: var(--pv-text);
+}
+.mtab.is-on { color: var(--pv-strong); }
+.mtab-label { font-size: 10px; font-weight: 600; }
+
+/* ── Cards on mobile ──────────────────────────────────────────────────────────────────────
+   A single-layer shadow only: this maps to RN's `shadow()` helper. Two layers do not. */
+.mcard {
+  background: var(--pv-panel-bg);
+  border: 1px solid var(--pv-divider);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  padding: 14px;
+}
+.mcard + .mcard { margin-top: 10px; }
+
+/* ⚠️ Flatten the page background. The borrowed palette sets `body { background: ... }` to the
+   WEB app's `--sp-page-bg` / `--db-page-bg`, both of which are `linear-gradient(145deg,…)`.
+   On a phone that is both wrong (RN needs `expo-linear-gradient` for it) and would trip the
+   runner's own gradient check on every mobile preview. This file loads after the palette, so
+   this wins. */
+body { background: var(--pv-panel-bg); }

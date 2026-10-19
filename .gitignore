@@ -4,3 +4,8 @@ website/
 booker/
 command/
 backbone/
+
+# Design previews: full-size shots the runner leaves for a FAILING screen. Reproducible from
+# `.plans/previews/_shared/shoot.mjs`, and committing them would undo the point of contact
+# sheets. See .plans/2026-10-18-design-preview-harness.md D2/D4.
+.plans/previews/*/flagged/

@@ -1,0 +1,677 @@
+/*
+ * booker-ui — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated from
+ * `_shared/`, so do not restate a token or a chrome class here.
+ *
+ * ⚠️ No inline `style=""` anywhere: `style-src 'self'` blocks a style attribute outright and
+ * reports it as a console error (check 2). Every dynamic value below is a `data-` attribute
+ * with its mapping in this file.
+ */
+
+/* ── Page scaffolding ────────────────────────────────────────────────────────────────── */
+
+.pg { padding: 20px 22px 40px; }
+.pg-h { margin: 0 0 4px; font-size: 19px; font-weight: 800; color: var(--db-strong); }
+.pg-s { margin: 0 0 18px; font-size: 13px; line-height: 1.5; color: var(--db-text); max-width: 76ch; }
+
+.note {
+  margin: 0 0 18px;
+  padding: 10px 13px;
+  border-left: 3px solid var(--db-toggle-on);
+  border-radius: 0 8px 8px 0;
+  background: var(--db-card-bg);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--db-text);
+  max-width: 86ch;
+}
+.note b { color: var(--db-strong); }
+.note code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--db-strong);
+}
+
+/* A demonstration-only marker. The prompt requires demo photos be labelled as such. */
+.demo-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--db-sub-bg);
+  color: var(--db-tone-popular-fg);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sect { margin: 0 0 30px; }
+.sect-h {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--db-strong);
+}
+
+/* Two columns that collapse on a phone — the current/proposed comparison frame. */
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.cmp-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+.col {
+  padding: 14px;
+  border: 1px solid var(--db-divider);
+  border-radius: 14px;
+  background: var(--db-card-bg);
+}
+.col-h { margin: 0 0 3px; font-size: 12.5px; font-weight: 800; color: var(--db-strong); }
+.col-s { margin: 0 0 12px; font-size: 11.5px; line-height: 1.5; color: var(--db-text); }
+.col[data-flag="now"] { border-color: var(--db-divider); }
+.col[data-flag="new"] { border-color: var(--db-toggle-on); }
+.col[data-flag="bad"] { border-color: #b91c1c; }
+
+.tag {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.tag[data-flag="now"] { background: var(--db-sub-bg); color: var(--db-text); }
+.tag[data-flag="new"] { background: var(--db-toggle-on); color: #fff; }
+.tag[data-flag="bad"] { background: #b91c1c; color: #fff; }
+
+/* ── The division mark, in each treatment ───────────────────────────────────────────── */
+
+.marks { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 14px 8px; }
+.mk { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.mk-name { font-size: 10.5px; font-weight: 700; color: var(--db-text); }
+.mk-fig { font-size: 9.5px; color: var(--db-text); font-variant-numeric: tabular-nums; }
+
+/*
+ * The disc — the CURRENT treatment. `border-radius: 999px` + `--division-tile`, exactly as
+ * `booker/components/home/HomePage.module.css:161` draws it.
+ *
+ * ⚠️ The tint stays light in dark mode, which is the app's deliberate choice: four marks are
+ * near-black line art and vanish without it.
+ */
+.disc {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: var(--division-tile);
+  flex-shrink: 0;
+}
+.disc-sm { width: 52px; height: 52px; }
+
+/*
+ * The art. `--art` is the IMAGE's share of the box, and it is per-slug on purpose — see the
+ * `[data-slug]` block below. `object-fit: contain`, never `cover`: the thirteen sources are
+ * not a matched set and a crop would cut whichever has least padding.
+ */
+.art {
+  display: block;
+  width: var(--art, 66%);
+  height: var(--art, 66%);
+  object-fit: contain;
+}
+
+/* Circle-free, drawn as a plain <img>: keeps the logo's own colours, and is where four of
+   them disappear on a dark surface. That failure is the point of showing it. */
+.bare { display: grid; place-items: center; width: 72px; height: 72px; }
+
+/*
+ * Circle-free, painted through a CSS mask — `background-color` from a token, the mark used
+ * only as an alpha channel. This is already production's technique
+ * (`OfferingResultCard.tsx` `.phMark` / `.footMark`), and it is the only way the near-black
+ * marks survive without their tint. The cost is that it FLATTENS a multi-colour logo to one
+ * ink, which the preview shows rather than hides.
+ */
+/*
+ * ⚠️ THE INK IS `currentColor`, NOT `--division-deep`, AND THAT IS THE WHOLE POINT.
+ *
+ * `--division-deep` is the obvious choice and it is wrong: the token is IDENTICAL in both
+ * themes — it is built for white text on a coloured band — so on a dark surface the darker
+ * divisions vanish. booker measured exactly this on an Explore pill (2026-10-02):
+ * `ezzy-home` **1.21:1**, `ezzy-care` **1.54:1**, against 5.89–14.86 in light. The app's own
+ * answer is `currentColor`, so the mark follows the surface's text colour and inherits a
+ * contrast that was already proven. `.deep-ink` below reproduces the failure deliberately.
+ */
+.mask {
+  display: block;
+  width: var(--art, 66%);
+  height: var(--art, 66%);
+  background-color: currentColor;
+  -webkit-mask-image: var(--mark);
+  mask-image: var(--mark);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+/*
+ * ── The measured per-slug scale ──────────────────────────────────────────────────────
+ *
+ * ⚠️ THIS IS THE ANSWER TO "Ezzy Drive looks smaller", AND IT IS NOT A GUESS. Each PNG's
+ * OPAQUE bounding box was measured (Chromium canvas, `getImageData`, alpha > 10):
+ *
+ *   slug          canvas     opaque box   box/canvas
+ *   ezzy-drive    512x512    290x294      0.574   <- the outlier
+ *   ezzy-learn    512x512    417x435      0.850   <- a second, milder one
+ *   ezzy-ride     2000x2000  1624x1742    0.871   <- REPLACED 2026-10-19; was a 1.000
+ *                                                    full-bleed disc, now ordinary line art
+ *   (the other ten)                       0.949 – 0.990
+ *
+ * Drawing every mark at a flat 66% of its box — which is what `DivisionIcon.module.css:.art`
+ * does today — therefore renders Drive's INK at 0.66 x 0.574 = 38% of the box while the rest
+ * land near 64%. Drive is not "slightly small": it is 59% the size of its neighbours.
+ *
+ * ⚠️ EQUAL `width`/`height` CANNOT FIX THIS, which is precisely what the request anticipated.
+ * The fix is to size each image so its INK, not its canvas, is a constant share of the box:
+ *
+ *     --art = TARGET_INK / (that slug's box/canvas ratio),  TARGET_INK = 0.62
+ *
+ * Drive's 108% is correct and not a typo: the image overflows the box, but the overflow is
+ * transparent padding, so the visible mark lands at 62% like everyone else.
+ */
+[data-slug="ezzy-care"]  { --art:  64.5%; }
+[data-slug="ezzy-court"] { --art:  65.3%; }
+[data-slug="ezzy-drive"] { --art: 108.0%; }
+[data-slug="ezzy-food"]  { --art:  63.5%; }
+[data-slug="ezzy-home"]  { --art:  64.0%; }
+[data-slug="ezzy-law"]   { --art:  63.3%; }
+[data-slug="ezzy-learn"] { --art:  72.9%; }
+[data-slug="ezzy-park"]  { --art:  63.0%; }
+[data-slug="ezzy-pets"]  { --art:  64.8%; }
+[data-slug="ezzy-ride"]  { --art:  71.2%; }
+[data-slug="ezzy-stay"]  { --art:  63.7%; }
+[data-slug="ezzy-well"]  { --art:  64.5%; }
+[data-slug="ezzy-work"]  { --art:  62.6%; }
+
+/* The CURRENT behaviour, for the side-by-side: one flat 66% for everything. */
+.now .art { --art: 66%; }
+
+/* ── Offering cards ──────────────────────────────────────────────────────────────────── */
+
+.ocard {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--db-divider);
+  border-radius: 16px;
+  background: var(--db-card-bg);
+  text-align: left;
+}
+
+/* The rounded image area the badge sits inside. */
+.ocard-img {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 15px 15px 0 0;
+  background: var(--division-tile);
+}
+
+/*
+ * The demonstration "photos". ⚠️ CSS gradients, NOT photographs — no real offering image is
+ * shipped in this preview, so nothing here can be mistaken for evidence that live photo data
+ * renders. Three on purpose: a light one, a dark one and a busy one, because the badge has to
+ * stay legible over all three and a single flat swatch would prove nothing.
+ */
+.ph { position: absolute; inset: 0; }
+.ph[data-demo="light"] {
+  background: linear-gradient(135deg, #e8eef6 0%, #cfdcea 48%, #b9cada 100%);
+}
+.ph[data-demo="dark"] {
+  background: linear-gradient(135deg, #243142 0%, #16202c 52%, #0d141d 100%);
+}
+.ph[data-demo="busy"] {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.22) 0 11px, rgba(0, 0, 0, 0.16) 11px 22px),
+    linear-gradient(120deg, #c2410c 0%, #0f766e 45%, #1d4ed8 100%);
+}
+.ph-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(17, 17, 17, 0.72);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+/* The no-photo fallback: the division's mark on its own tint, which is what every surface
+   already falls back to today. */
+.ocard-fb { position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* The broken-image state. `onerror` is not available to a CSP-safe preview, so this is the
+   RENDERED RESULT of a photo whose URL fails, drawn explicitly rather than simulated. */
+.ocard-broken {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  background: var(--db-sub-bg);
+  color: var(--db-text);
+  font-size: 11px;
+  text-align: center;
+}
+
+/*
+ * ⚠️ THE PROPOSED BADGE — logo only, no division name.
+ *
+ * A plate behind it is not decoration: the mark sits on an arbitrary photograph, and four of
+ * the thirteen are near-black line art that would disappear into a dark image. The plate is
+ * what makes one treatment work over every photo, which is why it is opaque rather than a
+ * tint. Kept to 30px and inset 9px so it reads as a provenance stamp, not a second subject.
+ */
+.ocard-badge {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.26);
+}
+.ocard-badge .art { --art: 68%; }
+.ocard-badge-mono {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--division-deep);
+}
+
+/* The badge sized for the bigger single-card demos. */
+.ocard-img[data-size="lg"] .ocard-badge { width: 36px; height: 36px; right: 11px; bottom: 11px; }
+
+.ocard-b { padding: 11px 13px 13px; }
+.ocard-t {
+  margin: 0 0 2px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--db-strong);
+  line-height: 1.3;
+}
+.ocard-v { margin: 0 0 7px; font-size: 11.5px; color: var(--db-text); }
+.ocard-f { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ocard-p { font-size: 13px; font-weight: 800; color: var(--db-strong); }
+.ocard-c { font-size: 11px; color: var(--db-text); }
+
+/* The CURRENT "Popular this month" row — mark on a tint, no photo path at all. */
+.prow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--db-divider);
+  border-radius: 13px;
+  background: var(--db-card-bg);
+  text-align: left;
+}
+.prow-art {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--division-tile);
+}
+.prow-art .ph { position: static; width: 100%; height: 100%; }
+.prow-b { min-width: 0; flex: 1; }
+.prow-t {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--db-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prow-v { margin: 0 0 4px; font-size: 11px; color: var(--db-text); }
+.prow-f { display: flex; gap: 10px; align-items: baseline; }
+.prow-p { font-size: 12.5px; font-weight: 800; color: var(--db-strong); }
+.prow-n { font-size: 11px; color: var(--db-text); }
+.prow-rank {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--db-sub-bg);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--db-text);
+}
+
+/* A photo-bearing variant of the same row, for the Popular comparison. */
+.prow-art[data-has="photo"] { background: none; }
+
+/* ── The reference treatment: the search result's footer, which DOES carry a name ─────── */
+
+.reffoot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border-top: 1px solid var(--db-divider);
+}
+.reffoot-mark {
+  display: block;
+  width: 15px;
+  height: 15px;
+  background-color: var(--division-deep);
+  -webkit-mask-image: var(--mark);
+  mask-image: var(--mark);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+.reffoot-n { font-size: 11px; font-weight: 700; color: var(--division-deep); }
+
+/* ── Browse by division: the two-row sideways scroller ───────────────────────────────── */
+
+.bd-wrap { position: relative; }
+
+/*
+ * ⚠️ A horizontally scrolling row needs `max-width: 100%` AND `min-width: 0`, not just
+ * `overflow-x: auto` — otherwise it grows past its clipping parent and never overflows
+ * ITSELF. booker's own AGENTS.md records this costing a correction twice (Activity's tab
+ * strip, then Explore's pill row), so it is written in rather than rediscovered.
+ */
+.bd-scroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-columns: 84px;
+  gap: 14px 10px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 0 10px;
+  /* The native bar is hidden in favour of the indicator below; keyboard and wheel still work. */
+  scrollbar-width: none;
+}
+.bd-scroll::-webkit-scrollbar { display: none; }
+
+.bd-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* ⚠️ 44px minimum tap target (ux-design §5) — the disc alone already clears it. */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 2px;
+  border: 0;
+  background: none;
+  scroll-snap-align: start;
+  cursor: pointer;
+}
+.bd-tile:focus-visible { outline: 2px solid var(--db-toggle-on); outline-offset: 3px; border-radius: 10px; }
+.bd-name {
+  max-width: 82px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--division-fg);
+}
+
+/* The centred position indicator — a short progress bar, driven by real scroll position. */
+/*
+ * ⚠️ DOTS, NOT A SLIDING BAR, AND THE REASON IS THE CSP. A continuous thumb needs its width
+ * and offset written from JS on every scroll event, and the only ways to do that are a
+ * `style` attribute or `setProperty` — both of which put an inline style on the element,
+ * which is what `style-src 'self'` exists to stop. A dot per page is a CLASS TOGGLE, so the
+ * indicator stays live while every value remains in this file. The request allows either
+ * ("such as dots or a short progress bar").
+ */
+.bd-ind {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 2px;
+  /* ⚠️ A fixed height, so building the dots in `mount()` cannot reflow the page under the
+     screenshot runner — an indicator that appears late is an indicator that shoots empty. */
+  min-height: 8px;
+}
+.bd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--db-divider);
+  transition: background-color 160ms, width 160ms;
+}
+.bd-dot.is-on {
+  width: 18px;
+  background: var(--db-toggle-on);
+}
+.bd-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── The responsive shell: where the tabs live ───────────────────────────────────────── */
+
+.shell { display: flex; flex-direction: column; min-height: 100%; }
+
+/* The desktop tab strip — booker's current placement, under the top bar. */
+.tabs-top { display: block; }
+
+/*
+ * The bottom bar. Hidden above the breakpoint so there is never a second visible menu —
+ * the request's "avoid duplicate visible menus" is enforced here, by one rule, not by
+ * remembering to hide it per screen.
+ */
+.tabs-bottom { display: none; }
+
+/*
+ * ⚠️ NAMESPACED `pvnav-*`, NOT `btab`/`bbar`. `_shared/booker.css:209` already defines
+ * `.btab` for booker's TOP tab strip, and the first version of this file reused the name —
+ * so these bottom-bar rules (column layout, 56px min-height, 10.5px type) were silently
+ * restyling the desktop tab strip too. None of the nine checks can see that: it is not an
+ * error, an overflow or a missing token, just the wrong rules winning. Found by counting
+ * `.btab` elements and getting 8 where there should have been 4.
+ */
+.pvnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  background: var(--db-panel-bg);
+  border-top: 1px solid var(--db-divider);
+  /*
+   * ⚠️ Safe-area inset, not a flat number. On a notched phone in a browser the home
+   * indicator sits over the last ~34px; without this the fourth tab is under it. `env()`
+   * resolves to 0 on a desktop viewport, so the rule costs nothing where it is not needed.
+   */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pvnav-tab {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  /* ⚠️ 56px, so the target clears 44px even before the inset is added. */
+  min-height: 56px;
+  padding: 7px 4px;
+  border: 0;
+  background: none;
+  color: var(--db-text);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pvnav-tab[aria-current="page"] { color: var(--db-toggle-on); font-weight: 800; }
+.pvnav-tab:focus-visible { outline: 2px solid var(--db-toggle-on); outline-offset: -3px; }
+.pvnav-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+/*
+ * Bottom clearance. The fixed bar covers the end of the page, so the scroll container owes
+ * it the bar's height PLUS the inset — otherwise the last card is unreachable, which is the
+ * request's "bottom content clearance".
+ */
+.pg[data-bottomnav="on"] { padding-bottom: calc(56px + 26px + env(safe-area-inset-bottom, 0px)); }
+
+/*
+ * ── The breakpoint ───────────────────────────────────────────────────────────────────
+ *
+ * ⚠️ 640px, and it is booker's OWN breakpoint, not one invented here. Every responsive rule
+ * in the app's component CSS already turns at 640 — `TabBar.module.css:36`,
+ * `HomeSection`, `PopularShelf`, `BookAgainCard`, `HomePage`, `OpenTodayCard`. TabBar's
+ * comment says why it is the right line for THIS change in particular: "four labelled tabs
+ * side by side measure about 440px, which truncates on a 390px phone and reads as broken".
+ * That is the same failure the bottom bar removes, so the two belong at the same width.
+ */
+@media (max-width: 640px) {
+  .pg { padding: 14px 14px 30px; }
+  .cmp, .cmp-3 { grid-template-columns: 1fr; }
+  .tabs-top { display: none; }
+  .tabs-bottom { display: block; }
+  .marks { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+  .disc { width: 64px; height: 64px; }
+  .bare { width: 64px; height: 64px; }
+}
+
+/* The mask column paints with the surface's own text colour — theme-aware by construction. */
+.col[data-ink="theme"] { color: var(--db-strong); }
+
+/* The failure, kept on screen rather than described: the same mask inked with
+   `--division-deep`, which does not change between themes. */
+.deep-ink .mask { background-color: var(--division-deep); }
+
+/* The hosted-copy label. Hidden on file:// (the normal case) and hidden under `?chrome=off`,
+   so it never reaches a screenshot. `screens.js` sets `.is-web` when the protocol is not
+   file:. */
+.pv-web-note { display: none; }
+html.is-web .pv-web-note {
+  display: block;
+  margin: 0;
+  padding: 9px 14px;
+  background: var(--db-sub-bg);
+  border-bottom: 1px solid var(--db-divider);
+  color: var(--db-text);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+html.is-web body.pv-hidden .pv-web-note { display: none; }
+
+/*
+ * ── SHIPPED STATE (2026-10-18) ────────────────────────────────────────────────────────
+ *
+ * F4, F1 and the EzzyRide half of F6 are in the app now, so the preview's default rendering
+ * has to match or it becomes a lie about the current build. What changed:
+ *
+ *   F4  every mark is sized by its INK, which the `[data-slug]` block above already does.
+ *       The `.now` class is what holds the OLD flat 66%, and it is now used only in the
+ *       explicitly-labelled "before" columns of screens 2 and 3.
+ *   F1  `ezzy-ride` resolves to its file instead of the "ER" monogram. ⚠️ The file was
+ *       REPLACED on 2026-10-19 and is no longer self-backed — see the 2026-10-19 block.
+ *   F6  that file is a self-backed disc, so the app blanks its own plate
+ *       (`--division-plate: transparent`) and lets the mark take the footprint
+ *       (`--division-art-box: 100%`). The two rules below are this preview's equivalent.
+ *
+ * ⚠️ F5 is PARKED and deliberately NOT reflected: every other division still draws its tint,
+ * exactly as the app does. Screen 1 still shows what removing it would cost.
+ */
+
+
+
+/*
+ * The PRE-SHIP rendering, kept alive so screens 2 and 3 can still show what changed. `.now`
+ * means "as it was before 2026-10-18" — it restores the flat 66% sizing (rule above) and,
+ * for the self-backed mark, our plate and the flat mask silhouette.
+ *
+ * ⚠️ Without these two rules the "before" columns would silently render the FIX, and the
+ * screens would claim to show a problem while displaying its solution.
+ */
+
+/* A third state beside "now" and "new": work that has actually landed in the app. */
+.col[data-flag="ship"] { border-color: #047857; }
+.tag[data-flag="ship"] { background: #047857; color: #fff; }
+
+
+/*
+ * ── 2026-10-19: the new EzzyRide asset, and the circle-free hybrid ────────────────────
+ *
+ * ⚠️ EVERY OVERRIDE BUILT FOR THE OLD EZZYRIDE IS GONE. That file was a solid disc (fill
+ * 1.000, 79% ink, multi-colour) and needed its own plate blanked. The replacement is
+ * 2000x2000 single-colour line art — fill 0.871, 33% ink, 99% one colour — so it is an
+ * ordinary mark and takes the ordinary rules. Its `--art` moved 62.0% -> 71.2% to keep its
+ * INK at the same share as its neighbours.
+ *
+ * The hybrid the user chose from this screen: COLOUR IMAGE IN LIGHT, SILHOUETTE IN DARK.
+ * Both are rendered and CSS shows one, so the two states cannot drift apart.
+ */
+.hybrid .h-img  { display: block; }
+.hybrid .h-mask { display: none; }
+.dark .hybrid .h-img  { display: none; }
+.dark .hybrid .h-mask { display: block; }
+
+/* The silhouette follows the surface's own text colour, so it is legible in either theme. */
+.hybrid { color: var(--db-strong); }
+
+/* A white card, to show what a mark looks like with no tint under it in light mode. */
+.white-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 14px 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.ratio {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ratio[data-fail="hard"] { color: #b91c1c; }
+.ratio[data-fail="soft"] { color: #c2410c; }
+.ratio[data-fail="ok"]   { color: var(--db-text); font-weight: 600; }
