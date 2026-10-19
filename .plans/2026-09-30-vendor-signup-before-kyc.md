@@ -12,7 +12,7 @@ No `booker/` changes.
 **Status:** COMPLETE (2026-10-01): **live in production.** The user deployed and tested staging, then released to production in the order Command → `db push` (C1 `20260930000001`, N1 `20260930000002`, N2 `20261001000001`) → vendor web. The production state is as reported by the user; the hosted DB was not queried from here.
 - **Still open (not closed by this status):**
   - ⏸ M1's mobile device check: its unblock condition, the web release being live, is now met;
-  - the M1 code, uncommitted on `ezzy-vendor-mobile` `feature/submission-prep`;
+  - the M1 code is committed as of 2026-10-19 (`ezzy-vendor-mobile` `feature/submission-prep`, `992e289` "Changes related to KYC revamp") — unreleased, so the device check above still stands;
   - the open notes S7-F1, S1-F2, S2-F2, S2-F3, M-F1, M-F2, and I1 (record only).
 
 > Split today's single "register + KYC" submission into (1) an account signup and (2) a KYC submission by the signed-in vendor. A vendor reaches the dashboard only when Command has **activated** it **and** its KYC is **approved**. The vendor apps route everyone else to the right KYC state. A database trigger makes "active" impossible without approved KYC from now on, so booker can never list an unverified vendor.
@@ -572,7 +572,7 @@ Final sequence: `vendor_registration_received, kyc_submitted, kyc_approved, vend
 
 ## B. Mobile — `ezzy-vendor-mobile`
 
-### M1 — Mirror the D1 gate; blocked copy points to the web  ✅ DONE — code (2026-09-30, Stage 4) · ⏸ device check PARKED (unblocked 2026-10-01: web live in production; code still uncommitted)
+### M1 — Mirror the D1 gate; blocked copy points to the web  ✅ DONE — code (2026-09-30, Stage 4; committed 2026-10-19 as `992e289`) · ⏸ device check PARKED (unblocked 2026-10-01: web live in production; awaiting a mobile build on a device)
 **File:** `src/services/vendor.service.ts:26` (add `vendor_kyc(status)` to the embed and `kycStatus` to the mapped type); `src/hooks/useVendorGate.ts:61-80`; `src/app/blocked.tsx` / `BlockedNotice`; `src/services/kioskAccess.service.ts:21-27` (the mobile kiosk gate: same rule)
 **Fix approach:**
 - `ready` requires `active && kycStatus === 'approved'`.
