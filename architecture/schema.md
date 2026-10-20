@@ -1193,7 +1193,7 @@ Outbound-email delivery log and idempotency guard. One row per notification. Wri
 ---
 
 ### `kyc_document_types`
-Per-applicant-type list of **suggested** verification documents — guidance only (D-1 = B). Seeded; managed by Command admins. Not referenced by any FK: uploads carry a free-text label. ⚠️ **Dormant — no app queries this table.** The "Suggested: …" hint comes from hardcoded arrays (`vendor/services/kyc.service.ts`, `command/services/kyc-admin.service.ts`), and since 2026-10-19 the vendor's first submission uses fixed slots defined in `vendor/lib/kycDocumentSlots.ts` whose stored labels (`business-permit`, `government-issued-id`) are **not** this table's `code` values. See `vendor-kyc.md`.
+Per-applicant-type list of **suggested** verification documents — guidance only (D-1 = B). Seeded; managed by Command admins. Not referenced by any FK: uploads carry a free-text label. ⚠️ **Dormant — no app queries this table.** The "Suggested: …" hint comes from hardcoded arrays (`vendor/services/kyc.service.ts`, `command/services/kyc-admin.service.ts`), and since 2026-10-19 the vendor's first submission uses fixed slots defined in `vendor/lib/kycDocumentSlots.ts` whose stored labels (`business-permit`, `lgu-permits`, `dti-certificate`, `bir-registration`) are **not** this table's `code` values. See `vendor-kyc.md`.
 
 | Column | Type | Notes |
 |--------|------|-------|

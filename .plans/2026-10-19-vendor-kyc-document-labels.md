@@ -11,12 +11,17 @@ consumers. One documentation item (I5) touches the **root** repo's `architecture
 `components/kyc/CameraCapture/`), and **the rejected-application resubmit editor**
 (`components/kyc/KycStatusPage/`) — see D2.
 
-**Status:** IN PROGRESS — **S1–S6 executed 2026-10-19** on `vendor/` branch `feature/KYC_flow_revamp`.
+**Status:** IN PROGRESS — **S1–S6 executed 2026-10-19, then round 2 (B9–B12, I9, F1) the same
+day** after your review found the document set wrong: the Government-issued ID slot duplicated the
+identity step. Round 2's machine checks: tsc clean · 550 unit tests, 0 failing · lint unchanged at
+29 · 216 Playwright tests, 0 failing, no baseline changed. Original round: on `vendor/` branch `feature/KYC_flow_revamp`.
 All of B1–B7, I1–I3 and I6–I8 are ✅; machine verification is green (tsc clean · 547 unit tests, 0
 failing · lint unchanged at its pre-existing 29 · 214 Playwright tests, 0 failing, no baseline
 changed). Every executable item is now done, including S6 / I5 (the `architecture/` update, allowed by you
-on 2026-10-19). Still open and all yours: **I2's wording** to accept, **I4** (the resubmit
-follow-up, yours to close), the live checks listed under Verification, and the commits. Reviewed 2026-10-19 before execution (see *Review pass*):
+on 2026-10-19). Still open and all yours: your **test pass before staging**, the **"Business permit"
+vs "LGU Permits" overlap** raised under round 2, **I4** (the resubmit follow-up, yours to close), the
+live checks listed under Verification, and the commits. I2's hint no longer exists — round 2 removed
+the slot it explained (B11). Reviewed 2026-10-19 before execution (see *Review pass*):
 five gaps folded in, one of which would have made S1 fail on the first `npm test`.
 
 > One-line framing: an applicant should be told exactly which documents to upload, so replace the
@@ -290,7 +295,7 @@ accreditation row (`:137`) is unchanged.
 so the applicant reads "Business permit", not `business-permit`, while the payload still carries the
 slug. `tsc` clean.
 
-### I2 — Copy that separates the ID *document* from the ID *photo*  ✅ DONE (2026-10-19) — wording still yours to accept
+### I2 — Copy that separates the ID *document* from the ID *photo*  ✅ DONE, then ✖ SUPERSEDED (2026-10-19, round 2)
 **File:** the `government-issued-id` slot's `hint` in `lib/kycDocumentSlots.ts` (B1), rendered by B2
 
 An applicant who uploads "Government-issued ID" and is then asked at step 3 to photograph an ID and a
@@ -305,6 +310,11 @@ take a live photo of it in the next step."* It renders under the Government-issu
 slot is empty, and gives way to the file name once attached. ⚠️ Still **yours to accept or rewrite** —
 the string lives in one place (`lib/kycDocumentSlots.ts`), and a test asserts only that it mentions
 the next step, so changing the wording is a one-line edit.
+
+✖ **SUPERSEDED the same day (round 2, B11).** You read the duplication as the defect, not the
+missing explanation — so the slot went, and the hint with it. The item is kept because it records
+the trade this plan originally made: explaining a redundancy instead of removing it. Hint support
+is gone from the interface, the render and the CSS; no slot carries one now.
 
 ### I3 — `KYC_SUGGESTIONS` stays exported; only this form stops using it  ✅ DONE (2026-10-19)
 **File:** `KycSubmitForm.tsx:3` (remove the import), `services/kyc.service.ts:26-29` (keep)
@@ -420,12 +430,123 @@ disabled until the step is valid, **and says why**".
 
 ---
 
+## Round 2 — the real document set (2026-10-19, after your review of round 1)
+
+You tested the shipped slots and found the document set wrong, not the mechanism: the
+**Government-issued ID** slot asks for the same thing the identity step photographs one screen
+later. Round 2 replaces the set. Still frontend-only, still no backend change — the labels are
+free text in the column and the validator applies no charset rule, so new values need nothing
+server-side (the compatibility note at the top of this plan holds unchanged).
+
+**The set, as requested:**
+
+| Applicant type | Slot title | Stored `label` | Change |
+|---|---|---|---|
+| `company` | Business permit | `business-permit` | unchanged |
+| `company` | LGU Permits | `lgu-permits` | **replaces** Government-issued ID |
+| `company` | DTI Certificate / Business registration | `dti-certificate` | **new** |
+| `company` | BIR Registration documents | `bir-registration` | **new** |
+| `individual` | BIR Registration documents | `bir-registration` | **replaces** Government-issued ID |
+
+### B9 — Redefine the slot set and its tests  ✅ DONE (2026-10-19)
+**File:** `vendor/lib/kycDocumentSlots.ts`, `vendor/lib/kycDocumentSlots.test.ts`
+
+Company goes from two slots to four, individual's single slot changes identity. `KycSlotValue`
+gains `lgu-permits`, `dti-certificate` and `bir-registration` and loses `government-issued-id`.
+The BIR slot is **one definition shared by both types**, as `government-issued-id` was — the two
+titles you wrote differ only in plurality, so the shared title is "BIR Registration documents".
+**Fix approach:** the slot constants and the `KYC_DOCUMENT_SLOTS` map; the tests' expected sets,
+the label-contract test, and the B6 discard test (whose stale-file case becomes a company-only
+slot like `lgu-permits`).
+**Verification:** `npm test` (machine).
+
+✅ **DONE (2026-10-19)** — company: `business-permit`, `lgu-permits`, `dti-certificate`,
+`bir-registration`; individual: `bir-registration` alone, sharing the company's BIR definition.
+`npm test` **550 passing, 0 failing**. The tests now also assert that **no slot title mentions an
+ID or selfie** — the redundancy that caused round 2 cannot creep back without failing a test.
+
+### B10 — A four-item "what's missing" sentence  ✅ DONE (2026-10-19)
+**File:** `vendor/lib/kycDocumentSlots.ts` (new `listAnd`), `useKycSubmitForm.ts` (`docsBlockedReason`)
+
+I8's reason line joins missing titles with `" and "`. With one missing slot that reads fine; with
+four it becomes "Attach your Business permit and LGU Permits and DTI Certificate / Business
+registration and BIR Registration documents to continue." — which is now the **first** thing a
+company sees on the step.
+**Fix approach:** a `listAnd(items)` helper in the slot module (comma-separated, final "and"),
+unit-tested there, used by `docsBlockedReason`. In `lib/` rather than the hook because it is the
+only way the repo can machine-check the copy, and the sentence is now four items long.
+**Verification:** `npm test` for the helper; the Playwright spec asserts the rendered sentence.
+
+✅ **DONE (2026-10-19)** — `listAnd` in the slot module, unit-tested for 0–4 items. A company with
+nothing attached now reads "Attach your Business permit, LGU Permits, DTI Certificate / Business
+registration and BIR Registration documents to continue.", and the spec asserts that string plus the
+two- and one-item forms as slots fill.
+
+### B11 — Drop hint support, now that nothing uses it  ✅ DONE (2026-10-19)
+**File:** `kycDocumentSlots.ts` (`hint`), `KycSubmitForm.tsx` (the hint branch), `KycSubmitForm.module.css` (`.slotHint`)
+
+I2's hint existed only to explain why a Government-issued ID upload sat one screen before an ID
+photo. That slot is gone, so the redundancy it apologised for is gone with it. Keeping an optional
+field no slot sets is speculative generality.
+**Fix approach:** remove the field, its render branch, its CSS and the test that asserted it. An
+empty slot row then shows its title and an Attach button, which is also less to read down four rows.
+**Verification:** `tsc`, `npm run lint`, the visual suite.
+
+✅ **DONE (2026-10-19)** — `hint` removed from the interface, the render branch, `.slotHint` and the
+test. An empty slot row is now its title plus Attach. I2's hint text is gone with the slot it
+explained; the item stays in this plan as the record of why it existed.
+
+### B12 — Update the behaviour spec for the new set  ✅ DONE (2026-10-19)
+**File:** `vendor/visual-tests/kyc-document-slots.spec.ts`
+
+Every assertion naming Government-issued ID, and the company gate (now four attachments before
+Continue enables).
+**Verification:** `npx playwright test visual-tests/kyc-document-slots.spec.ts` (machine).
+
+✅ **DONE (2026-10-19)** — **9 tests, all passing** (was 7). Two are new: a company sees four slots
+and **no** Government-issued ID anywhere, and a document shared by both types (BIR) **survives** a
+type switch, where a company-only one is discarded. That second case is the edge round 2 created —
+B6 must drop `lgu-permits` but keep `bir-registration`, and nothing else would have caught it.
+
+### I9 — Re-correct the three architecture docs  ✅ DONE (2026-10-19)
+**File:** `architecture/vendor-kyc.md` (the slot table), `architecture/portals.md` (registration paragraph), `architecture/schema.md` (the slug example in the `kyc_document_types` note)
+
+S6 wrote the round-1 set into all three this morning; leaving them is worse than never having
+written them.
+**Verification:** read-level.
+
+✅ **DONE (2026-10-19)** — `vendor-kyc.md`'s slot table rewritten with all five rows plus a note on
+why the ID slot went; `portals.md`'s registration paragraph; `schema.md`'s slug example. Also fixed
+the slot module's own header comment, which still named the round-1 values. A grep for
+`government-issued-id` now returns only deliberate historical notes and the spec's negative assertion.
+
+### F1 — Finding: the 25 MB packet total is reachable again  ✅ RECORDED (2026-10-19)
+Round 1's DEFERRED note said the client-side total "can never fire" because two slots cap out at
+2 × 10 MB. **Four slots cap out at 40 MB**, so the check is live again and a company with large
+scans can now hit it in the browser instead of after uploading. The note below is corrected rather
+than left standing. `MAX_DOC_COUNT` is still unreachable (4 + 2 identity = 6, cap is 12).
+
+### ⚠️ Raised, not decided: "Business permit" and "LGU Permits" may be the same document
+A mayor's/business permit is issued by the LGU, so a company may read these two rows as one
+document asked for twice — the exact complaint that started round 2. Built as you specified; the
+titles live in one file and are a one-line change if you want them merged or reworded. Also noted:
+the four titles mix sentence case and Title Case ("Business permit" vs "LGU Permits" vs "BIR
+Registration documents"), kept as you typed them rather than silently normalised.
+
+---
+
 ## DECISIONS
 
 <!-- No item in this plan may execute while any OPEN: line below remains. None are open. -->
 
+- **D4 — The new slots' stored labels (round 2)** → **derived from D1's convention**: lowercase,
+  hyphenated, from the title — `lgu-permits`, `dti-certificate`, `bir-registration` (recorded
+  2026-10-19). Not asked separately: D1 already fixed the shape, the server accepts any non-empty
+  label, and all four live in one file, so a different slug is a one-line change. `government-issued-id`
+  is retired from the UI; rows already stored under it are untouched.
 - **D1 — What the two slots store in `vendor_kyc_documents.label`** → **the prompt's literals:
-  `business-permit` and `government-issued-id`** (resolved 2026-10-19, user). Accepted by the server
+  `business-permit` and `government-issued-id`** (resolved 2026-10-19, user; `government-issued-id`
+  **superseded by round 2 / D4** the same day — the slot was redundant with the identity step). Accepted by the server
   unchanged (see the compatibility note above). Known cost, accepted: Command's review panel prints
   the label verbatim (`KycPanel.tsx:64`), so a reviewer sees `business-permit` beside historical rows
   reading `Business Permit`, and the vendor's own "Already submitted" list does the same
@@ -455,7 +576,10 @@ disabled until the step is valid, **and says why**".
 - **`KYC_MAX_DOC_COUNT` / `KYC_MAX_TOTAL_BYTES` client re-exports stay** (`services/kyc.service.ts:38-40`)
   even though B3 drops the count branch — the total is still used, and the resubmit path imports from
   the same module.
-- **The client-side 25 MB packet total is now near-dead, and never covered the identity photos**
+- ~~**The client-side 25 MB packet total is now near-dead**~~ — **corrected 2026-10-19 by round 2
+  (F1): four company slots cap out at 40 MB, so the check is live again.** The second half of the
+  note below still stands: it has never covered the identity photos.
+- **The client-side 25 MB packet total never covered the identity photos**
   (review gap 5). `useIdentityStep.ts:37-41` checks MIME and 10 MB per file but nothing adds the two
   captures to a packet total, and the form sums only the document list (`useKycSubmitForm.ts:93-97`).
   After this change the client total can reach at most 2 × 10 MB and so can never fire, while two

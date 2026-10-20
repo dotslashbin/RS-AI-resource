@@ -111,8 +111,14 @@ has no packet (the former registration steps 3–6, moved unchanged in behaviour
 
   | Applicant type | Slots | Submitted `label` |
   |---|---|---|
-  | `company` | Business permit, Government-issued ID | `business-permit`, `government-issued-id` |
-  | `individual` | Government-issued ID | `government-issued-id` |
+  | `company` | Business permit · LGU Permits · DTI Certificate / Business registration · BIR Registration documents | `business-permit` · `lgu-permits` · `dti-certificate` · `bir-registration` |
+  | `individual` | BIR Registration documents | `bir-registration` |
+
+  (Revised the same day. The first set asked both types for a **Government-issued ID**
+  one screen before the identity step photographs exactly that — redundant, so it was
+  replaced by the registrations a business actually files. No slot asks for an identity
+  document now; the identity step is the only place one is requested. Rows already
+  stored as `government-issued-id` are left alone.)
 
   All of a type's slots are required before step 3, the Continue button says which one
   is missing, and switching applicant type discards a file whose slot the new type does
