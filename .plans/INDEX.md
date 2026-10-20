@@ -9,7 +9,7 @@ Status and scope come from each plan's own header; open the plan before relying 
 
 | Date | Plan | Status | Scope | Related |
 |---|---|---|---|---|
-| 2026-10-19 | [Vendor KYC — fixed document slots instead of free-text labels](2026-10-19-vendor-kyc-document-labels.md) | IN PROGRESS — S1–S6 executed 2026-10-19, then round 2 (B9–B12, I9, F1) the same | vendor/ web frontend only — components/kyc/KycSubmitForm/ (render + h… |  |
+| 2026-10-19 | [Vendor KYC — fixed document slots instead of free-text labels](2026-10-19-vendor-kyc-document-labels.md) | IN PROGRESS — S1–S6, then rounds 2 and 3, executed 2026-10-19/20. The set settled | vendor/ web frontend only — components/kyc/KycSubmitForm/ (render + h… |  |
 | 2026-10-19 | [Booker circle-free division marks, and the new EzzyRide asset](2026-10-19-booker-circle-free-marks.md) | COMPLETE — all items ✅ (2026-10-19). Final sweep: tsc clean, 304 unit tests, lint unchanged at its pre-existing 18, visu… | booker/ only, plus .plans/previews/booker-ui/. No vendor, command, Ex… |  |
 | 2026-10-18 | [A cheaper design-preview workflow for upcoming features](2026-10-18-design-preview-harness.md) | COMPLETE (planned scope) — S1–S5 executed 2026-10-18; all ten items ✅. ⏸ One parked follow-up: F9 (parked 2026-10-19)… | Root repo only — new .plans/previews/_shared/, new .claude/skills/des… |  |
 | 2026-10-18 | [Booker UI enhancements — bottom nav, division scroller, offering photos](2026-10-18-booker-ui-enhancements.md) | COMPLETE — S1–S4 executed 2026-10-18; closed out 2026-10-19 at the user's | booker/ only. No vendor, command, Expo, schema, RLS or dependency cha… |  |

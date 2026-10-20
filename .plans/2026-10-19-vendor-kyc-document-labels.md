@@ -11,18 +11,13 @@ consumers. One documentation item (I5) touches the **root** repo's `architecture
 `components/kyc/CameraCapture/`), and **the rejected-application resubmit editor**
 (`components/kyc/KycStatusPage/`) — see D2.
 
-**Status:** IN PROGRESS — **S1–S6 executed 2026-10-19, then round 2 (B9–B12, I9, F1) the same
-day** after your review found the document set wrong: the Government-issued ID slot duplicated the
-identity step. Round 2's machine checks: tsc clean · 550 unit tests, 0 failing · lint unchanged at
-29 · 216 Playwright tests, 0 failing, no baseline changed. Original round: on `vendor/` branch `feature/KYC_flow_revamp`.
-All of B1–B7, I1–I3 and I6–I8 are ✅; machine verification is green (tsc clean · 547 unit tests, 0
-failing · lint unchanged at its pre-existing 29 · 214 Playwright tests, 0 failing, no baseline
-changed). Every executable item is now done, including S6 / I5 (the `architecture/` update, allowed by you
-on 2026-10-19). Still open and all yours: your **test pass before staging**, the **"Business permit"
-vs "LGU Permits" overlap** raised under round 2, **I4** (the resubmit follow-up, yours to close), the
-live checks listed under Verification, and the commits. I2's hint no longer exists — round 2 removed
-the slot it explained (B11). Reviewed 2026-10-19 before execution (see *Review pass*):
-five gaps folded in, one of which would have made S1 fail on the first `npm test`.
+**Status:** IN PROGRESS — **S1–S6, then rounds 2 and 3, executed 2026-10-19/20.** The set settled
+at: **company** = accreditation no. + one Business permit upload; **individual** = no documents step
+at all (three steps, packet is the two identity photos). Round 3's machine checks: tsc clean · 556
+unit tests, 0 failing · lint unchanged at its pre-existing 29 · 217 Playwright tests, 0 failing,
+with **two baselines deliberately regenerated** (`kycstatus-welcome-light/dark`, from I10's copy
+change, regenerated scoped to those panes). No decision is open. Still yours: the staging test pass,
+the welcome-screen wording (I10), **I4** (the resubmit follow-up), and the commits.
 
 > One-line framing: an applicant should be told exactly which documents to upload, so replace the
 > free-text "name it, then attach it" control with the two (company) or one (individual) fixed,
@@ -532,6 +527,155 @@ document asked for twice — the exact complaint that started round 2. Built as 
 titles live in one file and are a one-line change if you want them merged or reworded. Also noted:
 the four titles mix sentence case and Title Case ("Business permit" vs "LGU Permits" vs "BIR
 Registration documents"), kept as you typed them rather than silently normalised.
+
+---
+
+## Round 3 — one document for companies, none for individuals (2026-10-20)
+
+Your feedback after reviewing round 2: a company only needs the **Business permit** and the
+**Accreditation / License No.** — LGU, DTI and BIR come off. An individual needs **no documents at
+all**, so the documents step must not appear for them: step 1 goes straight to the ID and selfie.
+
+⚠️ **This is the first round that changes the wizard's shape, not its data.** Steps 1–4 are
+currently hardcoded (`useKycSubmitForm.ts:40-46`) and the header, progress bar and both Back
+buttons count on all four existing (`KycSubmitForm.tsx:30, 34, 132`). An individual now has three
+screens, and every one of those places has to agree about that.
+
+**The set after this round:**
+
+| Applicant type | Documents step | Slots | Stored `label` |
+|---|---|---|---|
+| `company` | yes — accreditation no. + one upload | Business permit | `business-permit` |
+| `individual` | **skipped entirely** | none | — (only the two identity photos) |
+
+**Backend, re-checked rather than assumed — still no change needed.** An individual's packet is the
+two identity photos and nothing else; `lib/kycSubmission.ts:58` requires `documents.length >= 1`,
+which two satisfies, and `ltoNo` is already `null` for individuals (`:55`). No route, validator,
+schema or policy is touched.
+
+### B13 — Company keeps one slot; individual has none  ✅ DONE (2026-10-20)
+**File:** `vendor/lib/kycDocumentSlots.ts`, `vendor/lib/kycDocumentSlots.test.ts`
+
+`KycSlotValue` collapses to `"business-permit"`; `KYC_DOCUMENT_SLOTS` becomes
+`{ company: [BUSINESS_PERMIT], individual: [] }`. `submissionDocuments` already skips absent slots
+and appends the identity pair, so an individual's payload falls out correctly with no branch —
+worth a test that says so explicitly.
+**Verification:** `npm test` (machine).
+
+✅ **DONE (2026-10-20)** — `KycSlotValue` is now the single literal `"business-permit"`; `individual`
+is an empty list. A test states the individual case outright: their payload is the two identity
+photos and nothing else, which still satisfies the server's "at least one document".
+
+### B14 — A step model per applicant type  ✅ DONE (2026-10-20)
+**File:** new `vendor/lib/kycWizardSteps.ts` + `vendor/lib/kycWizardSteps.test.ts`
+
+The weak implementation this plan must forbid: sprinkling `kycType === "individual" ? 3 : 2`
+through the hook and the render. There are four places that would each need it
+(`useKycSubmitForm.ts:93`, `:144`, `KycSubmitForm.tsx:132`, `:166`) and the first one missed is a
+vendor staring at a documents step that should not exist.
+
+**Fix approach:** follow `lib/kioskSteps.ts`, which solves exactly this for the kiosk — a pure,
+own-module step list with a conditional step removed, unit-tested, and documented as "a rule whose
+failure is invisible until a customer is standing in front of a step that should not exist".
+Here: `stepsFor(kycType)` → `[1, 2, 3, 4]` for a company and `[1, 3, 4]` for an individual, plus
+`nextStep(steps, current)` / `prevStep(steps, current)` so navigation is a walk along that list
+rather than arithmetic. Step **ids stay stable** (1 type · 2 documents · 3 identity · 4 review) so
+`KYC_STEP_LABELS` and every `step === n` branch keep working; only the *list* is type-dependent.
+**Separation:** a pure `lib/` module, no JSX, relative `.ts` imports and no `services/` import, for
+the same `node --test` reason as B1.
+**Verification:** `npm test` (machine) — both lists, and that next/prev skip the missing step in
+both directions.
+
+✅ **DONE (2026-10-20)** — `lib/kycWizardSteps.ts` + test: `stepsFor`, `nextStep`, `prevStep`,
+`stepPosition`. 16 assertions, including both ends of each list, and that a step the list does not
+contain is not a destination. `npm test` **556 passing** (was 550).
+
+### B15 — The hook navigates by the model  ✅ DONE (2026-10-20)
+**File:** `useKycSubmitForm.ts:40-46, 91-93, 144, 203`
+
+`KYC_STEPS` stops being a constant and becomes `steps = stepsFor(kycType)` (with the full list
+before a type is chosen, so step 1's chrome is unchanged). `handleTypeContinue` and
+`handleDocsContinue` advance with `nextStep`; a new `goBack()` uses `prevStep`. The hook exposes
+`steps`, `stepPosition` (1-based index in that list) and `stepCount`.
+**Verification:** `tsc`; the spec drives it end to end.
+
+✅ **DONE (2026-10-20)** — `KYC_STEPS` is gone; the hook derives `steps`, `stepPosition` and
+`stepCount`, and exposes `goBack()`. `handleTypeContinue` and `handleDocsContinue` advance via
+`nextStep`. `goToStep` left the hook's public surface — nothing outside it needed it once the three
+Back buttons became `goBack`.
+
+### B16 — The render reads position from the model  ✅ DONE (2026-10-20)
+**File:** `KycSubmitForm.tsx:5, 30, 34, 132, 166`
+
+Header becomes `Step {stepPosition} of {stepCount} — {KYC_STEP_LABELS[step]}`, so an individual
+reads "Step 2 of 3 — Identity". The progress bar maps `steps`, so it shows three segments. The
+identity step's `onBack` and the review step's Back both call `goBack()` instead of
+`goToStep(2)` / `goToStep(3)`.
+**Separation:** `.tsx` stays pure render; the model and the handlers come from the hook.
+**Verification:** `tsc`, the spec, the visual suite.
+
+✅ **DONE (2026-10-20)** — header, progress bar and all three Back buttons now read from the model.
+An individual sees "Step 2 of 3 — Identity" and a three-segment bar, both asserted in the spec.
+
+### B17 — Remove `listAnd`, obsolete at one slot  ✅ DONE (2026-10-20)
+**File:** `lib/kycDocumentSlots.ts`, its test, `useKycSubmitForm.ts` (`docsBlockedReason`)
+
+Round 2 added it because a company could be missing four documents at once. A company can now be
+missing exactly one, so every branch except the single-item case is dead. Removed rather than kept
+"in case"; it is one `git show` away in the round-2 commit if the set grows again.
+**Verification:** `npm test`, `npm run lint`.
+
+✅ **DONE (2026-10-20)** — helper and its test removed; `docsBlockedReason` names the single missing
+title directly. Recoverable from the round-2 commit if the set ever grows again.
+
+### I10 — The welcome step's copy is now wrong on two counts  ✅ DONE (2026-10-20) — wording yours to settle
+**File:** `components/kyc/KycWelcomeStep/KycWelcomeStep.tsx:13-14`
+
+`NEED` promises "Business permit or DTI / SEC" — DTI is no longer collected from anyone — and
+`STEPS` lists four steps including "Business documents", which an individual will not see. The
+screen appears **before** the applicant type is chosen, so it cannot be exact for both routes.
+**Fix approach:** the smallest honest wording — drop the DTI clause, and mark the documents step as
+company-only. ⚠️ **Proposed, not settled: this is screen copy and yours to reword** — it is two
+array literals in one file.
+**Verification:** read-level + the visual suite (this screen has committed baselines).
+
+✅ **DONE (2026-10-20)** — "Business permit or DTI / SEC" → "Business permit (companies)", and the
+steps list marks "Business documents" as company-only. ⚠️ **This changed two committed baselines**
+(`kycstatus-welcome-light`, `kycstatus-welcome-dark`); both were regenerated **scoped to those two
+panes**, not by a blanket update, and the full suite then passed at 217. If you reword the copy, the
+same two regenerate with one command.
+
+### I11 — Spec for the skipped step  ✅ DONE (2026-10-20)
+**File:** `vendor/visual-tests/kyc-document-slots.spec.ts`
+
+The round-2 assertions all assume an individual has a documents step. New shape: a company sees one
+slot and reaches identity after it; **an individual goes from step 1 straight to the identity
+step**, reads "Step 2 of 3", and Back from there returns to the applicant type rather than to a
+documents step that no longer exists. That Back path is the one most likely to be got wrong and the
+least likely to be noticed.
+**Verification:** `npx playwright test visual-tests/kyc-document-slots.spec.ts` (machine).
+
+✅ **DONE (2026-10-20)** — rewritten into two groups, **10 tests, all passing**. Company: the permit
+gate and its copy, the round-2 documents all absent, the identity hop with Back returning to the
+documents, replace/remove, keyboard focus. Individual: step 1 goes straight to identity, the header
+reads "Step 2 of 3", the bar has three segments, **Back returns to the applicant type**, switching
+back to company restores the step, and a permit attached as a company does not follow them over.
+
+### I12 — Architecture docs, third pass  ✅ DONE (2026-10-20)
+**File:** `architecture/vendor-kyc.md` (step table + slot table), `architecture/portals.md`, `architecture/schema.md` (slug list)
+
+All three name the round-2 set, and `vendor-kyc.md`'s onboarding table still says every applicant
+has four steps.
+**Verification:** read-level.
+
+✅ **DONE (2026-10-20)** — `vendor-kyc.md` (onboarding table now states the per-type step counts,
+slot table down to one row, individual noted as skipping the step), `portals.md`, `schema.md`.
+
+### D5 — How an individual's steps are numbered  → **ids stay 1–4, display is derived** (recorded 2026-10-20)
+The alternative was renumbering individual's steps to 1-2-3 internally, which would make every
+`step === 3` branch mean different screens for different applicants — the kind of thing that reads
+fine and breaks a year later. Ids stay stable; only the displayed position and the progress bar are
+derived from `stepsFor`.
 
 ---
 

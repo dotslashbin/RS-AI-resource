@@ -94,12 +94,22 @@ steps 1–2 (never the password) resumes from `localStorage`.
 **KYC** is `components/kyc/KycSubmitForm`, shown by `KycStatusPage` whenever the vendor
 has no packet (the former registration steps 3–6, moved unchanged in behaviour):
 
-| Step | Screen | Notes |
-|------|--------|-------|
-| 1 | Applicant type | `company` or `individual` |
-| 2 | Documents | company also enters the accreditation/license no. here; then a **fixed required upload slot** per document — all of them needed (2026-10-19) |
-| 3 | Identity | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
-| 4 | Review & submit | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
+⚠️ **The wizard is a different length per applicant type** (2026-10-20): a company walks
+four steps, an individual three — **the documents step does not exist for an individual**.
+The step ids below are stable for both; which of them an applicant sees is
+`stepsFor(kycType)` in `vendor/lib/kycWizardSteps.ts`, and navigation walks that list in
+both directions, so Back from Identity returns an individual to Applicant type.
+
+| Step | Screen | Who | Notes |
+|------|--------|-----|-------|
+| 1 | Applicant type | both | `company` or `individual` |
+| 2 | Documents | **company only** | the accreditation/license no. and one **fixed upload slot**: Business permit. Skipped entirely for an individual |
+| 3 | Identity | both | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
+| 4 | Review & submit | both | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
+
+An individual's packet is therefore **just the two identity photos**, which still
+satisfies the submit route's "at least one document" rule — no backend change was needed
+for any of this.
 
 - **Applicant types.** `company` (registered business — DTI/SEC) vs `individual`
   (sole proprietor / freelancer). The type drives the **required document slots** and
@@ -111,18 +121,18 @@ has no packet (the former registration steps 3–6, moved unchanged in behaviour
 
   | Applicant type | Slots | Submitted `label` |
   |---|---|---|
-  | `company` | Business permit · LGU Permits · DTI Certificate / Business registration · BIR Registration documents | `business-permit` · `lgu-permits` · `dti-certificate` · `bir-registration` |
-  | `individual` | BIR Registration documents | `bir-registration` |
+  | `company` | Business permit | `business-permit` |
+  | `individual` | none — the step is skipped | — |
 
-  (Revised the same day. The first set asked both types for a **Government-issued ID**
-  one screen before the identity step photographs exactly that — redundant, so it was
-  replaced by the registrations a business actually files. No slot asks for an identity
-  document now; the identity step is the only place one is requested. Rows already
-  stored as `government-issued-id` are left alone.)
+  (Settled over three rounds on 2026-10-19/20. Round 1 asked both types for a
+  **Government-issued ID**, one screen before the identity step photographs exactly that
+  — redundant. Round 2 replaced it with LGU / DTI / BIR registrations. Round 3 cut those
+  to the business permit alone and removed the step from the individual route. Rows
+  already stored under the retired labels are left alone, so a packet reviewed in Command
+  may carry any of them.)
 
-  All of a type's slots are required before step 3, the Continue button says which one
-  is missing, and switching applicant type discards a file whose slot the new type does
-  not have. This reverses **D-1 = B** (free-form + guidance) **in the vendor UI only** —
+  The slot is required before step 3, the Continue button says what is missing, and
+  switching applicant type discards a file whose slot the new type does not have. This reverses **D-1 = B** (free-form + guidance) **in the vendor UI only** —
   the `label` column is still free text, `kyc_document_types` is still dormant, and
   Command still prints whatever label it is given, so it now shows these slugs beside
   the human-readable labels on older packets. **The resubmit editor is unchanged and
