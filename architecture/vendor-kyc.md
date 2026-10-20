@@ -9,7 +9,9 @@ Storage implementation.
 Plans of record: `.plans/2026-07-03-vendor-kyc-storage.md` (main),
 `.plans/2026-07-06-kyc-id-selfie-capture.md` (camera step),
 `.plans/2026-09-30-vendor-signup-before-kyc.md` (sign up first, KYC after; activation
-requires an approved packet — **supersedes the "no account until KYC" model below**).
+requires an approved packet — **supersedes the "no account until KYC" model below**),
+`.plans/2026-10-19-vendor-kyc-document-labels.md` (fixed document slots on the first
+submission, and the accreditation no. moved to the documents step).
 
 ---
 
@@ -94,15 +96,32 @@ has no packet (the former registration steps 3–6, moved unchanged in behaviour
 
 | Step | Screen | Notes |
 |------|--------|-------|
-| 1 | Applicant type | `company` or `individual`; company also enters accreditation/license no. |
-| 2 | Documents | free-form: label + file per document; suggestions shown per type; ≥1 required |
+| 1 | Applicant type | `company` or `individual` |
+| 2 | Documents | company also enters the accreditation/license no. here; then a **fixed required upload slot** per document — all of them needed (2026-10-19) |
 | 3 | Identity | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
 | 4 | Review & submit | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
 
 - **Applicant types.** `company` (registered business — DTI/SEC) vs `individual`
-  (sole proprietor / freelancer). The type drives the **suggested** document list
-  (guidance only — uploads are free-form) and whether the accreditation/license no.
-  is asked (**company-only**) — enforced server-side by `vendor/lib/kycSubmission.ts`.
+  (sole proprietor / freelancer). The type drives the **required document slots** and
+  whether the accreditation/license no. is asked (**company-only**) — the latter
+  enforced server-side by `vendor/lib/kycSubmission.ts`.
+- **Fixed document slots (2026-10-19, `.plans/2026-10-19-vendor-kyc-document-labels.md`).**
+  The first submission no longer lets the applicant name a document. Each slot shows a
+  fixed title and submits a predetermined label, defined in `vendor/lib/kycDocumentSlots.ts`:
+
+  | Applicant type | Slots | Submitted `label` |
+  |---|---|---|
+  | `company` | Business permit, Government-issued ID | `business-permit`, `government-issued-id` |
+  | `individual` | Government-issued ID | `government-issued-id` |
+
+  All of a type's slots are required before step 3, the Continue button says which one
+  is missing, and switching applicant type discards a file whose slot the new type does
+  not have. This reverses **D-1 = B** (free-form + guidance) **in the vendor UI only** —
+  the `label` column is still free text, `kyc_document_types` is still dormant, and
+  Command still prints whatever label it is given, so it now shows these slugs beside
+  the human-readable labels on older packets. **The resubmit editor is unchanged and
+  still free-text** (see below): historical documents are never renamed or re-required.
+  The two identity photos are not slots — they keep the labels they always had.
 - **Identity step.** The two photos are captured with the device camera
   (`getUserMedia` + `<canvas>`, native — no dependency) behind an alignment
   overlay (an ID-card frame; for the selfie, a card frame plus a small
@@ -196,8 +215,12 @@ and none on the welcome step, which has its own Do it later. Both exits sign out
 
 The revise editor shows the docs already submitted; the vendor keeps or removes
 each individually, adds new documents, and can re-capture the ID/selfie
-(optional — the prior photos persist as existing docs). On resubmit,
-`resubmitKyc`:
+(optional — the prior photos persist as existing docs). ⚠️ **It still uses the
+free-text "Add a document" control** — the fixed slots above apply to the first
+submission only (2026-10-19, D2). Deciding whether a kept document labelled
+`Business Permit` satisfies the `business-permit` slot is the ambiguous mapping that
+kept slots out of here; until that is settled, a vendor sees fixed slots before a
+rejection and a free-text box after one. On resubmit, `resubmitKyc`:
 
 1. deletes removed docs — **row first (RLS-gated), then the Storage object** (so a
    mid-failure leaves at worst a harmless orphan, never a dangling row),
@@ -255,14 +278,20 @@ Three tables (migration `20260706000001_vendor_kyc.sql`) + one bucket (migration
 
 - **`kyc_document_types`** — per-type **suggested** document list (guidance only;
   `applies_to` = company / individual / both). Seeded; not referenced by a FK
-  (uploads carry a free-text label).
+  (uploads carry a free-text label). ⚠️ **Dormant — no app reads it.** Vendor and
+  Command each hold their own hardcoded suggestion array, and the 2026-10-19 fixed
+  slots are defined in `vendor/lib/kycDocumentSlots.ts`, not here. Its codes
+  (`business_permit`, `government_id`) are therefore *not* the labels that get stored.
+  It is the natural home if slots ever become vendor- or division-specific.
 - **`vendor_kyc`** — one header row per vendor (PK `vendor_id`): `kyc_type`,
   `status` (submitted/approved/rejected), review fields, `submitted_at`. Created
   by `POST /api/kyc/submit` when the signed-in vendor submits — **no header** means
   "not submitted yet" (the vendor exists from signup; since 2026-09-30).
 - **`vendor_kyc_documents`** — one row per uploaded file: free-text `label` +
   `storage_path`. Write-once (replace = delete + insert), mirroring
-  `booking_documents`.
+  `booking_documents`. The column stays free text; since 2026-10-19 a **first**
+  submission only ever writes the fixed slot values plus `Valid ID` / `Selfie with ID`,
+  while resubmissions and every historical row carry whatever the vendor typed.
 
 ### Storage: the `vendor-kyc` bucket
 
