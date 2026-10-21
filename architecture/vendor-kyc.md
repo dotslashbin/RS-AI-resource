@@ -103,7 +103,7 @@ both directions, so Back from Identity returns an individual to Applicant type.
 | Step | Screen | Who | Notes |
 |------|--------|-----|-------|
 | 1 | Applicant type | both | `company` or `individual` |
-| 2 | Documents | **company only** | the accreditation/license no. and one **fixed upload slot**: Business permit. Skipped entirely for an individual |
+| 2 | Documents | **company only** | two **fixed upload slots**: DTI Document, then Mayors permit. No accreditation number is asked for (2026-10-21). Skipped entirely for an individual |
 | 3 | Identity | both | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
 | 4 | Review & submit | both | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
 
@@ -112,24 +112,41 @@ satisfies the submit route's "at least one document" rule — no backend change 
 for any of this.
 
 - **Applicant types.** `company` (registered business — DTI/SEC) vs `individual`
-  (sole proprietor / freelancer). The type drives the **required document slots** and
-  whether the accreditation/license no. is asked (**company-only**) — the latter
-  enforced server-side by `vendor/lib/kycSubmission.ts`.
+  (sole proprietor / freelancer). The type decides the **required document slots**, and
+  whether the documents step exists at all.
+- ⚠️ **No accreditation number is collected during KYC (2026-10-21).** The field was
+  removed from the form, `vendor/lib/kycSubmission.ts` no longer requires one, and
+  `POST /api/kyc/submit` **no longer writes `vendors.accreditation_no`** — writing the
+  resulting null would have erased a value a command admin had set. The column is
+  unchanged and still nullable; **Command's add/edit vendor form and the vendor's own
+  business profile are where the number is set** — optional in both, kept because a
+  vendor may want to show it for credibility. No migration was involved.
+- **Naming (2026-10-21).** The vendor app used to call this field `ltoNo` / `ltoAccredNo`,
+  after the Land Transportation Office — a leftover from the pre-pivot DriveBook product,
+  where a vendor was a driving school. ⚠️ **No vendor property is named `lto` any more:**
+  the column is `vendors.accreditation_no`, the vendor profile type field is
+  `accreditationNo`, Command calls it `accred`, and the KYC submission contract does not
+  carry it at all. The only surviving mentions are tests asserting the old key is *not*
+  carried and one `referral-deeplink` fixture that reproduces a pre-2026-09-30 signup
+  draft, which must keep the old key to stay faithful to what devices actually stored.
 - **Fixed document slots (2026-10-19, `.plans/2026-10-19-vendor-kyc-document-labels.md`).**
   The first submission no longer lets the applicant name a document. Each slot shows a
   fixed title and submits a predetermined label, defined in `vendor/lib/kycDocumentSlots.ts`:
 
-  | Applicant type | Slots | Submitted `label` |
+  | Applicant type | Slots, in order | Submitted `label` |
   |---|---|---|
-  | `company` | Business permit | `business-permit` |
+  | `company` | DTI Document · Mayors permit | `dti-document` · `mayors-permit` |
   | `individual` | none — the step is skipped | — |
 
-  (Settled over three rounds on 2026-10-19/20. Round 1 asked both types for a
+  (Settled over four rounds on 2026-10-19/21. Round 1 asked both types for a
   **Government-issued ID**, one screen before the identity step photographs exactly that
   — redundant. Round 2 replaced it with LGU / DTI / BIR registrations. Round 3 cut those
-  to the business permit alone and removed the step from the individual route. Rows
-  already stored under the retired labels are left alone, so a packet reviewed in Command
-  may carry any of them.)
+  to a single `business-permit` and removed the step from the individual route. Round 4
+  settled on the DTI document and the mayor's permit, and dropped the accreditation
+  number. ⚠️ **Nothing renames stored rows**, so a packet reviewed in Command may carry
+  any label from any round; `titleForLabel` in `vendor/lib/kycDocumentSlots.ts` maps all
+  of them back to readable titles for the **vendor's** own view, and free-typed labels
+  from the resubmit editor pass through unchanged.)
 
   The slot is required before step 3, the Continue button says what is missing, and
   switching applicant type discards a file whose slot the new type does not have. This reverses **D-1 = B** (free-form + guidance) **in the vendor UI only** —
@@ -196,8 +213,9 @@ files to `{vendorId}/…` with the vendor's own session):
    vendor-admin of this vendor (`assertVendorAdmin`, `requireActiveVendor: false`)
 2. 409 if a `vendor_kyc` header exists (also caught as a PK race at insert)
 3. verify each named object exists under `{vendorId}/`, and total the **real** sizes
-4. insert the header (**submitted**) → document rows → `accreditation_no` (company),
-   rolling back (delete header → cascades docs) on failure
+4. insert the header (**submitted**) → document rows, rolling back (delete header →
+   cascades docs) on failure. ⚠️ It no longer touches the `vendors` row at all
+   (2026-10-21) — see the accreditation note above
 5. notify Command (`vendor_pending_approval`)
 
 On failure the client removes the files it uploaded, as `resubmitKyc` does.
@@ -234,9 +252,17 @@ each individually, adds new documents, and can re-capture the ID/selfie
 (optional — the prior photos persist as existing docs). ⚠️ **It still uses the
 free-text "Add a document" control** — the fixed slots above apply to the first
 submission only (2026-10-19, D2). Deciding whether a kept document labelled
-`Business Permit` satisfies the `business-permit` slot is the ambiguous mapping that
+`Business Permit` satisfies the `mayors-permit` slot is the ambiguous mapping that
 kept slots out of here; until that is settled, a vendor sees fixed slots before a
-rejection and a free-text box after one. On resubmit, `resubmitKyc`:
+rejection and a free-text box after one, and **nothing enforces a required set on a
+resubmission** — one document in total is enough.
+
+Two things that *were* fixed on 2026-10-21 rather than left: the editor's "Suggested
+for companies/individuals" line is **gone** (it listed documents the first submission
+had stopped asking for, and the reviewer's own notes sit directly above it — that
+retired `KYC_SUGGESTIONS` on the vendor side; Command keeps its own copy), and the
+"Already submitted" list now renders stored labels through `titleForLabel`, so a vendor
+reads "Mayors permit" rather than `mayors-permit`. On resubmit, `resubmitKyc`:
 
 1. deletes removed docs — **row first (RLS-gated), then the Storage object** (so a
    mid-failure leaves at worst a harmless orphan, never a dangling row),

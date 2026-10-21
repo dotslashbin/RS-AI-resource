@@ -16,8 +16,20 @@ at: **company** = accreditation no. + one Business permit upload; **individual**
 at all (three steps, packet is the two identity photos). Round 3's machine checks: tsc clean · 556
 unit tests, 0 failing · lint unchanged at its pre-existing 29 · 217 Playwright tests, 0 failing,
 with **two baselines deliberately regenerated** (`kycstatus-welcome-light/dark`, from I10's copy
-change, regenerated scoped to those panes). No decision is open. Still yours: the staging test pass,
-the welcome-screen wording (I10), **I4** (the resubmit follow-up), and the commits.
+change, regenerated scoped to those panes). No decision is open.
+**Round 5 (2026-10-21) — the `lto` cleanup — is built and fully machine-verified:** tsc clean ·
+560 unit tests, 0 failing · lint unchanged at 29 · **217 Playwright tests, 0 failing**, run once
+the user's local dev server was stopped. **No baseline moved** beyond round 4's two welcome panes,
+and `visual-tests/referral-deeplink.spec.ts` — which seeds the legacy `ltoNo` draft the rename
+deliberately left alone — passes. Rounds 4 and 5 are both **uncommitted**.
+
+**Rounds 1–3 shipped and staging-tested:** committed as `vendor` `86d302d` (merged to `develop`
+via `8afce8c`) and root `d20fb52`, deployed to staging by the user, staging pass completed
+2026-10-21 as reported by the user. **Round 4 (2026-10-21) is built and machine-verified but NOT
+yet committed or staged:** tsc clean · 563 unit tests, 0 failing · lint unchanged at 29 · 217
+Playwright tests, 0 failing, with `kycstatus-welcome-light/dark` regenerated for the chip copy.
+I10's wording was accepted by the user on 2026-10-21. Still open: **I4** (the resubmit follow-up),
+which is the user's to close.
 
 > One-line framing: an applicant should be told exactly which documents to upload, so replace the
 > free-text "name it, then attach it" control with the two (company) or one (individual) fixed,
@@ -322,7 +334,7 @@ out of scope. Only the now-unused import in this file is removed.
 ✅ **DONE (2026-10-19)** — the import is gone from `KycSubmitForm.tsx`; the export stays and
 `KycStatusPage.tsx` still renders it. Command's independent copy untouched. Lint unchanged at 29.
 
-### I4 — Follow-up, left open for you: the resubmit editor is still free-text  ⬜ TODO
+### I4 — Follow-up: the resubmit editor is still free-text  ✖ CLOSED by decision (2026-10-21)
 **File:** `components/kyc/KycStatusPage/KycStatusPage.tsx:118-128`, `useKycStatusPage.ts:95-112`
 
 Under D2 a vendor sees fixed slots on the first submission and a free-text "Add a document" box after
@@ -330,6 +342,44 @@ a rejection. Recorded, deliberately not changed, and **not to be closed by this 
 means deciding whether a kept historical document whose label differs (e.g. `Business Permit` vs
 `business-permit`) satisfies a slot, which is the ambiguous mapping the prompt asked to report rather
 than guess.
+
+**Three things this now puts on screen (found 2026-10-21 while answering how to test it).** Recorded
+here so the next session does not rediscover them; none are changed:
+1. **The suggestions line is stale.** `services/kyc.service.ts:26-29` still drives it, so a rejected
+   company reads "Suggested for companies: Business Permit, DTI / SEC Registration, Authorized
+   Representative ID, Proof of Address" and a rejected **individual** reads "Government-issued ID,
+   Selfie with ID, Proof of Address" — documents the first submission no longer asks anyone for.
+   I3 kept the export for this screen; round 3 made its content wrong.
+2. **The vendor is shown the raw slug.** "Already submitted" prints the stored label
+   (`KycStatusPage.tsx:87`), so a new company packet lists `business-permit` beside `Valid ID` and
+   `Selfie with ID`. D1 accepted slugs in Command's reviewer view; this is the vendor-facing instance
+   of the same trade.
+3. **No required set on resubmit.** The button needs one document in total across kept + newly added
+   + re-captured identity photos (`useKycStatusPage.ts:77, 128`), so a company can resubmit with no
+   business permit at all.
+
+**Cheapest honest step if you want one:** fix (1) alone — the copy that now contradicts the first
+submission — and leave the slot question until rejections are common enough to matter.
+
+✖ **CLOSED 2026-10-21 — the user chose to leave it (D9), on my recommendation.** Findings (1) and
+(2) were fixed in round 4 (B23, B22), so what is being declined is specifically **enforcing a
+required document set on a resubmission**: resubmission stays free-text, and one document in total
+is still enough.
+
+**Why that is a reasonable place to stop, and what would reopen it.** Enforcing the set needs an
+answer to a question the data model cannot give: a packet may already hold `business-permit`
+(round 3), `Business Permit` (free-typed), `government-issued-id` or `bir-registration` (rounds
+1–2), and nothing records *which slot* a row was meant to be — the slot identity lives in a text
+label. Ruling "history counts" risks passing a packet that is genuinely missing a document; ruling
+"it does not" makes a vendor re-upload files you already hold. Today rejections are hand-reviewed
+by a command admin who sees every document, so the enforcement would be belt to an existing
+braces.
+
+**Reopen this if any of:** rejections become frequent enough that admins stop reading packets
+individually; someone wants resubmission to be self-service without review; or
+`vendor_kyc_documents` gains a real slot identity (an FK to `kyc_document_types`, or a
+`slot` column), which would make the mapping question disappear rather than need an answer. The
+first of those is the likely trigger, and it is a product signal, not a code one.
 
 ### I5 — Documentation line for the new model  ✅ DONE (2026-10-19)
 **File (root repo, not `vendor/`):** `architecture/vendor-kyc.md`, `architecture/portals.md:443-444`
@@ -628,7 +678,7 @@ missing exactly one, so every branch except the single-item case is dead. Remove
 ✅ **DONE (2026-10-20)** — helper and its test removed; `docsBlockedReason` names the single missing
 title directly. Recoverable from the round-2 commit if the set ever grows again.
 
-### I10 — The welcome step's copy is now wrong on two counts  ✅ DONE (2026-10-20) — wording yours to settle
+### I10 — The welcome step's copy is now wrong on two counts  ✅ DONE (2026-10-20), accepted by the user (2026-10-21)
 **File:** `components/kyc/KycWelcomeStep/KycWelcomeStep.tsx:13-14`
 
 `NEED` promises "Business permit or DTI / SEC" — DTI is no longer collected from anyone — and
@@ -644,6 +694,18 @@ steps list marks "Business documents" as company-only. ⚠️ **This changed two
 (`kycstatus-welcome-light`, `kycstatus-welcome-dark`); both were regenerated **scoped to those two
 panes**, not by a blanket update, and the full suite then passed at 217. If you reword the copy, the
 same two regenerate with one command.
+
+✅ **CLOSED by the user 2026-10-21** — *"I10 looks good here. It looks right, you can cross that
+off."* Judged on the staging screen, which is the only way copy can be settled.
+
+⚠️ **One correction to the record.** When this was raised on 2026-10-21 it was described as the
+screen contradicting itself — "three numbered steps under a heading claiming four". **That was
+wrong**, and the mistake was not reading the render before describing it: `STEPS` has four entries
+and `KycWelcomeStep.tsx:59-61` maps all four for **every** applicant, because the screen is shown
+*before* the applicant type is chosen. So the heading's "4 short steps" (`:56`) and the list agree
+with each other. What remains is milder and is what the user accepted: an individual is told "4
+short steps" here and then walks three, mitigated by the "(companies)" qualifier on the documents
+line. No self-contradiction, no code owed.
 
 ### I11 — Spec for the skipped step  ✅ DONE (2026-10-20)
 **File:** `vendor/visual-tests/kyc-document-slots.spec.ts`
@@ -676,6 +738,273 @@ The alternative was renumbering individual's steps to 1-2-3 internally, which wo
 `step === 3` branch mean different screens for different applicants — the kind of thing that reads
 fine and breaks a year later. Ids stay stable; only the displayed position and the progress bar are
 derived from `stepsFor`.
+
+---
+
+## Round 4 — no accreditation number, DTI + Mayors permit, and I4's display fixes (2026-10-21)
+
+Two things in one round: the company document set changes again, and the two **I4-lite** display
+fixes you approved. The set after this round:
+
+| Applicant type | Documents step | Slots, in order | Stored `label` |
+|---|---|---|---|
+| `company` | yes — uploads only, **no accreditation field** | DTI Document · Mayors permit | `dti-document` · `mayors-permit` |
+| `individual` | skipped entirely | none | — |
+
+⚠️ **This round is NOT frontend-only, and that is the gap the review found.** `vendors.accreditation_no`
+is nullable (`20260504000002_schema.sql:63`) and signup already writes `null`, so **no migration is
+needed** — but `lib/kycSubmission.ts:51` *rejects* a company submission with an empty `ltoNo`, and
+`app/api/kyc/submit/route.ts:142-150` writes the value and 500s + rolls back if the write misses.
+Deleting the field from the UI alone would fail every company submission. **D6** resolves it.
+
+### B18 — The server stops requiring an accreditation number  ✅ DONE (2026-10-21)
+**File:** `vendor/lib/kycSubmission.ts:50-55, 81`, `vendor/lib/kycSubmission.test.ts:36`
+
+**Fix approach:** drop the "required for companies" branch; keep parsing and length-capping `ltoNo`
+so a stray body field is still rejected if absurd, and keep returning it so the type is unchanged.
+⚠️ `kycSubmission.test.ts:36` asserts the **old** rule ("a blank one is refused") — that test is
+inverted, not deleted, so the new contract is pinned rather than merely un-tested.
+**Verification:** `npm test` (machine).
+
+✅ **DONE (2026-10-21)** — the required-for-companies branch is gone; `ltoNo` is still parsed and
+length-capped, because the body is attacker-shaped input and an absurd value should be refused
+rather than ignored. The old assertion was inverted into two: a blank value is accepted and stored
+as `null`, and a body omitting the key entirely — what the form now posts — is accepted the same
+way. `npm test` 560 passing.
+
+### B19 — The route stops writing, and stops announcing, the accreditation number  ✅ DONE (2026-10-21)
+**File:** `vendor/app/api/kyc/submit/route.ts:138-150, 190`
+
+Writing `null` would **wipe** a value Command had set, so the update is skipped entirely rather
+than made conditional on `kycType`. The Command notification's `data.accreditation_no` becomes
+always-null and goes with it — checked first: Command reads the number from the `vendors` table
+(`command/services/vendors.service.ts:152, 189`), never from the notification payload.
+**Verification:** `tsc`; `grep` for remaining readers (machine). The write path itself needs
+staging (live).
+
+✅ **DONE (2026-10-21)** — the `vendors` update is **removed outright**, not guarded: with no field
+there is no value, and an unreachable branch would only invite someone to "fix" it later by writing
+the null. `data.accreditation_no` dropped from the Command notification (verified first that Command
+reads the number from `vendors`, `command/services/vendors.service.ts:152, 189`, never from the
+payload). The route now touches only `vendor_kyc` and `vendor_kyc_documents`.
+
+### B20 — The client stops sending it, and the form stops asking  ✅ DONE (2026-10-21)
+**File:** `vendor/services/kyc.service.ts:127, 172`, `useKycSubmitForm.ts` (`ltoNo`, `ltoError`, `updateLtoNo`, `LTO_REQUIRED`, the `docsBlockedReason` branch, the `handleSubmit` argument), `KycSubmitForm.tsx` (the `RF` block, the review row, the `RF` import if it falls unused)
+
+**Fix approach:** remove `ltoNo` from `SubmitFirstKycParams` and the POST body, then delete the
+field and every piece of state behind it. `docsBlockedReason` loses its accreditation branch and
+keeps only "choose a type" and "attach your …".
+**Separation:** the `.tsx` loses markup only; all removed state was already in the hook.
+**Verification:** `tsc`, `npm run lint`, `grep` for `ltoNo` (machine); the spec drops its
+accreditation assertions.
+
+✅ **DONE (2026-10-21)** — `ltoNo` gone from `SubmitFirstKycParams`, the POST body, and every piece
+of hook state (`ltoNo`, `ltoError`, `updateLtoNo`, `LTO_REQUIRED`, the `docsBlockedReason` branch).
+The `RF` field and the review row are gone, and the `RF` import with them. The documents step now
+has **no text input at all**, which the spec asserts. ⚠️ Two unused-variable warnings appeared on
+the way (`route.ts` destructuring `ltoNo`, a throwaway in the test) and were fixed — lint is back
+at its pre-existing **29**, not 31.
+
+### B21 — DTI Document above Mayors permit  ✅ DONE (2026-10-21)
+**File:** `vendor/lib/kycDocumentSlots.ts`, its test
+
+`business-permit` → **`mayors-permit`** ("Mayors permit"), and a new **`dti-document`** ("DTI
+Document") **first** in the company list. Individual stays empty.
+⚠️ **Historical rows keep their old labels** — `business-permit` from rounds 1–3, and
+`government-issued-id` / `lgu-permits` / `dti-certificate` / `bir-registration` from the earlier
+rounds. Nothing is renamed in the database; B22 is what stops those reading as raw slugs.
+**Verification:** `npm test` (machine).
+
+✅ **DONE (2026-10-21)** — `dti-document` ("DTI Document") first, then `mayors-permit` ("Mayors
+permit"). Individual stays empty.
+
+### B22 — `titleForLabel`, so stored slugs read as words  ✅ DONE (2026-10-21)  *(I4 finding 2)*
+**File:** `vendor/lib/kycDocumentSlots.ts` + test, used by `KycStatusPage.tsx:87`
+
+A vendor whose packet is rejected currently reads `mayors-permit` in "Already submitted". A lookup
+maps every label this product has ever stored — current slots **and** the retired
+`business-permit`, `government-issued-id`, `lgu-permits`, `dti-certificate`, `bir-registration` —
+to a readable title, falling back to the raw string so free-typed historical labels pass through
+untouched. Display only: nothing stored changes, and Command is a different app, out of scope.
+**Verification:** `npm test` for the map and the fallback (machine).
+
+✅ **DONE (2026-10-21)** — `titleForLabel` maps the two current slots plus all five retired labels
+(`business-permit`, `government-issued-id`, `lgu-permits`, `dti-certificate`, `bir-registration`)
+and falls back to the raw string, so free-typed labels from the resubmit editor pass through. Used
+at `KycStatusPage.tsx:84`. Tested for all three paths.
+
+### B23 — Delete the stale suggestions line from the resubmit editor  ✅ DONE (2026-10-21)  *(I4 finding 1)*
+**File:** `vendor/components/kyc/KycStatusPage/KycStatusPage.tsx:3, 73-76`, `vendor/services/kyc.service.ts:26-29`
+
+It tells a rejected company to consider "DTI / SEC Registration, Authorized Representative ID,
+Proof of Address" and a rejected individual "Government-issued ID, Selfie with ID, Proof of
+Address" — none of which the first submission asks for. Deleted rather than rewritten: after a
+rejection the instruction is the reviewer's note, which sits directly above it.
+`KYC_SUGGESTIONS` then has **no vendor-side consumer** (verified) and goes too; Command keeps its
+own copy in `command/services/kyc-admin.service.ts`, untouched.
+**Verification:** `grep`, `npm run lint`, the visual suite (machine).
+
+✅ **DONE (2026-10-21)** — the line is gone, `KYC_SUGGESTIONS` is deleted from
+`vendor/services/kyc.service.ts` (no vendor-side consumer remained; Command's own copy untouched),
+and the orphaned `.suggest` / `.suggestVal` rules were removed from the module CSS.
+
+### I13 — The welcome chip names a document that no longer exists  ✅ DONE (2026-10-21)
+**File:** `vendor/components/kyc/KycWelcomeStep/KycWelcomeStep.tsx:14`
+
+You accepted this copy on 2026-10-21, and the rename invalidates one chip: "Business permit
+(companies)". Smallest honest edit is naming the two documents a company now brings.
+⚠️ **This regenerates the two `kycstatus-welcome` baselines again** — say the word if you would
+rather leave the chip and keep the baselines still.
+**Verification:** the visual suite (machine); wording is yours.
+
+✅ **DONE (2026-10-21)** — the chip reads "DTI document and mayors permit (companies)".
+The browser suite was blocked for part of this round by a `next dev` on :3000 (the user stopped it);
+once free, `kycstatus-welcome-light/dark` were the **only** two baselines that differed, exactly as
+predicted, and both were regenerated scoped to those panes. Full suite then **217 passing**.
+
+### I14 — Architecture docs, fourth pass  ✅ DONE (2026-10-21)
+**File:** `architecture/vendor-kyc.md`, `architecture/portals.md`, `architecture/schema.md`
+
+The step table still says a company "enters the accreditation/license no. here", and all three name
+`business-permit`. `vendor-kyc.md` also documents the submit route's accreditation write.
+**Verification:** read-level.
+
+✅ **DONE (2026-10-21)** — `vendor-kyc.md` (step table, a new bullet stating no accreditation number
+is collected and that Command is now the only place it is set, the submit-route summary, the slot
+table with the four-round history and the `titleForLabel` note, and the resubmit section's two
+2026-10-21 fixes), `portals.md`, `schema.md`.
+
+### F2 — Finding: removing `listAnd` in round 3 broke round 4's message  ✅ FIXED (2026-10-21)
+**File:** `lib/kycDocumentSlots.ts`, `useKycSubmitForm.ts` (`docsBlockedReason`)
+
+B17 deleted `listAnd` on the stated grounds that "a company can now be missing exactly one
+document, so every branch except the single-item case is dead", and `docsBlockedReason` was changed
+to name `missingSlotTitles(...)[0]`. Round 4 gave companies two slots again, so the step told a
+company with nothing attached to "Attach your **DTI Document** to continue." and silently omitted
+the mayor's permit. **The Playwright spec caught it on the first run** — no human saw a wrong
+screen.
+
+Helper and its test restored, with the history in the comment: it stays regardless of set size,
+because this set has now changed four times in three days. The honest lesson is that B17's
+reasoning was sound about the code and wrong about the product — "the set cannot grow" was never
+a safe assumption here, and the cost of keeping eight lines was lower than the cost of being wrong.
+**Verification:** `npm test` (563 passing, the helper's own cases plus one asserting both company
+titles), and the spec assertion that failed now passes.
+
+### D6 — How the accreditation requirement comes out  → **relax the validator and skip the write** (resolved 2026-10-21, user)
+The alternative offered was keeping the field and making it optional, which is not what was asked.
+Chosen: `ltoNo` becomes optional server-side and the `vendors.accreditation_no` write is skipped so
+a Command-set value survives. No migration, no RLS, no auth change; the column and Command's own
+add/edit field stay exactly as they are.
+
+---
+
+## Round 5 — retire the "lto" naming (2026-10-21)
+
+A vendor is not a driving school. `lto` is the Land Transportation Office, the agency that
+accredited driving schools in the **pre-pivot DriveBook** product; the pivot renamed the column to
+`vendors.accreditation_no` but left the name behind in the vendor app's own variables. Round 4
+removed the field from KYC, which makes this the moment to finish the job.
+
+**Scope: `vendor/` only.** Out of scope and verified so: `command/` already calls it `accred`
+(`VendorFormModal.tsx:24`, `useVendorForm.ts:25`) with no lto naming and no required validation —
+nothing to change there; `booker/`, `backbone/` and both Expo apps contain no `lto` reference for a
+vendor at all (the one hit in `backbone/supabase/seed.sql:680` is prose inside a seeded offering
+description — "an LTO-accredited instructor" — which is sample content for a driving lesson, not a
+vendor property).
+
+**The accreditation number itself stays.** It remains an optional field in two places, both already
+built and both already optional: Command's add/edit vendor form, and the vendor's own business
+profile. Only the *names in code* change.
+
+### B24 — `ltoAccredNo` → `accreditationNo` on the vendor profile  ✅ DONE (2026-10-21)
+**File:** `vendor/lib/types.ts:413`, `vendor/services/profile.service.ts:42, 83`, `vendor/components/profile/ProfilePage/ProfilePage.tsx:59`
+
+The vendor's own profile carries the column under the lto name. The label on screen is already
+"Accreditation / License No." — only the identifier is wrong.
+**Why this is safe to rename mechanically (checked, not assumed):** the edit draft is in-memory
+React state (`useProfilePage.ts:10, 22`), **not** localStorage, so no stored draft is stranded; and
+`Field`'s prop is typed `field: keyof VendorProfile` (`ProfilePage.helpers.tsx:21`), so every call
+site is compiler-enforced — a missed rename is a type error, not a silent runtime miss.
+**Separation:** a rename only; no state moves between hook and render.
+**Verification:** `tsc`, `npm run lint`, `grep` (machine); the profile's visual baselines must be
+unchanged, since nothing rendered changes.
+
+✅ **DONE (2026-10-21)** — renamed in all four places. The on-screen label was already
+"Accreditation / License No." and is untouched, so nothing rendered changes. `tsc` clean, lint
+unchanged at 29.
+
+### B25 — Remove `ltoNo` from the KYC submission contract  ✅ DONE (2026-10-21)
+**File:** `vendor/lib/kycSubmission.ts:29, 36, 50-56, 81`, `vendor/lib/kycSubmission.test.ts`
+
+Per **D7**: the field, its parsing, `MAX_LTO_LENGTH` and its tests come out. Nothing sends it and
+nothing writes it, so parsing it protects nothing; an unknown body key is ignored by the validator,
+so a stale browser bundle still posting `ltoNo` is harmless — the value was already optional.
+⚠️ The route destructures `valid.value`; `ltoNo` is already not destructured there (round 4), so
+removing it from the type is the last step rather than the first.
+**Verification:** `npm test`, `tsc` (machine).
+
+✅ **DONE (2026-10-21)** — the field, its parsing, `MAX_LTO_LENGTH` and the accreditation test cases
+are gone; `KycSubmission` is now `{ vendorId, kycType, documents }`. Two cases replaced them: a
+well-formed company submission, and one asserting a body still carrying the old key is accepted
+with the key **ignored** — the stale-bundle path, pinned rather than assumed. 560 tests passing.
+⚠️ A regex pass over the test file left a stale case and an orphaned comment behind; both were
+caught by `tsc` and repaired before the run.
+
+### B26 — Remove `"ltoNo"` from `RegisterField`'s union  ✅ DONE (2026-10-21)
+**File:** `vendor/components/auth/LoginPage/RegisterField.tsx:9`
+
+Orphaned since round 4 — verified that no component passes `field="ltoNo"` any more.
+**Verification:** `tsc`, `grep` (machine).
+
+✅ **DONE (2026-10-21)** — removed from the union; `tsc` confirms no call site passed it.
+
+### I15 — The last lto mentions: a fixture and two comments  ✅ DONE (2026-10-21)
+**File:** `vendor/visual-tests/referral-deeplink.spec.ts:53`, `vendor/lib/kycDraft.ts:49`, `vendor/services/kyc.service.ts:163`, `vendor/app/api/kyc/submit/route.ts:57, 140`
+
+The spec seeds a **v4 signup draft** containing `ltoNo: ""`; `kycDraft.ts:49` is the comment
+explaining that v4 drafts carried `kycType` and `ltoNo` and are read without a version bump.
+⚠️ **The fixture's key is deliberate and must not simply be renamed** — it reproduces a draft as it
+was written on a real device before 2026-09-30, and renaming it would make the test assert a shape
+that never existed. It stays, with a comment saying why. The historical comment in `kycDraft.ts`
+stays for the same reason. The two round-4 comments in the service and the route are reworded to
+say "accreditation number" rather than `ltoNo`.
+**Verification:** `npm run test:visual` for the fixture (machine); the rest is read-level.
+
+✅ **DONE (2026-10-21)** — the two round-4 comments now say "accreditation number"; the fixture
+keeps `ltoNo` and gained the ⚠️ comment explaining why renaming it would be wrong. Every surviving
+mention in `vendor/` is now one of three deliberate kinds: a test asserting the old key is **not**
+carried (`kycSubmission.test.ts`, `registration.test.ts`), the v4-draft history comment
+(`kycDraft.ts:49`), or that fixture. **No vendor property is named `lto` any more.**
+
+### I16 — Docs: name the rename  ✅ DONE (2026-10-21) — smaller than planned, see note
+**File:** `architecture/vendor-kyc.md`, `architecture/conventions.md` if it names the field
+
+One line: the vendor app no longer uses `lto` for a vendor property; the column is
+`vendors.accreditation_no`, the profile type field is `accreditationNo`, and KYC does not carry it.
+**Verification:** read-level.
+
+✅ **DONE (2026-10-21)** — ⚠️ **downgraded on inspection:** the architecture docs never used
+`ltoNo` or `ltoAccredNo` at all, so there was nothing to correct — `grep` over `architecture/*.md`
+returns none. What was added instead is the note that prevents a reintroduction: `vendor-kyc.md`
+now records where the name came from (pre-pivot DriveBook), that no vendor property carries it,
+what each layer calls the field, and why the one fixture keeps the old key. The same bullet now
+also says the number stays optional in **both** Command's form and the vendor's own profile.
+
+### D9 — Enforce a required document set on resubmission?  → **no, leave it free-text** (resolved 2026-10-21, user)
+Three options were put: leave it; require the set and treat historical documents as not counting;
+or require the set with an explicit alias map the user would supply. Chosen: **leave it**, on the
+recommendation that nothing today suggests rejections are frequent enough to need it, and that the
+alias map would be guesswork dressed as a rule. Recorded at I4 with its reopen conditions.
+
+### D7 — What happens to `ltoNo` in the KYC submission contract  → **removed entirely** (resolved 2026-10-21, user)
+The alternative was renaming it to `accreditationNo` and keeping it parsed. Removed instead: no
+caller sends it, nothing writes it, and an unknown key is ignored, so the only thing a retained
+field would buy is a door that is cheaper to re-open than to hold.
+
+### D8 — Does the profile's accreditation field stay visible to individuals  → **yes, shown to everyone** (resolved 2026-10-21, user)
+Company-only would need the profile to read `vendor_kyc.kyc_type`, which it does not query today —
+a second read and a loading state, for a field that is optional and simply blank for an individual.
 
 ---
 
