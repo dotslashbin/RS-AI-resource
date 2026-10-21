@@ -364,7 +364,7 @@ Enforced on both the tables and `storage.objects`, using the existing helpers
 
 | File | Functions |
 |------|-----------|
-| `vendor/services/kyc.service.ts` | `signUpVendor` (→ `/api/auth/register`), `submitFirstKyc` (upload → `/api/kyc/submit`), `getMyKyc` (found / none / error), `signMyKycDocUrl`, `resubmitKyc` (selective edit); plus `KYC_SUGGESTIONS`, `KYC_ACCEPTED_MIME`, `KYC_MAX_FILE_BYTES` |
+| `vendor/services/kyc.service.ts` | `signUpVendor` (→ `/api/auth/register`), `submitFirstKyc` (upload → `/api/kyc/submit`), `getMyKyc` (found / none / error), `signMyKycDocUrl`, `resubmitKyc` (selective edit); plus `KYC_ACCEPTED_MIME`, `KYC_MAX_FILE_BYTES`. ⚠️ `KYC_SUGGESTIONS` was **deleted 2026-10-21** with the resubmit editor's stale suggestions line; Command keeps its own copy in `command/services/kyc-admin.service.ts` |
 | `vendor/lib/kycSubmission.ts` · `vendor/lib/registration.ts` | pure input rules for the KYC route and for signup (unit-tested) |
 | `vendor/lib/vendorGate.ts` · `vendor/lib/kycView.ts` | the dashboard rule (active AND approved) and the KYC surface's view precedence (unit-tested) |
 | `command/lib/vendorActivation.ts` | why a vendor cannot be activated yet; the trigger's hint (unit-tested) |

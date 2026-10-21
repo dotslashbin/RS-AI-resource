@@ -11,25 +11,29 @@ consumers. One documentation item (I5) touches the **root** repo's `architecture
 `components/kyc/CameraCapture/`), and **the rejected-application resubmit editor**
 (`components/kyc/KycStatusPage/`) — see D2.
 
-**Status:** IN PROGRESS — **S1–S6, then rounds 2 and 3, executed 2026-10-19/20.** The set settled
-at: **company** = accreditation no. + one Business permit upload; **individual** = no documents step
-at all (three steps, packet is the two identity photos). Round 3's machine checks: tsc clean · 556
-unit tests, 0 failing · lint unchanged at its pre-existing 29 · 217 Playwright tests, 0 failing,
-with **two baselines deliberately regenerated** (`kycstatus-welcome-light/dark`, from I10's copy
-change, regenerated scoped to those panes). No decision is open.
-**Round 5 (2026-10-21) — the `lto` cleanup — is built and fully machine-verified:** tsc clean ·
-560 unit tests, 0 failing · lint unchanged at 29 · **217 Playwright tests, 0 failing**, run once
-the user's local dev server was stopped. **No baseline moved** beyond round 4's two welcome panes,
-and `visual-tests/referral-deeplink.spec.ts` — which seeds the legacy `ltoNo` draft the rename
-deliberately left alone — passes. Rounds 4 and 5 are both **uncommitted**.
+**Status:** ✅ **COMPLETE — for its executable scope (closed 2026-10-21 at the user's call).**
+Five rounds over three days. Every item is resolved: B1–B26 and I1–I3, I5–I16 done; I2 ✖ superseded
+by round 2; **I4 ✖ closed by decision (D9)** — resubmission stays free-text with no required set,
+with its reopen conditions recorded at the item; F1 and F2 recorded.
 
-**Rounds 1–3 shipped and staging-tested:** committed as `vendor` `86d302d` (merged to `develop`
-via `8afce8c`) and root `d20fb52`, deployed to staging by the user, staging pass completed
-2026-10-21 as reported by the user. **Round 4 (2026-10-21) is built and machine-verified but NOT
-yet committed or staged:** tsc clean · 563 unit tests, 0 failing · lint unchanged at 29 · 217
-Playwright tests, 0 failing, with `kycstatus-welcome-light/dark` regenerated for the chip copy.
-I10's wording was accepted by the user on 2026-10-21. Still open: **I4** (the resubmit follow-up),
-which is the user's to close.
+**Final shape.** Company: a documents step with two fixed slots — DTI Document, then Mayors permit
+(`dti-document`, `mayors-permit`) — and **no accreditation number**. Individual: **no documents
+step at all** (three steps; the packet is the two identity photos). No free-text document naming on
+a first submission; the resubmit editor after a rejection still has one, deliberately. The vendor
+app no longer names anything `lto`.
+
+**Verification.** Machine: tsc clean · 560 unit tests, 0 failing · lint unchanged at its
+pre-existing 29 · 217 Playwright tests, 0 failing (10 of them a new behaviour spec for this step);
+the only baselines ever regenerated were `kycstatus-welcome-light/dark`, scoped, for copy changes.
+Live: rounds 1–3 were deployed and **staging-tested by the user (2026-10-21, as reported — the
+hosted environment was never queried from here)**.
+
+⚠️ **What this status does NOT claim.** **Rounds 4 and 5 are machine-verified but had not been
+committed or staging-tested when this plan was closed** — the user took the commit drafts to push
+to staging for testing. If that testing finds something, this plan is the record to reopen, not a
+new one. Also still outside it: the registration dropdown's dark-mode defect, investigated here but
+owned by `.plans/2026-10-20-dark-mode-lift.md` **I9**, briefed in
+`.plans/2026-10-21-combobox-portal-dark-handoff.md`.
 
 > One-line framing: an applicant should be told exactly which documents to upload, so replace the
 > free-text "name it, then attach it" control with the two (company) or one (individual) fixed,
