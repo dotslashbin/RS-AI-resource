@@ -1,0 +1,145 @@
+/*
+ * dark-lift-command — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/command.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/* ── The proposal: dark-only overrides, keyed by `data-opt` ───────────────────────────────
+ * These ARE the values under review. `current` has no block — it is `tokens.css` as shipped.
+ * The same numbers, with the `--db-*` / `--sp-*` prefixes, are in the booker and vendor
+ * previews, and `.plans/scripts/dark-lift-contrast.mjs` measures them.
+ * ⚠️ `.dark` only. Nothing here may change light mode.
+ */
+.dark [data-opt="a"] {
+  --rs-page-gradient:  linear-gradient(145deg,#0a0e1b 0%,#0d1323 55%,#0b101d 100%);
+  --rs-sidebar-bg:     #0b101d;
+  --rs-topbar-bg:      rgba(11,16,29,0.85);
+  --rs-tabbar-bg:      rgba(11,16,29,0.8);
+  --rs-card-bg:        rgba(255,255,255,0.035);
+  --rs-pill-bg:        rgba(255,255,255,0.045);
+  --rs-input-bg:       rgba(255,255,255,0.06);
+  --rs-sub-bg:         rgba(255,255,255,0.05);
+  --rs-panel-bg:       #141b2d;
+}
+
+/* B and C share everything but the surface values: opaque containers, a hair more border. */
+.dark [data-opt="b"],
+.dark [data-opt="c"] {
+  --rs-card-border:    rgba(255,255,255,0.08);
+  --rs-card-shadow:    0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --rs-divider:        rgba(255,255,255,0.08);
+  --rs-pill-bg:        rgba(255,255,255,0.05);
+  --rs-input-bg:       rgba(255,255,255,0.06);
+  --rs-input-border:   rgba(255,255,255,0.12);
+  --rs-sub-bg:         rgba(255,255,255,0.05);
+}
+.dark [data-opt="b"] {
+  --rs-sidebar-bg:     #0b101e;
+  --rs-topbar-bg:      rgba(11,16,30,0.85);
+  --rs-tabbar-bg:      rgba(11,16,30,0.8);
+  --rs-card-bg:        #121a2b;
+  --rs-panel-bg:       #1a2337;
+}
+.dark [data-opt="c"] {
+  --rs-page-gradient:  linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --rs-sidebar-bg:     #0f1526;
+  --rs-topbar-bg:      rgba(15,21,38,0.85);
+  --rs-tabbar-bg:      rgba(15,21,38,0.8);
+  /* See-through, not opaque (plan B1): white-over stacking keeps a card inside a card lighter
+     than its parent. */
+  --rs-card-bg:        rgba(255,255,255,0.055);
+  --rs-panel-bg:       #1e283d;
+}
+
+/* ── Preview annotation — deliberately unlike any app surface ────────────────────────────*/
+.dl-banner {
+  border: 1px dashed rgba(148,163,184,0.6); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 16px;
+}
+.dl-banner-title { font-size: 13px; font-weight: 700; color: var(--rs-strong); }
+.dl-banner-note { font-size: 12px; color: var(--rs-text); margin-top: 3px; line-height: 1.5; }
+
+/* ── Shell (first command preview — candidate for `_shared/command.js` later) ────────────*/
+.csh { min-height: 100vh; }
+.csh-nav { flex: 0 0 196px; padding: 16px 12px; }
+.csh-brand { font-size: 15px; font-weight: 800; color: var(--rs-strong); margin-bottom: 14px; }
+.csh-brand span { color: #2563eb; }
+.csh-navitem {
+  min-height: 44px; display: flex; align-items: center; padding: 0 12px;
+  font-size: 13px; font-weight: 600; color: var(--rs-text); border-radius: 12px;
+}
+.csh-navitem.is-on { color: #fff; background: linear-gradient(135deg,#2563eb,#1e40af); }
+.csh-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.csh-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; }
+.csh-title { font-size: 15px; font-weight: 700; color: var(--rs-strong); }
+.csh-pill { padding: 7px 12px; font-size: 12px; color: var(--rs-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csh-body { flex: 1 1 auto; padding: 20px; }
+
+/* ── Users body ──────────────────────────────────────────────────────────────────────────*/
+.dl-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dl-stats .pvc + .pvc { margin-top: 0; }
+.dl-stat-k { font-size: 12px; color: var(--rs-text); }
+.dl-stat-v { font-size: 22px; font-weight: 800; color: var(--rs-strong); margin-top: 6px; }
+.dl-stat-d { font-size: 11px; color: var(--rs-text); margin-top: 4px; }
+
+.dl-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
+.dl-col { flex: 1 1 460px; min-width: 0; }
+.dl-col-side { flex: 0 1 320px; }
+
+.dl-filter { display: flex; gap: 8px; margin-bottom: 8px; }
+.dl-search {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 8px;
+  padding: 0 12px; font-size: 13px; color: var(--rs-text);
+}
+.dl-search span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pvb.btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; }
+
+.dl-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 8px;
+  border-top: 1px solid var(--rs-divider); border-radius: 8px;
+}
+.rs-table-row:hover { background: rgba(0,0,0,0.015); }
+.dark .rs-table-row:hover { background: rgba(255,255,255,0.02); }
+.dl-avatar {
+  flex: 0 0 32px; height: 32px; border-radius: 99px; display: flex; align-items: center; justify-content: center;
+  background: rgba(37,99,235,0.15); color: #60a5fa; font-size: 13px; font-weight: 700;
+}
+.dl-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; font-size: 13px; color: var(--rs-strong); }
+.dl-who span { font-size: 12px; color: var(--rs-text); margin-top: 2px; }
+.dl-who b, .dl-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-role { flex-shrink: 0; padding: 4px 10px; font-size: 11px; color: var(--rs-text); }
+
+.dl-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.dl-badge[data-st="active"]   { background: rgba(16,185,129,0.12); color: #047857; }
+.dl-badge[data-st="invited"]  { background: rgba(245,158,11,0.12); color: #92400e; }
+.dl-badge[data-st="disabled"] { background: rgba(239,68,68,0.10); color: #b91c1c; }
+.dark .dl-badge[data-st="active"]   { background: rgba(16,185,129,0.15); color: #10b981; }
+.dark .dl-badge[data-st="invited"]  { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.dark .dl-badge[data-st="disabled"] { background: rgba(239,68,68,0.15); color: #f87171; }
+
+.dl-card-title { font-size: 14px; font-weight: 700; color: var(--rs-strong); }
+.dl-detail-sub { font-size: 12px; color: var(--rs-text); margin-top: 3px; }
+.dl-sub { padding: 10px 12px; margin-top: 14px; font-size: 13px; }
+.dl-sub p { display: flex; justify-content: space-between; color: var(--rs-text); }
+.dl-sub p + p { margin-top: 6px; }
+.dl-sub b { color: var(--rs-strong); }
+
+.dl-panel { padding: 6px 14px; margin-top: 14px; }
+.dl-panel-item { font-size: 13px; color: var(--rs-strong); padding: 10px 0; }
+.dl-panel-item + .dl-panel-item { border-top: 1px solid var(--rs-divider); }
+
+@media (max-width: 860px) {
+  .csh-nav { display: none; }
+  .dl-col-side { flex: 1 1 100%; }
+}
+@media (max-width: 640px) {
+  .csh-body { padding: 16px; }
+  .dl-stats { grid-template-columns: minmax(0, 1fr); }
+  .dl-role { display: none; }
+}

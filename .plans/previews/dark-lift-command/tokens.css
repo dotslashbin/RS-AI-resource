@@ -1,0 +1,105 @@
+/*
+ * command — shared preview tokens.
+ *
+ * ⚠️ SNAPSHOT, NOT AN IMPORT. Copied from `command/app/globals.css` on 2026-10-18
+ * (`:root` at :8–29, `.dark` at :72–93). A copy by design; it GOES STALE when command's tokens
+ * change.
+ *
+ * ⚠️ NO CHROME HELPERS YET, deliberately. `_shared/booker.js` and `_shared/vendor.js` exist
+ * because `near-me`, `vendor-checkout` and `offering-wizard` proved which markup repeats.
+ * command has no preview to harvest from, so its helpers would be invented rather than
+ * extracted. Write them from the FIRST command preview, once there is real repetition to pull
+ * out — see the plan's DEFERRED section.
+ *
+ * This file is SYNCED into each preview as `tokens.css`. Edit it here, never there.
+ */
+
+:root {
+  color-scheme: light;
+
+  --rs-page-gradient:  linear-gradient(145deg,#eef2ff 0%,#f0f4ff 55%,#f5f3ff 100%);
+  --rs-sidebar-bg:     #ffffff;
+  --rs-sidebar-border: rgba(0,0,0,0.07);
+  --rs-topbar-bg:      rgba(255,255,255,0.85);
+  --rs-topbar-border:  rgba(0,0,0,0.07);
+  --rs-tabbar-bg:      rgba(248,250,252,0.9);
+  --rs-tabbar-border:  rgba(0,0,0,0.07);
+  --rs-card-bg:        #ffffff;
+  --rs-card-border:    rgba(0,0,0,0.07);
+  --rs-card-shadow:    0 2px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04);
+  --rs-pill-bg:        #f8fafc;
+  --rs-pill-border:    rgba(0,0,0,0.07);
+  --rs-input-bg:       #f8fafc;
+  --rs-input-border:   rgba(0,0,0,0.1);
+  --rs-input-color:    #0f172a;
+  --rs-sub-bg:         #f8fafc;
+  --rs-divider:        rgba(0,0,0,0.07);
+  --rs-strong:         #0f172a;
+  --rs-text:           #64748b;
+  --rs-panel-bg:       #ffffff;
+  --rs-panel-border:   rgba(0,0,0,0.08);
+  --rs-panel-shadow:   0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.06);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --rs-page-gradient:  linear-gradient(145deg,#04060e 0%,#070b17 55%,#05080f 100%);
+  --rs-sidebar-bg:     #05080f;
+  --rs-sidebar-border: rgba(255,255,255,0.055);
+  --rs-topbar-bg:      rgba(5,8,15,0.85);
+  --rs-topbar-border:  rgba(255,255,255,0.06);
+  --rs-tabbar-bg:      rgba(5,8,15,0.8);
+  --rs-tabbar-border:  rgba(255,255,255,0.06);
+  --rs-card-bg:        rgba(255,255,255,0.028);
+  --rs-card-border:    rgba(255,255,255,0.07);
+  --rs-card-shadow:    0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);
+  --rs-pill-bg:        rgba(255,255,255,0.04);
+  --rs-pill-border:    rgba(255,255,255,0.07);
+  --rs-input-bg:       rgba(255,255,255,0.05);
+  --rs-input-border:   rgba(255,255,255,0.1);
+  --rs-input-color:    #e2e8f0;
+  --rs-sub-bg:         rgba(255,255,255,0.04);
+  --rs-divider:        rgba(255,255,255,0.07);
+  --rs-strong:         #f1f5f9;
+  --rs-text:           #94a3b8;
+  --rs-panel-bg:       #0c1220;
+  --rs-panel-border:   rgba(255,255,255,0.08);
+  --rs-panel-shadow:   0 8px 32px rgba(0,0,0,0.5),0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────────────────────*/
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+body { background: var(--rs-page-gradient); color: var(--rs-text); min-height: 100vh; }
+button { cursor: pointer; font: inherit; }
+input, select, textarea { outline: none; font: inherit; }
+input::placeholder { opacity: 0.5; }
+
+.rs-page    { background: var(--rs-page-gradient); min-height: 100vh; display: flex; }
+.rs-sidebar { background: var(--rs-sidebar-bg); border-right: 1px solid var(--rs-sidebar-border); }
+.rs-topbar  { background: var(--rs-topbar-bg); border-bottom: 1px solid var(--rs-topbar-border); backdrop-filter: blur(24px); }
+.rs-card    { background: var(--rs-card-bg); border: 1px solid var(--rs-card-border); border-radius: 18px; box-shadow: var(--rs-card-shadow); }
+.rs-pill    { background: var(--rs-pill-bg); border: 1px solid var(--rs-pill-border); border-radius: 12px; }
+.rs-input   { background: var(--rs-input-bg); border: 1px solid var(--rs-input-border); border-radius: 12px; color: var(--rs-input-color); }
+.rs-panel   { background: var(--rs-panel-bg); border: 1px solid var(--rs-panel-border); border-radius: 16px; box-shadow: var(--rs-panel-shadow); }
+
+/* ── `--pv-*` aliases ─────────────────────────────────────────────────────────────────────
+   The contract `chrome.css` renders against. It never names an `--rs-*` token, so one layout
+   file serves all three apps; adding an app means writing its alias block, not copying that
+   file. Declared on `:root` and inherited, so the `.dark` overrides above flow through with no
+   second alias block. */
+:root {
+  --pv-strong:       var(--rs-strong);
+  --pv-text:         var(--rs-text);
+  --pv-divider:      var(--rs-divider);
+  --pv-pill-bg:      var(--rs-pill-bg);
+  --pv-pill-border:  var(--rs-pill-border);
+  --pv-input-bg:     var(--rs-input-bg);
+  --pv-input-border: var(--rs-input-border);
+  --pv-input-color:  var(--rs-input-color);
+  --pv-panel-bg:     var(--rs-panel-bg);
+  --pv-panel-border: var(--rs-panel-border);
+  --pv-panel-shadow: var(--rs-panel-shadow);
+  --pv-danger:       #dc2626;
+}

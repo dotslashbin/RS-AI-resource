@@ -1,0 +1,204 @@
+/*
+ * vendor — shared preview tokens and chrome classes.
+ *
+ * ⚠️ SNAPSHOT, NOT AN IMPORT. Copied from `vendor/app/globals.css` on 2026-10-18
+ * (`:root` at :99–130, `.dark` at :132–163, `@layer components` at :185–196). A copy by
+ * design — importing the real stylesheet would stop the preview being a static mock and would
+ * drag Tailwind's layers in with it. It GOES STALE: when vendor's tokens change, change them
+ * here too.
+ *
+ * ⚠️ Also the colour source for MOBILE previews. `ezzy-vendor-mobile/src/theme/tokens.ts:1–5`
+ * ports these same `--sp-*` values verbatim "so the two clients stay visually identical", so a
+ * mobile preview pairs this file with `_shared/mobile.js` — and must obey the three RN
+ * limitations in `.claude/skills/design-preview/SKILL.md` §5.
+ *
+ * This file is SYNCED into each preview as `tokens.css`. Edit it here, never there.
+ */
+
+:root {
+  color-scheme: light;
+
+  --sp-strong:  #0f172a;
+  --sp-text:    #64748b;
+  --sp-divider: rgba(0,0,0,0.07);
+
+  --sp-page-bg:     linear-gradient(145deg,#eef2ff 0%,#f0f4ff 55%,#f5f3ff 100%);
+  --sp-sidebar-bg:  #ffffff;
+  --sp-sidebar-bdr: rgba(0,0,0,0.07);
+  --sp-topbar-bg:   rgba(255,255,255,0.85);
+  --sp-bar-bdr:     rgba(0,0,0,0.07);
+  --sp-tabbar-bg:   rgba(248,250,252,0.9);
+
+  --sp-card-bg:     #ffffff;
+  --sp-card-bdr:    rgba(0,0,0,0.07);
+  --sp-card-shadow: 0 2px 12px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04);
+  --sp-card-blur:   none;
+  --sp-pill-bg:     #f8fafc;
+  --sp-pill-bdr:    rgba(0,0,0,0.07);
+  --sp-input-bg:    #f8fafc;
+  --sp-input-bdr:   rgba(0,0,0,0.1);
+  --sp-input-color: #0f172a;
+  --sp-sub-bg:      #f8fafc;
+
+  --sp-overlay-subtle: rgba(0,0,0,0.04);
+  --sp-overlay-faint:  rgba(0,0,0,0.05);
+  --sp-toggle-off:     rgba(0,0,0,0.1);
+  --sp-modal-bg:       #ffffff;
+  --sp-hero-bg:        linear-gradient(135deg,rgba(37,99,235,0.06),rgba(79,70,229,0.04));
+  --sp-edit-btn-bg:    rgba(37,99,235,0.06);
+  --sp-badge-bdr:      #f0f4ff;
+  --sp-panel-bg:       #ffffff;
+  --sp-panel-bdr:      rgba(0,0,0,0.1);
+  --sp-panel-shadow:   0 4px 6px -1px rgba(0,0,0,0.08), 0 16px 40px -4px rgba(0,0,0,0.14);
+
+  --red:     #ef4444;
+  --red-txt: #dc2626;
+  --amber:   #d97706;
+  --emerald: #059669;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --sp-strong:  #f1f5f9;
+  --sp-text:    #94a3b8;
+  --sp-divider: rgba(255,255,255,0.07);
+
+  --sp-page-bg:     linear-gradient(145deg,#04060e 0%,#070b17 55%,#05080f 100%);
+  --sp-sidebar-bg:  #05080f;
+  --sp-sidebar-bdr: rgba(255,255,255,0.055);
+  --sp-topbar-bg:   rgba(5,8,15,0.85);
+  --sp-bar-bdr:     rgba(255,255,255,0.06);
+  --sp-tabbar-bg:   rgba(5,8,15,0.8);
+
+  --sp-card-bg:     rgba(255,255,255,0.028);
+  --sp-card-bdr:    rgba(255,255,255,0.07);
+  --sp-card-shadow: 0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);
+  --sp-card-blur:   blur(16px);
+  --sp-pill-bg:     rgba(255,255,255,0.04);
+  --sp-pill-bdr:    rgba(255,255,255,0.07);
+  --sp-input-bg:    rgba(255,255,255,0.05);
+  --sp-input-bdr:   rgba(255,255,255,0.1);
+  --sp-input-color: #e2e8f0;
+  --sp-sub-bg:      rgba(255,255,255,0.04);
+
+  --sp-overlay-subtle: rgba(255,255,255,0.04);
+  --sp-overlay-faint:  rgba(255,255,255,0.06);
+  --sp-toggle-off:     rgba(255,255,255,0.1);
+  /* Opaque on purpose — a phone sheet over a dark page needs to hide what is behind it. */
+  --sp-modal-bg:       #0a0f1a;
+  --sp-hero-bg:        linear-gradient(135deg,rgba(37,99,235,0.15),rgba(79,70,229,0.1));
+  --sp-edit-btn-bg:    rgba(255,255,255,0.05);
+  --sp-badge-bdr:      #05080f;
+  --sp-panel-bg:       #0c1220;
+  --sp-panel-bdr:      rgba(255,255,255,0.1);
+  --sp-panel-shadow:   0 4px 6px -1px rgba(0,0,0,0.4), 0 16px 40px -4px rgba(0,0,0,0.6);
+}
+
+/* ── Base. vendor uses Inter; it is a build artefact, so previews fall back to a system
+   stack and that belongs in the Limits section. ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+body { background: var(--sp-page-bg); color: var(--sp-text); min-height: 100vh; }
+button { cursor: pointer; font: inherit; }
+input, select, textarea { outline: none; font: inherit; }
+input::placeholder { opacity: 0.5; }
+
+/* ── Chrome classes, copied from vendor's `@layer components` ───────────────────────────── */
+.sp-page    { background: var(--sp-page-bg); min-height: 100vh; display: flex; }
+.sp-sidebar { background: var(--sp-sidebar-bg); border-right: 1px solid var(--sp-sidebar-bdr); }
+.sp-topbar  { background: var(--sp-topbar-bg); border-bottom: 1px solid var(--sp-bar-bdr); backdrop-filter: blur(24px); }
+.sp-tabbar  { background: var(--sp-tabbar-bg); border-bottom: 1px solid var(--sp-bar-bdr); backdrop-filter: blur(24px); }
+.sp-card    { background: var(--sp-card-bg); border: 1px solid var(--sp-card-bdr); border-radius: 18px; box-shadow: var(--sp-card-shadow); backdrop-filter: var(--sp-card-blur); }
+.sp-pill    { background: var(--sp-pill-bg); border: 1px solid var(--sp-pill-bdr); border-radius: 12px; }
+.sp-input   { background: var(--sp-input-bg); border: 1px solid var(--sp-input-bdr); border-radius: 12px; color: var(--sp-input-color); outline: none; }
+.sp-panel   { background: var(--sp-panel-bg); border: 1px solid var(--sp-panel-bdr); border-radius: 16px; box-shadow: var(--sp-panel-shadow); }
+.sp-sub     { background: var(--sp-sub-bg); border-radius: 12px; }
+.btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; border: none; box-shadow: 0 4px 16px rgba(37,99,235,0.35); }
+.nav-active  { background: linear-gradient(135deg,#2563eb,#1e40af); border-radius: 12px; box-shadow: 0 4px 20px rgba(37,99,235,0.4); }
+
+/*
+ * ⚠️ Phone fields are 16px on purpose, copied from vendor's `@media (max-width: 639px)` block.
+ * iOS Safari zooms into any field under 16px and stays zoomed. A preview that shows 13px
+ * phone fields is showing a bug the app already fixed (vendor plan F2/F7/F10).
+ */
+@media (max-width: 639px) {
+  input.sp-input, select.sp-input, textarea.sp-input, .sp-input input { font-size: 16px; }
+  input[type="date"].sp-input { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 42px; }
+}
+
+/* ── `--pv-*` aliases ─────────────────────────────────────────────────────────────────────
+   The contract `chrome.css` renders against. It never names an `--sp-*` token, so one layout
+   file serves all three apps; adding an app means writing its alias block, not copying that
+   file. Declared on `:root` and inherited, so the `.dark` overrides above flow through with no
+   second alias block. */
+:root {
+  --pv-strong:       var(--sp-strong);
+  --pv-text:         var(--sp-text);
+  --pv-divider:      var(--sp-divider);
+  --pv-pill-bg:      var(--sp-pill-bg);
+  --pv-pill-border:  var(--sp-pill-bdr);
+  --pv-input-bg:     var(--sp-input-bg);
+  --pv-input-border: var(--sp-input-bdr);
+  --pv-input-color:  var(--sp-input-color);
+  --pv-panel-bg:     var(--sp-panel-bg);
+  --pv-panel-border: var(--sp-panel-bdr);
+  --pv-panel-shadow: var(--sp-panel-shadow);
+  --pv-danger:       var(--red-txt);
+}
+
+/* ── Chrome emitted by `_shared/vendor.js` ─────────────────────────────────────────────── */
+.vsh { min-height: 100vh; }
+.vsh-nav { flex: 0 0 196px; padding: 16px 12px; }
+.vsh-brand { font-size: 15px; font-weight: 800; color: var(--sp-strong); margin-bottom: 14px; }
+.vsh-brand span { color: #2563eb; }
+.vsh-navitem {
+  min-height: 44px; display: flex; align-items: center; padding: 0 12px;
+  font-size: 13px; font-weight: 600; color: var(--sp-text); border-radius: 12px;
+}
+.vsh-navitem.nav-active { color: #fff; }
+.vsh-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.vsh-topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; }
+.vsh-topbar-title { font-size: 15px; font-weight: 700; color: var(--sp-strong); }
+.vsh-topbar-pill { padding: 7px 12px; font-size: 12px; color: var(--sp-text); }
+.vsh-body { flex: 1 1 auto; padding: 20px; }
+@media (max-width: 860px) {
+  .vsh-nav { display: none; }
+}
+
+/* A modal: centred 520px card above 640px, full-screen sheet below (vendor plan D5). */
+.vmodal-scrim {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: rgba(2,6,23,0.5);
+}
+.vmodal {
+  width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto;
+  border-radius: 18px; background: var(--sp-modal-bg);
+  border: 1px solid var(--sp-card-bdr); box-shadow: var(--sp-panel-shadow);
+}
+@media (max-width: 640px) {
+  .vmodal-scrim { padding: 0; align-items: stretch; }
+  /* ⚠️ `--sp-modal-bg` is opaque #0a0f1a in dark on purpose: a translucent full-screen sheet
+     over a dark page hides nothing behind it. */
+  .vmodal { max-width: none; border-radius: 0; border: none; min-height: 100vh; }
+}
+
+.kbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; }
+.kbar-brand { display: flex; align-items: center; gap: 12px; }
+.kbar-mark {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff;
+  font-size: 17px; font-weight: 700;
+}
+.kbar-name { font-size: 15px; font-weight: 700; color: var(--sp-strong); }
+.kbar-sub { font-size: 12px; color: var(--sp-text); margin-top: 2px; }
+.kbar-pill { padding: 7px 12px; font-size: 12px; color: var(--sp-text); }
+
+.vsteps { padding: 16px 20px 0; }
+.vsteps-count { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--sp-text); }
+.vsteps-title { font-size: 17px; font-weight: 700; color: var(--sp-strong); margin-top: 4px; }
+.vsteps-bar { display: flex; gap: 4px; margin-top: 10px; }
+.vsteps-seg { flex: 1 1 0; height: 4px; border-radius: 99px; background: var(--sp-toggle-off); }
+.vsteps-seg.is-on { background: #2563eb; }

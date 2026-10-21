@@ -1,0 +1,134 @@
+/*
+ * dark-lift-vendor — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/vendor.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/* ── The proposal: dark-only overrides, keyed by `data-opt` ───────────────────────────────
+ * These ARE the values under review. `current` has no block — it is `tokens.css` as shipped.
+ * The same numbers, with the `--db-*` / `--rs-*` prefixes, are in the booker and command
+ * previews, and `.plans/scripts/dark-lift-contrast.mjs` measures them.
+ * ⚠️ `.dark` only. Nothing here may change light mode.
+ */
+.dark [data-opt="a"] {
+  --sp-page-bg:     linear-gradient(145deg,#0a0e1b 0%,#0d1323 55%,#0b101d 100%);
+  --sp-sidebar-bg:  #0b101d;
+  --sp-topbar-bg:   rgba(11,16,29,0.85);
+  --sp-tabbar-bg:   rgba(11,16,29,0.8);
+  --sp-card-bg:     rgba(255,255,255,0.035);
+  --sp-pill-bg:     rgba(255,255,255,0.045);
+  --sp-input-bg:    rgba(255,255,255,0.06);
+  --sp-sub-bg:      rgba(255,255,255,0.05);
+  --sp-modal-bg:    #121828;
+  --sp-badge-bdr:   #0b101d;
+  --sp-panel-bg:    #141b2d;
+}
+
+/* B and C share everything but the surface values: opaque containers, a hair more border,
+   and no card blur — an opaque card has nothing behind it to blur. */
+.dark [data-opt="b"],
+.dark [data-opt="c"] {
+  --sp-card-bdr:    rgba(255,255,255,0.08);
+  --sp-card-shadow: 0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --sp-card-blur:   none;
+  --sp-divider:     rgba(255,255,255,0.08);
+  --sp-pill-bg:     rgba(255,255,255,0.05);
+  --sp-input-bg:    rgba(255,255,255,0.06);
+  --sp-input-bdr:   rgba(255,255,255,0.12);
+  --sp-sub-bg:      rgba(255,255,255,0.05);
+}
+.dark [data-opt="b"] {
+  --sp-sidebar-bg:  #0b101e;
+  --sp-topbar-bg:   rgba(11,16,30,0.85);
+  --sp-tabbar-bg:   rgba(11,16,30,0.8);
+  --sp-card-bg:     #121a2b;
+  --sp-modal-bg:    #141c2e;
+  --sp-badge-bdr:   #121a2b;
+  --sp-panel-bg:    #1a2337;
+}
+.dark [data-opt="c"] {
+  --sp-page-bg:     linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --sp-sidebar-bg:  #0f1526;
+  --sp-topbar-bg:   rgba(15,21,38,0.85);
+  --sp-tabbar-bg:   rgba(15,21,38,0.8);
+  /* See-through, not opaque (plan B1): white-over stacking keeps a card inside a card lighter
+     than its parent, and leaves the blur something to do — so the B/C `none` is undone here. */
+  --sp-card-bg:     rgba(255,255,255,0.055);
+  --sp-card-blur:   blur(16px);
+  --sp-modal-bg:    #182136;
+  --sp-badge-bdr:   #181d2c;
+  --sp-panel-bg:    #1e283d;
+}
+
+/* ── Preview annotation — deliberately unlike any app surface ────────────────────────────*/
+.dl-banner {
+  border: 1px dashed rgba(148,163,184,0.6); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 16px;
+}
+.dl-banner-title { font-size: 13px; font-weight: 700; color: var(--sp-strong); }
+.dl-banner-note { font-size: 12px; color: var(--sp-text); margin-top: 3px; line-height: 1.5; }
+
+/* ── Dashboard body ──────────────────────────────────────────────────────────────────────*/
+.dl-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.dl-stats .pvc + .pvc { margin-top: 0; }
+.dl-stat-k { font-size: 12px; color: var(--sp-text); }
+.dl-stat-v { font-size: 22px; font-weight: 800; color: var(--sp-strong); margin-top: 6px; }
+.dl-stat-d { font-size: 11px; color: var(--sp-text); margin-top: 4px; }
+
+.dl-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
+.dl-col { flex: 1 1 420px; min-width: 0; }
+.dl-col-side { flex: 0 1 340px; display: flex; flex-direction: column; gap: 16px; }
+.dl-col-side .pvc + .pvc { margin-top: 0; }
+
+.dl-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.dl-card-title { font-size: 14px; font-weight: 700; color: var(--sp-strong); }
+.dl-chip { padding: 5px 10px; font-size: 12px; color: var(--sp-text); }
+
+.dl-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 0;
+  border-top: 1px solid var(--sp-divider);
+}
+.dl-time { flex: 0 0 48px; font-size: 13px; font-weight: 700; color: var(--sp-strong); }
+.dl-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; font-size: 13px; color: var(--sp-strong); }
+.dl-who span { font-size: 12px; color: var(--sp-text); margin-top: 2px; }
+.dl-who b, .dl-who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Status badge colours — booker's `--st-*` pairs, which vendor's status pills match. */
+.dl-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.dl-badge[data-st="confirmed"] { background: rgba(16,185,129,0.12); color: #047857; }
+.dl-badge[data-st="pending"]   { background: rgba(245,158,11,0.12); color: #92400e; }
+.dl-badge[data-st="progress"]  { background: rgba(139,92,246,0.12); color: #6d28d9; }
+.dl-badge[data-st="cancelled"] { background: rgba(239,68,68,0.10); color: #b91c1c; }
+.dark .dl-badge[data-st="confirmed"] { background: rgba(16,185,129,0.15); color: #10b981; }
+.dark .dl-badge[data-st="pending"]   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.dark .dl-badge[data-st="progress"]  { background: rgba(139,92,246,0.18); color: #a78bfa; }
+.dark .dl-badge[data-st="cancelled"] { background: rgba(239,68,68,0.15); color: #f87171; }
+
+.dl-form { margin-top: 12px; }
+.dl-sub { padding: 10px 12px; margin-top: 14px; font-size: 13px; }
+.dl-sub p { display: flex; justify-content: space-between; color: var(--sp-text); }
+.dl-sub p + p { margin-top: 6px; }
+.dl-sub b { color: var(--sp-strong); }
+.dl-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+.dl-panel { padding: 14px 16px; }
+.dl-panel-item { font-size: 12px; color: var(--sp-text); padding: 10px 0 0; }
+.dl-panel-item + .dl-panel-item { border-top: 1px solid var(--sp-divider); margin-top: 10px; }
+
+@media (max-width: 860px) {
+  .dl-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dl-col-side { flex: 1 1 100%; }
+}
+@media (max-width: 640px) {
+  .vsh-body { padding: 16px; }
+}
+
+/* Preview-only: the shared `.pvb` background outranks `.btn-primary` by source order, so the
+   primary button lost its gradient. Restores vendor's own `.btn-primary` value. */
+.pvb.btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; }

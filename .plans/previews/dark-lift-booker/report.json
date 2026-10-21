@@ -1,0 +1,35 @@
+{
+  "topic": "dark-lift-booker",
+  "app": "booker",
+  "date": "2026-10-21T13:33:54.732Z",
+  "cells": 20,
+  "screens": [
+    {
+      "id": "current",
+      "label": "Current · as shipped"
+    },
+    {
+      "id": "a",
+      "label": "A · Brighter base"
+    },
+    {
+      "id": "b",
+      "label": "B · Lifted containers (recommended)"
+    },
+    {
+      "id": "c",
+      "label": "C · Brighter base + lifted containers (chosen)"
+    },
+    {
+      "id": "c-solid",
+      "label": "C with solid cards · rejected (plan B1)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

@@ -1,0 +1,31 @@
+{
+  "topic": "dark-lift-command",
+  "app": "command",
+  "date": "2026-10-21T13:33:31.128Z",
+  "cells": 16,
+  "screens": [
+    {
+      "id": "current",
+      "label": "Current · as shipped"
+    },
+    {
+      "id": "a",
+      "label": "A · Brighter base"
+    },
+    {
+      "id": "b",
+      "label": "B · Lifted containers (recommended)"
+    },
+    {
+      "id": "c",
+      "label": "C · Brighter base + lifted containers (chosen)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

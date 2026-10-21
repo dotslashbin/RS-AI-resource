@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>dark-lift-vendor — preview</title>
+  <link rel="stylesheet" href="./tokens.css">
+  <link rel="stylesheet" href="./chrome.css">
+  <link rel="stylesheet" href="./preview.css">
+  <script src="./base.js" defer></script>
+  <script src="./chrome.js" defer></script>
+  <script src="./screens.js" defer></script>
+  <script src="./controller.js" defer></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Preview-only controls. Not part of the design; hidden by ?chrome=off. -->
+  <div class="pv-bar">
+    <span class="pv-label">PREVIEW</span>
+    <label>Screen <select id="pv-screen"></select></label>
+    <label>Theme <select id="pv-theme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </div>
+</body>
+</html>

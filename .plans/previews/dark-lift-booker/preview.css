@@ -1,0 +1,194 @@
+/*
+ * dark-lift-booker — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/booker.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/* ── The proposal: dark-only overrides, keyed by `data-opt` ───────────────────────────────
+ * These ARE the values under review. `current` has no block — it is `tokens.css` as shipped.
+ * The same numbers, with the `--sp-*` / `--rs-*` prefixes, are in the vendor and command
+ * previews, and `.plans/scripts/dark-lift-contrast.mjs` measures them.
+ * ⚠️ `.dark` only. Nothing here may change light mode.
+ */
+.dark [data-opt="a"] {
+  --db-page-bg:        linear-gradient(145deg,#0a0e1b 0%,#0d1323 55%,#0b101d 100%);
+  --db-sidebar-bg:     #0b101d;
+  --db-topbar-bg:      rgba(11,16,29,0.85);
+  --db-card-bg:        rgba(255,255,255,0.035);
+  --db-pill-bg:        rgba(255,255,255,0.045);
+  --db-input-bg:       rgba(255,255,255,0.06);
+  --db-sub-bg:         rgba(255,255,255,0.05);
+  --db-page-accent:    #0b101d;
+  --db-panel-bg:       #141b2d;
+}
+
+/* B and C share everything but the surface values: opaque containers, a hair more border. */
+.dark [data-opt="b"],
+.dark [data-opt="c"],
+.dark [data-opt="c-solid"] {
+  --db-card-border:    rgba(255,255,255,0.08);
+  --db-card-shadow:    0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --db-divider:        rgba(255,255,255,0.08);
+  --db-pill-bg:        rgba(255,255,255,0.05);
+  --db-input-bg:       rgba(255,255,255,0.06);
+  --db-input-border:   rgba(255,255,255,0.12);
+  --db-sub-bg:         rgba(255,255,255,0.05);
+}
+.dark [data-opt="b"] {
+  --db-sidebar-bg:     #0b101e;
+  --db-topbar-bg:      rgba(11,16,30,0.85);
+  --db-card-bg:        #121a2b;
+  --db-page-accent:    #0b101e;
+  --db-panel-bg:       #1a2337;
+}
+.dark [data-opt="c"],
+.dark [data-opt="c-solid"] {
+  --db-page-bg:        linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --db-sidebar-bg:     #0f1526;
+  --db-topbar-bg:      rgba(15,21,38,0.85);
+  --db-card-bg:        #161e31;
+  --db-page-accent:    #0f1526;
+  --db-panel-bg:       #1e283d;
+}
+/* The chosen C: see-through cards (plan B1). `c-solid` keeps the opaque value above as the
+   record of why — inside the shelf its offering cards go DARKER than the well around them. */
+.dark [data-opt="c"] { --db-card-bg: rgba(255,255,255,0.055); }
+/* booker blurs dark cards with a RULE, not a token (`globals.css` `.dark .db-card`). An opaque
+   card has nothing behind it to blur, so B and C drop it — a rule change in the real build. */
+.dark [data-opt="b"] .db-card,
+.dark [data-opt="c-solid"] .db-card { backdrop-filter: none; }
+
+/* ── Division tile labels (booker `--div-*-label`) ────────────────────────────────────────
+ * Light values from `globals.css` `:root`, dark from `.dark`. The tile tint and the monogram
+ * stay light in both themes, as in the app (F26). Option C's five are the retuned values. */
+.dl-tile[data-label="court"] { --lbl: #025afb; --tint: #e1ebff; }
+.dl-tile[data-label="care"]  { --lbl: #0b2d85; --tint: #e2e6f0; }
+.dl-tile[data-label="drive"] { --lbl: #026add; --tint: #e1eefd; }
+.dl-tile[data-label="learn"] { --lbl: #035848; --tint: #e1ebe9; }
+.dl-tile[data-label="home"]  { --lbl: #1b252e; --tint: #e4e5e6; }
+.dl-tile[data-label="pets"]  { --lbl: #b0533e; --tint: #feeeeb; }
+.dark .dl-tile[data-label="court"] { --lbl-dark: #2571fc; }
+.dark .dl-tile[data-label="care"]  { --lbl-dark: #6379b1; }
+.dark .dl-tile[data-label="drive"] { --lbl-dark: #0c77ec; }
+.dark .dl-tile[data-label="learn"] { --lbl-dark: #478579; }
+.dark .dl-tile[data-label="home"]  { --lbl-dark: #747a80; }
+.dark .dl-tile[data-label="pets"]  { --lbl-dark: #f47356; }
+.dark :is([data-opt="c"], [data-opt="c-solid"]) .dl-tile[data-label="court"] { --lbl-dark: #2c75fc; }
+.dark :is([data-opt="c"], [data-opt="c-solid"]) .dl-tile[data-label="care"]  { --lbl-dark: #667cb3; }
+.dark :is([data-opt="c"], [data-opt="c-solid"]) .dl-tile[data-label="drive"] { --lbl-dark: #137bed; }
+.dark :is([data-opt="c"], [data-opt="c-solid"]) .dl-tile[data-label="learn"] { --lbl-dark: #4b877c; }
+.dark :is([data-opt="c"], [data-opt="c-solid"]) .dl-tile[data-label="home"]  { --lbl-dark: #787e84; }
+
+.dl-tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; padding: 16px; }
+.dl-tile { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.dl-tile-box {
+  width: 64px; height: 64px; border-radius: 16px; background: var(--tint);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 800; color: var(--lbl);
+}
+.dl-tile-name { font-size: 12px; font-weight: 700; color: var(--lbl); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dark .dl-tile-name { color: var(--lbl-dark); }
+/* The ratio is a dark-mode measurement; showing it in light would state a false number. */
+.dl-tile-ratio { display: none; font-size: 10px; font-weight: 700; color: var(--db-text); }
+.dark .dl-tile-ratio { display: inline; }
+.dark .dl-tile-ratio[data-fail="true"] { color: #f87171; }
+
+/* ── Preview annotation — deliberately unlike any app surface ────────────────────────────*/
+.dl-banner {
+  border: 1px dashed rgba(148,163,184,0.6); border-radius: 12px;
+  padding: 10px 14px; margin: 16px 16px 4px;
+}
+.dl-banner-title { font-size: 13px; font-weight: 700; color: var(--db-strong); }
+.dl-banner-note { font-size: 12px; color: var(--db-text); margin-top: 3px; line-height: 1.5; }
+
+/* ── Home body ───────────────────────────────────────────────────────────────────────────*/
+.dl { min-height: 100vh; }
+.dl-main { max-width: 1100px; margin: 0 auto; padding-bottom: 32px; }
+.dl-hello { font-size: 22px; font-weight: 800; color: var(--db-strong); padding: 16px 16px 10px; }
+
+.dl-grid { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 16px; align-items: flex-start; }
+.dl-col { flex: 1 1 420px; min-width: 0; }
+.dl-col-side { flex: 0 1 320px; }
+
+.dl-next { padding: 16px; }
+.dl-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dl-card-title { font-size: 14px; font-weight: 700; color: var(--db-strong); }
+.dl-next-what { font-size: 16px; font-weight: 700; color: var(--db-strong); margin-top: 10px; }
+.dl-next-who { font-size: 12px; color: var(--db-text); margin-top: 3px; }
+.dl-sub { padding: 10px 12px; margin-top: 14px; font-size: 13px; }
+.dl-sub p { display: flex; justify-content: space-between; gap: 8px; color: var(--db-text); }
+.dl-sub p span { display: inline-flex; align-items: center; gap: 6px; }
+.dl-sub p + p { margin-top: 6px; }
+.dl-sub b { color: var(--db-strong); }
+.dl-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+.dl-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.dl-badge[data-st="confirmed"] { background: rgba(16,185,129,0.12); color: #047857; }
+.dark .dl-badge[data-st="confirmed"] { background: rgba(16,185,129,0.15); color: #10b981; }
+
+.dl-panel { padding: 14px 16px; }
+.dl-panel-item { font-size: 12px; color: var(--db-text); padding-top: 10px; }
+.dl-panel-item + .dl-panel-item { border-top: 1px solid var(--db-divider); margin-top: 10px; }
+
+/* Preview-only: the shared `.pvb` background outranks `.btn-primary` by source order, so the
+   primary button lost its gradient. booker's primary is the solid blue toggle colour. */
+.pvb.btn-primary { background: var(--db-toggle-on); color: #fff; }
+
+@media (max-width: 640px) {
+  .dl-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dl-col-side { flex: 1 1 100%; }
+}
+
+/* ── The Popular shelf, as `HomeSection` + `PopularShelf` draw it ─────────────────────────
+ * Copied from `booker/components/home/HomeSection/HomeSection.module.css` (`.section`, `.head`,
+ * `.body`) and `PopularShelf.module.css` (`.cards`, `.card`). The section is NOT `.db-card` in
+ * the app — it reads the card tokens directly, with no shadow and no blur — so neither is it here.
+ * Popular's accent is `--div-ezzy-well-deep`, exactly as `HomeSection.module.css:28` sets it. */
+.dl-section {
+  --section-accent: var(--div-ezzy-well-deep);
+  margin: 20px 16px; border-radius: 10px; overflow: hidden;
+  background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+}
+.dl-section-head {
+  display: flex; align-items: center; gap: 12px; padding: 15px 20px;
+  border-bottom: 1px solid var(--db-card-border);
+}
+.dl-section-title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--db-strong); }
+.dl-section-meta { font-size: 12.5px; color: var(--db-text); }
+.dl-spacer { flex: 1; }
+.dl-link {
+  min-height: 44px; min-width: 44px; padding: 0 6px; background: none; border: none;
+  font-size: 13px; font-weight: 700; color: var(--db-toggle-on);
+}
+.dark .dl-link { color: #60a5fa; }
+.dl-section-body { padding: 18px 20px; background: var(--db-sub-bg); }
+.dl-pop { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(268px, 100%), 1fr)); gap: 14px; }
+.dl-pop-card {
+  display: flex; min-width: 0; overflow: hidden; border-radius: 15px;
+  background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+}
+.dl-pop-art {
+  flex: 0 0 78px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--db-text);
+  border-right: 1px solid var(--db-card-border);
+}
+.dl-pop-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; }
+.dl-pop-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--db-strong); min-width: 0; }
+.dl-pop-rank {
+  flex: 0 0 20px; height: 20px; border-radius: 99px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; background: var(--db-pill-bg); border: 1px solid var(--db-pill-border); color: var(--db-text);
+}
+.dl-pop-vendor { font-size: 12px; color: var(--db-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-pop-price { font-size: 13px; font-weight: 700; color: var(--db-strong); }
+@media (max-width: 640px) {
+  .dl-section-head { padding: 12px 14px; }
+  .dl-section-body { padding: 14px; }
+  .dl-section-title { font-size: 15px; }
+  .dl-section-meta { display: none; }
+}

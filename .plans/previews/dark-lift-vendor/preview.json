@@ -1,0 +1,11 @@
+{
+  "app": "vendor",
+  "viewports": [
+    "desktop",
+    "mobile"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ]
+}
