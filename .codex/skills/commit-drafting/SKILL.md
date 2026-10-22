@@ -95,8 +95,25 @@ and read the index column before drafting.
 
 Some tracked files are regenerated from everything in the repo, so staging one drags unrelated
 work into the commit. ⚠️ **`.plans/INDEX.md` is the live example**: `scripts/plans-index.py`
-rebuilds it from *every* plan, so a tree holding two workstreams produces an index containing
-both. Name the coupling and offer the alternative (stage it later, after the other work lands).
+rebuilds it from *every* plan on DISK, so a tree holding two workstreams produces an index
+describing both. Name the coupling when it matters.
+
+⚠️ **Since 2026-10-21 the generator defuses the worst of this itself**: a plan git does not
+track yet is listed **unlinked and marked `(uncommitted)`**, so committing the index can no
+longer ship a dead link to someone else's unshared plan. The row stays visible — another
+session still needs to see that the work exists — without pointing at a file that is not there.
+
+⚠️ **That makes the ORDER load-bearing.** "Tracked" is read from `git ls-files`, which counts
+files that are **staged** as well as committed, so:
+
+```bash
+git add -- .plans/<the plans this commit ships>   # stage the plans FIRST
+python3 scripts/plans-index.py                    # now they count as tracked
+git add -- .plans/INDEX.md                        # stage the index it just wrote
+```
+
+Regenerating **before** staging marks this commit's own plans `(uncommitted)`, which is wrong
+the moment it lands.
 
 ---
 
