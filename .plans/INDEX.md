@@ -17,7 +17,7 @@ Status and scope come from each plan's own header; open the plan before relying 
 | 2026-10-21 | Checkout S2 — verified-read recovery scheduling candidate (uncommitted) | DRAFT | Documentation-only Vendor-first shared checkout; D61 A recovery evide… |  |
 | 2026-10-21 | Checkout S2 — causative conflict-age candidate (uncommitted) | DRAFT | Documentation-only Vendor-first shared payment backend; causative ret… |  |
 | 2026-10-21 | Checkout S2 — critical backlog completeness review (uncommitted) | DRAFT | Documentation-only Vendor-first shared payment backend; critical fina… |  |
-| 2026-10-20 | [Dark mode lift — brighter surfaces for booker, vendor and command](2026-10-20-dark-mode-lift.md) | COMPLETE (planned scope) — option C executed 2026-10-21; S1–S5 and I10-a all ✅, | booker/app/globals.css, vendor/app/globals.css, command/app/globals.c… |  |
+| 2026-10-20 | [Dark mode lift — brighter surfaces for booker, vendor and command](2026-10-20-dark-mode-lift.md) | COMPLETE — option C executed 2026-10-21; S1–S5 and I10-a all ✅, all suites green. | booker/app/globals.css, vendor/app/globals.css, command/app/globals.c… |  |
 | 2026-10-20 | Checkout S2 — SQL assembly ledger (uncommitted) | DRAFT | Documentation-only assembly of the Vendor-first shared payment backen… |  |
 | 2026-10-20 | Checkout S2 — retained read permission and complete-set candidate (uncommitted) | DRAFT | Documentation-only Vendor-first shared checkout recovery; necessary B… |  |
 | 2026-10-20 | S2 final critical-health candidate (uncommitted) | DRAFT | Vendor-first shared checkout backend; documentation-only critical wor… |  |

@@ -4,9 +4,10 @@
 **App / scope:** `booker/app/globals.css`, `vendor/app/globals.css`, `command/app/globals.css` (dark blocks only) — **cross-app, needs approval**.
 ⚠️ Widened 2026-10-21 by **I9**, which is not a globals.css change: it touches
 `vendor/components/ui/Combobox/` and two of its callers. vendor-only, and the only non-CSS item here.
-**Status:** COMPLETE (planned scope) — option C executed 2026-10-21; **S1–S5 and I10-a all ✅**,
-all suites green. ⚠️ Nothing is committed yet (four repos, drafts handed over 2026-10-21), and
-the pinned card's top corners are not machine-verifiable — see Verification.
+**Status:** COMPLETE — option C executed 2026-10-21; **S1–S5 and I10-a all ✅**, all suites green.
+Shipped 2026-10-22: booker **0.29.0**, vendor **0.60.0**, command **0.34.0**, all merged to
+`develop`; the plan record is committed in the root repo. **Verified on staging by the user,
+2026-10-22** — see Verification.
 
 > Make dark mode's containers read as surfaces, not outlines, without changing light mode
 > and without dropping any text below 4.5:1.
@@ -389,14 +390,20 @@ Execution needs the user's explicit go (cross-app change), and runs one stage at
 - Machine: `node .plans/scripts/dark-lift-contrast.mjs` (done for the previews);
   `palette.test.ts` in booker; type-check in each app; Playwright visual suites (dark diffs
   expected, light diffs must be zero).
-- ⚠️ **I10's one unverified detail:** the card is pinned and rounded, so while stuck its top
+- ✅ **Checked on staging by the user, 2026-10-22 — all good.** That covers the three things no
+  machine check here could reach: dark mode on a real display, Explore scrolled with a real
+  result list, and the vendor registration dropdown with the OS in light mode (the condition the
+  original bug was reported under). This is **user acceptance**, not a machine result.
+- ~~⚠️ **I10's one unverified detail:**~~ *(closed by the staging check above.)* The card is
+  pinned and rounded, so while stuck its top
   corners meet the scrollport edge and results *may* show through the two small corner notches.
   The only ExplorePage fixture (`explorechips`) renders **no results** on purpose — `csp.spec.ts`
   asserts it makes no network call — so there is nothing to scroll and no way to capture the
   pinned state locally. **Needs a look in the running app with a real result list.** The
   alternative (`top: 0`) was rejected: it parks the card 20px down and content scrolls through
   the band above it, which is the failure booker's `AGENTS.md` documents.
-- ⚠️ **Still outstanding after S1–S4: nothing is committed** (three separate app repos), and
+- ~~⚠️ **Still outstanding after S1–S4: nothing is committed**~~ *(all four commits landed
+  2026-10-22.)* (three separate app repos), and
   **no screen has been looked at on a real display**. Every claim above is a machine check.
 - Human: look at a real dashboard in dark on a real display — previews use fallback fonts and
   invented fixtures, and an LCD/OLED renders these near-black steps differently.
@@ -462,12 +469,17 @@ Files: `app/globals.css` (15 dark lines + **one new `:root` line**), `app/layout
 - `npx tsc --noEmit` clean · `npm test` **148/148** · lint **24 problems (19 errors, 5 warnings),
   all pre-existing, none in `AppHeader`** · Playwright **43/43**.
 
-#### F11 — command has no screenshot baselines, so I6 was a no-op here
+#### F11 — command has no screenshot baselines, so I6 was a no-op here  ✅ CLOSED (2026-10-22) — accepted, not fixed
 `visual-tests/` holds five **functional** specs (closures, flags, payouts, seo,
 settings-withholding) and **zero `toHaveScreenshot` calls**. The plan assumed all three apps had
 dark baselines to regenerate; command has none. Its 43 tests passing says the header still works,
 **not** that the new colours look right — command is the one app of the three with no visual
 regression net at all. Worth its own follow-up; not opened here.
+
+✅ **Closed 2026-10-22 at the user's call**: they elected not to open a follow-up. ⚠️ Recorded as
+**accepted, not fixed** — command still has no visual regression net, so a future colour or
+layout change there will not be caught by any baseline. The gap is unchanged; only the decision
+to live with it is new.
 
 #### F12 — command's dark `theme-color` used a different gradient stop from the others
 It was `#04060e`, the **first** stop, while booker and vendor used `#070b17`, the **middle** one.
