@@ -115,6 +115,22 @@ where the user gets to redirect before more work is built on top.
 a step. If the plan has no such section, treat each top-level item (B1, I1, …) as
 one stage.
 
+#### Fresh session per stage
+
+The plan file is the handoff between sessions, not the conversation. Long-running
+sessions are the workspace's largest token cost and the main source of context
+drift: every request re-sends the whole conversation, and each automatic summary
+drops detail (measured 2026-10-23, see `.plans/2026-09-24-local-docs-search-rag.md` §8).
+
+- Before ending a stage, make sure the plan file alone is enough to resume: statuses,
+  findings, and the next stage's starting point are written down.
+- In the stage report, recommend starting the next stage in a new session, and say
+  which plan and stage to open it with.
+- This is a recommendation, not a stop: if the user continues in the same session
+  or has given a range override, keep going.
+- The same applies to work without a plan: once the task is done, suggest a new
+  session for unrelated follow-up work rather than carrying it on here.
+
 #### Overrides — the user's word wins
 
 The default yields the moment the user says otherwise. Honour these for the whole

@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-24
 **App / scope:** root repo only — `.plans/`, `architecture/`, `AGENTS.md`, `scripts/`; plus user-level config (`~/.claude.json`, `~/.codex/config.toml`) and a new folder outside every repo, `~/.local/share/rs-docsearch/`. **No app repo is touched.**
-**Status:** IN PROGRESS — S0 ✅ and S2 ✅ COMPLETE (2026-09-24); S4 runs 1–2 = NO-GO (search 15 vs rg 14 of 20). **S1 formal trial running 2026-09-25 → ~2026-10-09** (user decision 2026-09-25): log hard-to-find questions in §8, then re-run S4 (run 3). Server installed at `~/.local/share/rs-docsearch/`, not registered. To resume, see §8.
+**Status:** COMPLETE (closed 2026-10-23, user decision) — S0 ✅ and S2 ✅ shipped; S4 runs 1–2 = NO-GO (search 15 vs rg 14 of 20); the S1 trial logged no questions, so run 3 was skipped. I6, I8, I9 ✖ ABORTED. Server kept installed at `~/.local/share/rs-docsearch/`, not registered. Close-out and reopen triggers in §8.
 
 > **Goal:** make "has this already been decided / where was this discussed?" answerable across ~125 plans and 15 architecture docs, for both Claude Code and Codex. Start with the cheapest fix that could work, and add semantic retrieval only if measurement shows it is needed. Every step must be removable without trace.
 
@@ -131,7 +131,8 @@ Other context:
   Real workspace (index in the scratchpad): 157 files, 4,744 chunks, 13 MB; full build 0.56 s, no-op 0.014 s; `git status` unchanged. 4 sample questions (payout fee withholding, overnight schedules, refunds, kiosk in first release) each put the right plan or doc in the top results.
   ✅ Installed 2026-09-24 (user-approved): `server.py`, `allowlist.txt`, `test_server.py` copied to `~/.local/share/rs-docsearch/`. The installed copy passes 6/6 tests, built its own `index.sqlite` (157 files, 0.82 s; no-op 0.012 s) and answered a live initialize + search_docs exchange. Not registered with Claude Code or Codex. Remove with `trash ~/.local/share/rs-docsearch`. -->
 
-### I6 — Register with both agents  ⬜ TODO  *(approval gate: edits user-level config; depends on I5, D4)*
+### I6 — Register with both agents  ✖ ABORTED (2026-10-23)  *(approval gate: edits user-level config; depends on I5, D4)*
+**Why aborted:** I7 was NO-GO and the S1 trial logged no hard-to-find questions; see §8 close-out.
 **Fix approach:**
 - **Claude Code:** `claude mcp add --scope user rs-docsearch -- ~/.local/share/rs-docsearch/.venv/bin/python ~/.local/share/rs-docsearch/server.py`.
 - **Codex:** a `[mcp_servers.rs-docsearch]` block in `~/.codex/config.toml` with the same command.
@@ -147,14 +148,16 @@ Other context:
 **Go/no-go:** adopt (S5) only if (b) beats (a) on at least 3 of 10 questions. Consider semantic embeddings (I8) only if most of (b)'s misses are vocabulary mismatches.
 **Verification:** the results table in §6 is filled in.
 
-### I8 — Semantic embeddings (hybrid)  ⏸ PARKED
-**Why parked:** it adds a model download plus `fastembed`/ONNX and `sqlite-vec` dependencies, and the gain is unproven. **Unblock condition:** I7 shows most misses are vocabulary mismatches.
+### I8 — Semantic embeddings (hybrid)  ✖ ABORTED (2026-10-23)
+**Why aborted:** never unblocked (I7 misses were ranking spread, not vocabulary), and the 2026-10-23 transcript analysis put doc lookups at a few percent of token cost at most; see §8 close-out. Reopen triggers in §8.
+**Originally parked because:** it adds a model download plus `fastembed`/ONNX and `sqlite-vec` dependencies, and the gain is unproven. **Unblock condition:** I7 shows most misses are vocabulary mismatches.
 **Sketch, if unblocked:**
 - Small local CPU model (`bge-small-en-v1.5` class) and `sqlite-vec` table beside FTS5.
 - Merge the two rankings with reciprocal-rank fusion. The same `search_docs` signature, so no config changes.
 - Needs its own approval.
 
-### I9 — Optional-use note in `AGENTS.md`  ⬜ TODO  *(depends on I7 go)*
+### I9 — Optional-use note in `AGENTS.md`  ✖ ABORTED (2026-10-23)  *(depends on I7 go)*
+**Why aborted:** I7 was NO-GO and nothing was registered (I6), so there is no tool to point at.
 **File:** `AGENTS.md`, new short subsection after **Workspace**.
 **Text (draft):** "If the `rs-docsearch` MCP tool is available, use it for *has this been decided / where was this discussed* questions across `.plans/` and `architecture/`. Use `rg` for code and exact identifiers (table names, `D#`/`B#`, migration numbers). Always open the cited file and check the plan's `Status:` before relying on a result."
 **Guard against a weak implementation:** the wording must be a no-op when the server is absent. It must not make the tool required.
@@ -286,3 +289,18 @@ Resume prompt:
 > Resume `.plans/2026-09-24-local-docs-search-rag.md` at §8: the S1 trial is over. Re-run the S4 evaluation as run 3 using the questions in the §8 trial table, following the run-2 method in §6 exactly: lock in each question's answer key (from the table's last column) and one `rg` pattern before running anything; `rg -c -i` over exactly the files the server indexes (import `candidate_files()` from `~/.local/share/rs-docsearch/server.py`) plus `.plans/INDEX.md`, files ranked by matching-line count; search via `python3 ~/.local/share/rs-docsearch/server.py --search "<question>" --k 15`, deduplicated to files; score "an expected file in the top 3". Record run 3 in §6. Then apply the I7 rule: register (S3) only if search has ≥3 search-only wins; otherwise propose the close-out (I6/I8/I9 ✖ ABORTED, plan COMPLETE) and ask me whether to keep or remove the installed server. Do not register anything or edit my Claude Code or Codex config without asking.
 
 **If fewer than ~5 rows were logged:** that is itself the result. S0 was enough in practice; propose the close-out above without a run 3.
+
+### Close-out (2026-10-23)
+
+**Trial result:** the S1 trial table above has no rows after four weeks (2026-09-25 → 2026-10-23). Per the rule above, run 3 was skipped: S0 (`AGENTS.md` routing, status headers, `INDEX.md`) was enough in practice. The user also noted that nobody prompted the logging, so the empty log is weak evidence, not proof.
+
+**Research check (2026-10-23):** current practice for coding agents favours agentic search (iterative grep and reads) over vector retrieval for code; hybrid BM25 + embeddings is the accepted design where RAG is used, for large prose corpora queried by meaning. Sources were reviewed in the session, not stored here.
+
+**Transcript analysis (2026-10-23, read-only):** 20 Claude Code sessions in `/home/joshua/RS` across `~/.claude` and `~/.claude-mine`, 8,487 requests, 2026-09-17 → 2026-10-22, using the `usage` fields and tool calls in each transcript.
+- Tool calls touching `.plans/`, `architecture/`, `AGENTS.md` or `INDEX.md`: 14% of tool calls and 18% of tool-result tokens. Both are upper bounds, since they include reading a plan to execute it. All tool results together were about 0.5% of tokens processed.
+- Context re-sent per request averaged ~400K tokens (3.4B processed in total, mostly cache reads). The two longest sessions (12 and 14 days) accounted for 55% of it, averaging ~500K per request and peaking near the 1M limit. One session grew from ~230K to ~780K per request between its first and last quarter. 34 automatic summaries occurred, up to 10 in one four-day session.
+- Conclusion: a search tool could cut a few percent of token cost at most and does nothing for drift within a session. Session length is the larger lever. Follow-up: a "Fresh session per stage" rule was added to `AGENTS.md` → Execution Cadence on 2026-10-23.
+
+**Shipped:** I1–I5, I7. **Aborted:** I6, I8, I9 (reasons on each item). **Kept:** the unregistered server and its index at `~/.local/share/rs-docsearch/`; remove with `trash ~/.local/share/rs-docsearch` if no longer wanted. Note: starting `server.py` with any arguments (even `--help`) rebuilds its index.
+
+**Reopen triggers:** reconsider if `.plans/` passes ~300 plans (169 on 2026-10-23, up from 125 on 2026-09-24), if agents are regularly seen landing on superseded plans despite `INDEX.md`, or if searching past session transcripts becomes a frequent need. Start with status/app/date metadata filters and heading-level chunks on the existing FTS5 index, before considering embeddings (I8).
