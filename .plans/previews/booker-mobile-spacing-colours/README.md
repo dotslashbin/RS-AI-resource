@@ -73,9 +73,11 @@ Static fixtures only: nothing is saved, no Supabase, no app imports, no network.
 - **P1 — preview tooling: `_shared/booker.css` predates the dark-mode lift.** Its dark surfaces
   are card 0.028 / sub 0.04 / page `#04060e…`; `booker/app/globals.css` has 0.055 / 0.05 /
   `#080c18…` since `.plans/2026-10-20-dark-mode-lift.md`. Any booker preview built today shows
-  dark mode darker than the app. Worked around here with one scoped `.dark {}` block in
-  `preview.css`; the shared file is **not** edited (out of scope for this task). *Preview-only;
-  the real build is unaffected.* Left for the user to decide whether to resync.
+  dark mode darker than the app. *Preview-only; the real build is unaffected.* ✅ **Resolved
+  2026-10-24 at the user's request:** `_shared/booker.css`, `vendor.css` and `command.css` were
+  resynced (41 dark values; every light value already matched), and the scoped `.dark {}`
+  workaround that stood in `preview.css` until then was removed. Re-run: 24 cells, 0 failures,
+  same contrast figures.
 - **P2 — today's dark labels fail AA on their real surface (plan F1).** Seven of thirteen
   measure **3.51–4.29:1** against the section body they sit on (10px bold text needs 4.5:1).
   `--div-*-label` was tuned against the page gradient, and the dark-mode lift then brightened

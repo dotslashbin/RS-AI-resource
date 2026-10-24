@@ -1,7 +1,9 @@
 /*
  * command — shared preview tokens.
  *
- * ⚠️ SNAPSHOT, NOT AN IMPORT. Copied from `command/app/globals.css` on 2026-10-18
+ * ⚠️ SNAPSHOT, NOT AN IMPORT. Copied from `command/app/globals.css` on 2026-10-18;
+ * DARK values resynced 2026-10-24 after the dark-mode lift (`.plans/2026-10-20-dark-mode-lift.md`),
+ * which had changed the app but not this copy. Line numbers below are from the first copy
  * (`:root` at :8–29, `.dark` at :72–93). A copy by design; it GOES STALE when command's tokens
  * change.
  *
@@ -44,26 +46,26 @@
 .dark {
   color-scheme: dark;
 
-  --rs-page-gradient:  linear-gradient(145deg,#04060e 0%,#070b17 55%,#05080f 100%);
-  --rs-sidebar-bg:     #05080f;
+  --rs-page-gradient:  linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --rs-sidebar-bg:     #0f1526;
   --rs-sidebar-border: rgba(255,255,255,0.055);
-  --rs-topbar-bg:      rgba(5,8,15,0.85);
+  --rs-topbar-bg:      rgba(15,21,38,0.85);
   --rs-topbar-border:  rgba(255,255,255,0.06);
-  --rs-tabbar-bg:      rgba(5,8,15,0.8);
+  --rs-tabbar-bg:      rgba(15,21,38,0.8);
   --rs-tabbar-border:  rgba(255,255,255,0.06);
-  --rs-card-bg:        rgba(255,255,255,0.028);
-  --rs-card-border:    rgba(255,255,255,0.07);
-  --rs-card-shadow:    0 8px 32px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.05);
-  --rs-pill-bg:        rgba(255,255,255,0.04);
+  --rs-card-bg:        rgba(255,255,255,0.055);
+  --rs-card-border:    rgba(255,255,255,0.08);
+  --rs-card-shadow:    0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --rs-pill-bg:        rgba(255,255,255,0.05);
   --rs-pill-border:    rgba(255,255,255,0.07);
-  --rs-input-bg:       rgba(255,255,255,0.05);
-  --rs-input-border:   rgba(255,255,255,0.1);
+  --rs-input-bg:       rgba(255,255,255,0.06);
+  --rs-input-border:   rgba(255,255,255,0.12);
   --rs-input-color:    #e2e8f0;
-  --rs-sub-bg:         rgba(255,255,255,0.04);
-  --rs-divider:        rgba(255,255,255,0.07);
+  --rs-sub-bg:         rgba(255,255,255,0.05);
+  --rs-divider:        rgba(255,255,255,0.08);
   --rs-strong:         #f1f5f9;
   --rs-text:           #94a3b8;
-  --rs-panel-bg:       #0c1220;
+  --rs-panel-bg:       #1e283d;
   --rs-panel-border:   rgba(255,255,255,0.08);
   --rs-panel-shadow:   0 8px 32px rgba(0,0,0,0.5),0 2px 8px rgba(0,0,0,0.3);
 }

@@ -363,6 +363,11 @@ the "light diffs must be zero" rule from the earlier stages does **not** apply t
   It ships in its own stage for that reason.
 
 ## DEFERRED / COSMETIC
+- **Follow-up found and closed 2026-10-24** (by `.plans/2026-10-23-booker-mobile-spacing-colours.md`
+  F3): the lift changed the three apps' dark tokens but not the design-preview snapshots in
+  `.plans/previews/_shared/{booker,vendor,command}.css`, so previews built afterwards showed the
+  old, darker surfaces. Resynced 2026-10-24 (41 dark values). The `dark-lift-*` previews were not
+  re-run and keep the palette they were reviewed in.
 - **ezzy-vendor-mobile** ports `--sp-*` verbatim "so the two clients stay visually identical"
   (`ezzy-vendor-mobile/src/theme/tokens.ts:1–5`). Changing vendor web makes mobile drift.
   Out of this plan's scope (web apps only) — needs its own follow-up, which is a cheap token

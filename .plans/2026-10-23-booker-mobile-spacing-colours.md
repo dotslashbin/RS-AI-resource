@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-23
 **App / scope:** `booker/` web only — four CSS modules on Home (`DivisionStrip`, `HomeSection`, `HomePage`, `LocationChip`), their visual baselines, and two comments/docs. No `.tsx`, no hook, no token value, no asset. No vendor, command, backbone, Expo, API, schema, security or dependency change.
-**Status:** COMPLETE (2026-10-24) — every item I1–I10 ✅; S1 and S2 executed and verified (visual suite 121/121 twice); real-phone check passed (user, 2026-10-24); committed by the user — booker `80d58f7`, root `5a36c5a`. **Not yet on staging:** the user will push it later. F3 ⏸ parked (preview tooling, outside this plan).
+**Status:** COMPLETE (2026-10-24) — every item I1–I10 ✅; S1 and S2 executed and verified (visual suite 121/121 twice); real-phone check passed (user, 2026-10-24); committed by the user — booker `80d58f7`, root `5a36c5a`. **Not yet on staging:** the user will push it later. F3 ✅ resolved 2026-10-24 (shared preview tokens resynced).
 
 > Make the Home screen's division labels readable and consistent with the logos they caption,
 > and give a phone more of the page by trimming the hero ("What do you need today?") and the
@@ -284,11 +284,16 @@ separate item.
 "today?" alone. One declaration, no effect where it fits on one line. Not done because you did not
 ask for it.
 
-### F3 — Preview tooling: `_shared/booker.css` predates the dark-mode lift  ⏸ PARKED (2026-10-24)
-> ⏸ PARKED — outside this plan's scope (the task forbade editing shared preview tooling) and it affects previews only, never the app. **Unblock:** the user asks for `_shared/booker.css` to be resynced with `booker/app/globals.css`; the next booker preview will otherwise show dark mode darker than the app.
-Dark card 0.028 / sub 0.04 vs the app's 0.055 / 0.05. Every booker preview built today shows dark
-mode darker than the app. Worked around inside this preview's `preview.css` only (the task forbade
-editing shared tooling). Not an app defect.
+### F3 — Preview tooling: `_shared/*.css` predated the dark-mode lift  ✅ DONE (2026-10-24)
+> ✅ DONE (2026-10-24, at the user's request) — wider than first recorded: all three shared
+> snapshots (`booker.css` 13, `vendor.css` 15, `command.css` 13 values) still held the pre-lift
+> dark surfaces; every light value already matched. Each var present in both files was set to
+> its `globals.css` value, block by theme, and a second dry run found 0 differences. Each file's
+> header now dates the resync. This preview's local `.dark {}` override was removed and the
+> preview re-run (24 cells, 0 failures; contrast figures unchanged). ⚠️ **Older previews were
+> deliberately NOT re-run** — the runner re-syncs `tokens.css` on every run, so re-running
+> `booker-ui` or a `dark-lift-*` preview would change the dark palette of a design already
+> reviewed. Their committed copies stay as the record of what was approved.
 
 ### F4 — The hero's find button is 36 × 36  — noted, out of scope
 `HomePage.module.css:219`. Clears WCAG 2.2 AA (24px) deliberately per its own comment (redesign
@@ -382,7 +387,7 @@ and the user's real-phone check (2026-10-24: swipe, chip taps, focus).
 **Still with the user:** pushing to staging (and later production). The staging look is not
 part of this plan's verification; if anything differs there, reopen with a new item.
 
-**Parked / noted, not done:** F3 ⏸ (preview tooling resync); F4 (36px find button), F5 (Drive's
+**Noted, not done:** F4 (36px find button), F5 (Drive's
 small mark), F7 (320px shelf header wraps) — all pre-existing and out of scope.
 
 **Docs updated:** `booker/AGENTS.md` (in `80d58f7`), `architecture/portals.md` → Booker → Home

@@ -10,27 +10,6 @@
  * `data-` attribute with its mapping here.
  */
 
-/*
- * ⚠️ THE ONE TOKEN RESTATEMENT, AND WHY (README → Findings, P1). `_shared/booker.css` still
- * carries booker's dark surfaces from BEFORE the dark-mode lift
- * (`.plans/2026-10-20-dark-mode-lift.md`): card 0.028 / sub 0.04 / page #04060e…, where
- * `booker/app/globals.css` now has 0.055 / 0.05 / #080c18…. Every contrast figure in this
- * preview is about the label on THAT surface, so the preview uses the app's current values.
- * The task forbids editing shared tooling, so the override lives here, scoped to dark only.
- */
-.dark {
-  --db-page-bg:     linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
-  --db-card-bg:     rgba(255,255,255,0.055);
-  --db-card-border: rgba(255,255,255,0.08);
-  --db-card-shadow: 0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
-  --db-pill-bg:     rgba(255,255,255,0.05);
-  --db-pill-border: rgba(255,255,255,0.07);
-  --db-input-bg:    rgba(255,255,255,0.06);
-  --db-input-border: rgba(255,255,255,0.12);
-  --db-sub-bg:      rgba(255,255,255,0.05);
-  --db-divider:     rgba(255,255,255,0.08);
-}
-
 /* ── Today's division label colours (`--div-*-label`, globals.css:176–189 / 306–315) ──── */
 [data-division="ezzy-court"] { --lbl: #025afb; } .dark [data-division="ezzy-court"] { --lbl: #2c75fc; }
 [data-division="ezzy-care"]  { --lbl: #0b2d85; } .dark [data-division="ezzy-care"]  { --lbl: #667cb3; }
