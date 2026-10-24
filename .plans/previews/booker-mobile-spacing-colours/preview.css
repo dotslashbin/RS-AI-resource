@@ -1,0 +1,262 @@
+/*
+ * booker-mobile-spacing-colours — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/booker.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/*
+ * ⚠️ THE ONE TOKEN RESTATEMENT, AND WHY (README → Findings, P1). `_shared/booker.css` still
+ * carries booker's dark surfaces from BEFORE the dark-mode lift
+ * (`.plans/2026-10-20-dark-mode-lift.md`): card 0.028 / sub 0.04 / page #04060e…, where
+ * `booker/app/globals.css` now has 0.055 / 0.05 / #080c18…. Every contrast figure in this
+ * preview is about the label on THAT surface, so the preview uses the app's current values.
+ * The task forbids editing shared tooling, so the override lives here, scoped to dark only.
+ */
+.dark {
+  --db-page-bg:     linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --db-card-bg:     rgba(255,255,255,0.055);
+  --db-card-border: rgba(255,255,255,0.08);
+  --db-card-shadow: 0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --db-pill-bg:     rgba(255,255,255,0.05);
+  --db-pill-border: rgba(255,255,255,0.07);
+  --db-input-bg:    rgba(255,255,255,0.06);
+  --db-input-border: rgba(255,255,255,0.12);
+  --db-sub-bg:      rgba(255,255,255,0.05);
+  --db-divider:     rgba(255,255,255,0.08);
+}
+
+/* ── Today's division label colours (`--div-*-label`, globals.css:176–189 / 306–315) ──── */
+[data-division="ezzy-court"] { --lbl: #025afb; } .dark [data-division="ezzy-court"] { --lbl: #2c75fc; }
+[data-division="ezzy-care"]  { --lbl: #0b2d85; } .dark [data-division="ezzy-care"]  { --lbl: #667cb3; }
+[data-division="ezzy-well"]  { --lbl: #5c736e; } .dark [data-division="ezzy-well"]  { --lbl: #75918b; }
+[data-division="ezzy-drive"] { --lbl: #026add; } .dark [data-division="ezzy-drive"] { --lbl: #137bed; }
+[data-division="ezzy-pets"]  { --lbl: #b0533e; } .dark [data-division="ezzy-pets"]  { --lbl: #f47356; }
+[data-division="ezzy-food"]  { --lbl: #b91c1c; } .dark [data-division="ezzy-food"]  { --lbl: #fca5a5; }
+[data-division="ezzy-home"]  { --lbl: #1b252e; } .dark [data-division="ezzy-home"]  { --lbl: #787e84; }
+[data-division="ezzy-ride"]  { --lbl: #0369a1; } .dark [data-division="ezzy-ride"]  { --lbl: #7dd3fc; }
+[data-division="ezzy-learn"] { --lbl: #035848; } .dark [data-division="ezzy-learn"] { --lbl: #4b877c; }
+[data-division="ezzy-stay"]  { --lbl: #3f5573; } .dark [data-division="ezzy-stay"]  { --lbl: #a8c0dc; }
+[data-division="ezzy-work"]  { --lbl: #b15401; } .dark [data-division="ezzy-work"]  { --lbl: #fd7802; }
+[data-division="ezzy-park"]  { --lbl: #ce330a; } .dark [data-division="ezzy-park"]  { --lbl: #ed3b0c; }
+[data-division="ezzy-law"]   { --lbl: #85694d; } .dark [data-division="ezzy-law"]   { --lbl: #c69d73; }
+
+/* ── Preview page furniture (not part of the design) ─────────────────────────────────── */
+.pg { max-width: 1080px; margin: 0 auto; padding: 20px 16px 10px; }
+.pg-h { font-size: 19px; font-weight: 800; color: var(--db-strong); }
+.pg-s { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--db-text); max-width: 80ch; }
+.pg-s code, .d1 code, .key code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+
+.tag {
+  display: inline-block; margin: 0 0 8px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+}
+.tag-recon { background: var(--db-pill-bg); border: 1px dashed var(--db-text); color: var(--db-text); }
+.tag-prop  { background: var(--db-toggle-on); color: #fff; }
+
+.cmp { display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; padding: 6px 16px 28px; }
+.cmp-390 .cmp-col { width: 390px; max-width: 100%; }
+.cmp-320 .cmp-col { width: 320px; max-width: 100%; }
+.cmp .hp-frame { border: 1px dashed var(--db-divider); border-radius: 14px; overflow: hidden; }
+.solo { padding: 0 0 28px; }
+.solo .tag { margin-left: 16px; }
+
+.meas {
+  width: min(760px, calc(100% - 32px)); margin: 6px auto 10px; border-collapse: collapse;
+  font-size: 12.5px; color: var(--db-text);
+}
+.meas th, .meas td { padding: 6px 8px; border-bottom: 1px solid var(--db-divider); text-align: left; }
+.meas thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+.meas td { color: var(--db-strong); font-weight: 700; white-space: nowrap; }
+
+/* ══ The reconstruction — values copied from booker's module CSS ═══════════════════════ */
+/* Each frame is its own container so a 390px frame takes the phone rules on any viewport. */
+.hp-frame { container: hp / inline-size; background: var(--db-page-bg); }
+
+/* AppShell's scroll container is `p-5`; HomePage `.page` is a 18px-gap column. */
+.hp {
+  display: flex; flex-direction: column; gap: 18px;
+  max-width: 1080px; margin: 0 auto; padding: 20px;
+  line-height: 1.5; /* Tailwind preflight's html line-height, which booker inherits */
+}
+
+/* HomePage.module.css — hero */
+.hero {
+  display: flex; flex-direction: column; gap: 15px; padding: 22px 26px;
+  border-radius: 18px; background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+  box-shadow: var(--db-card-shadow);
+}
+.heading { font-size: 27px; font-weight: 800; letter-spacing: -0.7px; color: var(--db-strong); }
+.sub { font-size: 14px; color: var(--db-text); margin-top: 6px; }
+.heroActions { display: flex; gap: 10px; }
+.search {
+  flex: 1; display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 8px 0 18px;
+  border-radius: 13px; border: 1px solid var(--db-input-border); background: var(--db-input-bg);
+  font-size: 15px;
+}
+.searchPh { flex: 1; min-width: 0; color: var(--db-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.searchGo {
+  width: 36px; height: 36px; flex: none; display: grid; place-items: center;
+  border-radius: 10px; background: var(--db-toggle-on); color: #fff;
+}
+
+/* LocationChip.module.css — `.chip`, `.unset`, `.place`, `.change` */
+.chip {
+  margin-top: 14px; display: inline-flex; align-self: flex-start; width: fit-content; max-width: 100%;
+  align-items: center; gap: 7px; min-height: 44px; padding: 0 15px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; line-height: 1.5;
+  background: var(--db-menu-btn-bg); border: 1px solid var(--db-menu-btn-border); color: var(--db-menu-btn-color);
+}
+.chip.unset { background: var(--db-pill-bg); border-color: var(--db-pill-border); color: var(--db-strong); }
+.chip svg { flex-shrink: 0; }
+.city { white-space: nowrap; }
+.cdot { opacity: 0.5; }
+.place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.change { font-weight: 500; opacity: 0.85; }
+.chips-frame + .chips-frame { margin-top: 10px; }
+.chips-frame { border: 1px dashed var(--db-divider); border-radius: 14px; overflow: hidden; }
+
+/* HomeSection.module.css */
+.sec {
+  --section-accent: var(--db-toggle-on);
+  border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); overflow: hidden;
+}
+.sec[data-tone="near"] { --section-accent: var(--db-tone-popular-fg); }
+.head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--db-card-border); }
+.title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--db-strong); }
+.meta { font-size: 12.5px; color: var(--db-text); }
+.spacer { flex: 1; }
+.link { padding: 3px 0; font-size: 13px; font-weight: 700; color: var(--db-menu-btn-color); }
+.body { padding: 18px 20px; background: var(--db-sub-bg); }
+.nextStub { height: 72px; border-radius: 13px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); }
+
+/* DivisionStrip.module.css — desktop grid */
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; }
+.tile {
+  display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 6px 0 4px;
+  border: none; background: none; color: inherit; font-family: inherit;
+}
+.tileDisc {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 84px; height: 84px; border-radius: 999px;
+}
+.tileIcon { display: block; width: 46px; height: 46px; }
+.tileIcon img, .key-logo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* `.db-mark`: a white silhouette in dark (globals.css:495). */
+.dark .tileIcon img, .dark .key-logo img { filter: brightness(0) invert(1); }
+.tileName {
+  display: block; max-width: 100%; text-align: center; font-size: 12px; font-weight: 700;
+  letter-spacing: -0.1px; color: var(--lbl); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* `pages` measures 1 above 640px, so the app renders no dots there. */
+.dots { display: none; justify-content: center; gap: 6px; margin-top: 10px; }
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--db-divider); }
+.dotOn { width: 18px; background: var(--db-toggle-on); }
+
+/* ── Today's phone rules (every `@media (max-width: 640px)` block involved) ──────────── */
+@container hp (max-width: 640px) {
+  .heading { font-size: 22px; }
+  .hero { padding: 18px; }
+  .heroActions { flex-direction: column; }
+  .search { flex: none; width: 100%; }
+
+  .meta { display: none; }
+  .head { padding: 12px 14px; }
+  .body { padding: 14px; }
+  .title { font-size: 15px; }
+
+  .strip {
+    grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(2, auto);
+    grid-auto-columns: 72px; gap: 14px 10px;
+    max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none;
+  }
+  .tile { gap: 6px; padding: 2px 0; scroll-snap-align: start; min-width: 44px; }
+  .tileDisc { width: 58px; height: 58px; }
+  .tileIcon { width: 32px; height: 32px; }
+  .tileName { font-size: 10px; max-width: 72px; }
+  .dots { display: flex; }
+}
+
+/* ══ PROPOSED — the whole design change is the rules below ═════════════════════════════ */
+
+/* Both widths: labels follow one readable ink, not each division's colour (plan I1, D1-A). */
+.hp[data-variant="proposed"] .tileName { color: var(--db-strong); }
+
+/* Phone only. Desktop keeps every value above. */
+@container hp (max-width: 640px) {
+  /* Hero — HomePage.module.css (plan I4) */
+  .hp[data-variant="proposed"] .hero { padding: 16px; gap: 12px; }
+  /* 22px → 19px on a phone (plan I10, user request 2026-10-23). Still the largest text on the
+     screen — section titles are 15px — so it keeps its place at the top of the hierarchy.
+     Tracking eased from -0.7px in proportion, so the smaller size does not look cramped. */
+  .hp[data-variant="proposed"] .heading { font-size: 19px; letter-spacing: -0.5px; line-height: 1.25; }
+  /* The sub-line is not drawn on a phone (plan I8, user request 2026-10-23). The search
+     field's own placeholder and aria-label still say what it does. */
+  .hp[data-variant="proposed"] .sub { display: none; }
+  .hp[data-variant="proposed"] .search { height: 48px; }
+
+  /*
+   * LocationChip.module.css — margin (plan I5) and a smaller pill (plan I9, D3-A).
+   *
+   * ⚠️ SMALLER TO THE EYE, NOT TO THE FINGER. The box stays `min-height: 44px`; 6px of
+   * TRANSPARENT border top and bottom with `background-clip: padding-box` leaves a 32px pill
+   * visible, and its outline is an INSET shadow, which paints at the padding edge — exactly
+   * the pill's edge. Hover's background change follows the clip with no extra rule.
+   */
+  .hp[data-variant="proposed"] .chip {
+    margin-top: 0; gap: 6px; padding: 0 12px; font-size: 12px;
+    border-width: 6px 0; border-color: transparent; background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px var(--db-menu-btn-border);
+  }
+  .hp[data-variant="proposed"] .chip.unset { border-color: transparent; box-shadow: inset 0 0 0 1px var(--db-pill-border); }
+  .hp[data-variant="proposed"] .chip svg { width: 13px; height: 13px; }
+
+  /* Division widget body — HomeSection.module.css, divisions tone only (plan I3) */
+  .hp[data-variant="proposed"] .sec[data-tone="divisions"] .body { padding: 10px 12px; }
+
+  /* DivisionStrip.module.css (plans I2, I3) */
+  /* 10px, not 8: at 8 a label sat nearly as close to the NEXT row's logo as to its own. */
+  .hp[data-variant="proposed"] .strip { gap: 10px; }
+  .hp[data-variant="proposed"] .tile { gap: 4px; padding: 0; }
+  .hp[data-variant="proposed"] .tileDisc { width: 44px; height: 44px; }
+  .hp[data-variant="proposed"] .dots { margin-top: 8px; }
+}
+
+/* ── Label key (screen 4) ─────────────────────────────────────────────────────────────── */
+.keywrap {
+  max-width: 760px; margin: 6px auto 16px; overflow-x: auto;
+  border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+}
+.key { width: 100%; border-collapse: collapse; background: var(--db-sub-bg); font-size: 12px; color: var(--db-text); }
+.key th, .key td { padding: 7px 10px; border-bottom: 1px solid var(--db-divider); text-align: left; vertical-align: middle; }
+.key thead th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; }
+.key-logo { display: block; width: 32px; height: 32px; }
+.key .tileName { display: inline-block; font-size: 12px; text-align: left; }
+.key-cur { color: var(--lbl); margin-right: 8px; }
+.key-new { color: var(--db-strong); }
+.ratio { font-weight: 700; color: var(--db-strong); white-space: nowrap; }
+.ratio.is-fail { color: #dc2626; }
+.dark .ratio.is-fail { color: #fca5a5; }
+.ratio.is-fail::after { content: " ✗"; }
+.only-dark { display: none; }
+.dark .only-dark { display: inline; }
+.dark .only-light { display: none; }
+
+.d1 { max-width: 760px; margin: 0 auto 28px; padding: 0 16px; }
+.d1-h { font-size: 14px; font-weight: 800; color: var(--db-strong); margin-bottom: 8px; }
+.d1-row { display: flex; flex-wrap: wrap; gap: 14px; }
+.d1-opt { flex: 1 1 280px; font-size: 12.5px; line-height: 1.5; color: var(--db-text); }
+.d1-opt b { color: var(--db-strong); }
+/* Fixed dark sample in both themes: the worst-stop composite of the section body (#212530). */
+.d1-swatch {
+  display: block; margin-bottom: 6px; padding: 10px 12px; border-radius: 8px; background: #212530;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px; word-spacing: 18px;
+}
+.d1-swatch[data-opt="a"] { color: #f1f5f9; }
+.d1-swatch[data-opt="b"] { color: #ffffff; }

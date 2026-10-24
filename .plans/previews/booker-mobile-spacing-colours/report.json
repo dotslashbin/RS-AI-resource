@@ -1,0 +1,39 @@
+{
+  "topic": "booker-mobile-spacing-colours",
+  "app": "booker",
+  "date": "2026-10-24T02:25:26.767Z",
+  "cells": 24,
+  "screens": [
+    {
+      "id": "compare",
+      "label": "1 · Phone: current vs proposed (390px)"
+    },
+    {
+      "id": "current",
+      "label": "2 · Current (reconstruction) at this viewport"
+    },
+    {
+      "id": "proposed",
+      "label": "3 · Proposed at this viewport"
+    },
+    {
+      "id": "labels",
+      "label": "4 · Label colours and contrast"
+    },
+    {
+      "id": "narrow",
+      "label": "5 · Narrow phone (320px)"
+    },
+    {
+      "id": "chips",
+      "label": "6 · Location chip, all three states (390px)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

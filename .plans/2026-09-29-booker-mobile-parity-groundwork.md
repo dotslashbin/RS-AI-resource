@@ -63,6 +63,9 @@ The disc is `StyleSheet` geometry; the palette becomes the TS lookup in C2.
 render test; the visual match is a human check.
 
 ### C2 — D22-d: division colours derived from the logos  ⬜ TODO
+> **Note 2026-10-23:** web no longer uses `--div-*-label` for the Home tile caption — it is
+> `--db-strong` in both themes (`.plans/2026-10-23-booker-mobile-spacing-colours.md` I1). Tints
+> and `-deep` are unchanged. Whether mobile follows is this plan's decision; nothing RN was touched.
 **Web state (shipped 2026-09-29):** `booker/app/globals.css` — `--div-*-tile`, `--div-*-deep`
 and `--div-*-label` for ten divisions, canvas-sampled from the logo PNGs with an alpha gate, then
 darkened until white-on-deep clears **7:1** (lowest 7.03) and every label pair was contrast-measured
