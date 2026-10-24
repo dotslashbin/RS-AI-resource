@@ -152,6 +152,12 @@ Two things an override never buys:
 - **It does not mean push through a blocker.** If a stage uncovers something that
   makes later stages wrong, stop and say so — finish what is independent of the
   problem first, then report.
+- **It does not skip the staging gate.** Where a plan has a release
+  (`.claude/skills/plan-authoring/SKILL.md` §12), the run stops after the staging
+  stage. Production only starts once the user confirms staging is green, or makes a
+  dated decision to go ahead with a staging check parked. This is the one extra
+  stop per plan: problems found mid-stage are still written into the plan as
+  findings without stopping, and decisions are settled before execution starts (§7).
 
 #### Always report after execution
 
