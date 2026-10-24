@@ -43,11 +43,20 @@ widgets — those moved to Activity. Sections, top to bottom:
 
 - **Hero**: "What do you need today?" and a **real search field** — not a button, and there is no
   separate CTA. Its submit control is a **magnifier** (2026-10-02); the field carries no second,
-  decorative magnifier, so the one search mark on screen is the one that acts.
+  decorative magnifier, so the one search mark on screen is the one that acts. Under it, the
+  **location chip** (`LocationChip`) — "Set your location" or the chosen city.
+  **On a phone (≤640px, 2026-10-23)** the hero is compact: a 19px heading (27px on desktop) with
+  balanced wrapping, **no sub-line** (hidden by CSS, still rendered on desktop), a 48px field, and
+  the chip drawn as a **32px pill inside an unchanged 44px tap box** — smaller to the eye, not to
+  the finger. Plan `.plans/2026-10-23-booker-mobile-spacing-colours.md`.
 - **In-progress strip** — the one personal thing on Home, and only while a booking is actually
   running. Hidden otherwise.
-- **Browse by division** — all 13 divisions as **tinted discs with the name beneath** (D22-c,
-  2026-09-28; the banded card it replaced is gone). It is the section that *always* has content,
+- **Browse by division** — all 13 divisions as **marks with the name beneath** (D22-c,
+  2026-09-28, the banded card it replaced is gone; circle-free since 2026-10-19 — no tinted disc,
+  and in dark the mark is a white silhouette). ⚠️ **The name is printed in the page ink
+  (`--db-strong`), not a per-division colour** (2026-10-23): the logo-derived label colours failed
+  AA in dark for seven divisions. On a phone it is a two-row sideways scroller with compact tiles
+  (72 × 63, still ≥ 44px). It is the section that *always* has content,
   which is what keeps Home from ever being a blank page. Renders whatever `lib/divisions.ts`
   holds; nothing hardcodes 12 or 13.
   ⚠️ **The label is the short one — "Care", not "EzzyCare"** (2026-10-02). `divisions.name` in the

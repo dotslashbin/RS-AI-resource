@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-23
 **App / scope:** `booker/` web only — four CSS modules on Home (`DivisionStrip`, `HomeSection`, `HomePage`, `LocationChip`), their visual baselines, and two comments/docs. No `.tsx`, no hook, no token value, no asset. No vendor, command, backbone, Expo, API, schema, security or dependency change.
-**Status:** IN PROGRESS — build and machine verification complete: **S1 ✅ and S2 ✅ (2026-10-23)**, every item I1–I10 ✅, visual suite 121/121 twice. F8 ✅ added on request. **Left with you:** a look on a real phone (swipe, chip tap/focus) and the commit.
+**Status:** COMPLETE (2026-10-24) — every item I1–I10 ✅; S1 and S2 executed and verified (visual suite 121/121 twice); real-phone check passed (user, 2026-10-24); committed by the user — booker `80d58f7`, root `5a36c5a`. **Not yet on staging:** the user will push it later. F3 ⏸ parked (preview tooling, outside this plan).
 
 > Make the Home screen's division labels readable and consistent with the logos they caption,
 > and give a phone more of the page by trimming the hero ("What do you need today?") and the
@@ -250,7 +250,7 @@ Poppins (F2).
 
 ## FINDINGS
 
-### F1 — Today's dark labels fail AA on the surface they actually sit on  ⬜ TODO (resolved by I1)
+### F1 — Today's dark labels fail AA on the surface they actually sit on  ✅ DONE (resolved by I1, 2026-10-23)
 Seven of thirteen measure **3.51–4.29:1** (Court, Care, Well, Drive, Home, Learn, Park) against
 the section body in dark; 10px bold text needs 4.5:1. `--div-*-label` was tuned against the page
 gradient (D22-d), the dark-mode lift (2026-10-20) then brightened the card underneath, and
@@ -284,7 +284,8 @@ separate item.
 "today?" alone. One declaration, no effect where it fits on one line. Not done because you did not
 ask for it.
 
-### F3 — Preview tooling: `_shared/booker.css` predates the dark-mode lift  ⬜ TODO — yours to decide
+### F3 — Preview tooling: `_shared/booker.css` predates the dark-mode lift  ⏸ PARKED (2026-10-24)
+> ⏸ PARKED — outside this plan's scope (the task forbade editing shared preview tooling) and it affects previews only, never the app. **Unblock:** the user asks for `_shared/booker.css` to be resynced with `booker/app/globals.css`; the next booker preview will otherwise show dark mode darker than the app.
 Dark card 0.028 / sub 0.04 vs the app's 0.055 / 0.05. Every booker preview built today shows dark
 mode darker than the app. Worked around inside this preview's `preview.css` only (the task forbade
 editing shared tooling). Not an app defect.
@@ -364,3 +365,26 @@ both themes — zero document overflow, zero clipped labels, zero network reques
 every phone width, every chip inside the hero and hit by a tap 2px inside its top and bottom edge
 (all three states), desktop boxes identical between variants (chip 151 × 44 both). Visual
 inspection of all six screens in both themes at both widths.
+
+---
+
+## Closing (2026-10-24)
+
+**Shipped (committed, not yet deployed):** division tile labels in `--db-strong` at every width;
+on phones a compact hero (19px balanced heading, sub-line hidden, 48px field, chip as a 32px pill
+in a 44px tap box) and a compact division strip. Booker `80d58f7` on
+`feature/spacing_color_patch`; root `5a36c5a`.
+
+**Verified:** tsc, lint at its 18 baseline, 304/304 unit tests, visual suite 121/121 twice after
+reviewing the 8 re-recorded baselines, live dev-server checks at 320/360/390/1280 × both themes,
+and the user's real-phone check (2026-10-24: swipe, chip taps, focus).
+
+**Still with the user:** pushing to staging (and later production). The staging look is not
+part of this plan's verification; if anything differs there, reopen with a new item.
+
+**Parked / noted, not done:** F3 ⏸ (preview tooling resync); F4 (36px find button), F5 (Drive's
+small mark), F7 (320px shelf header wraps) — all pre-existing and out of scope.
+
+**Docs updated:** `booker/AGENTS.md` (in `80d58f7`), `architecture/portals.md` → Booker → Home
+(2026-10-24), parity plan C2 note (in `5a36c5a`).
+
