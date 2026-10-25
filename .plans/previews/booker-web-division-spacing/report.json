@@ -1,0 +1,23 @@
+{
+  "topic": "booker-web-division-spacing",
+  "app": "booker",
+  "date": "2026-10-24T23:29:57.750Z",
+  "cells": 8,
+  "screens": [
+    {
+      "id": "compare",
+      "label": "1 · Current vs options A and B — web (above 640px)"
+    },
+    {
+      "id": "widths",
+      "label": "2 · Options A and B at 700 and 900px"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

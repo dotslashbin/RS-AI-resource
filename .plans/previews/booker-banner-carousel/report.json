@@ -1,0 +1,31 @@
+{
+  "topic": "booker-banner-carousel",
+  "app": "booker",
+  "date": "2026-10-24T14:06:23.120Z",
+  "cells": 16,
+  "screens": [
+    {
+      "id": "home",
+      "label": "1 · Home — the carousel under “Browse by division”"
+    },
+    {
+      "id": "widths",
+      "label": "2 · Widths — 320 → 1080, one ratio, no breakpoint"
+    },
+    {
+      "id": "states",
+      "label": "3 · States — zero, one, many, image failed, off-ratio"
+    },
+    {
+      "id": "links",
+      "label": "4 · Destinations — what each banner opens (inert)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

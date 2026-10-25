@@ -1,0 +1,130 @@
+/*
+ * booker-home-duo — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated from `_shared/`.
+ * ⚠️ No inline `style=""` in screens.js — the CSP blocks it (check 2).
+ *
+ * Blocks: NOW (reconstruction, incl. the rebuilt I9), PROPOSED (I11 web pair, I12 phone 5-up),
+ * preview furniture.
+ */
+
+/* ══ NOW — booker's module CSS, 2026-10-24 ════════════════════════════════════════════ */
+.hp-frame { container: hp / inline-size; background: var(--db-page-bg); }
+.hp { display: flex; flex-direction: column; gap: 18px; max-width: 1080px; margin: 0 auto; padding: 20px; line-height: 1.5; }
+
+/* HomeSection.module.css */
+.sec { --section-accent: var(--db-toggle-on); border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); overflow: hidden; }
+.sec[data-tone="again"] { --section-accent: var(--div-ezzy-work-deep); }
+.sec[data-tone="near"] { --section-accent: var(--db-tone-popular-fg); }
+.head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--db-card-border); }
+.title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--db-strong); white-space: nowrap; }
+.meta { font-size: 12.5px; color: var(--db-text); }
+.spacer { flex: 1; }
+.link { padding: 3px 0; font-size: 13px; font-weight: 700; color: var(--db-menu-btn-color); white-space: nowrap; }
+.body { padding: 18px 20px; background: var(--db-sub-bg); }
+.sec[data-tone="divisions"] .body { padding: 14px 20px; }
+.stub { height: 72px; border-radius: 13px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); }
+
+/* DivisionStrip.module.css — web, as rebuilt for I9 (centred rows of ≤ 7 × 72px) */
+.strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px; max-width: calc(7 * 72px + 6 * 16px); margin: 0 auto; }
+.tile { display: flex; flex-direction: column; align-items: center; width: 72px; gap: 4px; padding: 4px 0 2px; border: none; background: none; color: inherit; font-family: inherit; cursor: pointer; }
+.tileDisc { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; }
+.tileIcon { display: block; width: 46px; height: 46px; }
+.tileIcon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.dark .tileIcon img { filter: brightness(0) invert(1); }
+.tileName { display: block; max-width: 100%; text-align: center; font-size: 12px; font-weight: 700; color: var(--db-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dots { display: none; justify-content: center; gap: 6px; margin-top: 8px; }
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--db-divider); }
+.dotOn { width: 18px; background: var(--db-toggle-on); }
+
+/* BookAgainCard.module.css (+ DivisionBadge, approximated as a code chip) */
+.list { display: flex; flex-direction: column; border: 1px solid var(--db-card-border); border-radius: 13px; overflow: hidden; }
+.row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 20px; border: 0; border-top: 1px solid var(--db-divider); background: var(--db-card-bg); color: var(--db-text); font-family: inherit; text-align: left; }
+.row:first-child { border-top: 0; }
+.badge { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #dbeafe; color: #1d4ed8; font-size: 10px; font-weight: 800; }
+.main { min-width: 0; flex: 1 1 auto; }
+.offering { display: block; font-size: 14px; font-weight: 700; color: var(--db-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rmeta { display: block; font-size: 12px; color: var(--db-text); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* PromoCarousel (context) */
+.pc { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pc-track { aspect-ratio: 3 / 1; border-radius: 10px; border: 1px solid var(--db-card-border); background: var(--db-sub-bg); overflow: hidden; }
+.pc-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pc-controls { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.pc-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; border: 1px solid var(--db-card-border); background: var(--db-card-bg); color: var(--db-strong); }
+.pc-btn[aria-disabled="true"] { opacity: 0.4; }
+.pc-dots { display: flex; gap: 6px; }
+.pc-dot { width: 6px; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--db-text) 75%, transparent); }
+.pc-dot.is-on { width: 18px; background: var(--db-toggle-on); }
+
+/* Phone (≤640px) — as shipped */
+@container hp (max-width: 640px) {
+  .meta { display: none; }
+  .head { padding: 12px 14px; }
+  .body { padding: 14px; }
+  .title { font-size: 15px; }
+  .sec[data-tone="divisions"] .body { padding: 10px 12px; }
+  .strip {
+    display: grid; justify-content: normal; margin: 0;
+    grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(2, auto);
+    grid-auto-columns: 72px; gap: 10px; max-width: 100%; min-width: 0; overflow-x: auto;
+    scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .tile { gap: 4px; padding: 0; min-width: 44px; scroll-snap-align: start; }
+  .tileDisc { width: 44px; height: 44px; }
+  .tileIcon { width: 32px; height: 32px; }
+  .tileName { font-size: 10px; max-width: 72px; }
+  .dots { display: flex; }
+  .row { min-height: 60px; }
+}
+
+/* ══ PROPOSED ═══════════════════════════════════════════════════════════════════════════ */
+
+/* I11 — the pair. Stacked by default (Book again right under divisions)… */
+.duo { display: flex; flex-direction: column; gap: 18px; }
+/* …and when BookAgainCard renders null the wrapper is empty: it must take no space at all. */
+.duoSide:empty { display: none; }
+
+/* …side by side from 1024px: 2/3 + 1/3, same height. */
+@container hp (min-width: 1024px) {
+  .duo { flex-direction: row; align-items: stretch; }
+  .duoMain { flex: 2 1 0; min-width: 0; }
+  .duoSide { flex: 1 1 0; min-width: 0; }
+  /* Equal heights: the section fills its column and its body takes the slack, so the stretched
+     card shows its own recessed body, not a strip of card colour. In the app this is two lines
+     in HomeSection.module.css (`.section` flex column, `.body { flex: 1 }`) — a no-op wherever a
+     section is not stretched. */
+  .duo .sec { height: 100%; display: flex; flex-direction: column; }
+  .duo .sec > .body { flex: 1; }
+  /* The 1/3 column is ~340px: the one-line explanation would crowd the title, so it goes. */
+  .duoSide .meta { display: none; }
+}
+
+/* I12 — phone: five columns per page instead of four. A fifth of the strip's width minus four
+   6px gaps, so it is exactly five at ANY phone width; at 320px that is still a 46px tile. */
+@container hp (max-width: 640px) {
+  .hp[data-variant="proposed"] .strip { grid-auto-columns: calc((100% - 4 * 6px) / 5); column-gap: 6px; }
+  /* ⚠️ `width: auto`: the web rule's fixed 72px tile would otherwise overflow the narrower
+     track and overlap its neighbour (found building this preview, plan F14). */
+  .hp[data-variant="proposed"] .tile { width: auto; }
+  .hp[data-variant="proposed"] .tileName { max-width: 100%; }
+}
+
+/* ══ Preview furniture (not part of the design) ═══════════════════════════════════════ */
+.pg { max-width: 1080px; margin: 0 auto; padding: 18px 20px 6px; }
+.pg-h { font-size: 19px; font-weight: 800; color: var(--db-strong); }
+.pg-s { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--db-text); max-width: 92ch; }
+.tag { display: inline-block; margin: 0 0 6px 16px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; }
+.tag-recon { background: var(--db-pill-bg); border: 1px dashed var(--db-text); color: var(--db-text); }
+.tag-prop { background: var(--db-toggle-on); color: #fff; }
+.stack { display: flex; flex-direction: column; gap: 22px; padding-bottom: 24px; }
+.wf { margin: 0 auto; max-width: 100%; width: 100%; }
+.wf[data-w="900"] { width: 900px; }
+.wf[data-w="390"] { width: 390px; }
+.wf[data-w="320"] { width: 320px; }
+.wf .hp-frame { border-top: 1px dashed var(--db-divider); border-bottom: 1px dashed var(--db-divider); }
+.wf[data-w] .hp-frame { border: 1px dashed var(--db-divider); border-radius: 12px; overflow: hidden; }
+.cap { margin: 0 16px 6px; font-size: 12px; color: var(--db-text); font-weight: 600; }
+.phones { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; padding: 8px 16px 24px; align-items: flex-start; }
+.phones .tag { margin-left: 0; }

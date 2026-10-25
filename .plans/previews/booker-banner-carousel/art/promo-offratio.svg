@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#475569"/><stop offset="1" stop-color="#1e293b"/></linearGradient></defs>
+  <rect width="1200" height="900" fill="url(#g)"/>
+  <circle cx="984" cy="450" r="378" fill="#ffffff" fill-opacity="0.12"/>
+  <circle cx="1080" cy="180" r="162" fill="#ffffff" fill-opacity="0.10"/>
+  <rect x="72" y="108" width="360" height="81" rx="40" fill="#000000" fill-opacity="0.28"/>
+  <text x="252" y="162" fill="#ffffff" font-family="Poppins, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="3" text-anchor="middle">PLACEHOLDER</text>
+  <text x="72" y="333" fill="#ffffff" fill-opacity="0.85" font-family="Poppins, Arial, sans-serif" font-size="63" font-weight="600">Off-ratio upload</text>
+  <text x="72" y="522" fill="#ffffff" font-family="Poppins, Arial, sans-serif" font-size="144" font-weight="800">4:3 artwork</text>
+  <text x="72" y="684" fill="#ffffff" fill-opacity="0.9" font-family="Poppins, Arial, sans-serif" font-size="63" font-weight="500">Shown whole, letterboxed</text>
+  <rect x="2" y="2" width="1196" height="896" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="4" stroke-dasharray="18 12"/>
+</svg>

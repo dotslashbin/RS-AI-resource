@@ -56,7 +56,9 @@ widgets — those moved to Activity. Sections, top to bottom:
   and in dark the mark is a white silhouette). ⚠️ **The name is printed in the page ink
   (`--db-strong`), not a per-division colour** (2026-10-23): the logo-derived label colours failed
   AA in dark for seven divisions. On a phone it is a two-row sideways scroller with compact tiles
-  (72 × 63, still ≥ 44px). It is the section that *always* has content,
+  showing **five columns per page** (2026-10-24, I12; tiles ≥ 44px). **On the web (2026-10-24)** it
+  is centred rows of at most seven 72px tiles, each label 8px under its logo — 7 + 6 for the 13
+  divisions (plan `.plans/2026-10-24-booker-banner-carousel.md` I9). It is the section that *always* has content,
   which is what keeps Home from ever being a blank page. Renders whatever `lib/divisions.ts`
   holds; nothing hardcodes 12 or 13.
   ⚠️ **The label is the short one — "Care", not "EzzyCare"** (2026-10-02). `divisions.name` in the
@@ -64,6 +66,13 @@ widgets — those moved to Activity. Sections, top to bottom:
   label per slug with the brand prefix stripped from the stored name only for a division Command
   adds later. Search still matches the canonical name, so "ezzy", "ezzycare" and "care" all find
   it. See `schema.md` → `divisions`.
+- **Promotions** — added 2026-10-24 (`PromoCarousel`, plan `.plans/2026-10-24-booker-banner-carousel.md`).
+  Clickable banner images directly under "Browse by division", each opening an external `https://`
+  destination in a new tab. **Configured in `booker/lib/promoSlides.json`, not the database**:
+  there is no table, API or Command screen, and changing a banner is an app deploy (how-to in
+  `booker/AGENTS.md` → "Promotions carousel"). One 3:1 box at every width, never cropped; swipe,
+  ‹ › or arrow keys; no autoplay; no hard limit on the number of slides; **an empty list renders
+  nothing**, so Home loses no space when there are no promotions.
 - **Near you** — shipped 2026-10-15, barangay rung added 2026-10-17 (`NearYouShelf`). ⚠️ **It sits
   BELOW "Browse by division", and that order was reversed on 2026-10-17 at the user's request** —
   the original rationale had the location-dependent shelf first; the shipped order puts the section
@@ -79,8 +88,13 @@ widgets — those moved to Activity. Sections, top to bottom:
   city. ⚠️ **Capped at 12 candidate offerings** (`lib/openingsToday.ts`): a "what is open today"
   shelf over a whole catalogue is one schedules fetch per offering, and a test fails if the cap
   is removed. Hidden entirely when nothing is open.
-- **Book again**, then **Vendors in your city** — both hidden when empty, so a new booker sees
-  fewer shelves rather than empty boxes.
+- **Vendors in your city** — hidden when empty, so a new booker sees fewer shelves rather than
+  empty boxes.
+- ⚠️ **Book again moved (2026-10-24)** — it now sits **beside "Browse by division"**: 2/3 + 1/3
+  side by side from 1024px, stacked directly under the divisions below that (phone included). With
+  no history it shows a **placeholder** ("Nothing to book again yet") once bookings have loaded;
+  while loading or after a failed fetch it renders nothing and the divisions take the full width.
+  Plan `.plans/2026-10-24-booker-banner-carousel.md` I11/I13.
 - **Guide panel** for a booker with nothing booked yet.
 
 ⚠️ **Proximity is MEMBERSHIP, never a distance** (updated 2026-10-17, plans

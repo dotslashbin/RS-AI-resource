@@ -1,0 +1,219 @@
+/*
+ * booker-banner-carousel — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/booker.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ *
+ * Two halves: the PROPOSAL (`.pc*`, what `PromoCarousel.module.css` will hold) and the
+ * RECONSTRUCTION of the Home page around it.
+ */
+
+/* ══ PROPOSAL — PromoCarousel ══════════════════════════════════════════════════════════ */
+
+.pc { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+/*
+ * The track: native horizontal scroll-snap. A vertical swipe scrolls the page as usual — no
+ * touch handler, no `touch-action` override. `max-width` + `min-width: 0` so the flex row
+ * overflows ITSELF rather than its parent (booker/AGENTS.md, Explore's board).
+ * Radius 10px: Home allows exactly two radii, 18px (hero) and 10px (sections) — plan D27.
+ */
+.pc-track {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 10px;
+  border: 1px solid var(--db-card-border);
+  background: var(--db-sub-bg);
+}
+.pc-track::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: no-preference) { .pc-track { scroll-behavior: smooth; } }
+
+/*
+ * The reserved box: 3:1 at every width (plan D2). The space exists before the image arrives,
+ * so nothing below moves. `scroll-snap-stop: always` so a hard flick advances one banner.
+ */
+.pc-slide { position: relative; flex: 0 0 100%; aspect-ratio: 3 / 1; scroll-snap-align: start; scroll-snap-stop: always; }
+
+.pc-link { display: block; width: 100%; height: 100%; color: inherit; }
+/* Inset ring: the track clips overflow, so an outset outline would be cut off. */
+.pc-link:focus-visible { outline: 3px solid var(--db-toggle-on); outline-offset: -3px; border-radius: 10px; }
+
+/* `contain`, not `cover`: off-ratio artwork is letterboxed on the track tint, never cropped. */
+.pc-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* Image-failure fallback — same box, alt text, still a link. */
+.pc-fallback { display: grid; place-items: center; padding: 12px; }
+.pc-fb { display: flex; align-items: center; gap: 10px; max-width: 90%; color: var(--db-text); }
+.pc-fb-text { font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--db-strong); }
+
+.pc-controls { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+/* 44 × 44 targets (ux-design §5). */
+.pc-btn {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--db-card-border);
+  background: var(--db-card-bg);
+  color: var(--db-strong);
+  cursor: pointer;
+}
+.pc-btn:hover { border-color: var(--db-toggle-on); }
+.pc-btn:focus-visible { outline: 2px solid var(--db-toggle-on); outline-offset: 2px; }
+/* `aria-disabled`, not `disabled`: a disabled button drops focus to <body> mid-press. */
+.pc-btn[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+.pc-btn[aria-disabled="true"]:hover { border-color: var(--db-card-border); }
+
+/* Dots copy DivisionStrip's indicator: the active one widens, so position is not hue alone. */
+.pc-dots { display: flex; gap: 6px; }
+/* Inactive dot: 75% of the body ink (≥3:1 on the page in both themes), NOT DivisionStrip's `--db-divider` (7% black), which
+   measured as near-invisible on the light page — plan F3. One rule for both themes. */
+.pc-dot { width: 6px; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--db-text) 75%, transparent); transition: width 160ms ease, background-color 160ms ease; }
+.pc-dot.is-on { width: 18px; background: var(--db-toggle-on); }
+@media (prefers-reduced-motion: reduce) { .pc-dot { transition: none; } }
+
+.pc-count { min-width: 5ch; text-align: center; font-size: 12.5px; font-weight: 700; color: var(--db-text); }
+
+.pc-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ══ RECONSTRUCTION — the Home page around it (values from booker's module CSS) ═══════ */
+
+.hp-frame { container: hp / inline-size; background: var(--db-page-bg); }
+.hp {
+  display: flex; flex-direction: column; gap: 18px;
+  max-width: 1080px; margin: 0 auto; padding: 20px;
+  line-height: 1.5;
+}
+
+.hero {
+  display: flex; flex-direction: column; gap: 15px; padding: 22px 26px;
+  border-radius: 18px; background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+  box-shadow: var(--db-card-shadow);
+}
+.heading { font-size: 27px; font-weight: 800; letter-spacing: -0.7px; color: var(--db-strong); }
+.sub { font-size: 14px; color: var(--db-text); margin-top: 6px; }
+.search {
+  display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 8px 0 18px;
+  border-radius: 13px; border: 1px solid var(--db-input-border); background: var(--db-input-bg); font-size: 15px;
+}
+.searchPh { flex: 1; min-width: 0; color: var(--db-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.searchGo { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--db-toggle-on); color: #fff; }
+.chip {
+  display: inline-flex; align-self: flex-start; max-width: 100%; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--db-menu-btn-bg); border: 1px solid var(--db-menu-btn-border); color: var(--db-menu-btn-color);
+}
+.place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cdot { opacity: 0.5; }
+
+.sec { --section-accent: var(--db-toggle-on); border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); overflow: hidden; }
+.sec[data-tone="near"] { --section-accent: var(--db-tone-popular-fg); }
+.head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--db-card-border); }
+.title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--db-strong); }
+.meta { font-size: 12.5px; color: var(--db-text); }
+.spacer { flex: 1; }
+.link { padding: 3px 0; font-size: 13px; font-weight: 700; color: var(--db-menu-btn-color); }
+.body { padding: 18px 20px; background: var(--db-sub-bg); }
+.nextStub { height: 72px; border-radius: 13px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); }
+
+.strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 12px; }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 25px 0 23px; }
+.tileIcon { display: block; width: 46px; height: 46px; }
+.tileIcon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.dark .tileIcon img { filter: brightness(0) invert(1); }
+.tileName { font-size: 12px; font-weight: 700; color: var(--db-strong); white-space: nowrap; }
+.sdots { display: none; justify-content: center; gap: 6px; margin-top: 8px; }
+.sdot { width: 6px; height: 6px; border-radius: 999px; background: var(--db-divider); }
+.sdot.is-on { width: 18px; background: var(--db-toggle-on); }
+
+@container hp (max-width: 640px) {
+  .hero { padding: 16px; gap: 12px; }
+  .heading { font-size: 19px; letter-spacing: -0.5px; line-height: 1.25; }
+  .sub, .meta { display: none; }
+  .search { height: 48px; }
+  .head { padding: 12px 14px; }
+  .body { padding: 14px; }
+  .title { font-size: 15px; }
+  .sec[data-tone="divisions"] .body { padding: 10px 12px; }
+  .strip {
+    grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(2, auto);
+    grid-auto-columns: 72px; gap: 10px; overflow-x: hidden;
+  }
+  .tile { gap: 4px; padding: 6px 0 0; }
+  .tileIcon { width: 32px; height: 32px; }
+  .tileName { font-size: 10px; }
+  .sdots { display: flex; }
+}
+
+/* ══ Preview furniture (not part of the design) ═══════════════════════════════════════ */
+
+.pg { max-width: 1080px; margin: 0 auto; padding: 18px 20px 6px; }
+.pg-h { font-size: 19px; font-weight: 800; color: var(--db-strong); }
+.pg-h2 { max-width: 1040px; margin: 18px auto 6px; padding: 0 20px; font-size: 15px; font-weight: 800; color: var(--db-strong); }
+.pg-s { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--db-text); max-width: 85ch; }
+.pg-note { max-width: 1040px; margin: 6px auto 24px; padding: 0 20px; }
+.pg code, .st-cap code, .lk code, .pg-h2 code, .pg-note code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+
+.pv-dest {
+  max-width: 1040px; margin: 4px auto 24px; padding: 8px 12px;
+  border-radius: 8px; border: 1px dashed var(--db-divider);
+  font-size: 12px; color: var(--db-text); overflow-wrap: anywhere;
+}
+
+.tag {
+  display: inline-block; margin-bottom: 6px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+  background: var(--db-toggle-on); color: #fff;
+}
+.tag-alt { background: var(--db-pill-bg); border: 1px dashed var(--db-text); color: var(--db-text); }
+
+.hp-tight { padding: 14px; }
+
+.wf-grid { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 16px 8px; justify-content: center; align-items: flex-start; }
+.wf { margin: 0; max-width: 100%; }
+.wf[data-w="320"]  { width: 320px; }
+.wf[data-w="360"]  { width: 360px; }
+.wf[data-w="390"]  { width: 390px; }
+.wf[data-w="768"]  { width: 768px; }
+.wf[data-w="1080"] { width: 1080px; }
+/* Frames carry the AppShell's 20px padding, which is what sets the banner width. */
+.wf .hp-tight { padding: 20px; }
+.wf .hp-frame { border: 1px dashed var(--db-divider); border-radius: 12px; overflow: hidden; }
+.wf-cap { margin-bottom: 6px; font-size: 12px; color: var(--db-text); }
+.wf-cap b { color: var(--db-strong); }
+
+.st-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 18px; max-width: 1240px; margin: 0 auto; padding: 8px 16px; }
+.st { margin: 0; min-width: 0; }
+.st-cap { margin-bottom: 8px; font-size: 12px; line-height: 1.45; color: var(--db-text); min-height: 52px; }
+.st .hp-frame { border: 1px dashed var(--db-divider); border-radius: 12px; overflow: hidden; }
+.stub-sec {
+  padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 700;
+  background: var(--db-card-bg); border: 1px solid var(--db-card-border); color: var(--db-strong);
+}
+
+.lk-wrap { max-width: 1040px; margin: 8px auto 0; padding: 0 20px; overflow-x: auto; }
+/* min-width: the wrap scrolls sideways on a phone rather than crushing columns to one character. */
+.lk { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12px; color: var(--db-text); background: var(--db-card-bg); border: 1px solid var(--db-card-border); }
+.lk th, .lk td { padding: 7px 10px; border-bottom: 1px solid var(--db-divider); text-align: left; vertical-align: top; }
+.lk thead th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; }
+.lk td code { color: var(--db-strong); overflow-wrap: anywhere; }
+
+.json {
+  max-width: 1000px; margin: 0 auto; padding: 12px 14px; overflow-x: auto;
+  border-radius: 10px; background: var(--db-sub-bg); border: 1px solid var(--db-card-border);
+  font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.5; color: var(--db-strong);
+}
+@media (max-width: 1040px) { .json { margin: 0 20px; } }

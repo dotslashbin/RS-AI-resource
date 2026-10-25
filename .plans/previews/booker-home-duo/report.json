@@ -1,0 +1,27 @@
+{
+  "topic": "booker-home-duo",
+  "app": "booker",
+  "date": "2026-10-25T02:18:47.157Z",
+  "cells": 12,
+  "screens": [
+    {
+      "id": "desktop",
+      "label": "1 · Web — now vs proposed (2/3 divisions, 1/3 Book again)"
+    },
+    {
+      "id": "states",
+      "label": "2 · Web states — 1 row, no history, 900px stacked"
+    },
+    {
+      "id": "phone",
+      "label": "3 · Phone — 4 vs 5 columns per page (390 and 320px)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}
