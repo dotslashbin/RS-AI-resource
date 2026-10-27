@@ -51,14 +51,18 @@ widgets — those moved to Activity. Sections, top to bottom:
   the finger. Plan `.plans/2026-10-23-booker-mobile-spacing-colours.md`.
 - **In-progress strip** — the one personal thing on Home, and only while a booking is actually
   running. Hidden otherwise.
-- **Browse by division** — all 13 divisions as **marks with the name beneath** (D22-c,
-  2026-09-28, the banded card it replaced is gone; circle-free since 2026-10-19 — no tinted disc,
-  and in dark the mark is a white silhouette). ⚠️ **The name is printed in the page ink
-  (`--db-strong`), not a per-division colour** (2026-10-23): the logo-derived label colours failed
-  AA in dark for seven divisions. On a phone it is a two-row sideways scroller with compact tiles
-  showing **five columns per page** (2026-10-24, I12; tiles ≥ 44px). **On the web (2026-10-24)** it
-  is centred rows of at most seven 72px tiles, each label 8px under its logo — 7 + 6 for the 13
-  divisions (plan `.plans/2026-10-24-booker-banner-carousel.md` I9). It is the section that *always* has content,
+- **Browse by division** — all 13 divisions as **icons with the name beneath** (D22-c,
+  2026-09-28, the banded card it replaced is gone; circle-free since 2026-10-19 — no tinted disc).
+  ⚠️ **Since 2026-10-27 the icons are a 3D set** (matte object icons, blue `#034afc` in light and
+  a lighter blue `#93b4ff` in dark; plan `.plans/2026-10-25-booker-home-divisions-layout.md` I11), used in this strip only; the shop cards and
+  Explore keep the PNG marks. ⚠️ **The name is black in light and the page ink in dark**
+  (`--db-division-label`, 2026-10-27, same plan I7/D8; `--db-strong` in both themes from
+  2026-10-23), never a per-division colour: the logo-derived label colours failed AA in dark for
+  seven divisions. On a phone it is **one sideways row, five and a half tiles per page**, the
+  half tile at the edge hinting there is more (2026-10-27, same plan I3; two rows of five from
+  2026-10-24; tiles ≥ 44px). **On the web** it is **left-aligned** rows of at most seven 72px
+  tiles in a centred block (2026-10-27, same plan I7; centred rows from 2026-10-24) — 7 + 6 for
+  the 13 divisions (plan `.plans/2026-10-24-booker-banner-carousel.md` I9). It is the section that *always* has content,
   which is what keeps Home from ever being a blank page. Renders whatever `lib/divisions.ts`
   holds; nothing hardcodes 12 or 13.
   ⚠️ **The label is the short one — "Care", not "EzzyCare"** (2026-10-02). `divisions.name` in the
@@ -67,10 +71,13 @@ widgets — those moved to Activity. Sections, top to bottom:
   adds later. Search still matches the canonical name, so "ezzy", "ezzycare" and "care" all find
   it. See `schema.md` → `divisions`.
 - **Promotions** — added 2026-10-24 (`PromoCarousel`, plan `.plans/2026-10-24-booker-banner-carousel.md`).
-  Clickable banner images directly under "Browse by division", each opening an external `https://`
+  Clickable banner images **directly under the search hero, above "Browse by division"** (moved
+  up 2026-10-27, plan `.plans/2026-10-25-booker-home-divisions-layout.md` I1; under the divisions before), each opening an external `https://`
   destination in a new tab. **Configured in `booker/lib/promoSlides.json`, not the database**:
   there is no table, API or Command screen, and changing a banner is an app deploy (how-to in
-  `booker/AGENTS.md` → "Promotions carousel"). One 3:1 box at every width, never cropped; swipe,
+  `booker/AGENTS.md` → "Promotions carousel"). **Two images per banner** (2026-10-27, same plan I10): a 3:1 box above 640px for the desktop
+  file, a 1672:941 box at 640px and below for the phone file, never cropped, and a phone downloads
+  only its own file; swipe,
   ‹ › or arrow keys; no autoplay; no hard limit on the number of slides; **an empty list renders
   nothing**, so Home loses no space when there are no promotions.
 - **Near you** — shipped 2026-10-15, barangay rung added 2026-10-17 (`NearYouShelf`). ⚠️ **It sits

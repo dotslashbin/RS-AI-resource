@@ -1,0 +1,501 @@
+/*
+ * booker-home-divisions-layout — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated from `_shared/`,
+ * so do not restate a token or a chrome class here.
+ *
+ * ⚠️ No inline `style=""` in screens.js — the CSP blocks it (check 2). Variants are
+ * `data-variant` attributes with their rules here.
+ *
+ * Three parts: the PROPOSAL (`.wrap[data-variant="proposed"]` — what DivisionStrip.module.css
+ * will hold), the RECONSTRUCTION of today's Home (values copied from booker's module CSS,
+ * 2026-10-25), and preview furniture.
+ */
+
+/* ══ RECONSTRUCTION — the page ═══════════════════════════════════════════════════════ */
+
+/* Each `.vp` stands for a viewport: the app's 640 / 1024 media queries become container queries. */
+.vp { container: vp / inline-size; background: var(--db-page-bg); min-width: 0; }
+
+.hp {
+  display: flex; flex-direction: column; gap: 18px;
+  max-width: 1080px; margin: 0 auto; padding: 20px; /* AppShell p-5 */
+  line-height: 1.5; /* Tailwind preflight */
+}
+
+.hero {
+  display: flex; flex-direction: column; gap: 15px; padding: 22px 26px;
+  border-radius: 18px; background: var(--db-card-bg); border: 1px solid var(--db-card-border);
+  box-shadow: var(--db-card-shadow);
+}
+.heading { font-size: 27px; font-weight: 800; letter-spacing: -0.7px; color: var(--db-strong); line-height: 1.3; }
+.sub { font-size: 14px; color: var(--db-text); margin-top: 6px; }
+.search {
+  display: flex; align-items: center; gap: 11px; height: 52px; padding: 0 8px 0 18px;
+  border-radius: 13px; border: 1px solid var(--db-input-border); background: var(--db-input-bg); font-size: 15px;
+}
+.searchPh { flex: 1; min-width: 0; color: var(--db-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.searchGo { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--db-toggle-on); color: #fff; }
+.chip {
+  display: inline-flex; align-self: flex-start; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--db-menu-btn-bg); border: 1px solid var(--db-menu-btn-border); color: var(--db-menu-btn-color);
+}
+
+/* The `--st-*` status tokens are not in `_shared/booker.css`; values copied from booker
+   globals.css:220–221 (light) and 353–354 (dark). */
+:root { --st-in_progress-bg: rgba(139,92,246,0.12); --st-in_progress-fg: #6d28d9; }
+.dark { --st-in_progress-bg: rgba(139,92,246,0.18); --st-in_progress-fg: #a78bfa; }
+.prog {
+  display: flex; align-items: center; gap: 11px; padding: 12px 16px; border-radius: 14px;
+  border: 1px solid var(--st-in_progress-fg); background: var(--st-in_progress-bg); color: var(--db-text);
+}
+.progDot { width: 9px; height: 9px; flex-shrink: 0; border-radius: 999px; background: var(--st-in_progress-fg); }
+.progBody { flex: 1; min-width: 0; }
+.progTitle { display: block; font-size: 12.5px; font-weight: 700; color: var(--st-in_progress-fg); }
+.progText { display: block; font-size: 12.5px; margin-top: 2px; }
+
+/* PromoCarousel.module.css — the shipped component, drawn static. */
+.pc { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.pc-track { border-radius: 10px; border: 1px solid var(--db-card-border); background: var(--db-sub-bg); overflow: hidden; aspect-ratio: 3 / 1; }
+.pc-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pc-controls { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.pc-btn {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px;
+  border: 1px solid var(--db-card-border); background: var(--db-card-bg); color: var(--db-strong);
+}
+.pc-btn.is-off { opacity: 0.4; }
+.pc-dots { display: flex; gap: 6px; }
+.pc-dot { width: 6px; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--db-text) 75%, transparent); }
+.pc-dot.is-on { width: 18px; background: var(--db-toggle-on); }
+
+/* HomePage.module.css `.duo` */
+.duo { display: flex; flex-direction: column; gap: 18px; }
+@container vp (min-width: 1024px) {
+  .duo { flex-direction: row; align-items: stretch; }
+  .duoMain { flex: 2 1 0; min-width: 0; }
+  .duoSide { flex: 1 1 0; min-width: 0; }
+  .duoMain > .sec, .duoSide > .sec { height: 100%; }
+}
+
+/* HomeSection.module.css */
+.sec {
+  --section-accent: var(--db-toggle-on);
+  display: flex; flex-direction: column;
+  border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); overflow: hidden;
+}
+.sec[data-tone="again"] { --section-accent: var(--div-ezzy-work-deep); }
+.sec[data-tone="near"]  { --section-accent: var(--db-tone-popular-fg); }
+.sec[data-tone="today"] { --section-accent: var(--div-ezzy-court-deep); }
+.head { display: flex; align-items: center; gap: 12px; padding: 15px 20px; border-bottom: 1px solid var(--db-card-border); }
+.title { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--db-strong); }
+.meta { font-size: 12.5px; color: var(--db-text); }
+.spacer { flex: 1; }
+.link { padding: 3px 0; font-size: 13px; font-weight: 700; color: var(--db-menu-btn-color); }
+.body { flex: 1; padding: 18px 20px; background: var(--db-sub-bg); }
+.sec[data-tone="divisions"] .body { padding: 14px 20px; }
+
+.again {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 13px;
+  background: var(--db-card-bg); border: 1px solid var(--db-card-border); color: var(--db-text);
+}
+.againBadge { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 9px; font-size: 10px; font-weight: 800; background: var(--div-none-tile, #e0e7ff); color: #1e40af; }
+.againMain { flex: 1; min-width: 0; }
+.againTitle { display: block; font-size: 14px; font-weight: 700; color: var(--db-strong); }
+.againMeta { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.stubCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+.stubCards span { height: 72px; border-radius: 13px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); }
+
+@container vp (max-width: 640px) {
+  .heading { font-size: 19px; letter-spacing: -0.5px; line-height: 1.25; }
+  .hero { padding: 16px; gap: 12px; }
+  .sub, .meta { display: none; }
+  .search { height: 48px; }
+  .head { padding: 12px 14px; }
+  .body { padding: 14px; }
+  .title { font-size: 15px; }
+  .sec[data-tone="divisions"] .body { padding: 10px 12px; }
+}
+
+/* ══ DivisionStrip — CURRENT (DivisionStrip.module.css as of 2026-10-25) ═════════════ */
+
+.wrap { position: relative; }
+.strip {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 16px;
+  max-width: calc(7 * 72px + 6 * 16px); margin: 0 auto;
+}
+.strip:focus-visible { outline: 2px solid var(--db-toggle-on); outline-offset: 4px; border-radius: 12px; }
+.tile {
+  display: flex; flex-direction: column; align-items: center; width: 72px; gap: 4px; padding: 4px 0 2px;
+  border: none; background: none; font-family: inherit; cursor: pointer; transition: transform 120ms ease;
+}
+.tile:focus-visible { outline: 2px solid var(--db-toggle-on); outline-offset: 2px; border-radius: 8px; }
+.tileDisc { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 999px; transition: transform 120ms ease; }
+.tileIcon { display: block; width: 46px; height: 46px; }
+.tileIcon img { display: block; width: 100%; height: 100%; object-fit: contain; transform: scale(var(--division-art, 1)); }
+/* globals.css `.dark .db-mark` */
+.dark .tileIcon img { filter: brightness(0) invert(1); }
+.tile:hover .tileDisc { transform: translateY(-2px); }
+.tileName {
+  display: block; max-width: 100%; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: -0.1px;
+  color: var(--db-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* globals.css `--division-art` correction for the three under-filled marks. */
+[data-division="ezzy-drive"] { --division-art: 1.67; }
+[data-division="ezzy-learn"] { --division-art: 1.13; }
+[data-division="ezzy-ride"]  { --division-art: 1.10; }
+
+.dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.dots:empty { display: none; }
+.dot { width: 6px; height: 6px; border-radius: 999px; background: var(--db-divider); transition: width 160ms ease, background-color 160ms ease; }
+.dotOn { width: 18px; background: var(--db-toggle-on); }
+.live { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@container vp (max-width: 640px) {
+  .strip {
+    display: grid; justify-content: normal; margin: 0;
+    grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(2, auto);
+    grid-auto-columns: max(44px, calc((100% - 4 * 6px) / 5));
+    gap: 10px 6px;
+    max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: none;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .tile { width: auto; gap: 4px; padding: 0; scroll-snap-align: start; min-width: 44px; }
+  .tileDisc { width: 44px; height: 44px; }
+  .tileIcon { width: 32px; height: 32px; }
+  .tileName { font-size: 10px; }
+  .dots { margin-top: 8px; }
+}
+
+/* ══ PROPOSAL — what DivisionStrip.module.css adds ═══════════════════════════════════ */
+
+/*
+ * (1) Light mode only: marks and labels in #034afc. ONE literal, scoped to the strip.
+ *     The mark is recoloured by the SVG filter `#division-strip-ink` (feFlood + feComposite
+ *     in=SourceAlpha): exact colour on opaque pixels, alpha — so every shape and every
+ *     transparent area — kept. Dark keeps `.db-mark`'s white silhouette and `--db-strong`.
+ */
+:root { --strip-ink-light: #034afc; }
+.ink-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ink-flood { flood-color: var(--strip-ink-light); }
+html:not(.dark) .wrap[data-variant="proposed"] .tileIcon img { filter: url(#division-strip-ink); }
+/* Labels: BLACK in light since 2026-10-26 (plan I7, supersedes I2's blue labels); dark keeps
+   --db-strong — black would be invisible on the dark card (plan D8). Marks stay blue. */
+html:not(.dark) .wrap[data-variant="proposed"] .tileName { color: #000000; }
+
+/*
+ * (2) Visible gap ≈10px. Desktop already measures 10–11px from the logo's lowest ink to the
+ *     label's cap line (baseline homepromo-wide-*), so its geometry is NOT changed. The phone
+ *     measured 14–15px: the 44px disc holds 32px art, i.e. 6px of empty box under every mark.
+ *     The disc keeps its 44px WIDTH (the target) and drops to 34px HEIGHT (36px until the 2026-10-26 amendment) — the tile is still
+ *     ≥44px tall because the label sits inside it.
+ *
+ * (3) Phone only: ONE row. A 5.5-tile page so the next tile is visibly cut at the edge (the
+ *     affordance), plus the existing page dots, which the hook already computes.
+ */
+/*
+ * 2026-10-26 amendments (plan I7):
+ *   #1 desktop — rows LEFT-aligned: the second row starts under the first column. The strip keeps
+ *      its 7-tile width and stays centred in the section; only the row alignment changes.
+ *   #3 both widths — a little closer: the tile gap 4 → 2px and the desktop disc 48 → 46px tall
+ *      (the art box is 46px, so no empty box is left under it). Width and hover lift unchanged.
+ */
+.wrap[data-variant="proposed"] .strip { justify-content: flex-start; }
+.wrap[data-variant="proposed"] .tile { gap: 2px; }
+.wrap[data-variant="proposed"] .tileDisc { height: 46px; }
+
+@container vp (max-width: 640px) {
+  .wrap[data-variant="proposed"] .strip {
+    grid-template-rows: auto;
+    grid-auto-columns: max(44px, calc((100% - 5 * 6px) / 5.5));
+    gap: 0 6px;
+  }
+  /* 36 → 34px (2026-10-26, #3): with the 2px gap, about 3px closer than the approved phone value. */
+  .wrap[data-variant="proposed"] .tileDisc { height: 34px; }
+  .wrap[data-variant="proposed"] .tile { gap: 2px; }
+}
+
+/* ══ Preview furniture (not part of the design) ══════════════════════════════════════ */
+
+.pg { max-width: 1080px; margin: 0 auto; padding: 18px 20px 6px; }
+.pg-h { font-size: 19px; font-weight: 800; color: var(--db-strong); }
+.pg-s { margin-top: 4px; font-size: 13px; line-height: 1.5; color: var(--db-text); max-width: 90ch; }
+.pg code, .cap code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+.tag {
+  display: inline-block; margin-bottom: 6px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+  background: var(--db-toggle-on); color: #fff;
+}
+.tag-alt { background: var(--db-pill-bg); border: 1px dashed var(--db-text); color: var(--db-text); }
+
+.ord { display: flex; align-items: center; gap: 8px; margin: 0 0 -10px; font-size: 11.5px; font-weight: 700; color: var(--db-text); }
+.ordN {
+  min-width: 20px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 999px;
+  border: 1px dashed var(--db-text); font-size: 11px; color: var(--db-strong);
+}
+
+.pv-out {
+  max-width: 1040px; margin: 4px auto 24px; padding: 8px 12px; border-radius: 8px;
+  border: 1px dashed var(--db-divider); font-size: 12px; color: var(--db-text); overflow-wrap: anywhere;
+}
+
+.cmp { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 16px; justify-content: center; align-items: flex-start; }
+.cmpCell { margin: 0; min-width: 0; max-width: 100%; }
+.cap { margin-bottom: 6px; font-size: 12px; color: var(--db-text); }
+.cap b { color: var(--db-strong); }
+.vp-desk { width: 708px; max-width: 100%; border-radius: 12px; border: 1px dashed var(--db-divider); overflow: hidden; }
+/* Not a viewport: this frame is the duo's 2/3 column at a 1280px window ((1080 − 18) × 2/3 ≈ 708px),
+   so the desktop rules must apply inside it. `normal` drops it as a container; with no `vp`
+   ancestor the phone queries cannot match. */
+.vp-desk { container-type: normal; }
+.vp-phone { width: 390px; max-width: 100%; border-radius: 12px; border: 1px dashed var(--db-divider); overflow: hidden; }
+.hp-tight { padding: 14px 20px; }
+
+.wf-grid { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 16px; justify-content: center; align-items: flex-start; }
+.wf { margin: 0; max-width: 100%; }
+.wf[data-w="320"] { width: 320px; }
+.wf[data-w="360"] { width: 360px; }
+.wf[data-w="390"] { width: 390px; }
+.wf[data-w="640"] { width: 640px; }
+.wf[data-w="768"] { width: 768px; }
+.wf .vp { border: 1px dashed var(--db-divider); border-radius: 12px; overflow: hidden; }
+
+.sw { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; max-width: 1040px; margin: 6px auto 10px; padding: 0 20px; }
+.swChip { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--db-card-bg); border: 1px solid var(--db-card-border); color: var(--db-strong); }
+.swInk { width: 22px; height: 22px; border-radius: 6px; background: var(--strip-ink-light); }
+.swNote { flex: 1 1 280px; font-size: 12.5px; color: var(--db-text); }
+
+.marks {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 10px;
+  max-width: 1040px; margin: 0 auto 24px; padding: 0 20px;
+}
+.markRow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px;
+  background: var(--db-sub-bg); border: 1px solid var(--db-card-border); color: var(--db-text);
+}
+.markRow.is-flag { border-color: var(--db-toggle-on); }
+.markName { width: 48px; font-size: 12px; font-weight: 700; color: var(--db-strong); }
+.tileIcon-lg { width: 56px; height: 56px; }
+.markFlag { flex-basis: 100%; font-size: 11.5px; font-weight: 700; color: var(--db-strong); }
+
+/* ══ Screen 6 — "Book again" header accent options ═══════════════════════════════════ */
+/*
+ * Each option is a THEME-AWARE pair, unlike today's `--div-ezzy-work-deep`, which is one value
+ * for both themes (booker/AGENTS.md: "pick an accent that survives both themes"). Light needs a
+ * deeper yellow to show on white; dark needs a brighter one to show on the dark card.
+ */
+.sec[data-again="amber"] { --section-accent: #d97706; }
+.sec[data-again="gold"]  { --section-accent: #ca8a04; }
+.sec[data-again="honey"] { --section-accent: #b7791f; }
+.dark .sec[data-again="amber"] { --section-accent: #fbbf24; }
+.dark .sec[data-again="gold"]  { --section-accent: #facc15; }
+.dark .sec[data-again="honey"] { --section-accent: #f2c14e; }
+/* Greens (2026-10-25). Emerald reuses booker's own confirmed-status pair (globals.css:217, :350). */
+.sec[data-again="emerald"] { --section-accent: #047857; }
+.sec[data-again="green"]   { --section-accent: #15803d; }
+.sec[data-again="forest"]  { --section-accent: #3f7d3a; }
+.dark .sec[data-again="emerald"] { --section-accent: #10b981; }
+.dark .sec[data-again="green"]   { --section-accent: #4ade80; }
+.dark .sec[data-again="forest"]  { --section-accent: #86c97f; }
+/* Lighter blues (2026-10-26). Home's divisions header is already --db-toggle-on #2563eb beside it. */
+.sec[data-again="sky"]        { --section-accent: #0284c7; }
+.sec[data-again="cornflower"] { --section-accent: #3b82f6; }
+.sec[data-again="powder"]     { --section-accent: #60a5fa; }
+.dark .sec[data-again="sky"]        { --section-accent: #38bdf8; }
+.dark .sec[data-again="cornflower"] { --section-accent: #93c5fd; }
+.dark .sec[data-again="powder"]     { --section-accent: #bfdbfe; }
+
+.againGrid { display: flex; flex-direction: column; gap: 16px; max-width: 1120px; margin: 0 auto; padding: 8px 16px 24px; }
+.againOpt { margin: 0; min-width: 0; }
+.againOpt .vp { border: 1px dashed var(--db-divider); border-radius: 12px; overflow: hidden; }
+
+/* ══ Preview furniture — the D6 scroll hint, called out on phone frames only ══════════════ */
+/* NOT part of the design: the design's hint is the half tile + dots (plan D6-A). This marks
+   where to look — a dashed bracket over the cut tile and a note under the dots. */
+.hintNote { display: none; }
+@container vp (max-width: 640px) {
+  .wrap[data-variant="proposed"]::after {
+    content: ""; position: absolute; top: -4px; right: -4px; width: 30px; height: 64px;
+    border: 2px dashed var(--db-toggle-on); border-radius: 10px; pointer-events: none;
+  }
+  .wrap[data-variant="proposed"][data-end]::after { display: none; }
+  .wrap[data-variant="proposed"] .hintNote {
+    display: block; margin: 8px 0 0; padding: 6px 8px; border-radius: 8px;
+    border: 1px dashed var(--db-toggle-on); font-size: 11px; line-height: 1.4; color: var(--db-text);
+  }
+  .hintNote b { color: var(--db-strong); }
+  .hintTag {
+    display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: 999px;
+    font-size: 9.5px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+    background: var(--db-toggle-on); color: #fff;
+  }
+}
+
+/* ══ 3D icon set (icons3d.js) — preview-only exploration, plan I8 / D9 ══════════════════ */
+/*
+ * Tone classes → colours, from ONE base colour per colourway (`--ic`). Matte: flat fills only.
+ * The same-colour stroke with round joins softens every edge (no hard pixel corners).
+ */
+.i3 { display: block; width: 100%; height: 100%; overflow: visible;
+  --t: color-mix(in srgb, var(--ic) 52%, #fff);
+  --l: var(--ic);
+  --r: color-mix(in srgb, var(--ic) 72%, #000);
+  --d: color-mix(in srgb, var(--ic) 28%, #0b1020);
+  --w: color-mix(in srgb, var(--ic) 22%, #fff);
+  --x: #ffffff;
+  --p: #f6f8fc; --pr: #dde3ee;
+  --sh: rgba(15, 23, 42, 0.08);
+}
+.i3 .t  { fill: var(--t);  stroke: var(--t); }
+.i3 .l  { fill: var(--l);  stroke: var(--l); }
+.i3 .r  { fill: var(--r);  stroke: var(--r); }
+.i3 .d  { fill: var(--d);  stroke: var(--d); }
+.i3 .w  { fill: var(--w);  stroke: var(--w); }
+.i3 .x  { fill: var(--x);  stroke: var(--x); }
+.i3 .p  { fill: var(--p);  stroke: var(--p); }
+.i3 .pr { fill: var(--pr); stroke: var(--pr); }
+.i3 .sh { fill: var(--sh); stroke: none; }
+.i3 .t, .i3 .l, .i3 .r, .i3 .d, .i3 .w, .i3 .x, .i3 .p, .i3 .pr { stroke-width: 1.2; stroke-linejoin: round; }
+.i3 .xs { fill: none; stroke: var(--r); stroke-width: 2.4; stroke-linecap: round; }
+.i3 .ln { fill: none; stroke: var(--r); stroke-width: 1.4; stroke-linecap: round; }
+
+/* Mono: blue on white … */
+.i3[data-icset="mono"] { --ic: #034afc; }
+/* … and the lighter blue on dark (2026-10-26, user: "the previous lighter blue", PNG option D #93b4ff),
+   no longer white. Faces derive from --ic as in light; details (--x) go dark, since white on a
+   pale blue body would vanish. Was: hand-set whites, --ic #e9edf5. */
+.dark .i3[data-icset="mono"] {
+  --ic: #93b4ff; --x: #1d2436; --p: #ffffff; --pr: #ccd3e0; --sh: rgba(0, 0, 0, 0.38);
+}
+
+/* Brand: each division's own logo colour (sampled from its PNG, 2026-10-26). */
+.i3[data-icset="brand"][data-division="ezzy-court"] { --ic: #0259fb; }
+.i3[data-icset="brand"][data-division="ezzy-care"]  { --ic: #0b2d85; }
+.i3[data-icset="brand"][data-division="ezzy-well"]  { --ic: #75918b; }
+.i3[data-icset="brand"][data-division="ezzy-drive"] { --ic: #0271eb; }
+.i3[data-icset="brand"][data-division="ezzy-pets"]  { --ic: #f47255; }
+.i3[data-icset="brand"][data-division="ezzy-food"]  { --ic: #1f1f1f; }
+.i3[data-icset="brand"][data-division="ezzy-home"]  { --ic: #1b252e; }
+.i3[data-icset="brand"][data-division="ezzy-ride"]  { --ic: #0056fc; }
+.i3[data-icset="brand"][data-division="ezzy-learn"] { --ic: #025847; }
+.i3[data-icset="brand"][data-division="ezzy-stay"]  { --ic: #939ba8; }
+.i3[data-icset="brand"][data-division="ezzy-work"]  { --ic: #fd7802; }
+.i3[data-icset="brand"][data-division="ezzy-park"]  { --ic: #ee3b0c; }
+.i3[data-icset="brand"][data-division="ezzy-law"]   { --ic: #c69d72; }
+/* Dark: the four near-black brands would sink into the card, so they are lifted (finding F9). */
+.dark .i3[data-icset="brand"] { --sh: rgba(0, 0, 0, 0.38); }
+.dark .i3[data-icset="brand"][data-division="ezzy-food"]  { --ic: #8a919c; }
+.dark .i3[data-icset="brand"][data-division="ezzy-home"]  { --ic: #7d8a96; }
+.dark .i3[data-icset="brand"][data-division="ezzy-care"]  { --ic: #3f67d6; }
+.dark .i3[data-icset="brand"][data-division="ezzy-learn"] { --ic: #1f8a73; }
+
+/* In the strip the 3D icon replaces the PNG; dark's white-silhouette filter must not apply. */
+.wrap[data-icons] .tileIcon .i3 { filter: none; }
+
+/* The sheet (screen 7). */
+.pg-h2 { max-width: 1080px; margin: 18px auto 8px; padding: 0 20px; font-size: 15px; font-weight: 800; color: var(--db-strong); }
+.onlyDark { display: none; }
+.dark .onlyDark { display: inline; }
+.dark .onlyLight { display: none; }
+.i3grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px;
+  max-width: 1080px; margin: 0 auto; padding: 0 20px;
+}
+.i3cell {
+  margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px 10px;
+  border-radius: 10px; background: var(--db-sub-bg); border: 1px solid var(--db-card-border);
+}
+.i3big { display: block; width: 84px; height: 84px; }
+.i3cell figcaption { font-size: 12px; font-weight: 700; color: var(--db-strong); }
+
+/* ══ Screen 9 — D9 choices: the strip plus schematic shop cards ═════════════════════════ */
+.d9frame { width: 100%; max-width: 760px; margin: 0 auto; }
+.d9frame .hp-tight { display: flex; flex-direction: column; gap: 14px; }
+.d9cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.d9card { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; border: 1px solid var(--db-card-border); background: var(--db-card-bg); min-width: 0; }
+.d9mark { display: block; width: 44px; height: 44px; flex: none; }
+.d9mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+/* globals.css `.dark .db-mark` — ShelfCard passes flattenInDark. */
+.dark .d9mark img { filter: brightness(0) invert(1); }
+.d9main { min-width: 0; }
+.d9title { display: block; font-size: 13.5px; font-weight: 700; color: var(--db-strong); }
+.d9meta { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ══ Screen 10 — dark mode with blue PNG logos (labels stay --db-strong) ══════════════════ */
+.ink-flood-exact { flood-color: #034afc; }
+.ink-flood-lift  { flood-color: #4f7dff; }
+.ink-flood-soft  { flood-color: #7aa2ff; }
+.ink-flood-sky   { flood-color: #93b4ff; }
+.ink-flood-mist  { flood-color: #b3cbff; }
+/* One blue in both themes. `html:not(.dark)` matches the proposed light rule's specificity; later wins. */
+html:not(.dark) .wrap[data-darkink="exact"] .tileIcon img, .dark .wrap[data-darkink="exact"] .tileIcon img { filter: url(#division-ink-exact); }
+html:not(.dark) .wrap[data-darkink="lift"]  .tileIcon img, .dark .wrap[data-darkink="lift"]  .tileIcon img { filter: url(#division-ink-lift); }
+html:not(.dark) .wrap[data-darkink="soft"]  .tileIcon img, .dark .wrap[data-darkink="soft"]  .tileIcon img { filter: url(#division-ink-soft); }
+html:not(.dark) .wrap[data-darkink="sky"]   .tileIcon img, .dark .wrap[data-darkink="sky"]   .tileIcon img { filter: url(#division-ink-sky); }
+html:not(.dark) .wrap[data-darkink="mist"]  .tileIcon img, .dark .wrap[data-darkink="mist"]  .tileIcon img { filter: url(#division-ink-mist); }
+
+/* ══ Screen 11 — the full Home: light keeps the proposed #034afc rule; dark only is recoloured ══ */
+.dark .wrap[data-darkonly="soft"] .tileIcon img { filter: url(#division-ink-soft); }
+.dark .wrap[data-darkonly="sky"]  .tileIcon img { filter: url(#division-ink-sky); }
+.dark .wrap[data-darkonly="mist"] .tileIcon img { filter: url(#division-ink-mist); }
+/* A clean page: the hint callout and bracket are preview furniture (screen 3 keeps them). */
+.fpPage .wrap[data-variant="proposed"] .hintNote { display: none; }
+.fpPage .wrap[data-variant="proposed"]::after { display: none; }
+.fpBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: 1080px; margin: 10px auto; padding: 0 16px; font-size: 12.5px; color: var(--db-text); }
+.fpText b { color: var(--db-strong); }
+.fpPicks { display: flex; gap: 6px; }
+.fpPick { min-width: 44px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--db-card-border); background: var(--db-card-bg); color: var(--db-strong); font: inherit; font-weight: 700; cursor: pointer; }
+.fpPick[aria-pressed="true"] { border-color: var(--db-toggle-on); box-shadow: inset 0 0 0 1px var(--db-toggle-on); }
+.fpHint { font-size: 12px; }
+
+/* ══ Screens 12–14 — full Home with the 3D icons, 30% bigger (46 → 60px, phone 32 → 42px) ══
+   A further +5% (63 / 44px) was tried and reverted on 2026-10-26 at the user's request. */
+.fpPage[data-big3d] .wrap[data-variant="proposed"] .tileDisc { width: 60px; height: 60px; }
+.fpPage[data-big3d] .wrap[data-variant="proposed"] .tileIcon { width: 60px; height: 60px; }
+@container vp (max-width: 640px) {
+  .fpPage[data-big3d] .wrap[data-variant="proposed"] .tileDisc { width: 44px; height: 42px; }
+  .fpPage[data-big3d] .wrap[data-variant="proposed"] .tileIcon { width: 42px; height: 42px; }
+}
+/* Screen 14: two phone frames side by side. */
+.fpPhones { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 8px 16px 24px; }
+.fpPhones .vp-phone { width: 390px; }
+
+/* ══ 2026-10-26 sharpening (user: "a little pixelated at this size") ═══════════════════════
+   The 3D faces were outlined with a same-colour stroke in viewBox units (1.2, and 2.4 / 1.4 for
+   details). At 42–60px that is 0.6–0.9 screen px, thinner than a pixel, so edges and seams broke
+   up. `non-scaling-stroke` sets the widths in screen px at every size instead. */
+.i3 { shape-rendering: geometricPrecision; }
+.i3 .t, .i3 .l, .i3 .r, .i3 .d, .i3 .w, .i3 .x, .i3 .p, .i3 .pr { vector-effect: non-scaling-stroke; stroke-width: 0.75px; }
+.i3 .xs { vector-effect: non-scaling-stroke; stroke-width: 1.5px; }
+.i3 .ln { vector-effect: non-scaling-stroke; stroke-width: 1.25px; }
+
+/* Label 2px closer on the 3D full pages (user, 2026-10-26): the tile gap 2px → 0, both widths. */
+.fpPage[data-big3d] .wrap[data-variant="proposed"] .tile { gap: 0; }
+@container vp (max-width: 640px) {
+  .fpPage[data-big3d] .wrap[data-variant="proposed"] .tile { gap: 0; }
+}
+
+/* Court v2 seams: the deep tone, fixed screen width (2026-10-26). */
+/* Between the shade and deep tones, so the lines read as seams without crowding the ball at 42px. */
+.i3 .xd { fill: none; stroke: color-mix(in srgb, var(--r) 60%, var(--d)); stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-width: 1.25px; }
+/* The comparison screen draws v1 with the brand colour of v2. */
+.i3[data-icset="brand"][data-division="ezzy-court-v1"] { --ic: #0259fb; }
+.courtGrid { display: grid; grid-template-columns: auto repeat(3, auto); gap: 14px 28px; align-items: center; justify-content: center; padding: 8px 16px 24px; }
+.courtGrid .cap { margin: 0; }
+.courtBox { display: block; }
+.courtBox[data-s="84"] { width: 84px; height: 84px; }
+.courtBox[data-s="60"] { width: 60px; height: 60px; }
+.courtBox[data-s="42"] { width: 42px; height: 42px; }
+
+/* Court alternatives (2026-10-26): white seam (A) and court lines (D), fixed screen width. */
+.i3 .xw { fill: none; stroke: var(--x); stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-width: 2px; }
+.i3 .xl { fill: none; stroke: var(--x); stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; stroke-width: 1.25px; }
+.i3[data-icset="brand"][data-division^="ezzy-court-"] { --ic: #0259fb; }
+.courtGrid-5 { grid-template-columns: auto repeat(5, auto); }
+.courtStrips { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 8px 16px 24px; }
+.courtStrips .vp-phone { width: 390px; }
+/* The 6-column grid is wider than a phone: it scrolls inside itself, never the page. */
+.courtGrid-5 { max-width: 100%; overflow-x: auto; }
+@media (max-width: 640px) { .courtGrid-5 { justify-content: start; } }

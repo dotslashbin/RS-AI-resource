@@ -1,0 +1,75 @@
+{
+  "topic": "booker-home-divisions-layout",
+  "app": "booker",
+  "date": "2026-10-27T15:14:54.274Z",
+  "cells": 60,
+  "screens": [
+    {
+      "id": "current",
+      "label": "1 · Current Home — RECONSTRUCTION (today's order)"
+    },
+    {
+      "id": "proposed",
+      "label": "2 · Proposed Home — search → promotions → divisions"
+    },
+    {
+      "id": "divisions",
+      "label": "3 · Divisions close-up — current vs proposed, phone strip at start and end"
+    },
+    {
+      "id": "widths",
+      "label": "4 · Widths — 320 / 360 / 390 / 640 / 768, proposed order"
+    },
+    {
+      "id": "colour",
+      "label": "5 · Colour — #034afc swatch, contrast, every mark"
+    },
+    {
+      "id": "again",
+      "label": "6 · Book again header — brown, Honey, greens, lighter blues"
+    },
+    {
+      "id": "icons3d",
+      "label": "7 · 3D icons — the set, mono and brand colours"
+    },
+    {
+      "id": "icons3d-strip",
+      "label": "8 · 3D icons in “Browse by division” — desktop and phone"
+    },
+    {
+      "id": "darkblue",
+      "label": "10 · Blue logos in both themes, lighter shades (PNG, not 3D)"
+    },
+    {
+      "id": "fullpage",
+      "label": "11 · Full Home — light #034afc, dark lighter blue (D14-F)"
+    },
+    {
+      "id": "fullpage-3d-brand",
+      "label": "12 · Full Home — 3D icons, brand colours, 30% bigger"
+    },
+    {
+      "id": "fullpage-3d-mono",
+      "label": "13 · Full Home — 3D icons, blue (dark: lighter #93b4ff), 30% bigger"
+    },
+    {
+      "id": "fullpage-3d-phones",
+      "label": "14 · Full Home on a phone — 3D icons, brand and blue, 30% bigger"
+    },
+    {
+      "id": "court",
+      "label": "15 · Court icon — options (E pickleball paddle chosen)"
+    },
+    {
+      "id": "d9",
+      "label": "9 · D9 — where the 3D icons would go (choices)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}
