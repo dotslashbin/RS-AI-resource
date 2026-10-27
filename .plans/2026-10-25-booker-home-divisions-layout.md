@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-25
 **App / scope:** booker/ web only — `components/home/HomePage/HomePage.tsx`, `components/home/PromoCarousel/` (render + CSS, I10), `lib/promoSlides.{ts,json,test.ts}`, `public/promos/` (I10 artwork, D12), `app/ui-gallery/page.tsx` promo fixtures, `visual-tests/promo.spec.ts`, `components/home/DivisionStrip/` (render + CSS + comment in the hook), `components/home/DivisionStrip/DivisionIcon3d.tsx` (generated) + `lib/divisionIcon3d.test.ts` + `--db-ic3d-*` tokens in `app/globals.css` (I11, D21-B), plus `--db-tone-again` / `--db-division-label` tokens (I6, I7, D22-A), `components/home/HomeSection/HomeSection.module.css` (Book again accent, I6; comments, I12), `app/globals.css` `.db-shelf-head` (I12) + comment-only edits in `BookingList.module.css`, `PaymentMonthGroup.module.css`, `ExplorePage.module.css` (I12), `visual-tests/home-layout.spec.ts`, visual baselines, `booker/AGENTS.md`, `architecture/portals.md`. Preview (and I11's export script): `.plans/previews/booker-home-divisions-layout/`. No vendor, command, backbone, Expo, API, schema, security, dependency or original-asset change (the existing `public/division-icons/*.png` are not touched).
-**Status:** IN PROGRESS — approved in full by the user 2026-10-27 (booker-only, no migration). **Stages 1–3 ✅ 2026-10-27** (build, tests and baselines 165/165, docs). Commit drafts handed over; next is S1 (the user commits and deploys to staging) — release: staging ⬜ · production ⬜
+**Status:** COMPLETE 2026-10-27 — built, tested and verified on staging (desktop, Android, iPhone; user-confirmed); production ⏸ PARKED at the user's decision (ships with another feature) — release: staging ✅ · production ⏸
 
 > Make Home more compact and on-brand: light-mode division marks and labels in `#034afc`, about 10px of
 > *visible* logo-to-label space in both themes, one sideways row of divisions on a phone, and the
@@ -20,15 +20,17 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-10-27, end of Stage 3)
-- **Done so far:** Stage 1 ✅ build, Stage 2 ✅ tests and baselines (165/165), Stage 3 ✅ docs (`booker/AGENTS.md`, `architecture/portals.md`). Commit drafts were handed to the user 2026-10-27 (booker and root, scoped `git add`).
-- **Live where:** local, uncommitted (booker on `release/version-0.29.3`; root plan, preview, portals) · staging nothing · production nothing.
-- **Next:** **S1, the user's:** commit both repos from the drafts, then deploy the booker commit to staging on Vercel. Then S2/S2b/S2c (desktop, both themes), S3 (Android), S4 (iPhone, including the 3D icons in both themes). ⛔ Stop for the user's green light before P1.
-- **Watch out for:**
-  - Staging checks are the user's (👤); the agent can help with S2's measurements on request.
-  - The event banner is dated 7 November 2026 (D17-C: the user tracks it).
-  - Follow-up after production: remove the three `-v1.jpg` one release later (D19, DEFERRED).
-  - Cold-start font trap before any future baseline work.
+## ▶ RESUME HERE (updated 2026-10-27, plan closed)
+- **Done:** Stages 1–3 ✅ (build; tests and baselines 165/165; docs). Staging S1–S4 ✅ (user, 2026-10-27, including iPhone). Committed: booker `6511041`, `d97dd66`, `e96597f` (0.29.4); root `797ff0b`.
+- **Live where:** local ✅ · staging ✅ · production ⏸ parked (the user's combined release with another feature).
+- **Carried, not closed here (the user's):**
+  - P1–P3 production promote and smoke, in the combined release.
+  - Remove the three `-v1.jpg` banners one release after production (DEFERRED, D19).
+  - F6: shared preview tooling still says Lato (reported).
+  - The event banner's 7 November date (D17-C).
+  - The 709 KB event banner (F13, accepted).
+  - The screen-reader pass (V7) was not reported.
+- **Watch out for:** the 3D icons are generated (`export-icons3d.mjs`); the cold-start font trap before any baseline work.
 ---
 
 ## Scope
@@ -130,6 +132,9 @@ Visible icon-to-label gap from pixels at 2×, the median of the 13 tiles, identi
 **Fix:** `.tileName { margin-top: -0.5px }` on desktop and `-1px` at ≤640px (`DivisionStrip.module.css`). A margin, not a smaller line-height, so the label box keeps room for descenders; no label clips (checked by `scrollWidth`/`scrollHeight`, 390 and 1280).
 **Result:** desktop **14 vs 13.5**, phone **9.5 vs 9** (11 of 13 tiles within 0.5px of the same tile in the preview).
 **Why it cannot be exactly equal:** Chrome snaps text to whole CSS pixels, so the gap moves in 1px steps. Desktop measured 14 at −0.5 and 13 at −0.75/−1; phone measured 9.5 at −1 and 8.5 at −1.25/−1.5. The preview's 13.5 and 9 fall between steps. Per tile, the desktop differences (±2px) do not move with the offset, because they come from glyph shapes: the preview draws labels in a fallback font, the app in Poppins ("C" and "D" tops sit at different heights). The chosen values minimise the mean per-tile difference (desktop 0.96px, phone 0.50px). Matching more closely would need the preview itself to load Poppins (F6).
+
+### F13 — `promo-event-desktop-v2.jpg` changed on disk after the commit  ✅ resolved by the user 2026-10-27: the user edited that banner on purpose and committed it as booker `d97dd66` ("cleaned up image"). The working tree is clean (agent-verified). ⚠️ It ships at **709 KB**, over the 250 KB ceiling: the user's accepted choice, recorded, not a defect to fix here. It keeps the `-v2` name; nothing had reached production, so no returning visitor holds a stale cached copy outside staging.
+Seen 2026-10-27, after the user committed booker `6511041`. The working-tree file was rewritten at 18:10 (not by the agent): it is still 2048×682 and the picture is effectively identical (mean absolute pixel difference 0.56/255 against the committed file), but it is **709 KB against the committed 248 KB**, over the 250 KB ceiling (`booker/AGENTS.md`, D12). The commit holds the 248 KB file, so a staging deploy of `6511041` ships that one. Left untouched: keep the committed file (discard the working-tree change) or replace it deliberately under a new name.
 
 ## IMPORTANT (build items — Stage 1 ✅ 2026-10-27; I4/I5 ⬜)
 
@@ -369,21 +374,23 @@ There is no migration, Edge Function, secret or env-var change. This is a booker
 ### Staging (production untouched throughout)
 | # | Who | Step | Check |
 |---|---|---|---|
-| S1 | 👤 | Commit in `booker/` (draft provided per `commit-drafting`). Deploy that commit to booker **staging** on Vercel. | ⛔ the staging deployment shows the new commit |
-| S2 | 👤 + 🤖 | Desktop Chrome, both themes: order (search → carousel → divisions); the 3D icons in "Browse by division" (blue `#034afc` in light, lighter blue `#93b4ff` in dark, Court as the paddle); labels black in light and unchanged in dark (D8); rows left-aligned (I7); Book again pipe powder blue (I6); shop cards keep their PNG marks | ⛔ matches the preview (`fullpage-3d-mono`) |
-| S2c | 👤 | Section headers (I12, D16-A): the curves and strokes are gone and the tint and pipe remain, both themes, on Home, Explore, Activity and Payments | ⛔ pass |
-| S2b | 👤 | Carousel (I9, I10): the event banner first; on desktop the 3:1 artwork; on a phone the 1672×941 artwork, with sharp text and no letterbox; resize a desktop window across 640px and the image and box switch together | ⛔ all pass |
-| S3 | 👤 | **Real Android phone (Chrome):** one row, a horizontal swipe moves the strip, a vertical swipe on it scrolls the page, tapping a tile opens Explore filtered to that division, no page sideways scroll | ⛔ all pass |
-| S4 | 👤 | **Real iPhone (Safari):** the same as S3, **plus the 3D icons render crisply in both themes, switch colour with the theme, and none is blank** (I11) | ⛔ pass; if an icon fails, go back to local, fix, then staging again |
+| S1 | 👤 | Commit in `booker/`, then deploy that commit to booker **staging** on Vercel. **✅ 2026-10-27 (user):** booker `6511041` (this plan), `d97dd66` (F13 banner), `e96597f` (version 0.29.4); root `797ff0b`. Deployed to staging. | ⛔ the staging deployment shows the new commit |
+| S2 | 👤 + 🤖 | Desktop Chrome, both themes: order, 3D icons, labels, left-aligned rows, Book again pipe, shop cards unchanged. **✅ 2026-10-27 (user: "everything looks good on staging").** | ⛔ matches the preview |
+| S2c | 👤 | Section headers (I12), both themes, on Home, Explore, Activity and Payments. **✅ 2026-10-27 (user, as S2).** | ⛔ pass |
+| S2b | 👤 | Carousel (I9, I10): event first, desktop 3:1 art, phone 1672×941 art, switching at 640px. **✅ 2026-10-27 (user, as S2).** | ⛔ all pass |
+| S3 | 👤 | Real Android phone (Chrome): one row, swipes, tap opens Explore, no sideways page scroll. **✅ 2026-10-27 (user, as S2).** | ⛔ all pass |
+| S4 | 👤 | Real iPhone (Safari): as S3, plus the 3D icons crisp in both themes. **✅ 2026-10-27 (user: "including iphone").** | ⛔ pass |
 
 ⛔ **Staging fully green before anything touches production.** If a staging check can't be run, you decide whether production goes ahead, and that decision is recorded here with its date.
 
-### Production (last stage)
+### Production (last stage)  ⏸ PARKED 2026-10-27 (user's decision)
+**Why:** the user will release this to production together with another feature, and asked to skip production testing on this plan. **Unblocks when:** the user runs that combined release; P1–P3 then belong to that release's plan. Recorded as a dated decision at the gate, per plan-authoring §12. The user agreed to close this plan with production parked.
+
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: the production booker deployment is the previous release, and staging's tested deployment is the one to promote | ⛔ only this plan's commit differs |
-| P2 | 👤 | Vercel **Promote** the exact staging deployment tested in S2–S4 | — |
-| P3 | 👤 + 🤖 | Production smoke: Home on desktop and phone, both themes, as in S2/S3 | ⛔ all green |
+| P1 | 👤 | Parity: the production booker deployment is the previous release, and staging's tested deployment is the one to promote | ⛔ only this plan's commit differs ⏸ PARKED (combined release) |
+| P2 | 👤 | Vercel **Promote** the exact staging deployment tested in S2–S4 | — ⏸ PARKED (combined release) |
+| P3 | 👤 + 🤖 | Production smoke: Home on desktop and phone, both themes, as in S2/S3 | ⛔ all green ⏸ PARKED (combined release) |
 
 ## Verification
 
@@ -397,7 +404,7 @@ There is no migration, Edge Function, secret or env-var change. This is a booker
 | V6 | Keyboard: Tab through all 13 tiles, ← → on the focused strip, a visible focus ring **✅ machine 2026-10-27 (keyboard test in `home-layout.spec.ts`); the focus-ring glance is still human (S2).** | machine (spec) + human glance | local |
 | V6b | Carousel (I9, I10): `npm test` (shape, normaliser, shipped JSON in the new order); `promo.spec.ts` checks `currentSrc` at 390 and 1280, that only one file per width is downloaded, the fallback, and `promolive` with no non-OK `/promos/` response; each encoded file's dimensions and size read from its header (≤250 KB, D12) **✅ 2026-10-27: `npm test` and `promo.spec.ts` pass (I4).** | machine | local |
 | V9 | I11: `npm test` (`divisionIcon3d.test.ts`), `tsc` (the `Record<DivisionSlug, …>`), the rendered icon is 60px at 1280 and 42px at 390, and the shop cards are unchanged except for I12's header **✅ 2026-10-27.** | machine | local |
-| V7 | Touch (horizontal vs vertical), Safari rendering of the 3D SVGs in both themes (I11; was "filter rendering" before I2 was aborted), and a screen-reader pass of the group, tiles and live text | human | staging (S3, S4) |
-| V8 | Production smoke | human | production (P3) |
+| V7 | Touch (horizontal vs vertical), Safari rendering of the 3D SVGs in both themes, and a screen-reader pass of the group, tiles and live text. **✅ touch and Safari 2026-10-27 (user, staging S3/S4). The screen-reader pass was not reported, so it is not claimed.** | human | staging (S3, S4) |
+| V8 | Production smoke. **⏸ PARKED with P1–P3 (combined release).** | human | production (P3) |
 
 **Preview-level verification (already run) is not application verification.** V1–V8 are all ⬜ until the build exists.
