@@ -14,6 +14,9 @@ description: >
 `status`, `diff`, `log`, `ls-files`, `check-ignore` — is fine and encouraged, because an
 accurate draft depends on it.
 
+The one exception is when the user asks Claude to do git work itself: then `git-assist`
+applies, which runs only an approved plan and still hands every commit to the user to sign.
+
 At the point where work would be committed, hand over a **message plus the exact command to
 stage it**, and stop.
 

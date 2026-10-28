@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: start-next-release
+expected_outcome: |
+  Works out the next version from existing tags/release naming (version-0.3.2), checks develop is in sync, proposes git flow release start version-0.3.2 with docs-grounded flags, and waits for approval.
+context:
+  scaffold_script: place-files.sh
