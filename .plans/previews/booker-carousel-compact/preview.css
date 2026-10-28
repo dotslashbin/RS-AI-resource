@@ -1,0 +1,179 @@
+/*
+ * booker-carousel-compact — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL (CSP, check 2).
+ *
+ * The carousel box copies `booker/components/home/PromoCarousel/PromoCarousel.module.css`
+ * (2026-10-28): 3:1 above 640px, 1672:941 at or below, radius 10px, scroll-snap track.
+ */
+
+body { background: var(--db-page-bg); }
+
+.cc-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- context only: hero stub and division tiles ---- */
+.cc-hero { padding: 20px; }
+.cc-search { padding: 12px 14px; font-size: 13px; color: var(--db-text); }
+.cc-tiles { display: flex; gap: 12px; }
+.cc-tile {
+  flex: 0 0 76px;
+  height: 76px;
+  border-radius: 10px;
+  background: var(--db-card-bg);
+  border: 1px solid var(--db-card-border);
+}
+.bshelf { margin: 0; }
+
+.cc-note {
+  margin: -8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--db-toggle-on);
+  font-size: 12.5px;
+  color: var(--db-text);
+}
+.cc-note strong { color: var(--db-strong); }
+
+/* ---- the carousel box (as shipped) ---- */
+.cc-carousel { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cc-stage { position: relative; min-width: 0; }
+.cc-track {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 10px;
+}
+.cc-track::-webkit-scrollbar { display: none; }
+.cc-slide {
+  flex: 0 0 100%;
+  aspect-ratio: 3 / 1;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+@media (max-width: 640px) {
+  .cc-slide { aspect-ratio: 1672 / 941; }
+}
+.cc-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--db-card-border);
+}
+.cc-picture { display: contents; }
+.cc-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* ---- dots (shared by every variant): the active one widens, so position is not hue alone ---- */
+.cc-dots { display: flex; gap: 6px; align-items: center; }
+.cc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--db-text) 75%, transparent);
+  transition: width 160ms ease, background-color 160ms ease;
+}
+.cc-dot.is-on { width: 18px; background: var(--db-toggle-on); }
+/* On the artwork the dots sit on the dark scrim, so they are white in BOTH themes. */
+.cc-dots-light .cc-dot { background: rgba(255, 255, 255, 0.6); }
+.cc-dots-light .cc-dot.is-on { background: #ffffff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-dot { transition: none; }
+}
+
+/* ---- today: the row under the banner ---- */
+.cc-row-current { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.cc-round {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--db-card-border);
+  background: var(--db-card-bg);
+  color: var(--db-strong);
+  cursor: pointer;
+}
+
+/*
+ * ---- compact controls: a 44×44 HIT AREA around a 30px visible face ----
+ * The face is a dark translucent scrim with white ink. It sits on artwork, not on the page, so it
+ * does not switch with the theme: the artwork behind it is the same in light and dark.
+ */
+.cc-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #ffffff;
+}
+.cc-face {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.55);
+  transition: background-color 120ms ease;
+}
+.cc-btn:hover .cc-face { background: rgba(15, 23, 42, 0.75); }
+.cc-btn:focus-visible { outline: none; }
+.cc-btn:focus-visible .cc-face { outline: 2px solid #ffffff; outline-offset: 2px; box-shadow: 0 0 0 4px var(--db-toggle-on); }
+
+.cc-edge { position: absolute; top: 50%; transform: translateY(-50%); }
+.cc-edge-l { left: 4px; }
+.cc-edge-r { right: 4px; }
+
+/* A: pause + dots in one pill, bottom centre. */
+.cc-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.45);
+}
+.cc-in-pill .cc-face { background: transparent; }
+.cc-in-pill:hover .cc-face { background: rgba(255, 255, 255, 0.16); }
+
+/* C: everything in one pill, bottom-right corner. */
+.cc-pill-corner { left: auto; right: 6px; transform: none; padding: 0; }
+
+/* B: pause alone in the top-right corner; dots in a strip under the banner. */
+.cc-corner { position: absolute; top: 4px; right: 4px; }
+.cc-strip { display: flex; justify-content: center; padding: 4px 0; }
+
+/* Phones swipe: the edge arrows would sit on the artwork's text, so they go (A and B). */
+@media (max-width: 640px) {
+  .cc-edge { display: none; }
+}
+
+.cc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

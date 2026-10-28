@@ -1,0 +1,31 @@
+{
+  "topic": "booker-carousel-compact",
+  "app": "booker",
+  "date": "2026-10-28T13:33:07.445Z",
+  "cells": 16,
+  "screens": [
+    {
+      "id": "current",
+      "label": "Today · controls row under the banner (reference)"
+    },
+    {
+      "id": "overlay",
+      "label": "A · Overlay: edge arrows + pause/dots pill"
+    },
+    {
+      "id": "slim",
+      "label": "B · Slim strip: dots under, arrows + pause on the art"
+    },
+    {
+      "id": "corner",
+      "label": "C · Corner pill: all controls bottom-right"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}
