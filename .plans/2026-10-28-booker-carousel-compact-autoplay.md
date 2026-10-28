@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-28
 **App / scope:** `booker/` web only — `components/home/PromoCarousel/*`, `lib/promoSlides.ts` + `.json` + test, `app/page.tsx`, `components/home/HomePage/HomePage.tsx`, `app/ui-gallery/page.tsx`, `visual-tests/promo.spec.ts`, `booker/AGENTS.md`. **Out of scope:** vendor, command, `ezzy-booker-mobile`, banner artwork, any schema/Supabase change.
-**Status:** IN PROGRESS — build stages 1–4 ✅ — release: staging ⬜ · production ⬜ (production checks ⏸ by user decision D5)
+**Status:** IN PROGRESS — build ✅ · staging ✅ (0.29.6, user-verified 2026-10-28) · production ⬜ Promote (P1) pending; production checks ⏸ by user decision D5
 
 > A cosmetic patch: the carousel's control row takes too much page height, so swap it for a
 > smaller treatment, and make the carousel advance on its own (two seconds per slide, D4),
@@ -15,14 +15,14 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-10-28, end of stage 4)
-- **Done so far:** approved 2026-10-28 ("execute stage 1-4"). Stage 1: on `feature/carousel_patch`
-  (user-made, D2 amended). Stage 2: JSON config. Stage 3: autoplay + slim-strip controls. Stage 4: docs + local gate.
-- **Live where:** local only, uncommitted on `feature/carousel_patch` · staging unchanged · production unchanged.
-- **Next:** the user commits (draft in the stage-4 report), then S1: deploy `feature/carousel_patch` to staging, then S2 checks.
+## ▶ RESUME HERE (updated 2026-10-28, after staging)
+- **Done so far:** stages 1–4 built locally; the user committed (`585d650`, plus `22afc63` new event link), merged into
+  `develop` (`e7c7a35`), cut `release/version-0.29.6` (`4292ac0`) and deployed it to staging. S1, S2 ✅.
+- **Live where:** staging = 0.29.6 · production unchanged.
+- **Next:** S3, the user notes the staging deployment ID; then P1, Vercel Promote of that exact deployment.
+  Once P1 is done the plan can close (P2 stays ⏸ per D5). F10 stays open for the user, and F9 is handed over.
 - **Watch out for:** `promo.spec.ts` autoplay tests must step `page.clock` in 100ms steps (F7);
-  the wrap jumps with `behavior: "instant"`, never `"auto"` (F8). Two sidebar baselines fail for an
-  unrelated, pre-existing reason (F10) — do not mistake them for this change.
+  the wrap jumps with `behavior: "instant"`, never `"auto"` (F8).
 
 ---
 
@@ -71,10 +71,12 @@ A smooth rewind from the last slide to the first crosses every slide (11 on a 12
 outlast the 700ms guard. The wrap now scrolls with `behavior: "instant"`. ⚠️ `"auto"` defers to the
 track's CSS `scroll-behavior: smooth`, so it still animated; the first attempt used it and failed.
 
-### F9 — Pre-existing lint errors elsewhere in booker  ✅ recorded, not fixed
+### F9 — Pre-existing lint errors elsewhere in booker  ✅ recorded, not fixed — handed over 2026-10-28
 `npm run lint` reports 14 errors / 4 warnings, all in files this plan does not touch (`not-found.tsx`,
 `useAppShell.ts`, `booker.service.ts`, …) plus `ui-gallery/page.tsx`'s existing `Body()` component
 (`react-hooks/static-components`). The files this plan changed lint clean. Left alone (surgical-changes rule).
+Handed over 2026-10-28 (re-measured on `4292ac0`: same 14 errors / 4 warnings, listed by file and line) in
+`.plans/handovers/2026-10-28-booker-lint-errors.md`, for the user to add to `2026-10-27-booker-v1-pre-release.md`.
 
 ### F10 — Sidebar baselines stale since 0.29.5  ⬜ OPEN (for the user)
 `pilot.spec.ts` `sidebar-light` / `sidebar-dark` fail (866 px, ratio 0.01). The diff is only the
@@ -189,9 +191,9 @@ No migrations, Edge Functions, secrets or env vars — app deploy only.
 ### Staging (production untouched throughout)
 | # | Who | Step | Check |
 |---|---|---|---|
-| S1 | 👤 | Commit on `feature/carousel_patch`, deploy it to staging (Vercel) | ⛔ build green |
-| S2 | 👤 + 🤖 | Staging checks: Home at 390 and 1280, both themes — controls per D1, advances every 2s, wraps, hover/focus/pause stop it, swipe works on a phone | ⛔ all green |
-| S3 | 👤 | Note the tested deployment's URL/ID for P1 | — |
+| S1 | 👤 | Commit on `feature/carousel_patch`, deploy it to staging (Vercel) | ✅ 2026-10-28: route differed from the plan. Committed `585d650` (+ `22afc63` event link), merged into `develop`, deployed as `release/version-0.29.6` (`4292ac0`, version bump). Machine check: the staging page shows the `v0.29.6` badge, and all six `/promos/*-v2.jpg` return 200 image/jpeg. |
+| S2 | 👤 + 🤖 | Staging checks: Home at 390 and 1280, both themes — controls per D1, advances every 2s, wraps, hover/focus/pause stop it, swipe works on a phone | ✅ 2026-10-28, **user-verified** ("see the changes working properly"). The agent's scripted browser checks did **not** run: staging Home sits behind sign-in and no credentials were used. The same behaviour is machine-verified locally (`promo.spec` 24/24). |
+| S3 | 👤 | Note the tested deployment's URL/ID for P1 | ⬜ not recorded yet |
 
 ⛔ **Staging fully green before anything touches production.**
 
