@@ -4,7 +4,7 @@
 **App / scope:** `booker/` web (Ezzy Booker, `booker.ezzy.ph`) plus the hosted settings it depends on
 (production Supabase Auth, Vercel env). **Out of scope:** new features, `ezzy-booker-mobile`, the
 Checkout S2 work, vendor and command (read only, for comparison).
-**Status:** IN PROGRESS — staging ✅ (S0–S3, 2026-10-29); patch I5 (carousel pause/play config) coded, waiting on the user's commit and a staging deploy; then production P1–P3 — release: staging ✅ · production ⬜
+**Status:** IN PROGRESS — LAUNCHED 2026-10-29: staging ✅ (S0–S3), production ✅ (P1, P2a, P2, P3). Open: P4 / B1-d ⏸ (real paid booking, the user's later testing round), F12 ⏸ (past sessions bookable), and the daily abandoned-checkout routine from now on — release: staging ✅ · production ✅
 
 > Booker has been deployed to production since 2026-09 (promoted again 2026-10-23/24) but is
 > **not yet serving the public** (`2026-09-29-booker-live-verification.md`, line 38). This plan is
@@ -540,10 +540,10 @@ One migration (I2-a, once approved). No Edge Function deploy is required (generi
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: production env per `production-env-checklist.md` (B1 L3-b), Auth settings (B2); `supabase secrets list --project-ref <prod>` shows **no** `NOTIFICATION_EMAIL_OVERRIDE_TO` (F11) | ⛔ every row ticked |
-| P2a | 👤 | `supabase migration list --project-ref <prod>` → `supabase db push --project-ref <prod>` | ⛔ prod = staging minus `20261028000001` before; equal after |
-| P2 | 👤 | Vercel **Promote** the exact staging deployment tested in S1–S3 | ⛔ same deployment id |
-| P3 | 👤 + 🤖 | Probes: `curl` manifest, robots, headers, favicon hashes; password reset from `booker.ezzy.ph` | ⛔ match expectations |
+| P1 | 👤 | Parity: production env per `production-env-checklist.md` (B1 L3-b), Auth settings (B2); `supabase secrets list --project-ref <prod>` shows **no** `NOTIFICATION_EMAIL_OVERRIDE_TO` (F11) | ⛔ every row ticked — 🔄 **2026-10-29**, 🤖: `secrets list --project-ref` (names; values are digests) has **no** `NOTIFICATION_EMAIL_OVERRIDE_TO` ✅. `POST /api/register` with `abc12` (cannot create an account under either length) → "at least **6** characters … known to be weak": minimum length is **still 6** ⬜, leaked check on ✅, and no character-rule reason, so the rule looks **off** ✅ (inferred from the message, as on staging). Production env rows were ✅ under B1-a1. ✅ **DONE 2026-10-29:** the user set length 8 and emails/h 100; 🤖 re-probe: `abc12` and `abcdefg` both → "at least **8** characters … weak", no account created (machine-verified). Emails/h = 100 is user-reported; not readable from outside |
+| P2a | 👤 | `supabase migration list --project-ref <prod>` → `supabase db push --project-ref <prod>` | ⛔ prod = staging minus `20261028000001` before; equal after — ✅ **DONE 2026-10-29** (user pushed). 🤖 `migration list --project-ref pdkejyjidrfxksaczvfy`: 89 rows, local = remote for every one, `20261028000001` included. Machine-verified |
+| P2 | 👤 | Vercel **Promote** the exact staging deployment tested in S1–S3 | ⛔ same deployment id — 🔄 **2026-10-29 16:33 UTC:** the user reported P2 done, but 🤖 probe found production still serving the pre-I1 build (manifest `#205cfc`, fresh response, age 9 s). Not counted. The user is redoing it after P2a, promoting the deployment that includes I5 ✅ **DONE 2026-10-29** (user re-promoted after P2a): production manifest now `#034bfc`, so the build includes I1. Deployment id not compared by 🤖 |
+| P3 | 👤 + 🤖 | Probes: `curl` manifest, robots, headers, favicon hashes; password reset from `booker.ezzy.ph` | ⛔ match expectations — 🔄 **2026-10-29**, 🤖 part ✅: manifest "Ezzy Booker" `#034bfc` / `#0b1020`; `Disallow: /`; `X-Robots-Tag` noindex; HSTS; CSP `connect-src` names only the production Supabase project; no staging host, staging ref or `localhost` in `/` or `/login`; favicon and icon-192 hashes equal staging's; `/` 200; register, create-session and webhook 400 on an empty body. ✅ **DONE 2026-10-29:** the user tested password reset and Home's carousel on production, both working (human-verified) |
 | P4 | 👤 | B1: L3-a occupancy check + one real paid booking, then refund | ⛔ `is_paid` settles, email arrives |
 
 Then announce. Production stays the last stage.
