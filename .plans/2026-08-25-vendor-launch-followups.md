@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **App / scope:** `vendor`, `command`, `backbone`, Play Console, `ezzy.ph`
-**Status:** DRAFT — holding document. **2026-09-25:** F21–F25 added from `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` (its K4 and F1–F4). **2026-09-16:** F19 (no vendor reminder to mark done, parked) and F20 (real-money kiosk end-to-end, user-owned) added. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
+**Status:** DRAFT — holding document. **2026-10-29:** F26 added (unpaid badge/filter on vendor Bookings) from `.plans/2026-10-27-booker-v1-pre-release.md`. **2026-09-25:** F21–F25 added from `.plans/2026-09-25-vendor-password-recovery-cross-browser-fix.md` (its K4 and F1–F4). **2026-09-16:** F19 (no vendor reminder to mark done, parked) and F20 (real-money kiosk end-to-end, user-owned) added. **2026-09-15:** F18 added (delete-refusal wording, deferred by the user); F14 annotated after the one-photo limit shipped. **2026-09-12 (closed):** F5, F7, F9, F11, C2, C3 ✅ and F10 closed via `.plans/2026-09-12-vendor-kiosk-hardening.md` (COMPLETE). Earlier the same day they were unparked into `.plans/2026-09-12-vendor-kiosk-hardening.md`; F15 added. **Reviewed 2026-09-12:** L2 and F3 are resolved
 (✅, evidence at each); L3 re-verified still broken; F2 partly overtaken; F5–F14, C2, C3
 carried in from `.plans/2026-09-12-vendor-bookings-details-search-and-kiosk-guide.md`.
 Originally the successor to `.plans/2026-08-21-vendor-account-deletion.md` (COMPLETE).
@@ -452,6 +452,20 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
   "place them in that plan that contained things to do later"). Chosen over
   `.plans/2026-08-16-payout-deferred-followups.md`, which is scoped to payouts.
 
+### F26 — Vendor Bookings list does not show which bookings are unpaid ⬜ TODO
+**Origin:** `.plans/2026-10-27-booker-v1-pre-release.md`, D1 (2026-10-29), at the user's request.
+**What:** booker checkouts abandoned at PayMongo stay `pending` and unpaid, holding their slot
+until someone releases them (daily routine, `architecture/booker-abandoned-checkout-cleanup.md`).
+The vendor's Bookings list does not say a booking is unpaid: only `BookingDetailsModal`
+(`vendor/components/bookings/BookingDetailsModal/BookingDetailsModal.tsx:191`) shows "Not paid",
+and there is no unpaid filter. So a vendor cannot find these bookings without being told which
+ones they are.
+**Fix direction:** an "Unpaid" badge on `BookingRow` when `pricePaid > 0 && !isPaid`
+(`isPaid` is already on the booking), and optionally an unpaid filter on `BookingsPage`. Vendor
+only, no schema. Follow `ux-design` and `component-separation`.
+**Unblocks when:** the user schedules vendor work; booker is the priority as of 2026-10-29.
+Retire or shrink once kiosk checkout plan B4 expires unpaid bookings automatically.
+
 ---
 
 ## Execution order
@@ -465,7 +479,7 @@ wrong", but `BookingsPage` never passes it. Harmless in practice: the Realtime U
 7. **F2** — its own piece of work; the vendor suite is 123 tests, so this is not small.
 8. **C1** — any time.
 9. **F5, F7, F9, F10, F11, C2, C3** — scheduled 2026-09-12 in `.plans/2026-09-12-vendor-kiosk-hardening.md` (see that plan's execution order).
-   **F6, F8, F12–F19** remain unscheduled; each waits on its own unblock condition. **F20** is the user's real-money pass, whenever they run it. **F21–F25** (added 2026-09-25) are unscheduled: F21 needs its own plan; F22 and F25 are cross-app and need approval; F23 and F24 wait on your decisions.
+   **F6, F8, F12–F19** remain unscheduled; each waits on its own unblock condition. **F20** is the user's real-money pass, whenever they run it. **F26** (added 2026-10-29) is unscheduled, vendor-only, waiting on the user. **F21–F25** (added 2026-09-25) are unscheduled: F21 needs its own plan; F22 and F25 are cross-app and need approval; F23 and F24 wait on your decisions.
    *(Original note, 2026-09-12:)* **F5–F14, C2, C3** (added 2026-09-12) — unscheduled; each waits on its own unblock condition.
    Cheapest if ever wanted: **F7** (one line) → **F5a** (eligibility rule + test) → **F9**
    (prop on a shared component) → **F6** (service-side version bump) → **F11** → **F10**
@@ -495,6 +509,7 @@ beyond a dev server.
 | F10 | `ui-gallery?mode=bookings` logs no hydration error in a Playwright run | machine |
 | F11 | A signature captured on a dark-themed kiosk stores dark ink on white | device |
 | F12 / F13 / F14 | Decided per its own plan | — |
+| F26 | Unpaid `pending` booking shows the badge in the list; paid and ₱0 bookings do not | browser |
 | C2 | Kiosk agreements step at 400px: no overlap, label on one line | browser |
 | C3 | After "Something's wrong" with Realtime disabled, the row shows the new status | browser |
 

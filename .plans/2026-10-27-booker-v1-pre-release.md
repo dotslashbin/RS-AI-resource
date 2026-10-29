@@ -170,6 +170,8 @@ at 15:01:57 UTC, which is **23:01 Manila**, nine hours after the session ended.
 - Not yet known: the time zone of the user's test browser. If it was Manila, the client filter
   failed some other way. Either way the customer can pay for a slot they cannot attend.
 - Severity to be set once the cause is known. Pre-existing; not caused by this plan's code.
+- Same gap as `.plans/2026-08-25-vendor-launch-followups.md` **F16** (⏸, 2026-09-12): no database
+  refusal of a past start, and booker's slot step was never investigated there. Fix the two together.
 
 ### F4 — No `app/global-error.tsx` in any web app  ✅ recorded
 `app/error.tsx` and `app/not-found.tsx` exist. A crash in the root layout itself would show Next's
