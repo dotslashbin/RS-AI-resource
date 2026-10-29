@@ -405,6 +405,8 @@ cancelling did not help: `bookings_no_duplicate` is unconditional, so a cancelle
 key and the same booker cannot rebook the same slot (23505). An abandoned checkout therefore had no
 path to a paid booking. The slot is still held in the meantime — that is **B1** on the same plan,
 parked and handed to `.plans/2026-09-29-vendor-kiosk-custom-checkout.md`.
+⚠️ **Until that ships, held slots are released by hand, daily:** `booker-abandoned-checkout-cleanup.md`
+(unpaid for over 24 hours, future slot only, **Reject** from the vendor dashboard, never SQL).
 
 ⚠️ **THE WEBHOOK CANNOT REACH A LOCAL MACHINE, so `is_paid` NEVER SETTLES ON localhost.** PayMongo
 posts to this endpoint from their own servers; `http://localhost:3000/api/payment/webhook` is not
