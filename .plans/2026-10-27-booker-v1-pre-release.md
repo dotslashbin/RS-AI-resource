@@ -4,7 +4,7 @@
 **App / scope:** `booker/` web (Ezzy Booker, `booker.ezzy.ph`) plus the hosted settings it depends on
 (production Supabase Auth, Vercel env). **Out of scope:** new features, `ezzy-booker-mobile`, the
 Checkout S2 work, vendor and command (read only, for comparison).
-**Status:** DRAFT — every decision resolved (D3 on 2026-10-28); waiting on approval of I2 (cross-app + migration) before the code stage Must-dos 1–3 run first, one at a time, read-only/staging only — release: staging ⬜ · production ⬜
+**Status:** IN PROGRESS — staging ✅ (S0–S3, 2026-10-29); patch I5 (carousel pause/play config) coded, waiting on the user's commit and a staging deploy; then production P1–P3 — release: staging ✅ · production ⬜
 
 > Booker has been deployed to production since 2026-09 (promoted again 2026-10-23/24) but is
 > **not yet serving the public** (`2026-09-29-booker-live-verification.md`, line 38). This plan is
@@ -18,7 +18,14 @@ Checkout S2 work, vendor and command (read only, for comparison).
 
 ---
 
-## ▶ RESUME HERE (updated 2026-10-28, end of the code stage)
+## ▶ RESUME HERE (updated 2026-10-29, staging green + patch I5)
+- **2026-10-29:** S2 ✅ and S3 ✅ (user: "visual checks passes"). F11 (staging email override) and
+  F12 (past sessions bookable, ⏸) recorded. Patch I5 coded on booker `release/version-0.30.0`,
+  uncommitted; the user commits and pushes. **Next:** redeploy staging with I5 and glance at Home's
+  carousel (no pause/play button, still autoplays), then production P1 → P2a → P2 → P3, promoting
+  the deployment that contains I5.
+
+**Earlier (2026-10-28, end of the code stage):**
 - **Done so far:** must-dos 1–3 ✅ (B1-d ⏸; B2-c waits for P1). Every decision resolved; I2 approved 2026-10-28. Code stage ✅: I1 + I2-b on booker `feature/pre-release-prep` (uncommitted), I2-a migration file on backbone `develop` (uncommitted, not applied). tsc clean, 319/319 tests, lint at the pre-existing 18. Migration applied locally; a local sign-up wrote the welcome notification (test data removed).
 - **Live where:** production booker = the build promoted for the carousel (2026-10-24); `develop` is at 0.29.5. Staging Auth: length 8, no character rule, leaked check on, Site URL staging-command, six redirects.
 - **Next:** S2 (user): sign up on staging with a readable inbox (welcome email), password reset, test-mode book and pay; then S3 visual pass. S0 and S1 ✅ 2026-10-28. Booker was rebased onto develop 0.29.6 (commit `7f3b65a`; backup branch `backup/pre-release-prep-pre-rebase` kept).
@@ -135,6 +142,34 @@ Site URL `http://localhost:3000`, Redirect URLs **empty**.
 - Fix, staging only: Site URL → `https://staging-command.ezzy.ph` (mirrors production) and the six
   bare + `/**` entries for staging-command, -vendor, -booker. All three hosts answer 200 (2026-10-28).
 - Staging's *before* values for the password settings were not recorded before B2-b changed them.
+
+### F11 — Staging redirects every notification email to one inbox (2026-10-29)  ✅ recorded
+Staging's `send-notification-email` has `NOTIFICATION_EMAIL_OVERRIDE_TO` set (`handler.ts:54`,
+documented in `email-secrets-setup.md` as non-prod only). Resend shows the S2 sign-up's welcome
+email and its 5 Command alerts all **delivered to `cto@ezzy.ph`**, while `notification_emails.
+recipient_email` records the *intended* recipient (`meefiebossman+ghoul@gmail.com`,
+`*@bookdeck.com`). So on staging, read the log as "who it was for", and Resend as "where it went".
+- Correction: on 2026-10-29 I told the user the welcome went to the dummy address and the admin
+  alerts to `@bookdeck.com`; neither happened, the override caught both.
+- Supabase **Auth** emails (reset, "password changed") bypass the override and go to the real
+  address: Resend shows "Your password was changed" to `wolvi@rine.com` as **Suppressed**.
+- ⚠️ Production must have this secret **unset**, or no booker ever gets an email. Added to P1.
+
+### F12 — The S2 test booking is for a session that had already ended (2026-10-29)  ⏸ PARKED
+⏸ **Parked 2026-10-29 by the user:** the test browser was **not** on Philippine time, which fits
+the device-time-zone cause below. Not to be retested now; someone else will test it later, on a
+browser set to Asia/Manila. Unblocks when that test runs: if past slots stay hidden there, the cause
+is confirmed and the fix (compare in Asia/Manila, plus a database guard) gets its own plan.
+Booking `62c0cf78…` ("Car Detailing", `session`) is for 2026-10-29, 12:00–14:00. It was created
+at 15:01:57 UTC, which is **23:01 Manila**, nine hours after the session ended.
+- Booker hides today's past slots (`useStep3Schedule.ts:93`, `slotInstant(...) > now`), but
+  `slotInstant` builds the time in the **device's** time zone, not Asia/Manila. A browser outside
+  UTC+8 would show the wrong slots as still open.
+- The database has **no** past-slot guard. Nothing in the migrations rejects a `booked_date` and
+  `start_time` already in the past, so a paid booking for an ended session is accepted.
+- Not yet known: the time zone of the user's test browser. If it was Manila, the client filter
+  failed some other way. Either way the customer can pay for a slot they cannot attend.
+- Severity to be set once the cause is known. Pre-existing; not caused by this plan's code.
 
 ### F4 — No `app/global-error.tsx` in any web app  ✅ recorded
 `app/error.tsx` and `app/not-found.tsx` exist. A crash in the root layout itself would show Next's
@@ -280,6 +315,24 @@ Production holds the carousel build (2026-10-24). On staging, but not in product
 - `develop` is at 0.29.5 ("clean up").
 The launch should promote **one** tested staging build that contains everything you want customers
 to see first. Promoting it per §12 is this plan's release. **D4** names the content.
+
+### I5 — Carousel: config to hide the pause/play button  ✅ code (2026-10-29) · staging ⬜
+User request after S3: a JSON setting to show or hide the carousel's pause/play button, set to
+hidden for now. Booker only, no schema.
+- `lib/promoSlides.json`: `"showPlayPauseButton": false` (alongside the user's own
+  `autoplaySeconds` 2 → 5). `lib/promoSlides.ts`: `PromoConfig.showPlayPause` and
+  `showPlayPauseProblem`; missing or invalid **shows** the button (the safe side).
+  `app/page.tsx` → `HomePage` (`promoShowPlayPause`) → `PromoCarousel` (`showPlayPause`, default
+  true), which skips rendering the button. The hook is unchanged.
+- Tests: `promoSlides.test.ts` covers the setting and the shipped JSON; gallery mode
+  `promoautohidden` (not baselined) + a `promo.spec.ts` test: no button, autoplay runs, a manual
+  move stops it. booker `AGENTS.md` how-to updated.
+- ✅ Verified 2026-10-29 (machine): tsc clean; `npm test` 323/323; `promo.spec.ts` 25/25;
+  lint at the pre-existing 18.
+- ⚠️ Accessibility trade-off, accepted by the user's request: with the button hidden, autoplay
+  stops only on a booker's own move (swipe, ‹ ›, ← →) or holds on hover/focus. WCAG 2.2.2 expects a
+  visible pause for motion over 5 s; `autoplaySeconds` is 5. Turning the button back on is
+  one JSON line.
 
 ### I4 — Search indexing is off in production  ✖ ABORTED (2026-10-27) — D5(a): stays `noindex` for launch
 `app/robots.ts` and `next.config.ts` serve `Disallow: /` and `X-Robots-Tag: noindex` unless
@@ -479,15 +532,15 @@ One migration (I2-a, once approved). No Edge Function deploy is required (generi
 |---|---|---|---|
 | S0 | 👤 | From `backbone/`: `supabase migration list --linked` → `supabase db push` (linked = staging) | ✅ **DONE 2026-10-28** (user ran `db push`): `migration list --linked` read by 🤖 shows `20261028000001` applied on staging, and local = remote for every migration, nothing extra either side. Machine-verified. The row itself isn't readable anonymously (the read policy is `authenticated` only); S2's welcome email proves it end to end |
 | S1 | 👤 | Deploy the agreed build (D4) to staging | ✅ **DONE 2026-10-28**: the user pushed and released; 🤖 probes on deployment `dpl_E9s3YRZi4J18mSLGUub1GfQXZtdh`: manifest `#034bfc` / `#0b1020` / "STAGING BOOKER"; only `staging-booker.ezzy.ph` named, no `localhost`; CSP on the staging project; `noindex`; webhook 400 Invalid signature, create-session 401, register 400; favicon and icon hashes unchanged (vendor's). Machine-verified |
-| S2 | 👤 | Sign up (with an inbox you can read), sign in, reset password, book and pay (test mode) on staging | ⛔ all pass; reset link opens staging booker; **welcome email arrives** |
-| S3 | 👤 + 🤖 | Look at Home/Explore/Activity/Payments, light and dark, phone and desktop | ⛔ all green |
+| S2 | 👤 | Sign up (with an inbox you can read), sign in, reset password, book and pay (test mode) on staging | ⛔ all pass; reset link opens staging booker; **welcome email arrives** — 🔄 **2026-10-29:** sign-up as `meefiebossman+ghoul@gmail.com` wrote `booker_welcome` (14:26:20 UTC), sent 2 s later; Resend shows it **Delivered to `cto@ezzy.ph`** (F11 override). ✅ The user read it in `cto@ezzy.ph` and confirmed it good (human-verified, 2026-10-29). ✅ **DONE 2026-10-29.** Book and pay: the user booked and paid in test mode as the same booker ("payment went as expected"). 🤖 read booking `62c0cf78…` on staging: `is_paid = true`, `payment_reference` `cs_…` set, ₱2,500, status `pending` (waiting for the vendor, which is correct), created 15:01:57 UTC, paid by webhook at 15:02:36. Vendor notifications `new_booking` and `payment_confirmed` were both sent. Sign-in is covered by the booking. Reset was human-verified on staging under B2-b (2026-10-28). See F12 for the booked slot's time |
+| S3 | 👤 + 🤖 | Look at Home/Explore/Activity/Payments, light and dark, phone and desktop | ⛔ all green — ✅ **DONE 2026-10-29**, human-verified ("visual checks passes for me"). Followed by patch I5, which changes Home's carousel: re-glance after its staging deploy |
 
 ⛔ **Staging fully green before anything touches production.**
 
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: production env per `production-env-checklist.md` (B1 L3-b), Auth settings (B2) | ⛔ every row ticked |
+| P1 | 👤 | Parity: production env per `production-env-checklist.md` (B1 L3-b), Auth settings (B2); `supabase secrets list --project-ref <prod>` shows **no** `NOTIFICATION_EMAIL_OVERRIDE_TO` (F11) | ⛔ every row ticked |
 | P2a | 👤 | `supabase migration list --project-ref <prod>` → `supabase db push --project-ref <prod>` | ⛔ prod = staging minus `20261028000001` before; equal after |
 | P2 | 👤 | Vercel **Promote** the exact staging deployment tested in S1–S3 | ⛔ same deployment id |
 | P3 | 👤 + 🤖 | Probes: `curl` manifest, robots, headers, favicon hashes; password reset from `booker.ezzy.ph` | ⛔ match expectations |
