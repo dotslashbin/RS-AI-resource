@@ -1,0 +1,7 @@
+---
+type: llm
+focus: trace
+weight: 1
+---
+
+The result matches this description: A Slides artifact link with about 8 slides covering Oct 24 to today, headlined by Ezzy Booker going live, written with no technical jargon, Ezzy logo and blue only, speaker notes on each slide, plus Google Slides import steps and caveats in the reply.
