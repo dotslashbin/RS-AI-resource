@@ -1,0 +1,27 @@
+{
+  "topic": "booker-photo-row",
+  "app": "booker",
+  "date": "2026-10-30T22:36:16.093Z",
+  "cells": 12,
+  "screens": [
+    {
+      "id": "today",
+      "label": "1 · Today (0.30.x) — photo at the top, gap below, badges on photos"
+    },
+    {
+      "id": "fill",
+      "label": "2 · Option A — square fills the left side (card height = photo)"
+    },
+    {
+      "id": "stretch",
+      "label": "3 · Option B — photo stretches to the card height (not square)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

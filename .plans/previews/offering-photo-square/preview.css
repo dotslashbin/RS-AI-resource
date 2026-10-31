@@ -1,0 +1,90 @@
+/*
+ * offering-photo-square — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/booker.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/* ── Explore page — ExplorePage.module.css:19 (.page) and :246 (.serviceGrid) ─────────── */
+.ex-page { display: flex; flex-direction: column; gap: 14px; max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+.ex-note { font-size: 13px; line-height: 1.5; color: var(--db-text); border-left: 3px solid var(--db-toggle-on); padding-left: 10px; }
+.ex-head { display: flex; align-items: baseline; justify-content: space-between; }
+.ex-title { font-size: 16px; font-weight: 700; color: var(--db-strong); }
+.ex-count { font-size: 12px; color: var(--db-text); }
+.ex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+
+/* ── The card — OfferingResultCard.module.css, copied ─────────────────────────────────── */
+.rc { display: flex; flex-direction: column; width: 100%; border: 1px solid var(--db-card-border); border-radius: 16px;
+  background: var(--db-card-bg); overflow: hidden; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.rc:hover { background: var(--db-sub-bg); }
+.rc-text { display: flex; flex-direction: column; min-width: 0; }
+
+/* :37–46 — the cover. The SHAPE is the only thing under review. */
+.rc-cover { position: relative; display: flex; align-items: flex-end; padding: 10px; flex: none;
+  background: var(--division-tile, var(--div-none-tile)); color: var(--division-deep, var(--div-none-deep)); }
+.ex-grid[data-variant="band"] .rc-cover { height: 118px; }
+.ex-grid:not([data-variant="band"]) .rc-cover { aspect-ratio: 1 / 1; }
+
+.rc-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rc-photo[data-fit="contain"] { object-fit: contain; }
+
+/* The no-photo placeholder: Ezzy mark | division mark, centred (simplified — README → Limits). */
+.rc-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.rc-ph-ezzy { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  font-size: 20px; font-weight: 800; color: #fff; background: var(--db-toggle-on); }
+.rc-ph-rule { width: 1px; height: 30px; background: var(--division-deep, var(--div-none-deep)); opacity: 0.28; }
+.rc-ph-mark { font-size: 17px; font-weight: 800; color: var(--division-deep, var(--div-none-deep)); }
+
+/* :50–57 — as shipped. --db-card-bg is translucent in dark, so over a photo this pill all but vanishes (finding F4). */
+.rc-div { position: relative; font-size: 11px; font-weight: 700; background: var(--db-card-bg); border-radius: 999px; padding: 3px 9px; }
+/* Plan D4 (decided 2026-10-30): the square options draw the pill on the division tile, which is opaque
+   and light in both themes, with --division-deep ink. Today's screen keeps the shipped translucent pill. */
+.ex-grid:not([data-variant="band"]) .rc-div { background: var(--division-tile, var(--div-none-tile)); }
+/* :172–183 */
+.rc-unbookable { position: absolute; top: 8px; right: 8px; white-space: nowrap; font-size: 10.5px; font-weight: 700;
+  border-radius: 999px; padding: 3px 8px; background: rgba(15, 23, 42, 0.82); color: #f8fafc; }
+
+.rc-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+.rc-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.rc-name { font-size: 15px; font-weight: 700; color: var(--db-strong); }
+.rc-price { font-size: 14px; font-weight: 800; color: var(--db-strong); white-space: nowrap; }
+.rc-unit { font-size: 12px; font-weight: 600; color: var(--db-text); }
+.rc-meta { font-size: 13px; color: var(--db-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.rc-foot { display: flex; align-items: center; gap: 8px; margin: 0 14px 12px; padding: 6px 11px 6px 8px; border-radius: 999px;
+  background: var(--division-tile, var(--div-none-tile)); align-self: flex-start; }
+.rc-foot-mono { width: 22px; height: 22px; display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  color: var(--division-deep, var(--div-none-deep)); }
+.rc-foot-name { font-size: 12px; font-weight: 700; color: var(--division-deep, var(--div-none-deep)); }
+
+/* Crop screen: three per row, so each photo shape sits over its contain twin. */
+.ex-grid[data-crop="1"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* ── Phone — the three options differ here only ───────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* B — two columns. The name/price row stacks: 171px will not hold both on one line. */
+  .ex-grid[data-variant="square-2up"] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .ex-grid[data-variant="square-2up"] .rc-top { flex-direction: column; gap: 2px; }
+  .ex-grid[data-variant="square-2up"] .rc-name { font-size: 14px; }
+  .ex-grid[data-variant="square-2up"] .rc-body { padding: 10px 10px 10px; }
+  .ex-grid[data-variant="square-2up"] .rc-foot { margin: 0 10px 10px; }
+
+  /* C — a row: a 112px square thumbnail beside the text. */
+  .ex-grid[data-variant="square-row"] { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .ex-grid[data-variant="square-row"] .rc { flex-direction: row; align-items: stretch; }
+  .ex-grid[data-variant="square-row"] .rc-cover { width: 112px; align-self: flex-start; padding: 6px; }
+  .ex-grid[data-variant="square-row"] .rc-text { flex: 1 1 auto; }
+  .ex-grid[data-variant="square-row"] .rc-top { flex-direction: column; gap: 2px; }
+  .ex-grid[data-variant="square-row"] .rc-body { padding: 10px 12px 8px; }
+  .ex-grid[data-variant="square-row"] .rc-foot { margin: 0 12px 10px; }
+  .ex-grid[data-variant="square-row"] .rc-ph { gap: 6px; }
+  .ex-grid[data-variant="square-row"] .rc-ph-ezzy { width: 28px; height: 28px; font-size: 14px; }
+
+  .ex-grid[data-crop="1"] { gap: 8px; }
+  .ex-grid[data-crop="1"] .rc-text { display: none; }
+}

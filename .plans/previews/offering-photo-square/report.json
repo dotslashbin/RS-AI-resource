@@ -1,0 +1,35 @@
+{
+  "topic": "offering-photo-square",
+  "app": "booker",
+  "date": "2026-10-30T18:03:11.677Z",
+  "cells": 20,
+  "screens": [
+    {
+      "id": "today",
+      "label": "1 · Today — 118px band"
+    },
+    {
+      "id": "square",
+      "label": "2 · Option A — square, phone: one column"
+    },
+    {
+      "id": "square-2up",
+      "label": "3 · Option B — square, phone: two columns"
+    },
+    {
+      "id": "square-row",
+      "label": "4 · Option C — square, phone: thumbnail row"
+    },
+    {
+      "id": "crop",
+      "label": "5 · Cover vs contain, per upload shape"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

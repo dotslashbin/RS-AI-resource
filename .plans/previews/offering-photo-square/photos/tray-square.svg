@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <!-- Invented fixture: a 1:1 "photo" — the case a square frame shows untouched. -->
+  <rect width="500" height="500" fill="#efe3c8"/>
+  <ellipse cx="250" cy="260" rx="200" ry="170" fill="#8a5a2b"/>
+  <ellipse cx="250" cy="250" rx="180" ry="150" fill="#d8b27a"/>
+  <ellipse cx="250" cy="240" rx="120" ry="70" fill="#b5541c"/>
+  <circle cx="160" cy="320" r="26" fill="#5c9e4a"/><circle cx="340" cy="320" r="26" fill="#5c9e4a"/>
+  <circle cx="250" cy="345" r="20" fill="#e4c04a"/>
+</svg>

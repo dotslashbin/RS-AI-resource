@@ -1,0 +1,93 @@
+/*
+ * booker-photo-row — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` — both generated
+ * from `_shared/`, so do not restate a token or a chrome class here. If a rule would be
+ * useful to the next preview, it belongs in `_shared/booker.css` instead.
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL. `style-src 'self'` blocks a style
+ * attribute and reports it as a console error, which is check 2. A dynamic value becomes a
+ * `data-` attribute with its mapping here.
+ */
+
+/* ── Page ───────────────────────────────────────────────────────────────────────────────── */
+.pg { display: flex; flex-direction: column; gap: 14px; max-width: 1080px; margin: 0 auto; padding: 20px 16px 40px; }
+.pg-note { font-size: 13px; line-height: 1.5; color: var(--db-text); border-left: 3px solid var(--db-toggle-on); padding-left: 10px; }
+.pg-h { font-size: 15px; font-weight: 700; color: var(--db-strong); margin-top: 6px; }
+.ot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); gap: 16px; }
+.rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+
+/* ── Explore card — OfferingResultCard.module.css as shipped (square cover) ────────────── */
+.rc { display: flex; flex-direction: column; width: 100%; border: 1px solid var(--db-card-border); border-radius: 16px;
+  background: var(--db-card-bg); overflow: hidden; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.rc-cover { position: relative; display: flex; align-items: flex-end; padding: 10px; aspect-ratio: 1 / 1;
+  background: var(--division-tile, var(--div-none-tile)); color: var(--division-deep, var(--div-none-deep)); }
+.rc-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rc-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.rc-ph-ezzy { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 20px; font-weight: 800; color: #fff; background: var(--db-toggle-on); }
+.rc-ph-rule { width: 1px; height: 30px; background: var(--division-deep, var(--div-none-deep)); opacity: 0.28; }
+.rc-ph-mark { font-size: 17px; font-weight: 800; color: var(--division-deep, var(--div-none-deep)); }
+.rc-div { position: relative; font-size: 11px; font-weight: 700; background: var(--division-tile, var(--div-none-tile)); border-radius: 999px; padding: 3px 9px; }
+.rc-unbookable { position: absolute; top: 8px; right: 8px; white-space: nowrap; font-size: 10.5px; font-weight: 700;
+  border-radius: 999px; padding: 3px 8px; background: rgba(15, 23, 42, 0.82); color: #f8fafc; }
+.rc-body { padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rc-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.rc-name { font-size: 15px; font-weight: 700; color: var(--db-strong); }
+.rc-price { font-size: 14px; font-weight: 800; color: var(--db-strong); white-space: nowrap; }
+.rc-unit { font-size: 12px; font-weight: 600; color: var(--db-text); }
+.rc-meta { font-size: 13px; color: var(--db-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-foot-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; min-width: 0; }
+.rc-foot { display: flex; align-items: center; gap: 8px; padding: 6px 11px 6px 8px; border-radius: 999px; background: var(--division-tile, var(--div-none-tile)); }
+.rc-foot-mono { font-size: 10px; font-weight: 800; color: var(--division-deep, var(--div-none-deep)); }
+.rc-foot-name { font-size: 11.5px; font-weight: 700; color: var(--division-deep, var(--div-none-deep)); }
+/* Proposed: "No dates yet" beside the division label when the cover is a photo — same chip, off the photo. */
+.rc-chip { white-space: nowrap; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 4px 8px;
+  background: rgba(15, 23, 42, 0.82); color: #f8fafc; }
+
+/* ── Home "Available today" card — OpenTodayCard.module.css as shipped ─────────────────── */
+.ot { display: flex; flex-direction: column; padding: 0; border: 1px solid var(--db-card-border); border-radius: 15px; overflow: hidden;
+  background: var(--db-card-bg); font: inherit; text-align: left; cursor: pointer; }
+.ot-panel { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1; flex-shrink: 0;
+  background: var(--division-tile, var(--div-none-tile)); }
+.ot-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ot-mark { font-size: 26px; font-weight: 800; opacity: 0.5; color: var(--division-deep, var(--div-none-deep)); }
+.ot-badge { position: absolute; right: 10px; bottom: 10px; width: 34px; height: 34px; border-radius: 20px; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; background: var(--division-tile, var(--div-none-tile)); color: var(--division-deep, var(--div-none-deep));
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.32); }
+.ot-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; min-width: 0; padding: 13px 15px 15px; }
+.ot-name { font-size: 15px; font-weight: 700; color: var(--db-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ot-vendor { font-size: 12.5px; color: var(--db-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ot-slot { display: flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--st-confirmed-fg, #059669); }
+.ot-spacer { flex-grow: 1; }
+.ot-foot { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.ot-price { flex-grow: 1; font-size: 17px; font-weight: 800; color: var(--db-strong); white-space: nowrap; }
+.ot-book { display: flex; align-items: center; height: 38px; padding: 0 18px; border-radius: 11px; background: var(--db-toggle-on); color: #fff; font-size: 13.5px; font-weight: 700; }
+
+/* ── Phone ───────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .rc-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .rc { display: grid; grid-template-columns: 112px minmax(0, 1fr); }
+  .rc-cover { width: 112px; padding: 6px; align-self: start; }
+  .rc-ph { gap: 6px; }
+  .rc-ph-ezzy { width: 28px; height: 28px; font-size: 14px; }
+  .rc-ph-mark { font-size: 13px; }
+  .rc-body { padding: 10px 12px 10px; }
+  .rc-top { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .ot { display: grid; grid-template-columns: 112px minmax(0, 1fr); }
+  .ot-panel { width: 112px; align-self: start; }
+  .ot-body { padding: 11px 13px 13px; }
+  .ot-book { height: 34px; padding: 0 14px; font-size: 12.5px; }
+
+  /* A — the square fills the left side: 136px, and the card is that tall. One line per text row. */
+  [data-v="fill"].rc, [data-v="fill"].ot { grid-template-columns: 136px minmax(0, 1fr); }
+  [data-v="fill"] .rc-cover, [data-v="fill"] .ot-panel { width: 136px; height: 136px; align-self: stretch; }
+  [data-v="fill"] .rc-body { padding: 9px 12px; gap: 2px; justify-content: center; }
+  [data-v="fill"] .rc-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  [data-v="fill"] .rc-foot-row { margin-top: 3px; }
+  [data-v="fill"] .rc-foot { padding: 4px 10px 4px 7px; }
+  [data-v="fill"] .ot-body { padding: 10px 12px; gap: 3px; }
+  [data-v="fill"] .ot-foot { margin-top: 4px; }
+
+  /* B — the photo stretches to the card's full height: fills the side, but not square. */
+  [data-v="stretch"] .rc-cover, [data-v="stretch"] .ot-panel { aspect-ratio: auto; align-self: stretch; height: auto; min-height: 112px; }
+}

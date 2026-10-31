@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Invented fixture: a 4:5 portrait "photo". The ears sit near the TOP edge and the paws near
+       the bottom, so a centre square crop trims both. -->
+  <rect width="400" height="500" fill="#f3e6d3"/>
+  <rect y="390" width="400" height="110" fill="#b9d4c5"/>
+  <ellipse cx="200" cy="330" rx="110" ry="95" fill="#d9a066"/>
+  <circle cx="200" cy="190" r="85" fill="#d9a066"/>
+  <path d="M125 160 L105 40 L175 120 Z M275 160 L295 40 L225 120 Z" fill="#a8703e"/>
+  <circle cx="170" cy="180" r="10" fill="#2b2b2b"/><circle cx="230" cy="180" r="10" fill="#2b2b2b"/>
+  <ellipse cx="200" cy="218" rx="16" ry="11" fill="#2b2b2b"/>
+  <ellipse cx="150" cy="440" rx="30" ry="18" fill="#a8703e"/><ellipse cx="250" cy="440" rx="30" ry="18" fill="#a8703e"/>
+</svg>
