@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-02 (discovery started 2026-10-30)
 **App / scope:** Discovery only — no code, no migration, no implementation plan. Future scope spans `backbone/` (commission ledger, affiliate portal row, RLS), `command/` (affiliate administration) and a **new `affiliate/` app**.
-**Status:** IN PROGRESS — discovery (grill-me) under way. Rounds 1–3 answered; next is the standalone app-setup plan, then the later rounds. The implementation plan is written only after the user says they are satisfied with the design.
+**Status:** IN PROGRESS — discovery (grill-me) under way. Rounds 1–3 answered; the app-setup plan is COMPLETE (2026-11-03). Next: the later rounds, then design previews. The implementation plan is written only after the user says they are satisfied with the design.
 
 > A record of the facts established, the decisions the user has made and the questions
 > still open for the affiliate dashboard. This is **not** an implementation plan: it has no

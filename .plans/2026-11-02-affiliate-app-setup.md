@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-02
 **App / scope:** new `affiliate/` app (local only) · root repo: `.gitignore`, `.claude/skills/core-rules/SKILL.md`, `architecture/overview.md`. Reads `vendor/` and `command/`; changes neither.
-**Status:** COMPLETE (2026-11-03) — I1–I8 done; `affiliate/` committed and pushed (01da45b), root committed (5c38c56). Open findings F15, F22, F24 carried. Release: none.
+**Status:** COMPLETE (2026-11-03) — I1–I8 done; F22, F24, F25 fixed and closed 2026-11-04 (`affiliate/` 523cd02, root c1cc86a). Open: F15 (vendor side), F26 (user's `.env.local`). Release: none.
 
 > Stand up `affiliate/` as an empty, buildable "Ezzy Affiliate" app — the same stack and
 > conventions as the other portals, a working sign-in screen, and a gate that refuses
@@ -19,7 +19,7 @@ feature implementation plan, which waits until the user confirms the design.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-03, Step 3 done)
+## ▶ RESUME HERE (updated 2026-11-04, findings closed)
 
 - **Done:** Step 1 (I1, I2) 2026-11-02; Step 2 (I3–I6) and Step 3 (I7, I8 drafts)
   2026-11-03. `affiliate/` builds, lints, type-checks, passes 25 unit tests, 12 Playwright
@@ -29,8 +29,8 @@ feature implementation plan, which waits until the user confirms the design.
   `github.com:thumbtaper/affiliate`; root commit 5c38c56, signed, five files, with only the
   affiliate row of `core-rules/SKILL.md` (the two other edits there stay uncommitted).
   **Plan COMPLETE.**
-- **Fixed 2026-11-03, for the user to close:** F25 (forgot-password recovery, option a),
-  F22 (one retry), F24 (reset-link view checked). Commit drafts for both repos handed over.
+- **Closed by the user 2026-11-04:** F25 (forgot-password recovery, option a), F22 (one
+  retry), F24 (reset-link view checked). Committed: `affiliate/` 523cd02 (pushed), root c1cc86a.
 - **Open:** F26 (`APP_DOMAIN` in `.env.local` is vendor's, the user's file), F15 (vendor's
   `useInstallPrompt` lint failure, vendor side).
 - **Next after this plan:** the feature plan (portal row, dashboard, Command changes), which
@@ -220,7 +220,7 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   `unavailable` (`lib/retryOnce.ts`, 4 unit tests: no retry on allowed/refused, one retry,
   never two, waits the delay). The 401 cannot be forced, so the retry path itself was not
   seen live; 6 timed live refusals after the change took 0.3–0.9s (no slowdown).
-  🔄 Fixed, for the user to close.
+  ✅ Closed by the user 2026-11-04 (affiliate 523cd02).
 - **F23 — `affiliate/.env.local` sets `SUPABASE_SERVICE_ROLE_KEY` (2026-11-03).** Found
   by a name-only check; the value was not read. No code in `affiliate/` reads it, and as a
   non-`NEXT_PUBLIC_` variable it is not bundled for the browser, so nothing is exposed
@@ -237,7 +237,7 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   session, and a reload shows sign-in (9/9). The view has **no session behind it**: see F25.
   No new password was submitted (it would change a seeded account). After the F25 fix the
   same run passes with a session on the view, and a real reset was round-tripped (F25).
-  🔄 Done, for the user to close. Earlier text: The forgot-password email
+  ✅ Closed by the user 2026-11-04. Earlier text: The forgot-password email
   lands in Mailpit with a working link back to :3000, so following it to the "Set a new
   password" view could be checked locally. Not run: outside the checks this step named.
   The Command-invite link still waits on the feature plan, as recorded.
@@ -271,7 +271,7 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   cookie); a full round trip on seeded liza: reset to a temporary password → it signs in
   (then refused) and the old one fails → reset back to the seed password → seed password
   signs in (5/5; liza restored). Regression: live suite 17/17, smoke 12/12, unit 35/35,
-  build, lint, tsc. 🔄 Fixed, for the user to close.
+  build, lint, tsc. ✅ Closed by the user 2026-11-04 (affiliate 523cd02).
 - **F26 — `NEXT_PUBLIC_APP_DOMAIN` in `affiliate/.env.local` is vendor's.** The sign-in form's
   domain hint reads `vendor.ezzy.ph` (seen on screen 2026-11-03; the file was not read).
   Not secret, but wrong for this app. 👤 Set it to this app's domain. ⬜ Open.
