@@ -35,6 +35,11 @@ An operations dashboard for vendors. Each vendor's admin can define what service
 
 An internal ops portal. Command staff approve new vendors (verifying accreditation where applicable), grant or revoke portal access for users, and monitor platform-wide activity. It is the only portal with the authority to change user and vendor status — and, since 2026-08, the only one that can resolve a flagged booking, release a vendor payout, or override a booking's status (with a reason on record).
 
+### The Affiliate portal (`./affiliate`, in setup)
+**Status (2026-11-03):** an empty "Ezzy Affiliate" Next.js app, local only. It has a sign-in screen and an access gate, and nothing else.
+
+Invite-only: Command creates affiliates, and there is no sign-up. The gate requires an active profile **and** the `affiliate` portal, with no role check (an affiliate is a capability, not a role; see `auth-and-roles.md`). No `affiliate` row exists in `portals` yet, so today the gate refuses every account. That is intended. The portal row, the dashboard, Vercel projects and its full section here arrive with the feature plan. Setup: `.plans/2026-11-02-affiliate-app-setup.md`.
+
 ---
 
 ## The Mobile Clients

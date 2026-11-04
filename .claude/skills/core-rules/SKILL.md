@@ -12,6 +12,7 @@ workspace/
 ├── command/               # RS Command — internal ops portal; manages users, vendors, roles, and portal access across all three apps
 ├── booker/                # Bookdeck Booker — customer-facing booking portal; booking wizard, wallet, schedule, document upload
 ├── vendor/                # Bookdeck Vendor — vendor admin dashboard; bookings, staff, schedules, wallet, offerings, vendor profile
+├── affiliate/             # Ezzy Affiliate — affiliate dashboard; setup only, see .plans/2026-11-02-affiliate-app-setup.md
 ├── backbone/              # shared Supabase project — migrations, types, seed data
 ├── ezzy-booker-mobile/    # Expo/React Native counterpart to booker — mock-data build in progress, see .plans/2026-09-21-booker-mobile-app.md
 ├── ezzy-vendor-mobile/    # Expo/React Native counterpart to vendor — built out, running on Android
