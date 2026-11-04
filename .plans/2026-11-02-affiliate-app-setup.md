@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-02
 **App / scope:** new `affiliate/` app (local only) · root repo: `.gitignore`, `.claude/skills/core-rules/SKILL.md`, `architecture/overview.md`. Reads `vendor/` and `command/`; changes neither.
-**Status:** IN PROGRESS — approved 2026-11-02; Steps 1–3 (I1–I7, I8 drafts) done 2026-11-03; U2 (the user's `git init` and commits) outstanding. Release: none.
+**Status:** COMPLETE (2026-11-03) — I1–I8 done; `affiliate/` committed and pushed (01da45b), root committed (5c38c56). Open findings F15, F22, F24 carried. Release: none.
 
 > Stand up `affiliate/` as an empty, buildable "Ezzy Affiliate" app — the same stack and
 > conventions as the other portals, a working sign-in screen, and a gate that refuses
@@ -25,12 +25,14 @@ feature implementation plan, which waits until the user confirms the design.
   2026-11-03. `affiliate/` builds, lints, type-checks, passes 25 unit tests, 12 Playwright
   smoke tests and the live local sign-in checks (F22). The root repo now ignores it.
 - **Live where:** nothing deployed. local ✅ · staging — · production — (no release).
-- **Waiting on the user:** **U2**, the commit drafts handed over 2026-11-03: `git init` +
-  first commit in `affiliate/`, and the scoped root commit. Once both land, this plan can
-  be closed as COMPLETE.
-- **Open, not blocking:** F15 (vendor's `useInstallPrompt` lint failure, vendor side),
-  F22 (one first-run refusal timeout, not reproduced; watch), F24 (reset-link view could be
-  checked locally).
+- **U2 done 2026-11-03 (user):** `affiliate/` first commit 01da45b, signed, pushed to
+  `github.com:thumbtaper/affiliate`; root commit 5c38c56, signed, five files, with only the
+  affiliate row of `core-rules/SKILL.md` (the two other edits there stay uncommitted).
+  **Plan COMPLETE.**
+- **Fixed 2026-11-03, for the user to close:** F25 (forgot-password recovery, option a),
+  F22 (one retry), F24 (reset-link view checked). Commit drafts for both repos handed over.
+- **Open:** F26 (`APP_DOMAIN` in `.env.local` is vendor's, the user's file), F15 (vendor's
+  `useInstallPrompt` lint failure, vendor side).
 - **Next after this plan:** the feature plan (portal row, dashboard, Command changes), which
   waits for the user to confirm the design (discovery notes).
 - **Watch out for:** no `affiliate` portal row exists, so **nobody can get past sign-in**.
@@ -204,6 +206,21 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   no screenshot. The two clean runs after it passed. Most likely a cold dev compile on
   the first sign-in, but that is **not proven**. If it recurs, capture the screen
   (the script now does). ⬜ Watch.
+  **Reproduced and diagnosed 2026-11-03 (later the same day).** A timed run (6 fresh
+  browsers) failed once, on run 1: the app showed the **unavailable** line ("We couldn't
+  check your access just now"), not "refused". Kong's log: `GET /rest/v1/profiles` → **401,
+  79-byte body** from the headless browser. 79 bytes is exactly the length of PostgREST's
+  `PGRST303` "JWT issued at future" error (PostgREST v14.5), so the newly issued token was
+  briefly ahead of PostgREST's clock. **Not** a cold compile: a build + cold dev start did
+  not reproduce it (3 + 3 runs), and warm runs are refused in 0.9–2.9s. The app handled it
+  as designed (no session left, a retry works), but a real affiliate would see "try
+  again". Possible fix: retry the access check once after ~1s on `unavailable`. That
+  touches the auth gate, so it is an approval gate; not done. ⬜ Open: the user decides.
+  **Fix approved and applied 2026-11-03:** `verifyAffiliateAccess` retries once after 1s on
+  `unavailable` (`lib/retryOnce.ts`, 4 unit tests: no retry on allowed/refused, one retry,
+  never two, waits the delay). The 401 cannot be forced, so the retry path itself was not
+  seen live; 6 timed live refusals after the change took 0.3–0.9s (no slowdown).
+  🔄 Fixed, for the user to close.
 - **F23 — `affiliate/.env.local` sets `SUPABASE_SERVICE_ROLE_KEY` (2026-11-03).** Found
   by a name-only check; the value was not read. No code in `affiliate/` reads it, and as a
   non-`NEXT_PUBLIC_` variable it is not bundled for the browser, so nothing is exposed
@@ -213,10 +230,51 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   Re-checked 2026-11-03 14:13 after the user's edit (names only): no `SERVICE_ROLE` name
   in the file; the four `NEXT_PUBLIC_*` variables the app needs are still set. Status left
   for the user to close.
-- **F24 — The reset link flow itself is now locally testable.** The forgot-password email
+- **F24 — The reset link flow itself is now locally testable.** **Run 2026-11-03:** Mailpit
+  link (`type=recovery`, `redirect_to=http://localhost:3000`) opens "Set a new password";
+  too-short and mismatched passwords are refused client-side; refresh stays on the view and
+  never shows the signed-in placeholder; "Back to Sign In" returns to the form, leaves no
+  session, and a reload shows sign-in (9/9). The view has **no session behind it**: see F25.
+  No new password was submitted (it would change a seeded account). After the F25 fix the
+  same run passes with a session on the view, and a real reset was round-tripped (F25).
+  🔄 Done, for the user to close. Earlier text: The forgot-password email
   lands in Mailpit with a working link back to :3000, so following it to the "Set a new
   password" view could be checked locally. Not run: outside the checks this step named.
   The Command-invite link still waits on the feature plan, as recorded.
+
+- **F25 — Forgot-password recovery is signed out by the gate (found by F24, 2026-11-03).**
+  Opening a self-requested reset link (`?code=`, PKCE) in the same browser: the code is
+  exchanged (`POST /auth/v1/token` 200), then ~70ms later `useAppShell`'s mount effect runs
+  the gate on that session (`/auth/v1/user`, `profiles`, `user_portals`), the gate refuses,
+  and it signs out (`POST /auth/v1/logout` 204). The "Set a new password" view still shows,
+  because the `rs.recovery` latch is set, but with **no session**: no auth cookie and
+  nothing in local storage. Saving a password would then fail ("Auth session missing!").
+  **Cause, inherited from command (D1):** the mount effect skips the gate only when
+  `isRecoveryDetected()` is already true, and `isRecoveryResolving()` recognises only `#hash`
+  tokens (Command's invite links), not `?code=`, whose PASSWORD_RECOVERY event arrives later.
+  **Impact today:** every account is refused, so no forgot-password reset can complete in
+  this app. After the portal exists, real affiliates pass the gate and keep the session;
+  only refused accounts are hit. Command has the same gap for non-Command accounts (not
+  changed). **Fix options** (auth flow, so an approval gate; not done): (a) vendor's
+  approach, requesting resets with an implicit-flow client (`vendor/lib/supabase/recoveryRequestClient.ts`)
+  so links arrive as `#hash` tokens, which this app already handles, plus
+  `vendor/lib/authCodeCallback.ts` for `?code=` links already in inboxes; (b) treat a
+  `?code=` at load as "recovery resolving" so the gate waits. ⬜ Open: the user decides.
+  **Fixed 2026-11-03 with option (a), approved by the user:** vendor's
+  `lib/supabase/client.ts` (whole), `lib/supabase/recoveryRequestClient.ts`,
+  `lib/authCodeCallback.ts` + test, `lib/authHashError.ts` + test (vendor's, restoring the
+  `pkce_verifier_missing` case); `services/auth.service.ts` `resetPassword` uses the
+  recovery client. Plus one condition in `useAppShell`'s mount effect: skip the gate while
+  `isRecoveryResolving()`, which closes the `?code=` race too (vendor has the same race;
+  not changed). **Verified:** opening the link now makes no gate queries and no logout,
+  and an `sb-127-auth-token` cookie exists on the reset view (before: gate + logout + no
+  cookie); a full round trip on seeded liza: reset to a temporary password → it signs in
+  (then refused) and the old one fails → reset back to the seed password → seed password
+  signs in (5/5; liza restored). Regression: live suite 17/17, smoke 12/12, unit 35/35,
+  build, lint, tsc. 🔄 Fixed, for the user to close.
+- **F26 — `NEXT_PUBLIC_APP_DOMAIN` in `affiliate/.env.local` is vendor's.** The sign-in form's
+  domain hint reads `vendor.ezzy.ph` (seen on screen 2026-11-03; the file was not read).
+  Not secret, but wrong for this app. 👤 Set it to this app's domain. ⬜ Open.
 
 ---
 
@@ -387,7 +445,7 @@ from F6 **without values**), `affiliate/.gitignore` (vendor's, which already ign
   portal section is written with the feature.
 **Check:** `git -C . status --short` no longer lists `affiliate/`.
 
-### I8 — Hand-over  🔄 IN PROGRESS — drafts ✅ 2026-11-03 · U2 ⬜ the user's
+### I8 — Hand-over  ✅ DONE 2026-11-03
 > U1 ✅ 2026-11-03 (F22, F23). Commit drafts handed over 2026-11-03 per the commit-drafting
 > skill: one for the new `affiliate/` repository, one for the root repository. Claude ran
 > no git write command. U2 is the user's, and only the user ticks it.
@@ -395,8 +453,8 @@ from F6 **without values**), `affiliate/.gitignore` (vendor's, which already ign
 >   (GPG "Good signature"), pushed to `github.com:thumbtaper/affiliate`; `master` tracks
 >   `origin/master` and `git ls-remote` shows the same commit. No `develop` branch yet
 >   (optional git-flow step). The first commit failed at signing at first; `GPG_TTY` fixed it.
-> - U2b root commit ⬜ (checked 2026-11-03): `.gitignore`, `architecture/overview.md`,
->   core-rules row and the two plans are still uncommitted.
+> - U2b root commit ✅ 2026-11-03 (user): 5c38c56, GPG `G`, exactly the five paths;
+>   `git diff HEAD` on core-rules shows only the two other workstreams' edits left.
 - 👤 **U1** — create `affiliate/.env.local` yourself: copy the two `NEXT_PUBLIC_SUPABASE_*`
   values from vendor's, and set `NEXT_PUBLIC_APP_NAME="Ezzy Affiliate"` (plus `APP_DOMAIN`
   and `APP_URL` as in vendor). Claude never reads, copies or writes key files (core rules).

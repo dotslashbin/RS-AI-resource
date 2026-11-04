@@ -18,7 +18,8 @@
 ## ▶ RESUME HERE (updated 2026-11-02)
 
 - **Where we are:** rounds 1–3 fully answered (2026-11-02). Nothing open from them.
-  The app-setup plan is drafted: `.plans/2026-11-02-affiliate-app-setup.md` (DRAFT, D1–D4 open).
+  The app-setup plan is COMPLETE (2026-11-03): `.plans/2026-11-02-affiliate-app-setup.md`.
+  `affiliate/` exists, committed and pushed. Next here: the remaining rounds below.
 - **Agreed next order:** finish open items → a small standalone **app-setup plan** (copy
   vendor skeleton, `npm ci`, build/lint/type-check, root `.gitignore`) → the user runs
   `git init` + first commit → remaining discovery rounds → design previews → user confirms
