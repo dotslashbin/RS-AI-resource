@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-02
 **App / scope:** new `affiliate/` app (local only) · root repo: `.gitignore`, `.claude/skills/core-rules/SKILL.md`, `architecture/overview.md`. Reads `vendor/` and `command/`; changes neither.
-**Status:** COMPLETE (2026-11-03) — I1–I8 done; F22, F24, F25 fixed and closed 2026-11-04 (`affiliate/` 523cd02, root c1cc86a). Open: F15 (vendor side), F26 (user's `.env.local`). Release: none.
+**Status:** COMPLETE (2026-11-03) — I1–I8 done; F22, F24, F25 fixed and closed 2026-11-04 (`affiliate/` 523cd02, root c1cc86a). F26 closed 2026-11-04. Open: F15 (vendor side). Release: none.
 
 > Stand up `affiliate/` as an empty, buildable "Ezzy Affiliate" app — the same stack and
 > conventions as the other portals, a working sign-in screen, and a gate that refuses
@@ -31,7 +31,7 @@ feature implementation plan, which waits until the user confirms the design.
   **Plan COMPLETE.**
 - **Closed by the user 2026-11-04:** F25 (forgot-password recovery, option a), F22 (one
   retry), F24 (reset-link view checked). Committed: `affiliate/` 523cd02 (pushed), root c1cc86a.
-- **Open:** F26 (`APP_DOMAIN` in `.env.local` is vendor's, the user's file), F15 (vendor's
+- **Open:** F15 (vendor's
   `useInstallPrompt` lint failure, vendor side).
 - **Next after this plan:** the feature plan (portal row, dashboard, Command changes), which
   waits for the user to confirm the design (discovery notes).
@@ -277,7 +277,7 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   Not secret, but wrong for this app. 👤 Set it to this app's domain.
   **Set by the user 2026-11-04.** Checked by name only (value not printed): one
   `NEXT_PUBLIC_APP_DOMAIN` line, contains "affiliate", not "vendor". Not seen on screen yet.
-  🔄 For the user to close.
+  ✅ Closed by the user 2026-11-04.
 
 ---
 
