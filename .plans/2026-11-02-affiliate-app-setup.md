@@ -274,7 +274,10 @@ to `vendor/` or `command/` · pnpm (discovery Q6.2).
   build, lint, tsc. ✅ Closed by the user 2026-11-04 (affiliate 523cd02).
 - **F26 — `NEXT_PUBLIC_APP_DOMAIN` in `affiliate/.env.local` is vendor's.** The sign-in form's
   domain hint reads `vendor.ezzy.ph` (seen on screen 2026-11-03; the file was not read).
-  Not secret, but wrong for this app. 👤 Set it to this app's domain. ⬜ Open.
+  Not secret, but wrong for this app. 👤 Set it to this app's domain.
+  **Set by the user 2026-11-04.** Checked by name only (value not printed): one
+  `NEXT_PUBLIC_APP_DOMAIN` line, contains "affiliate", not "vendor". Not seen on screen yet.
+  🔄 For the user to close.
 
 ---
 
