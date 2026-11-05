@@ -220,6 +220,14 @@ hooks and tests unchanged.
 a vendor page and an offering page. **The offering page is where a booking starts** — its Book
 button opens the wizard at Schedule (plan D1).
 
+- **Offering photos are square everywhere except one case** (2026-11-04/05, plan
+  `.plans/2026-11-04-booker-portrait-photo-square-cover.md`). Cards on Home and Explore are square crops.
+  The offering page shows two or three photos as equal squares, centred. A vendor's **only** photo
+  (vendors may upload one today, `MAX_PHOTOS` in vendor) is a **full-width 21:9 banner on web**: the
+  whole photo over a blurred copy of itself, so a poster is never cropped. On phones it is a square crop.
+  ⚠️ Every square cover positions its `<img>` **absolutely**: in flow, a portrait upload's height
+  overrides `aspect-ratio` and stretches the card (it shipped that way on "Available today").
+
 - **With nothing typed, Explore shows the whole catalogue**, not a shortcut panel. The matcher
   always returned everything for an empty query; until 2026-10-02 the page simply rendered a
   different branch. Clearing the search or the filters returns to that state.
@@ -377,7 +385,10 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
   "Check dates", and the date mode now shows "N left on this date".
   ⚠️ **It shipped behind a dead gate for a day**: `hasDateSchedule` was declared and never
   set, so "Check dates" was disabled for **every** such offering and nobody could reach the
-  mode. `OfferingPage` fetches on mount and has **no fixture**, so nothing caught it.
+  mode. `OfferingPage` fetches on mount and had **no fixture**, so nothing caught it. Since
+  2026-11-05 the gallery's `offeringphotos` mode renders it, with every Supabase read answered by
+  `visual-tests/photo-aspect.spec.ts` through `page.route`. That covers the **photos only**; slots and
+  the date mode are still untested there.
 - ~~**Document uploads not persisted.**~~ ✅ **Fixed 2026-10-03.** Files now go to the private
   `booking-documents` bucket with a `booking_documents` row each, sent once the booking row
   exists. ⚠️ The gap was worse than this line said: the step reported *"N of M required

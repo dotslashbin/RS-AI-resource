@@ -286,6 +286,10 @@ Rules:
 
 ## Verification
 - <per-item check; mark machine-verifiable vs needs-live-environment>
+
+## Docs
+**Docs:** <files changed> | none needed — <reason>
+<!-- filled in when the plan closes; see "Closing a plan" -->
 ```
 
 ---
@@ -299,6 +303,25 @@ Rules:
   match reality, fix the plan in the same breath as the code.
 - Do not mark DONE on the strength of "it should work." DONE means verified;
   if you couldn't verify, it's still 🔄 with a note on what's missing.
+
+---
+
+## Closing a plan
+
+Before the overall status becomes COMPLETE, in this order:
+
+1. **Check the docs the plan affected** and update them: the relevant
+   `architecture/*.md`, the app's `AGENTS.md`, and `README.md`.
+2. **Record one line in the plan**, at the start of a line, exactly:
+   - `**Docs:** <files changed>`, or
+   - `**Docs:** none needed — <reason>`.
+
+   A plan with `Release: none` still needs the line. A `## Docs` heading with
+   that line under it is the skeleton's form; either satisfies the check.
+3. **Flip the status, then regenerate the index** with
+   `python3 scripts/plans-index.py`. For a COMPLETE plan dated 2026-11-05 or
+   later with neither a `**Docs:**` line nor a `## Docs` heading, the script
+   prints a warning to stderr. It is a warning only: `--check` does not fail on it.
 
 ---
 
@@ -328,7 +351,9 @@ plan from being confidently wrong.
 7. Present the plan to the user and get explicit approval before executing.
 8. Execute.
 9. Review results and add newly discovered follow-up work to the plan before
-   continuing.
+   continuing. When the last stage is done, close the plan: update the affected
+   docs and record the `**Docs:**` line before marking it COMPLETE (see
+   "Closing a plan").
 
 Alongside the sequence:
 

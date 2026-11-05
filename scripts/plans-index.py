@@ -12,6 +12,10 @@ Reads, per plan: the first H1, the date (from the filename), the scope line
 predecessor / supersession reference. Plans whose status says `legacy` are
 listed in a separate trailing section. Standard library only.
 
+Also warns on stderr about any COMPLETE plan dated DOCS_SINCE or later with no
+`**Docs:**` line and no `## Docs` heading (plan-authoring, "Closing a plan").
+A warning only: it never changes INDEX.md or the `--check` exit code.
+
 ⚠️ A plan that git does not track yet is listed WITHOUT a link, marked
 `(uncommitted)`. That is what makes this file safe to commit from a tree that
 also holds someone else's work in progress: the index is generated from every
@@ -45,6 +49,8 @@ INDEX = PLANS / "INDEX.md"
 
 STATUS_RE = re.compile(r"^Status:\s*(?:[✅🔄✖⏸⬜]️?\s*)?(DRAFT|IN PROGRESS|COMPLETE|BLOCKED|ABORTED)\b[\s—–:.-]*(.*)")
 SCOPE_RE = re.compile(r"^\*{0,2}(?:App / scope|Scope|Target|Applies to|Page)\*{0,2}:\*{0,2}\s*(.*)")
+DOCS_RE = re.compile(r"^(?:\*\*Docs:\*\*|##+ Docs\b)", re.M)
+DOCS_SINCE = "2026-11-05"
 RELATED_RE = re.compile(r"(Predecessor|Supersedes|superseded by|Successor)\b[^`\n]*`\.plans/([^`]+?)\.md`", re.I)
 
 
@@ -72,7 +78,8 @@ def clean(text, limit):
 
 
 def parse(path):
-    lines = path.read_text(encoding="utf-8").splitlines()
+    body = path.read_text(encoding="utf-8")
+    lines = body.splitlines()
     head = lines[:40]
     title = next((re.sub(r"^(> )?# ", "", l) for l in lines if re.match(r"^(> )?# ", l)), path.stem)
     status, note = "—", ""
@@ -92,6 +99,7 @@ def parse(path):
         "scope": clean(scope, 70),
         "related": "; ".join(related),
         "legacy": "legacy" in note.lower(),
+        "docs": bool(DOCS_RE.search(body)),
     }
 
 
@@ -115,6 +123,10 @@ def render():
     for r in current:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
     summary = " · ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+    for r in current:
+        if r["status"] == "COMPLETE" and r["date"] >= DOCS_SINCE and not r["docs"]:
+            print(f"warning: {r['file']} is COMPLETE but has no **Docs:** line "
+                  "(see plan-authoring, \"Closing a plan\")", file=sys.stderr)
     known = tracked()
     pending = 0 if known is None else sum(1 for r in rows if r["file"] not in known)
     out = [

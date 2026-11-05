@@ -240,6 +240,13 @@ DB-first does not apply: there is no migration, Edge Function, secret or env var
 | P3 ✅ | 👤 | Home "Available today" and the portrait offering's page on production at desktop width | ⛔ same as S3 |
 | P4 ✅ | 👤 | Finish the release branch (git flow), as the user normally does | ✅ 2026-11-05: merged to master `10e7882`, tag `version-0.30.3`, on `develop`; the two Codex files still untracked (checked by `git status`) |
 
+## Docs (closing step, 2026-11-05)
+✅ Updated after COMPLETE, at the user's request: `architecture/portals.md` (booker Explore: how offering photos are shaped;
+the Known Gaps line saying `OfferingPage` has no fixture now notes the `offeringphotos` mode) and `booker/AGENTS.md` (Styling: a
+square photo box needs an absolute `<img>`, plus `photo-aspect.spec.ts`; the stale "OfferingPage still cannot get a gallery pane"
+line corrected). `.plans/INDEX.md` regenerated: no change, 188 plans and 188 rows. `booker/AGENTS.md` is in the booker repo, so it needs
+its own commit on `develop`.
+
 ## Verification
 **Stage 3, 2026-11-05 (live, user):** P1–P3: the user promoted the tested staging deployment and checked production, as they
 reported. P4 was verified read-only by the agent: booker master `10e7882` "Merge branch 'release/version-0.30.3'", tags `v0.30.6`,
