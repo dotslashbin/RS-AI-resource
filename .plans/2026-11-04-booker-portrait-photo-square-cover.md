@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-04
 **App / scope:** booker/ web only. `components/home/OpenTodayCard/OpenTodayCard.module.css`, `components/explore/OfferingPage/OfferingPage.module.css` (I2, added 2026-11-05), plus a regression fixture in `app/ui-gallery/page.tsx` and one behavioural spec in `visual-tests/`. No vendor, command, Expo, schema, RLS, env or dependency change. One `.tsx` change: `OfferingPage.tsx` (I4's backdrop element).
-**Status:** IN PROGRESS — stage 1 (local) ✅ 2026-11-04 · stage 1b (I2, I3, I4, local) ✅ 2026-11-05 — release: staging ✅ (0.30.7, 2026-11-05) · production ⬜
+**Status:** COMPLETE (2026-11-05) — release: staging ✅ · production ✅ (0.30.7, Vercel Promote by the user, 2026-11-05)
 
 > The user reported this on 2026-11-04 with a screenshot of Home's "Available today": the middle card's cover
 > is a portrait upload, and its "square" box grows into a tall rectangle. That also stretches the
@@ -17,16 +17,12 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-05, end of stage 2)
-- **Done so far:** stage 1 (B1, I1) and stage 1b (I2–I4), committed by the user as booker `4abaf28` + `a263399` (0.30.6) and
-  `103e462` + `a31b74f` (0.30.7), pushed to `release/version-0.30.3`. Stage 2 (staging) ✅: deployed and S3 passed, per the
-  user on 2026-11-05.
-- **Live where:** local ✅ · staging ✅ (0.30.7) · production ⬜.
-- **Next:** stage 3, all 👤. P1 parity (the production candidate is the exact staging deployment that passed S3), P2 Vercel
-  **Promote**, P3 the production check, P4 finish the release branch.
-- **Watch out for:** booker still carries **two untracked Codex S2 files** (`lib/managedPaymentEvidenceTypes.ts`,
-  `lib/normalizeManagedIntentEvidence.ts`). Not this plan's; they must still be untracked after P4. The root plan files are
-  committed by the user separately.
+## ▶ RESUME HERE (updated 2026-11-05, plan COMPLETE)
+- **Done:** every stage. B1/I1 shipped in 0.30.6, I2–I4 in 0.30.7. Staging and production checked by the user on 2026-11-05.
+  Release branch finished (booker master `10e7882`, `version-0.30.3` tag; back on `develop`).
+- **Live where:** local ✅ · staging ✅ · production ✅.
+- **Left open, elsewhere:** booker lint (18 problems) is `2026-11-04-booker-followups.md` F1. The Expo `PhotoGallery` (D4) is out of
+  scope and has no plan yet. The two untracked Codex S2 files in booker belong to the checkout workstream.
 
 ---
 
@@ -239,12 +235,15 @@ DB-first does not apply: there is no migration, Edge Function, secret or env var
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 ⬜ | 👤 | Parity: the production candidate is the exact staging deployment from S2 | same commit |
-| P2 ⬜ | 👤 | Vercel **Promote** that staging deployment | — |
-| P3 ⬜ | 👤 | Home "Available today" and the portrait offering's page on production at desktop width | ⛔ same as S3 |
-| P4 ⬜ | 👤 | Finish the release branch (git flow), as the user normally does | the two Codex files are still untracked afterwards |
+| P1 ✅ | 👤 | Parity: the production candidate is the exact staging deployment from S2 | same commit |
+| P2 ✅ | 👤 | Vercel **Promote** that staging deployment | — |
+| P3 ✅ | 👤 | Home "Available today" and the portrait offering's page on production at desktop width | ⛔ same as S3 |
+| P4 ✅ | 👤 | Finish the release branch (git flow), as the user normally does | ✅ 2026-11-05: merged to master `10e7882`, tag `version-0.30.3`, on `develop`; the two Codex files still untracked (checked by `git status`) |
 
 ## Verification
+**Stage 3, 2026-11-05 (live, user):** P1–P3: the user promoted the tested staging deployment and checked production, as they
+reported. P4 was verified read-only by the agent: booker master `10e7882` "Merge branch 'release/version-0.30.3'", tags `v0.30.6`,
+`v0.30.7`, `version-0.30.3`, the local release branch gone, the current branch `develop`, and only the two Codex files untracked.
 **Stage 2, 2026-11-05 (live, user):** staging deploy of 0.30.7 and S3 passed, as reported by the user. The optional full
 screenshot re-run after I3/I4 is also reported done by the user. The agent ran neither, so their output isn't recorded here.
 **Stage 1, run 2026-11-04 (machine):** `npx tsc --noEmit` exit 0 · `npm test` 323/323 · `npm run test:visual` **192 passed,
