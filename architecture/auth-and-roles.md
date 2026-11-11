@@ -564,9 +564,15 @@ deliberate — `20260801000002` states it outright: an UPDATE policy would expos
 `is_paid` and `payment_reference`, and a column-level grant is role-wide. So every booker-initiated
 change of state is an RPC.
 
+⚠️ **The INSERT is guarded by a trigger, not by RLS** (`20261111000001`). The INSERT policy checks only
+`booker_id = auth.uid() and is_active()`, and the grant is table-wide, so before that migration a booker
+could insert a booking already `is_paid`, `confirmed`, `booked_via = 'kiosk'`. `bookings_settle_on_insert`
+now derives `is_paid` from the derived price and forces `payment_reference`, `status` and `booked_via` for
+any caller with a JWT subject. `price_paid` was already derived by `check_booking_consistency()`.
+
 | RPC | What it is for | Guard that is NOT in the trigger |
 |---|---|---|
-| `booker_cancel_booking(uuid)` | Cancel one's own booking | unpaid only; 24 h before the booked time once `confirmed` |
+| `booker_cancel_booking(uuid)` | Cancel one's own booking | unpaid **or free** (paid means `is_paid and price_paid > 0` since `20261111000001`); 24 h before the booked time once `confirmed` |
 | `raise_booking_dispute(uuid, text, text)` | Flag a booking, or ask for a refund | `kind` decides which; the role is derived server-side |
 | `resolve_booking_dispute(uuid, text, text)` | **Command only** — close a flag | sets `app.status_change_note` so the transition trigger accepts the write |
 

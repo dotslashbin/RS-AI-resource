@@ -25,6 +25,8 @@ Allow bookers to browse vendor offerings, book a slot at a vendor of their choic
 A **4-step** flow. ⚠️ It is no longer a tab, and it has no "what do you want / from whom"
 steps: the booker picks the offering **and** the vendor by navigating to a vendor's offering
 page in Explore, and the wizard opens at Schedule already knowing both (plan D1).
+A **free (₱0) offering has 3 steps** — no Pay, no PayMongo; the database settles the booking at
+insert (2026-11-11, `booking-flow.md` → "Free offerings").
 
 | Step | UI | Data source |
 |------|----|------------|
@@ -842,7 +844,9 @@ they claim the account created for them, since `disputed` requires `v_booker`.
   customer's confirmation itself because the payment webhook never runs, and returns
   `free: true`; the kiosk then shows **Confirm booking** instead of **Pay** and a receipt
   reading **Free**. The booking reads "Free / No payment needed" in the vendor's booking
-  details. The booker app still cannot book a ₱0 offering (launch follow-up F15)
+  details. **Booker books ₱0 offerings the same way since 2026-11-11** (plan
+  `2026-11-11-booker-free-offerings.md`): the database settles them at insert
+  (`20261111000001`), no Pay step, no PayMongo. See `booking-flow.md` → "Free offerings"
 
 #### Customer documents on a booking (2026-10-04)
 

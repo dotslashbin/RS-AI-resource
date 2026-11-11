@@ -33,6 +33,9 @@ Step 4: Pay                 (component: StepPayment)
     ↓ Checkout Session → redirects to PayMongo
     ↓ on return: /?payment=success → toast DEPENDING ON is_paid (see "Returning from PayMongo");
     ↓            /?payment=cancel → toast (booking stays pending, and can be paid from Activity)
+
+FREE (₱0) offering, since 2026-11-11: Schedule → Documents → Review, and Review's button is
+"Confirm booking". No Pay step, no PayMongo. See "Free offerings" below.
 ```
 
 ---
@@ -325,7 +328,12 @@ The hook's `confirmBooking` is `async`. It:
    - `schedule_id`: from `selectedSchedule.id`
    - `vendor_id`: from `vendor.id`
    - `offering_id`: from `selectedSchedule.offeringId` (the vendor's offering UUID — must match the schedule's own `offering_id` to satisfy the DB consistency trigger)
-   - `booked_date`: from `date` (YYYY-MM-DD)
+   - `booked_date`: the date the slot STARTS, `slotStartDate(date, window start, slot)` from
+     `lib/slots.ts` — not `date` itself. `date` is the calendar cell, the date the slot's window
+     OPENS; for a window that runs past midnight an after-midnight slot starts the next day.
+     Until 2026-11-11 the wizard sent `date`, which booked the previous night's window or was
+     refused ("This schedule does not start until …"). Review, Pay and the confirmation show
+     the same start date, and the offering page labels slots with it.
    - `start_time`: the chosen slot, or `null` for a date-granular offering
    - `quantity`: how many units
    - `status`: `"pending"`
@@ -471,6 +479,32 @@ NEXT_PUBLIC_APP_URL=https://...        # used for success/cancel redirect URLs
 ```
 
 ---
+
+## Free offerings (₱0) — 2026-11-11
+
+Plan `.plans/2026-11-11-booker-free-offerings.md`. Modelled on the vendor kiosk's free bookings
+(`.plans/2026-09-12-vendor-kiosk-hardening.md` H1a–H1d).
+
+- **"Free" means the stored `price_paid` is 0**, which (price × quantity, quantity ≥ 1) means the
+  offering price is 0. One rule: `isFree()` in `booker/lib/payments.ts`, keyed on the price,
+  never on `is_paid`, so settled, legacy-unpaid and kiosk free bookings all read as free.
+- **The database settles it.** `bookings_settle_on_insert` (`20261111000001`) stores a signed-in
+  booker's ₱0 booking with `is_paid = true` at INSERT, so no ledger row is written. The browser
+  never sends `is_paid`.
+- **Two decisions, kept apart in `useBookingWizard.ts`:** what the screen shows (steps, labels,
+  totals) comes from the offering on screen; whether PayMongo is skipped comes only from
+  `createBooking()`'s `free`, the price the database stored. If the vendor edits the price
+  mid-booking, both directions end safely and no correcting UPDATE is ever needed.
+- **Screens:** wizard without Pay ("Confirm booking"); confirmation "Booking submitted" with Total
+  "Free"; never in Needs you; no "Payment pending"; detail "Price · Free" with Cancel but no Pay now
+  or refund request; Payments has a "Free" state and chip outside both totals (receipt, CSV, print
+  follow); the offering page's next-step note says there is nothing to pay.
+- **Notifications:** the vendor gets `new_booking` on insert and no `payment_confirmed`; the booker
+  gets `booking_confirmed` when the vendor confirms. A paid booker booking gets no email at payment
+  time either, so free bookings need no extra email (unlike the kiosk's H1b).
+- **Cancelling:** `booker_cancel_booking()` treats "paid" as paid **and** priced, so a settled free
+  booking is cancelled like an unpaid one.
+- `/api/payment/create-session` still refuses a ₱0 amount; it is the backstop, with no free caller.
 
 ## The payment-provider surface — what a migration touches (2026-09-07)
 

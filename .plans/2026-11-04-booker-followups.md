@@ -33,3 +33,37 @@ linting HEAD's `page.tsx` through `git show`).
 settings hooks. Those are behaviour-adjacent and need tests around them, not a mechanical sweep. `vendor`'s
 `2026-09-25-vendor-eslint-cleanup.md` is the precedent to follow.
 **Verification when picked up:** `npm run lint` exit 0, plus the full `npm test` and `npm run test:visual`.
+
+## F2 — Home's resume card shows four step dots for a free (₱0) draft  ⬜ TODO
+*Moved here 2026-11-11 from `2026-11-11-booker-free-offerings.md` F14, which found it. Not part of that change.*
+**File:** `components/activity/InProgressCard/InProgressCard.tsx:48` maps `WIZARD_STEPS` (four: Schedule, Documents,
+Review, Pay) against the saved draft's `step`. Since that plan, a free offering's wizard has three steps
+(`FREE_WIZARD_STEPS` in `useBookingWizard.ts`), but the draft does not record whether the offering is free, so a free
+draft at Review still shows a fourth "Pay" dot ahead.
+**Why it matters:** cosmetic. The copy ("You reached Review") is right; only the dots promise a Pay step that never comes.
+**Fix direction:** store the step list (or a `free` flag) in the wizard draft (`WIZARD_DRAFT_KEY`) and have the card
+read it, falling back to four steps for older drafts.
+**Verification when picked up:** a gallery mode for a free draft with a baseline; `npm test`, `npm run test:visual`.
+
+## F3 — A free booking's timeline says "payment released to vendor"  ⬜ TODO
+*Moved here 2026-11-11 from `2026-11-11-booker-free-offerings.md` F15, which found it. Not part of that change.*
+**File:** `lib/bookingTimeline.ts:36` labels the last step "Completed — Closed — payment released to vendor" for every
+booking. A free (₱0) booking has no payment to release. Visible in the booking detail modal (baseline
+`bookingdetailfree-*`).
+**Why it matters:** copy only, but it contradicts "Price · Free" two lines below it.
+**Fix direction:** a free variant ("Closed") keyed on `isFree()` from `lib/payments.ts`.
+**Verification when picked up:** a unit test in `lib/bookingTimeline.test.ts` (or beside it); refresh the
+`bookingdetailfree-*` baselines.
+
+## F4 — Dates and slot lists follow the BROWSER's time zone, not Manila's  ⬜ TODO
+*Moved here 2026-11-11 from `2026-11-11-booker-free-offerings.md` F17, which observed it. Pre-existing; not investigated.*
+**What was seen:** a headless browser on US Eastern time rendered a `booked_date` of 2026-11-11 as "Nov 10"
+(`fmtDate`, `lib/utils.ts:31`, parses a plain date as UTC midnight and formats it in local time), and the offering
+page offered 2026-11-11 2:00 PM when it was already 02:39 on 12 Nov in Manila (slot filtering compares against the
+device clock). A booker in the Philippines (UTC+8) sees neither.
+**Why it matters:** only for bookers or testers outside UTC+8, but it shows a different day than the vendor sees, and
+could offer a slot that has already started.
+**Fix direction:** format plain dates without a time-zone shift (or in `Asia/Manila`, as `lib/manila.ts` does
+elsewhere), and filter slots against Manila time. Audit every `new Date(<plain date>)` in booker first.
+**Verification when picked up:** unit tests that pin the time zone (e.g. run with `TZ=America/New_York`), plus a
+Playwright check with `timezoneId` set to a non-Manila zone.
