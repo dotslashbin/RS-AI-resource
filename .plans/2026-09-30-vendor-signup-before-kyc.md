@@ -117,6 +117,7 @@ No `booker/` changes.
 - **Verified (machine):**
   - `tsc` and eslint clean; `next build` lists `ƒ /api/kyc/submit`;
   - `lib/kycSubmission.test.ts` (11 tests) passes: UUID, type, company number, count, label, traversal (`/`, `\`, `..`), duplicates;
+    ⚠️ superseded 2026-11-15: the `..` substring rule refused harmless names like `scan..pdf` and was replaced by a `{uuid}-{name}` shape allowlist (`.plans/2026-11-15-vendor-kyc-filename-validation.md` B1);
   - smoke test against `next start`: bad JSON 400, non-UUID vendor 400, `../` object 400, valid body without a session 401.
 - **Not verified (needs a live env and a signed-in vendor):** 403 for another vendor's id, 409 on the second submit, refusal of un-uploaded objects, a successful create, and rollback (verification scenarios 3–4). These run in Stage 3 once the UI exists.
 

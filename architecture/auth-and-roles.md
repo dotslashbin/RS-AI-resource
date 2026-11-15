@@ -157,7 +157,7 @@ Since 2026-08-10 every portal also exposes a self-service password change, so a 
 | `vendor` | Settings → Password card | `components/settings/SecurityCard/` |
 | `booker` | Settings → Password card | `components/settings/SecurityCard/` |
 
-All three share the same hook logic (8-character minimum, mirroring the recovery form; mismatch warned only once the confirm field has content) and call the existing `updatePassword()` in `auth.service.ts`. In `command` that minimum is no longer a literal — it lives in `command/lib/password.ts` as `MIN_PASSWORD_LENGTH`, shared by the recovery form, this settings form and the root set-password route (2026-08-17).
+All three share the same hook logic (8-character minimum, mirroring the recovery form; mismatch warned only once the confirm field has content) and call the existing `updatePassword()` in `auth.service.ts`. In `command` that minimum is no longer a literal — it lives in `command/lib/password.ts` as `MIN_PASSWORD_LENGTH`, shared by the recovery form, this settings form and the root set-password route (2026-08-17). `vendor` also caps passwords at **72 bytes**, Supabase's bcrypt limit, on signup, recovery and Settings (`isPasswordTooLong` in `vendor/lib/registration.ts`, 2026-11-15); booker and command do not yet, so an over-limit password there gets Supabase's raw error.
 
 Two deliberate choices:
 

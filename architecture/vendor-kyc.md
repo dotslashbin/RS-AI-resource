@@ -103,7 +103,7 @@ both directions, so Back from Identity returns an individual to Applicant type.
 | Step | Screen | Who | Notes |
 |------|--------|-----|-------|
 | 1 | Applicant type | both | `company` or `individual` |
-| 2 | Documents | **company only** | two **fixed upload slots**: DTI Document, then Mayors permit. No accreditation number is asked for (2026-10-21). Skipped entirely for an individual |
+| 2 | Documents | **company only** | two **fixed upload slots**: DTI/SEC Document, then Mayors permit. No accreditation number is asked for (2026-10-21). Skipped entirely for an individual |
 | 3 | Identity | both | capture a **Valid ID** (rear camera) and a **Selfie with ID** (front camera) |
 | 4 | Review & submit | both | summary → `POST /api/kyc/submit` → re-read from the DB → "under review" |
 
@@ -135,7 +135,7 @@ for any of this.
 
   | Applicant type | Slots, in order | Submitted `label` |
   |---|---|---|
-  | `company` | DTI Document · Mayors permit | `dti-document` · `mayors-permit` |
+  | `company` | DTI/SEC Document · Mayors permit | `dti-sec-document` · `mayors-permit` |
   | `individual` | none — the step is skipped | — |
 
   (Settled over four rounds on 2026-10-19/21. Round 1 asked both types for a
@@ -143,7 +143,10 @@ for any of this.
   — redundant. Round 2 replaced it with LGU / DTI / BIR registrations. Round 3 cut those
   to a single `business-permit` and removed the step from the individual route. Round 4
   settled on the DTI document and the mayor's permit, and dropped the accreditation
-  number. ⚠️ **Nothing renames stored rows**, so a packet reviewed in Command may carry
+  number. Round 5 (2026-11-15, `.plans/2026-11-15-vendor-kyc-filename-validation.md` I1) renamed the DTI slot
+  "DTI/SEC Document" and its label `dti-sec-document`, with no migration: older packets
+  keep `dti-document`, which `titleForLabel` still shows as "DTI Document", so Command
+  reviewers see either code depending on when the packet was sent. ⚠️ **Nothing renames stored rows**, so a packet reviewed in Command may carry
   any label from any round; `titleForLabel` in `vendor/lib/kycDocumentSlots.ts` maps all
   of them back to readable titles for the **vendor's** own view, and free-typed labels
   from the resubmit editor pass through unchanged.)
@@ -188,6 +191,15 @@ Three things about it are load-bearing:
 - **It is recorded, not just enforced.** Four rows land in `legal_acceptances` (one
   per document), written **last** in the route — after every step that could still
   roll back. See `schema.md` for why the ordering matters.
+
+**Password errors at signup (2026-11-15, `.plans/2026-11-15-vendor-kyc-filename-validation.md` B3, I2).**
+Passwords over **72 bytes**, Supabase's bcrypt limit, are refused before anything is sent:
+on the signup form, in `validateFields`, on the reset form and in Settings. When
+`createUser` itself refuses, `createUserFailure()` in `vendor/lib/registration.ts` maps
+the auth error code: a weak or leaked password gets a password message, a taken email gets
+the email message, and anything else gets a generic "try again" (500). Until then, every
+`createUser` failure read "This email can't be used for a new application…", including
+the leaked-password refusal that staging and production enforce.
 
 Neither the **first KYC submission** (`KycSubmitForm` → `submitFirstKyc`) nor the
 **resubmit** path (`KycStatusPage` → `resubmitKyc`) asks again: the vendor already has
@@ -342,6 +354,13 @@ Three tables (migration `20260706000001_vendor_kyc.sql`) + one bucket (migration
 - Path convention: **`{vendor_id}/{uuid}-{filename}`** — the first path segment
   is the vendor id, which the Storage RLS policies key on via
   `(storage.foldername(name))[1]::uuid`.
+- The first-submission route checks each object name against exactly that shape
+  (`OBJECT_NAME` in `vendor/lib/kycSubmission.ts`, which mirrors `stagedObjectName` in
+  `lib/registration.ts`: the filename is cleaned to `[\w.-]` and at most 80 characters).
+  Dots anywhere are fine (`scan..pdf`); separators can never appear. A name that fails
+  gets an error naming the file. Until 2026-11-15 a `..` substring check refused harmless
+  names like `scan..pdf` (`.plans/2026-11-15-vendor-kyc-filename-validation.md` B1/B2). Resubmission uploads
+  under RLS and never ran that check.
 - Viewing is always through **time-limited signed URLs** (`createSignedUrl`,
   ~60 s) — never public URLs.
 

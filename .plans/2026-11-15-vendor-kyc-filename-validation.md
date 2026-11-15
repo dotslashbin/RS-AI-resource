@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-15
 **App / scope:** `vendor/` only — `lib/kycSubmission.ts`, `lib/kycSubmission.test.ts`, one comment in `lib/registration.ts`; for B3, `app/api/auth/register/route.ts` + a pure helper in `lib/registration.ts` (+ test); for I2, `lib/registration.ts` + `components/auth/LoginPage/useLoginPage.ts` + `components/settings/SecurityCard/useSecurityCard.ts`; for I1, `lib/kycDocumentSlots.ts` (+ test), `visual-tests/kyc-document-slots.spec.ts`, `components/kyc/KycWelcomeStep/KycWelcomeStep.tsx` (D4) and vendor screenshot baselines. No migration, nothing in `backbone/`, no Command / booker / mobile change.
-**Status:** IN PROGRESS — stage 1 ✅ · stage 2 ✅ · release: staging ✅ (2026-11-15, S1–S6 green by the user) · production ⬜
+**Status:** COMPLETE (2026-11-15) — release: staging ✅ · production ✅ (vendor 0.60.1, Vercel Promote by the user; S1–S6 and P1–P4 green by the user)
 
 > A vendor's first KYC submission fails when a file name contains `..` (e.g. `scan..pdf`).
 > Swap the over-broad substring blocklist for an allowlist of the name shape the client
@@ -18,16 +18,17 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-15, staging green — production next)
-- **Done so far:** stage 1 ✅, stage 2 ✅ (F8, F9), staging S1–S6 ✅ (the user, 2026-11-15).
-  Vendor 0.60.1 = `67f7525` (patch) + `c8cb86a` (version), branch
-  `feature/patch_kyc_label_passwords`.
-- **Live where:** local — new · staging — 0.60.1, all six checks green · production — old rule.
-- **Next:** 👤 production P1–P4 (Vercel Promote of the tested staging deployment). Then 🤖
-  close: Docs section, `**Docs:**` line, status COMPLETE, `python3 scripts/plans-index.py`.
-- **Test data left in local DB:** vendors `Stage2 KYC 1794764302654` and
-  `Stage2 KYC 1794764383094` (`supabase db reset` clears them).
-- **Open for the user:** F7 (pre-existing lint failures) — reported only.
+## ▶ RESUME HERE (updated 2026-11-15, plan COMPLETE)
+- **Shipped:** B1, B2, B3, I1, I2 in vendor 0.60.1 (`67f7525` + `c8cb86a`), live on staging
+  and production. Docs updated (see Docs).
+- **Nothing left to execute.** Still open, reported only and left for the user: F2 (resubmit
+  path has no 80-character cap), F4 (local Auth enforces no password policy), F7 (vendor
+  lint was already failing in untouched files).
+- **Not done here, by scope:** Command still prints raw label codes, so reviewers see
+  `dti-document` or `dti-sec-document` depending on the packet's age (D3). Booker and Command
+  have no 72-byte password cap yet (noted in `architecture/auth-and-roles.md`).
+- **Local test data:** vendors `Stage2 KYC 1794764302654` and `Stage2 KYC 1794764383094`
+  remain in the local DB; `supabase db reset` clears them.
 
 ---
 
@@ -462,8 +463,8 @@ through a tampered request, and B3's generic message covers that.
 
    Needs local Supabase and the vendor dev server.
 3. Staging release (S1–S6). ✅ 2026-11-15 — all green, reported by the user.
-4. Production release (P1–P4), always last.
-5. Close: docs (below), `**Docs:**` line, status → COMPLETE, `python3 scripts/plans-index.py`.
+4. Production release (P1–P4), always last. ✅ 2026-11-15 — all green, reported by the user.
+5. Close: docs (below), `**Docs:**` line, status → COMPLETE, `python3 scripts/plans-index.py`. ✅ 2026-11-15.
 
 ## Release (§12)
 No migration, no Edge Function, no env var. Vendor app only.
@@ -490,6 +491,8 @@ No migration, no Edge Function, no env var. Vendor app only.
 | P3 | 👤 | Smoke: the vendor KYC page loads for a signed-in vendor with no submission yet | ⛔ green |
 | P4 | 👤 | Signup with `password123` on production (no account is created when it's refused) | ⛔ the D5 leaked message, not the email one |
 
+> **Result:** P1–P4 ✅ 2026-11-15 — all green, checked on production by the user after the Vercel Promote of the tested staging deployment.
+
 ## Verification
 - **Machine:** unit tests (B1 shape cases, the round-trip, B2 message, B3 error mapping, I2 byte limit, I1 titles), type-check,
   eslint, the Playwright KYC slot spec, and screenshot baselines (I1, each diff reviewed).
@@ -508,10 +511,4 @@ No migration, no Edge Function, no env var. Vendor app only.
 - UX: error state now says what failed (the file name) and what to do (rename, re-upload).
 
 ## Docs
-<!-- filled in at close -->
-Planned: `architecture/vendor-kyc.md` (Storage path convention, ~line 342: note that the
-route validates the `{uuid}-{name}` shape; I1: the slot tables at lines 106 and 138 →
-"DTI/SEC Document" / `dti-sec-document`, and `dti-document` noted as retired), `architecture/portals.md:487` (I1: "a DTI Document" →
-"a DTI/SEC Document"), plus a one-line pointer in
-`.plans/2026-09-30-vendor-signup-before-kyc.md` B2 saying the `..` substring rule was
-replaced by this plan.
+**Docs:** `architecture/vendor-kyc.md` (documents step and slot table → "DTI/SEC Document" / `dti-sec-document` with the round-5 note; Storage section: the route's `{uuid}-{name}` shape check; signup: the password-error mapping and the 72-byte cap), `architecture/portals.md` (vendor signup paragraph: DTI/SEC slot and label), `architecture/auth-and-roles.md` (password forms: vendor's 72-byte cap, booker/command without one), `.plans/2026-09-30-vendor-signup-before-kyc.md` (B2: pointer saying the `..` rule was superseded). `vendor/AGENTS.md` and `README.md` checked: nothing there describes these rules, so no change.
