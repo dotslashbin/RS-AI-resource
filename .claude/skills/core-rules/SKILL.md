@@ -29,7 +29,8 @@ These are independent apps sharing one Supabase project. They are not a monorepo
 - Git commits for an app must be made inside that app's folder — this root repo does not contain their history.
 - ⚠️ **Nobody commits in this workspace except the user.** Before writing any commit summary,
   read and apply `.claude/skills/commit-drafting/SKILL.md`: no git write commands, one draft
-  per repository, and a copy-paste scoped `git add` with the excluded paths named. A bare
+  per repository, a copy-paste scoped `git add` with the excluded paths named, and a message
+  with a title of 50 characters or fewer over short one-line bullets. A bare
   `git add .` here commits someone else's work in progress.
 
 ### Where to look

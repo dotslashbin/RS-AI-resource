@@ -142,6 +142,8 @@ Risk legend:
   when `tag.gpgsign` is set. Give the exact line prefixed with `!` so they can run it in this
   prompt, with the reason. If `!` cannot reach their GPG agent, it runs in their own terminal
   just as well. After they run it, re-check with `git status` / `git log -3` and continue.
+  Any commit message you write for such a line follows `commit-drafting` §6: a title of 50
+  characters or fewer, then short one-line bullets.
 - **⚠️ separate confirm** – anything that destroys or rewrites: `reset --hard`, `clean -f`,
   `branch -D`, deleting a remote branch, `push --force[-with-lease]`, `stash drop/clear`,
   `checkout/restore` over uncommitted changes, `filter-repo`. Plan approval does not cover

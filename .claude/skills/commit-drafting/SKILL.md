@@ -54,6 +54,11 @@ cd /abs/path/to/repo && git add -- \
   looks like a flag.
 - **Absolute `cd`**, so the command works from wherever they are.
 - **Directories are fine** when everything beneath them belongs to the change.
+- ⚠️ **Never `git add -p` (or `-i`) in a draft.** It is interactive: it stops and asks
+  "Stage this hunk?", so it is not copy-paste, and it went wrong on 2026-11-15. When only
+  part of a file belongs to the change, write that hunk to a patch file in the scratchpad,
+  check it with `git apply --cached --check <patch>` (which writes nothing), and give the
+  user `git apply --cached <patch>`.
 - **Follow it with a verification line** so they can confirm nothing extra landed:
 
 ```bash
@@ -122,7 +127,19 @@ the moment it lands.
 
 ## 6. The message
 
-Follow the repo's existing style — read `git log` before writing. What matters:
+Follow the repo's existing style — read `git log` before writing.
+
+**Format: a short title, then short bullets** (the user's rule, 2026-11-15):
+
+- **Title: 50 characters or fewer**, outcome first, no trailing full stop. If it doesn't fit,
+  drop detail, not meaning. The bullets carry the rest.
+- **Body: a flat list of `- ` bullets**, one fact per bullet, ideally one line (≤ 72
+  characters). No paragraphs, no nested lists, no headings.
+- **Keep it short.** Aim for about 3–8 bullets: what changed, what was measured, what is not
+  verified. The plan holds the detail, so point to it with one bullet giving its path rather
+  than restating it.
+
+What matters in the content:
 
 - **A subject line that names the outcome**, not the mechanism.
 - **Why, where it is not obvious**, and especially **what was measured**. A claim like "the
