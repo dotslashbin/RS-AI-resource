@@ -1,8 +1,11 @@
 # Vendor — clear the pre-existing ESLint errors and warnings
 
 **Date:** 2026-09-25
-**App / scope:** `vendor/` only. The 20 files with findings, all listed below. No schema, dependency or other-app change.
-**Status:** DRAFT — decisions D1 and D2 resolved 2026-09-25; awaiting your approval to execute (S1 first).
+**App / scope:** `vendor/` only. The **19** files with findings, all listed below. No schema, dependency or other-app change.
+**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1 ✅ 2026-11-15 (29 → 17 problems, 0 warnings); S2–S4 ⬜.
+**Baseline refreshed 2026-10-30** by I3 of `.plans/2026-10-29-vendor-followups-batch-1.md`: the 2026-09-25
+measurement had drifted. Now **26 errors, 3 warnings, 19 files**. **L7 is struck — already fixed.**
+Eight line references corrected; every other L item's `file:line` was re-checked and still holds.
 
 > Get `npm --prefix vendor run lint` to **0 errors and 0 warnings** without changing behaviour. Most
 > errors are `react-hooks/set-state-in-effect`. Fixing one changes *when* state is set, so every hook
@@ -15,21 +18,67 @@
 
 ---
 
-## Baseline (re-run 2026-09-25)
+## ▶ RESUME HERE (updated 2026-11-15, S1 done)
+- **Done so far:** S1 ✅ (L1–L6, L21). `npx eslint .` in `vendor/`: **17 problems (17 errors,
+  0 warnings)**, every one an S2–S4 item: 15 × `set-state-in-effect`, 1 × `purity` (L13),
+  1 × `static-components` (L22). Uncommitted in `vendor/`.
+- **Next:** S2 (L8–L13; L7 is struck). Re-run `npx eslint .` first and read the summary line.
+  Expected start: 17. S2's live checks use the seed account `jose@bookdeck.com`; ask the user
+  before signing in with it, because approval is per task.
+- **Watch out for:** L25 is now at `useAppShell.ts:472`, not `:469` (S1-F2). L5 introduced
+  `const userId` just above that effect, which S4's L25 can key on.
+- **Before Playwright:** stop any `next dev` on `vendor/`.
 
-`npx eslint .` in `vendor/`: **28 errors and 3 warnings, in 20 files**.
+---
+
+## Baseline (re-measured 2026-10-30 — supersedes the 2026-09-25 figures)
+
+`npx eslint .` in `vendor/`, read from the summary line: **26 errors and 3 warnings, in 19 files**
+(29 problems). The 2026-09-25 baseline was **28 errors, 3 warnings, 20 files** — it went **down**
+by two errors and one file, because work elsewhere incidentally fixed them.
+
+⚠️ **Re-run this before S1 starts.** It has already drifted once; a stage that checks itself against
+a stale count reports green while meaning nothing. That is the whole reason this refresh exists.
 
 | Rule | Count | Where |
 |---|---|---|
-| `react-hooks/set-state-in-effect` | 16 | 11 hooks (L7–L20) |
-| `@typescript-eslint/no-explicit-any` | 6 | `vendor-access.service.ts` ×5, `PackagesPage.tsx` ×1 |
-| `react/no-unescaped-entities` | 2 | `InstallPrompt.tsx:40` |
-| `@typescript-eslint/ban-ts-comment` | 1 | `PackagesPage.tsx:1` |
-| `react-hooks/purity` | 1 | `useBookingActions.ts:90` |
-| `react-hooks/static-components` | 1 | `app/ui-gallery/page.tsx:1195` |
-| `@next/next/no-html-link-for-pages` | 1 | `app/not-found.tsx:12` |
-| warnings: `no-unused-vars` ×2, `exhaustive-deps` ×1 | 3 | `AppShell.tsx:125`, `offerings.service.ts:2`, `useAppShell.ts:496` |
+| Rule | 2026-09-25 | **2026-10-30** | Where, as measured 2026-10-30 |
+|---|---|---|---|
+| `react-hooks/set-state-in-effect` | 16 | **15** | 12 hooks (L8–L20, L23–L25; **L7 is gone**) |
+| `@typescript-eslint/no-explicit-any` | 6 | **5** | `vendor-access.service.ts` **×4** (`:92, :96, :101, :118`), `PackagesPage.tsx:5` ×1 |
+| `react/no-unescaped-entities` | 2 | 2 | `InstallPrompt.tsx:40` (cols 85, 104) |
+| `@typescript-eslint/ban-ts-comment` | 1 | 1 | `PackagesPage.tsx:1` |
+| `react-hooks/purity` | 1 | 1 | `useBookingActions.ts:90` |
+| `react-hooks/static-components` | 1 | 1 | `app/ui-gallery/page.tsx:`**`1286`** |
+| `@next/next/no-html-link-for-pages` | 1 | 1 | `app/not-found.tsx:12` |
+| warnings: `no-unused-vars` ×2, `exhaustive-deps` ×1 | 3 | 3 | `AppShell.tsx:125`, `offerings.service.ts:`**`5`**, `useAppShell.ts:`**`509`** |
 
+**The eight corrections, and nothing else changed.** Every other L item's `file:line` was re-opened
+on 2026-10-30 and still holds (L1 `AppShell.tsx:125` · L3
+`InstallPrompt.tsx:40` · L4 `not-found.tsx:12` · L9 `useProfilePage.ts:15` · L10
+`useAddressFields.ts:75` · L11 `useCombobox.ts:25` · L12 `useStaffForm.ts:27` · L13
+`useBookingActions.ts:90` · L14 `useScheduleForm.ts:43` · L15/L16 `useTransactionsPage.ts:89, :237` ·
+L17 `useInstallPrompt.ts:37` · L18 `useGuideModal.ts:72` · L19/L20 `useIdentityStep.ts:21, :28` ·
+L21 `PackagesPage.tsx:1, :5`):
+
+| Item | Was | Is now |
+|---|---|---|
+| **L5** | `useAppShell.ts:496` | `:509` |
+| **L6** | `vendor-access.service.ts:86-104`, **5** × `as any` | **4** × — `:92, :96, :101, :118` |
+| **L7** | `useKycStatusPage.ts:36` | ⚠️ **STRUCK — no finding in that file at all** |
+| **L8** | `useOfferingsPage.ts:77` | `:76` |
+| **L22** | `app/ui-gallery/page.tsx:1195` | `:1286` (the gallery grew) |
+| **L23** | `useAppShell.ts:208` | `:219` |
+| **L24** | `useAppShell.ts:349` | `:362` |
+| **L25** | `useAppShell.ts:456` | `:469` |
+
+⚠️ **L2 and I1 of the batch-1 plan touch the same file.** L2 removes an unused import from
+`services/offerings.service.ts`; batch-1 **I1** rewrote that file's `23503` branch
+(`:108`) and extracts a message chooser. Different lines, no conflict — but whichever lands second
+**re-runs the linter rather than assuming the count**.
+
+⚠️ **Unit and visual figures below are from 2026-09-25 and were NOT re-run on 2026-10-30** — only the
+linter was. Treat them as the last known state, not as this baseline's evidence. Original note:
 Unit tests pass 484/484 and the visual suite 187/187 at this baseline (both run 2026-09-25 during the
 recovery plan). Correction to F21: its first summary left out the two `no-unescaped-entities`.
 
@@ -52,20 +101,34 @@ The same patterns fixed K2 in `useLoginPage.ts`. Each item below names which one
 
 ---
 
-## Stage S1 — Mechanical, no behaviour change  ⬜ TODO
+## Stage S1 — Mechanical, no behaviour change  ✅ DONE (2026-11-15)
+
+> **Verified (machine, local):** `npx eslint .` 29 → **17 problems, 0 warnings**; none of the 12
+> S1 findings remain and no new rule appeared. `npx tsc --noEmit` clean; `npm test` 583/583; full
+> visual suite **219/219** with no baseline changed. **Live (local, headless, seed logins approved
+> by the user 2026-11-15):** the 404 page returns 404 and "Back to portal" reaches `/` with **no
+> document request** (client-side `next/link`); `jose@bookdeck.com` (active) lands on
+> `?page=dashboard`; `rico@bookdeck.com` (suspended profile) gets "Your account has no vendor
+> access. Contact support." and stays signed out across a reload. 6/6.
+> Per item: L1 ✅ · L2 ✅ · L3 ✅ · L4 ✅ · L5 ✅ · L6 ✅ (see S1-F1) · L21 ✅ (file trashed, recoverable;
+> AppShell's two commented lines removed; `lib/types.ts`'s commented `"packages"` left, as D2
+> names only AppShell).
 
 - **L1** — `components/layout/AppShell/AppShell.tsx:125`: `setBookings` destructured but unused →
   remove it from the destructure (`useAppShell` still returns it).
-- **L2** — `services/offerings.service.ts:2`: unused `OfferingStatus` import → remove.
+- **L2** — `services/offerings.service.ts:5` (**was `:2`; moved 2026-10-30** when batch-1 I1 added
+  three imports above it — the warning itself is untouched and pre-existing): unused
+  `OfferingStatus` import → remove. ⚠️ Confirm the line before editing; `npx eslint` names it.
 - **L3** — `components/layout/InstallPrompt/InstallPrompt.tsx:40`: raw `"` ×2 → `&quot;`. Same glyph,
   so no visual change (the curly `&ldquo;` would change pixels).
 - **L4** — `app/not-found.tsx:12`: `<a href="/">` → `next/link` `<Link href="/">`, keeping `className`
   and `style`. The only behaviour change is client-side navigation instead of a full reload, which is
   what Next recommends. Live-check the 404 link.
-- **L5** — `useAppShell.ts:496` `exhaustive-deps`: the effect is keyed on `currentUser?.id` on purpose
+- **L5** — `useAppShell.ts:509` (was `:496`) `exhaustive-deps`: the effect is keyed on `currentUser?.id` on purpose
   (no re-subscribing on object identity) but reads `currentUser.id` inside. → `const userId =
   currentUser?.id` above the effect, use `userId` inside, deps `[userId]`. Identical behaviour.
-- **L6** — `services/vendor-access.service.ts:86-104`: 5 × `as any` on PostgREST embeds.
+- **L6** — `services/vendor-access.service.ts`: **4** × `as any` on PostgREST embeds, at `:92`, `:96`,
+  `:101`, `:118` (was "5 × at `:86-104`" — one was fixed elsewhere between 2026-09-25 and 2026-10-30).
   - → one hand-written row type per select (repo convention: hand-written interfaces). Embeds may
     come back as an object or an array, so a small `name`-reader helper handles both instead of
     `any`.
@@ -83,9 +146,12 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 
 ## Stage S2 — Page hooks: loading flags and prop sync  ⬜ TODO
 
-- **L7** — `components/kyc/KycStatusPage/useKycStatusPage.ts:36`: `setLoading(true)` before
+- ~~**L7**~~ — ✖ **STRUCK 2026-10-30, already fixed.** `npx eslint .` reports **no finding at all** in
+  `components/kyc/KycStatusPage/useKycStatusPage.ts`. Do not go looking for it, and do not "fix" the
+  file to match the description below. S2's count drops by one accordingly. Original text:
+  <!-- -->`components/kyc/KycStatusPage/useKycStatusPage.ts:36`: `setLoading(true)` before
   `getMyKyc` → **P2**, keyed on `vendorId`.
-- **L8** — `components/offerings/OfferingsPage/useOfferingsPage.ts:77`: same shape → **P2** on
+- **L8** — `components/offerings/OfferingsPage/useOfferingsPage.ts:76` (was `:77`): same shape → **P2** on
   `vendorId`. The existing `creating`/`formSession` refs are untouched.
 - **L9** — `components/profile/ProfilePage/useProfilePage.ts:15`: same shape → **P2** on `vendorId`.
 - **L10** — `components/address/AddressFields/useAddressFields.ts:75`: `setBarangays([])` when
@@ -134,7 +200,7 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 - **L19/L20** — `components/kyc/IdentityStep/useIdentityStep.ts:21,28`: `URL.createObjectURL` +
   revoke on cleanup. The alternative (`useMemo` + a revoke effect) **breaks under dev StrictMode**:
   cleanup revokes a URL the memo still returns. → **P4** ×2 (D1).
-- **L22** — `app/ui-gallery/page.tsx:1195` `static-components`: `function Body()` is declared inside
+- **L22** — `app/ui-gallery/page.tsx:1286` (was `:1195`) `static-components`: `function Body()` is declared inside
   the gallery component (`:461`) and rendered as `<Body />`, so it remounts every render. → lift
   `Body` to module scope with the values it closes over passed as props. If it uses no hooks, render
   it as `{body()}` instead.
@@ -152,13 +218,13 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 
 ## Stage S4 — `useAppShell` (auth shell)  ⬜ TODO — highest risk, last
 
-- **L23** — `components/layout/AppShell/useAppShell.ts:208`: `setSideOpen(true)` when
+- **L23** — `components/layout/AppShell/useAppShell.ts:219` (was `:208`): `setSideOpen(true)` when
   `innerWidth >= 1024`, at the top of the auth-gate effect → **P1**: `useState(() => window.innerWidth
   >= 1024)`. Safe because AppShell renders nothing until the auth check. The rest of that effect (the
   access gate and the recovery skip) is **not touched**.
-- **L24** — `:349`: resets staff/schedules/bookings/status when `selectedVendorId` clears → **P3** on
+- **L24** — `:362` (was `:349`): resets staff/schedules/bookings/status when `selectedVendorId` clears → **P3** on
   `selectedVendorId`. The setters stay exported (pages mutate these lists), so P2 does not fit.
-- **L25** — `:456`: `setNotifLoading(true)` before the fetch → **P2** keyed on the user id from L5.
+- **L25** — `:472` (was `:469`, then `:456`; moved by L5, S1-F2): `setNotifLoading(true)` before the fetch → **P2** keyed on the user id from L5.
 
 **Verification:** eslint (whole app now: **0/0**), `tsc`, `npm test`, full visual suite. Live, headless:
 - Sign in with a single-vendor account: the dashboard shows and the sidebar is open at ≥1024 px,
@@ -170,6 +236,21 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 - Suspended account (`rico@bookdeck.com`): refused with the right message.
 
 ---
+
+## Findings
+
+- **S1-F1 — L6 done as casts to named shapes, not the "name-reader helper".** (2026-11-15) The plan
+  suggested a helper that reads `name` from an object *or* an array. That would change the gate: an
+  array-shaped embed reads as `undefined` today (not granted), and the helper would grant it. The
+  plan's own rule for L6 is "types only, same comparisons, same order", so each `as any` became
+  `as unknown as Named` (or the existing `EmbeddedVendor`), the pattern `verifyVendorAdminFor` in the
+  same file already uses. Casts are erased at compile time, so runtime logic is unchanged. ✅
+- **S1-F2 — L25 moved to `useAppShell.ts:472`.** L5 added a 3-line comment and `const userId` above
+  the notifications effect. S4's reference is corrected. ✅ plan text only.
+- **S1-F3 — Next dev does one full reload the first time it compiles a route.** The first 404 → `/`
+  live run lost the "no reload" marker; a re-run on a compiled route showed no document request at
+  all. Dev-only, not caused by L4. Live checks of client-side navigation should warm the route
+  first. ⬜ reported only.
 
 ## Decisions
 

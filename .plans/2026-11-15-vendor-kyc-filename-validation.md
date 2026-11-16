@@ -22,8 +22,9 @@
 - **Shipped:** B1, B2, B3, I1, I2 in vendor 0.60.1 (`67f7525` + `c8cb86a`), live on staging
   and production. Docs updated (see Docs).
 - **Nothing left to execute.** Still open, reported only and left for the user: F2 (resubmit
-  path has no 80-character cap), F4 (local Auth enforces no password policy), F7 (vendor
-  lint was already failing in untouched files).
+  path has no 80-character cap) and F7 (vendor lint was already failing in untouched files;
+  the user started it 2026-11-15 via `.plans/2026-09-25-vendor-eslint-cleanup.md`). F4 ⏸
+  deferred by the user to F27 of `.plans/2026-08-25-vendor-launch-followups.md`.
 - **Not done here, by scope:** Command still prints raw label codes, so reviewers see
   `dti-document` or `dti-sec-document` depending on the packet's age (D3). Booker and Command
   have no 72-byte password cap yet (noted in `architecture/auth-and-roles.md`).
@@ -385,7 +386,8 @@ through a tampered request, and B3's generic message covers that.
   though `config.toml` sets a minimum of 6. Both users were deleted straight away; 0 remain.
   Staging *does* enforce its policy there (booker plan B2-e). Consequence: **B3 can't be
   reproduced end to end locally.** Its mapping is covered by unit tests, and the real
-  check is staging S5. ⬜ reported only.
+  check is staging S5. ⏸ **PARKED 2026-11-15 — deferred by the user** as a follow-up: now F27
+  of `.plans/2026-08-25-vendor-launch-followups.md`.
 - **F5** — **A password over 72 characters gets the same misleading email message today.**
   The vendor form and `validateFields` set no maximum, and GoTrue refuses anything over 72
   with a `500 unexpected_failure` (local probe 2026-11-15). After B3 that becomes the
@@ -407,7 +409,8 @@ through a tampered request, and B3's generic message covers that.
   (`services/vendor-access.service.ts`, `app/ui-gallery/page.tsx`, several `use*.ts` hooks
   among others). `npx eslint` over the 11 changed files exits 0. Likely the territory of
   `.plans/2026-09-25-vendor-eslint-cleanup.md`. ⬜ reported only — not fixed here, left for
-  the user to schedule.
+  the user to schedule. → **Scheduled by the user 2026-11-15** as that plan; its S1 ✅ the same
+  day (29 → 17 problems). S2–S4 remain there.
 - **F8** — **Stage 2, Claude's half: scripted browser run, 14/14** (2026-11-15). A headless
   Playwright script (scratchpad, not in the repo) against `next dev` on :3000 and local
   Supabase: signup with 73 ASCII and with 25 × `€` showed the I2 message and sent **0**
