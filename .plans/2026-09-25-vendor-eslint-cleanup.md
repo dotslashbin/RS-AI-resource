@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25
 **App / scope:** `vendor/` only. The **19** files with findings, all listed below. No schema, dependency or other-app change.
-**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1 ✅ 2026-11-15 (29 → 17 problems, 0 warnings); S2–S4 ⬜.
+**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1 ✅ and S2 ✅ 2026-11-15 (29 → 17 → 11 problems, 0 warnings); S3–S4 ⬜.
 **Baseline refreshed 2026-10-30** by I3 of `.plans/2026-10-29-vendor-followups-batch-1.md`: the 2026-09-25
 measurement had drifted. Now **26 errors, 3 warnings, 19 files**. **L7 is struck — already fixed.**
 Eight line references corrected; every other L item's `file:line` was re-checked and still holds.
@@ -18,16 +18,18 @@ Eight line references corrected; every other L item's `file:line` was re-checked
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-15, S1 done)
-- **Done so far:** S1 ✅ (L1–L6, L21). `npx eslint .` in `vendor/`: **17 problems (17 errors,
-  0 warnings)**, every one an S2–S4 item: 15 × `set-state-in-effect`, 1 × `purity` (L13),
-  1 × `static-components` (L22). Uncommitted in `vendor/`.
-- **Next:** S2 (L8–L13; L7 is struck). Re-run `npx eslint .` first and read the summary line.
-  Expected start: 17. S2's live checks use the seed account `jose@bookdeck.com`; ask the user
-  before signing in with it, because approval is per task.
-- **Watch out for:** L25 is now at `useAppShell.ts:472`, not `:469` (S1-F2). L5 introduced
-  `const userId` just above that effect, which S4's L25 can key on.
-- **Before Playwright:** stop any `next dev` on `vendor/`.
+## ▶ RESUME HERE (updated 2026-11-15, S2 done)
+- **Done so far:** S1 ✅ and S2 ✅. `npx eslint .` in `vendor/`: **11 problems (11 errors,
+  0 warnings)**, all S3/S4 items: 10 × `set-state-in-effect`, 1 × `static-components` (L22).
+  S1 and S2 are **both uncommitted** in `vendor/` (the user's S1 commit did not land; S2 touches
+  different files, so the two can still be committed separately).
+- **Next:** S3 (L14–L20, L22). Re-run `npx eslint .` first; expected start: 11. S3 includes the
+  three D1 targeted disables (L18, L19, L20; L16 as a fallback). Its live checks use the seed
+  account `jose@bookdeck.com`; ask the user before signing in, because approval is per task.
+- **Watch out for:** L25 is at `useAppShell.ts:472` (S1-F2). Warm a route before checking
+  client-side navigation (S1-F3).
+- **Before Playwright:** stop any `next dev` on `vendor/`. The visual suite and a dev server
+  cannot run at the same time (one Next lock per folder).
 
 ---
 
@@ -144,7 +146,21 @@ The same patterns fixed K2 in `useLoginPage.ts`. Each item below names which one
 baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@bookdeck.com`
 (suspended) for L6.
 
-## Stage S2 — Page hooks: loading flags and prop sync  ⬜ TODO
+## Stage S2 — Page hooks: loading flags and prop sync  ✅ DONE (2026-11-15)
+
+> **Verified (machine, local):** `npx eslint .` 17 → **11 problems, 0 warnings**; the six S2 files
+> lint clean and no new rule appeared. `tsc` clean; `npm test` 583/583; full visual suite
+> **219/219**, no baseline changed. **Live (local, headless, `jose@bookdeck.com`, approved by the
+> user 2026-11-15; read-only: forms opened and cancelled, and the vendor and staff rows' `updated_at`
+> confirmed unchanged afterwards):** offerings load with no "No offerings found." at any point
+> (a MutationObserver watched every frame); the profile loads; its saved address reverse-resolves
+> to Laguna / Pila / Bulilan Sur (Pob.); picking Bay clears the barangay text and its list never
+> contains Pila's barangay; editing Miguel Torres, then Elena Ramos, then Miguel again shows each
+> one's name; the registration comboboxes restore Laguna / Pila / Bulilan Sur from a saved draft
+> (the K2 check). 9/9.
+> Per item: L8 ✅ (P2, `loadedFor`) · L9 ✅ (P2, profile stored with its vendor id) · L10 ✅ (P2,
+> barangays stored with their city) · L11 ✅ (P3) · L12 ✅ (P3) · L13 ✅ (`useState(Date.now)`;
+> machine-verified only, no live check listed for it, see S2-F2).
 
 - ~~**L7**~~ — ✖ **STRUCK 2026-10-30, already fixed.** `npx eslint .` reports **no finding at all** in
   `components/kyc/KycStatusPage/useKycStatusPage.ts`. Do not go looking for it, and do not "fix" the
@@ -251,6 +267,16 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
   live run lost the "no reload" marker; a re-run on a compiled route showed no document request at
   all. Dev-only, not caused by L4. Live checks of client-side navigation should warm the route
   first. ⬜ reported only.
+
+- **S2-F1 — L9 and L10 also close a late-answer race, by construction.** (2026-11-15) Storing each
+  result with its key (P2) means an answer for the previous vendor or city can no longer show
+  under the current one. Before, `getVendorProfile` had no guard, and a just-changed city showed
+  the old city's barangays until the new list arrived. This is the behaviour the plan's L10 check
+  asks for, not a scope addition. ✅ (live-checked for L10).
+- **S2-F2 — L13's countdown has no live check.** The value is now read once at mount instead of on
+  every render; the countdown is in whole days, so the difference only shows if a page stays open
+  across midnight. The plan lists no live check for L13; covered by `tsc`, lint and the visual
+  suite. ⬜ reported only.
 
 ## Decisions
 
