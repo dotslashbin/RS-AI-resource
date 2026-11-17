@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25
 **App / scope:** `vendor/` only. The **19** files with findings, all listed below. No schema, dependency or other-app change.
-**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1–S4 ✅ (2026-11-15/16): **`npm run lint` 0 errors, 0 warnings** (29 → 17 → 11 → 3 → 0). Left: 👤 staging smoke test (install prompt on a real phone, printing Transactions).
+**Status:** COMPLETE (2026-11-16) — S1–S4 ✅, `npm run lint` 0 errors / 0 warnings (29 → 0). In vendor 0.60.2 (`1b40bf0`, `617d21d`, `187931f`); staging smoke checks green by the user 2026-11-16.
 **Baseline refreshed 2026-10-30** by I3 of `.plans/2026-10-29-vendor-followups-batch-1.md`: the 2026-09-25
 measurement had drifted. Now **26 errors, 3 warnings, 19 files**. **L7 is struck — already fixed.**
 Eight line references corrected; every other L item's `file:line` was re-checked and still holds.
@@ -18,16 +18,17 @@ Eight line references corrected; every other L item's `file:line` was re-checked
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-16, all four stages done)
-- **Done so far:** S1–S4 ✅. `npm run lint` in `vendor/` exits **0 (0 errors, 0 warnings)**. S2 is
-  committed (`1b40bf0`); **S1, S3 and S4 are uncommitted** in `vendor/`, and S1 and S4 both edit
-  `components/layout/AppShell/useAppShell.ts`.
-- **Next (👤 the user):** commit, deploy to staging, then the plan's two staging checks: the install
-  prompt on a real phone (L17) and printing the Transactions report (L16). Then close: Docs line,
-  status COMPLETE, `python3 scripts/plans-index.py`.
-- **Open findings for the user:** S4-F2 (a fresh sign-in never sets `currentUser`, so notifications
-  and the sidebar email stay empty until a reload — pre-existing, worth its own fix), plus the
-  reported-only S1-F3, S2-F2, S3-F2 to S3-F4 and S4-F3.
+## ▶ RESUME HERE (updated 2026-11-16, plan COMPLETE)
+- **Shipped:** S1–S4 in vendor 0.60.2 — commits `1b40bf0` (S2), `617d21d` (S1, S3, S4 and the
+  S4-F4 logout fix) and `187931f` (version bump), on `develop`. `npm run lint` exits 0.
+- **Verified:** machine checks per stage (lint, `tsc`, `npm test` 583/583, visual 219/219); local
+  live checks 6/6, 9/9, 11/11, 7/7; staging smoke checks (install prompt on a real phone,
+  Transactions print) green by the user, 2026-11-16.
+- **Nothing left to execute.** Still open, for the user to schedule or close:
+  **S4-F2** (a fresh sign-in never sets `currentUser`, so notifications and the sidebar email
+  stay empty until a reload — pre-existing, needs its own plan), and the reported-only
+  S1-F3, S2-F2, S3-F2, S3-F3, S3-F4, S4-F3.
+- **Docs:** see the Docs section.
 
 ---
 
@@ -388,3 +389,17 @@ baselines are committed and the gallery (L22) feeds all of them.
 | Machine | eslint (touched files per stage; whole app 0/0 after S4), `tsc --noEmit`, `npm test`, full Playwright suite with unchanged baselines |
 | Live (local, headless) | The per-stage checks above, run against the local stack with seed accounts; test data restored through the UI |
 | Needs you | Staging smoke test after deploy: the install prompt on a real phone (L17) and printing the Transactions report (L16) |
+
+## Release
+- **Staging (2026-11-16):** ✅ the user verified the two checks this plan could not run locally —
+  the install prompt on a real phone (L17) and printing the Transactions report (L16) — "working
+  as expected on mobile". Not re-checked by Claude.
+- **Production:** not part of this plan's checks. The code is in vendor 0.60.2 on `develop`; the
+  production release is the user's, through the normal Vercel Promote of the tested staging build.
+
+## Docs
+**Docs:** `architecture/conventions.md` (new "Setting state from an effect" section under
+Hook-as-Controller: the four patterns, their example files and three traps), `vendor/AGENTS.md`
+(General rules: lint is 0/0 since 0.60.2, so a new finding is a regression; disables need a written
+reason). `vendor/README.md` and the other `architecture/` docs checked: none described the lint
+state or the deleted `PackagesPage`, so no change.

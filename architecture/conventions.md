@@ -96,6 +96,34 @@ Rules for hooks:
 
 **When not to use a hook:** Simple stateless presentational components don't need a hook. A hook is warranted when: (a) there is async data fetching, (b) there are multiple interdependent state fields, or (c) the component's logic is complex enough that mixing it with JSX would make either hard to read.
 
+### Setting state from an effect (`react-hooks/set-state-in-effect`)
+
+Vendor's lint is clean since 0.60.2 (2026-11-16, `.plans/2026-09-25-vendor-eslint-cleanup.md`),
+and this rule caused most of the 29 problems it cleared. The rule flags a **synchronous**
+`setState` in an effect body; a `setState` inside an async callback (`.then`, a listener) is fine.
+The plan used four patterns, in this order of preference:
+
+| Pattern | Use when | Example |
+|---|---|---|
+| **P1 — lazy initialiser** `useState(() => …)` | State seeded once from a browser API | `useInstallPrompt.ts`; `useAppShell.ts` `sideOpen` |
+| **P2 — derive from a keyed result** | A loading flag or list that belongs to an id | `useProfilePage.ts`, `useOfferingsPage.ts`, `useTransactionsPage.ts` (`refreshing`) |
+| **P3 — adjust state during render** | Re-seed or reset state when a prop changes | `useStaffForm.ts`, `useCombobox.ts`, `useScheduleForm.ts` |
+| **P4 — targeted disable with a reason** | The effect genuinely syncs an external resource and no rewrite is correct | `useIdentityStep.ts` (object URLs), `useGuideModal.ts`, the recovery skip in `useAppShell.ts` |
+
+⚠️ **Three traps the cleanup hit:**
+- **A hook in a client component still runs during the server render**, even when the component
+  returns `null`. A P1 initialiser that touches `window`/`localStorage` must guard with
+  `typeof window !== "undefined"` unless the component is genuinely never server-rendered
+  (`useAppShell.ts` guards; `useInstallPrompt.ts` needs no guard because it mounts only inside
+  AppShell after the auth gate).
+- **P3 must key on every input the old effect depended on.** `useScheduleForm.ts` re-seeds when
+  `offerings` changes identity, and `useSchedulePage.ts` relies on that to select a preset offering.
+- **The rule reports only the first synchronous `setState` per effect.** Fixing it can expose the
+  next one in the same effect (that is how the recovery skip surfaced).
+
+P4 is an exception, not a shortcut: write `// eslint-disable-next-line react-hooks/set-state-in-effect -- <why>`
+on the one line, never a file-wide disable, and get the plan's approval (D1 there).
+
 ---
 
 ## Supabase Client Usage

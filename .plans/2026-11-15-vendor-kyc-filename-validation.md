@@ -410,7 +410,7 @@ through a tampered request, and B3's generic message covers that.
   among others). `npx eslint` over the 11 changed files exits 0. Likely the territory of
   `.plans/2026-09-25-vendor-eslint-cleanup.md`. ⬜ reported only — not fixed here, left for
   the user to schedule. → **Scheduled by the user 2026-11-15** as that plan; its S1 ✅ the same
-  day (29 → 17 problems); all four stages done 2026-11-16, vendor lint now 0/0 (uncommitted at the time of writing).
+  day (29 → 17 problems); all four stages done 2026-11-16 and that plan is COMPLETE (vendor 0.60.2, lint 0/0, staging green). F7 stays open here for the user to close.
 - **F8** — **Stage 2, Claude's half: scripted browser run, 14/14** (2026-11-15). A headless
   Playwright script (scratchpad, not in the repo) against `next dev` on :3000 and local
   Supabase: signup with 73 ASCII and with 25 × `€` showed the I2 message and sent **0**
