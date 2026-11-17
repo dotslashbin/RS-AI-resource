@@ -311,15 +311,19 @@ If per-branch registration (individual branches each with their own name, addres
 > from hosted — is **no longer true**. The migration is merged to `develop`, and
 > `supabase migration list --linked` reports `20260724000004` as applied on the hosted
 > project. Divisions ships via **migration, not `seed.sql`** (which inserts zero rows into
-> this table), so every environment gets the 13 rows from `db push` alone.
+> this table), so every environment gets the 13 seeded rows from `db push` alone.
+> ⚠️ **Not every division is in that migration (2026-11-17).** EzzyShots (`ezzy-shots`) was
+> created in Command as hosted data, so it exists only where someone created it, and a local
+> `db reset` has none. No migration was needed: nothing in the schema restricts division values
+> (plan `.plans/2026-11-16-ezzy-shots-division.md` F8, F10, F14).
 
-Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyFood, EzzyRide, EzzyHome, EzzyPets, EzzyLaw, EzzyPark, EzzyLearn, EzzyWork, EzzyStay). Seeded with these 13 rows; **full CRUD by Command admins** (add/edit/soft-disable) via the Divisions settings page — unlike most other lookup tables in this schema, which are seed-fixed. Every vendor is associated with exactly one.
+Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyFood, EzzyRide, EzzyHome, EzzyPets, EzzyLaw, EzzyPark, EzzyLearn, EzzyWork, EzzyStay), plus **EzzyShots**, added 2026-11 as hosted data with no migration row. Seeded with those 13 rows; **full CRUD by Command admins** (add/edit/soft-disable) via the Divisions settings page — unlike most other lookup tables in this schema, which are seed-fixed. Every vendor is associated with exactly one.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `smallint` | PK, identity |
 | `name` | `text` | Unique, e.g. `"EzzyDrive"`. ⚠️ **This is the canonical name, and the booker portal does not print it** (2026-10-02): booker shows a short label — "Drive", not "EzzyDrive" — derived by `booker/lib/divisions.ts` → `divisionLabel(slug, name)`, which reads a curated label per slug and falls back to stripping the brand prefix from this value for a division added after that build. Nothing is stored for it, Command still edits `name`, and vendor and Command still display `name` in full. So a Command admin renaming a division **will not change what booker shows for the thirteen seeded ones** — that needs an edit to booker's label list. If per-division display control is ever wanted, the smallest change is a nullable `display_name` column plus the Command form field and a `display_name ?? name` read |
-| `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation; treated as immutable afterward though **not** DB-enforced immutable. ⚠️ The "future filter URLs" this column was reserved for **now exist** (2026-08): it is the public handle in the vendor registration deep link `/?division=<slug>` (see `portals.md`), so renaming a slug silently breaks every campaign link already in circulation — and the break is invisible, looking identical to a mistyped link. Matching is normalised (case- and punctuation-insensitive), so a rename that only changes case or hyphens is safe; any other edit is not. Lookup key only — it resolves to `id`, which is what is stored and validated |
+| `slug` | `text` | Unique, kebab-case, e.g. `"ezzy-drive"`. Derived from `name` client-side at creation (⚠️ Command's `slugify()`, `command/lib/utils.ts:9`, does not split camel case: "EzzyShots" became `ezzyshots` and was corrected by SQL, plan `.plans/2026-11-16-ezzy-shots-division.md` F1. Command cannot edit a slug afterwards, so the next camel-case name needs the same fix until `slugify` changes); treated as immutable afterward though **not** DB-enforced immutable. ⚠️ The "future filter URLs" this column was reserved for **now exist** (2026-08): it is the public handle in the vendor registration deep link `/?division=<slug>` (see `portals.md`), so renaming a slug silently breaks every campaign link already in circulation — and the break is invisible, looking identical to a mistyped link. Matching is normalised (case- and punctuation-insensitive), so a rename that only changes case or hyphens is safe; any other edit is not. Lookup key only — it resolves to `id`, which is what is stored and validated |
 | `sort_order` | `smallint` | Default `0`. Display order |
 | `is_active` | `boolean` | Default `true`. Soft-disable — hides from new vendor selection (app-layer filter, not RLS) without breaking existing `vendors.division_id` references |
 | `created_at` | `timestamptz` | |
@@ -332,13 +336,17 @@ Ezzy business-vertical taxonomy (EzzyDrive, EzzyCare, EzzyWell, EzzyCourt, EzzyF
 #### Division icons — the named prerequisite of the Command icon feature (recorded 2026-09-27)
 
 ⚠️ **There is no icon column on this table, and no Storage bucket for one.** The booker portal
-now shows all 13 divisions as icon tiles on its Home screen, and every mark it draws is a
+now shows all 14 divisions (13 seeded + EzzyShots) as icon tiles on its Home screen, and every mark it draws is a
 **file in the repo**: `booker/public/division-icons/<slug>.png`, resolved by
 `booker/lib/divisionIcon.ts`. An admin cannot change any of them; a deploy is the only way.
+⚠️ **A replaced mark does not reach returning bookers.** The path is built from the slug, so it
+cannot carry a `-v1`/`-v2` suffix like the promo banners, and booker's service worker caches
+same-origin images forever (`booker/public/sw.js`). Replacing a mark needs a new filename and a
+`divisionIcon.ts` change, so ship the final artwork the first time (plan `.plans/2026-11-16-ezzy-shots-division.md` F13).
 
 ⚠️ **If that upload feature is ever built, the marks are not interchangeable images.** Measured
 2026-10-02 over each PNG's opaque pixels: `ezzy-food` has a mean luminance of **1** (100% of its
-pixels under 70), `ezzy-home` 38, `ezzy-care` 48, `ezzy-learn` 68. Four of the twelve are
+pixels under 70), `ezzy-home` 38, `ezzy-care` 48, `ezzy-learn` 68, and `ezzy-shots` 10 (2026-11-17). Five of the fourteen are
 near-black line art, which is why booker's tile tint stays light in dark mode and why any surface
 that drops the tinted disc paints the mark through a CSS mask instead of drawing it as an image.
 An upload path would need either the same constraint on what can be uploaded or the same
@@ -364,7 +372,7 @@ approval gate — **do not add them inside a booker task**.
 
 ⚠️ **Public or private is an open question, not a detail.** Every surface that draws a division
 mark today is behind auth (booker's Home), which `vendor-kyc`'s private + signed-URL model
-would serve. But signed URLs expire, and these are brand assets on a grid of 13 — a public-read
+would serve. But signed URLs expire, and these are brand assets on a grid of 14 — a public-read
 bucket is the obvious fit *if* nothing ever needs them pre-auth. Decide it against the surfaces
 that exist at the time rather than assuming; the vendor registration deep link
 (`/?division=<slug>`) is pre-auth and shows a division **name** only, so it does not settle the

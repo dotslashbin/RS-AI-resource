@@ -264,6 +264,22 @@ window.ICONS3D = (function () {
         + `<circle class="t" cx="${f(P(0, 0, 3.95)[0])}" cy="${f(P(0, 0, 3.95)[1])}" r="3.6"/>`
         + pan(2.1);
     },
+    /* Shots — a modern DSLR, three-quarter view (restored 2026-11-16 at the user's request, after the
+       framed-print and Canon EOS versions; for D1 "Photos"). A wide body with a grip on the left, a
+       pentaprism hump on top, a shutter button and a mode dial, and a lens barrel on the front face: a
+       shaded barrel built from stacked discs, a dark front ring and a glass centre. Stage 1 of plan
+       2026-11-16-ezzy-shots-division (I3). */
+    "ezzy-shots": () => shadow(5.4, 3.4)
+      + box(-2.2, -1.2, 0.2, 4.6, 2.4, 1.8)
+      + box(-2.6, -1.2, 0, 0.8, 2.4, 1.9, { l: "r", r: "d" })
+      + box(-0.6, -0.9, 2.0, 1.8, 1.6, 0.7)
+      + cyl(1.6, -0.2, 2.0, 0.24, 0.2, { t: "x", l: "d", r: "d" })
+      + cyl(-1.3, 0.5, 2.0, 0.28, 0.14, { t: "x", l: "d", r: "d" })
+      + disc("r", "y", 0.2, 1.2, 1.1, 0.85)
+      + Array.from({ length: 10 }, (_, k) => disc("r", "y", 0.2, 1.2 + k * 0.1, 1.1, 0.72)).join("")
+      + disc("d", "y", 0.2, 2.1, 1.1, 0.72)
+      + disc("w", "y", 0.2, 2.12, 1.1, 0.5)
+      + disc("x", "y", 0.2, 2.14, 1.1, 0.2),
   };
 
   /** One icon: `set` is "mono" or "brand". The group is fitted to the box by `fit()`. */

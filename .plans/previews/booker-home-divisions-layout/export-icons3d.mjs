@@ -3,7 +3,7 @@
    block that goes into booker/app/globals.css (`:root` and `.dark`).
    ⚠️ The preview is the source of truth. Re-run this after changing icons3d.js or the tone rules in
    preview.css; never hand-edit the generated file.
-   - Only the 13 slugs in booker/lib/divisions.ts. ICONS3D.SLUGS also holds the rejected Court
+   - Only the slugs in booker/lib/divisions.ts (14 since EzzyShots, plan 2026-11-16). ICONS3D.SLUGS also holds the rejected Court
      variants, and `ezzy-court` already draws the chosen paddle.
    - Colour by tone class → `var(--db-ic3d-<tone>)`. Every other presentation property (stroke
      width, caps, joins, vector-effect) is read with getComputedStyle, so the sharpening survives.
@@ -20,7 +20,7 @@ const divisions = readFileSync(`${BOOKER}/lib/divisions.ts`, "utf8");
 const slugBlock = divisions.match(/DIVISION_SLUGS = \[([\s\S]*?)\] as const/);
 if (!slugBlock) throw new Error("DIVISION_SLUGS not found in lib/divisions.ts");
 const SLUGS = [...slugBlock[1].matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
-if (SLUGS.length !== 13) throw new Error(`expected 13 division slugs, found ${SLUGS.length}`);
+if (SLUGS.length !== 14) throw new Error(`expected 14 division slugs, found ${SLUGS.length}`);
 
 /* Tone classes that carry colour, and the CSS property each one's colour lives on. */
 const FACE = ["t", "l", "r", "d", "w", "x", "p", "pr"];
@@ -157,7 +157,7 @@ export function DivisionIcon3d({ slug }: { slug: DivisionSlug }) {
 const problems = [];
 if (/#[0-9a-fA-F]{3,8}\b/.test(tsx.replace(/^\s*\*.*$/gm, ""))) problems.push("hex colour");
 for (const bad of ["style=", "<style", "<script", "href"]) if (tsx.includes(bad)) problems.push(bad);
-if ((tsx.match(/^ {2}"ezzy-[a-z]+": \(/gm) || []).length !== 13) problems.push("not 13 entries");
+if ((tsx.match(/^ {2}"ezzy-[a-z]+": \(/gm) || []).length !== SLUGS.length) problems.push(`not ${SLUGS.length} entries`);
 if (problems.length) throw new Error(`refusing to write: ${problems.join(", ")}`);
 writeFileSync(OUT, tsx);
 

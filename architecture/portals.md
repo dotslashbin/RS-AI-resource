@@ -53,7 +53,7 @@ widgets — those moved to Activity. Sections, top to bottom:
   the finger. Plan `.plans/2026-10-23-booker-mobile-spacing-colours.md`.
 - **In-progress strip** — the one personal thing on Home, and only while a booking is actually
   running. Hidden otherwise.
-- **Browse by division** — all 13 divisions as **icons with the name beneath** (D22-c,
+- **Browse by division** — all 14 divisions (13 seeded + EzzyShots, 2026-11-17) as **icons with the name beneath** (D22-c,
   2026-09-28, the banded card it replaced is gone; circle-free since 2026-10-19 — no tinted disc).
   ⚠️ **Since 2026-10-27 the icons are a 3D set** (matte object icons, blue `#034afc` in light and
   a lighter blue `#93b4ff` in dark; plan `.plans/2026-10-25-booker-home-divisions-layout.md` I11), used in this strip only; the shop cards and
@@ -63,8 +63,8 @@ widgets — those moved to Activity. Sections, top to bottom:
   seven divisions. On a phone it is **one sideways row, five and a half tiles per page**, the
   half tile at the edge hinting there is more (2026-10-27, same plan I3; two rows of five from
   2026-10-24; tiles ≥ 44px). **On the web** it is **left-aligned** rows of at most seven 72px
-  tiles in a centred block (2026-10-27, same plan I7; centred rows from 2026-10-24) — 7 + 6 for
-  the 13 divisions (plan `.plans/2026-10-24-booker-banner-carousel.md` I9). It is the section that *always* has content,
+  tiles in a centred block (2026-10-27, same plan I7; centred rows from 2026-10-24) — 7 + 7 for
+  the 14 divisions (7 + 6 before EzzyShots) (plan `.plans/2026-10-24-booker-banner-carousel.md` I9). It is the section that *always* has content,
   which is what keeps Home from ever being a blank page. Renders whatever `lib/divisions.ts`
   holds; nothing hardcodes 12 or 13.
   ⚠️ **The label is the short one — "Care", not "EzzyCare"** (2026-10-02). `divisions.name` in the
@@ -244,11 +244,11 @@ button opens the wizard at Schedule (plan D1).
 - **The filter bar pins** to the top of the shell's scroll container while the catalogue scrolls
   under it. ⚠️ Its `top`/`margin` offsets mirror `AppShell`'s `p-5` on that container; change one
   and the other breaks silently.
-- **Each division pill carries its mark**, painted through a CSS mask (never an `<img>` — four of
-  the thirteen marks are near-black line art and vanish otherwise) and coloured by
+- **Each division pill carries its mark**, painted through a CSS mask (never an `<img>` — five of
+  the fourteen marks are near-black line art and vanish otherwise) and coloured by
   `currentColor`, so it follows the pill's own selected/unselected colour. Below 640px the
-  thirteen pills are one horizontally scrolling row, and selecting one keeps it on screen —
-  a division tapped on Home arrives pre-selected, and "Law" is the thirteenth.
+  fourteen pills are one horizontally scrolling row, and selecting one keeps it on screen —
+  a division tapped on Home arrives pre-selected, and "Shots" is the fourteenth, after "Law".
 
 #### Payments Page (renamed from Transactions, 2026-09-26)
 `components/payments/`. Period presets (Manila-anchored), state and vendor filters, sort, month
@@ -467,7 +467,7 @@ and its Popular shelf waits on the same gate.
 7. ~~Push/in-app notifications when booking status changes~~ **Done** — full notifications system live
 8. Real-device PWA verification — Android/iOS install-and-launch, and specifically the PayMongo checkout round-trip from an installed standalone app
 9. **Divisions need a Command-managed icon** — see `schema.md` → "Division icons"; today the
-   13 marks are files in `booker/public/division-icons/`, which no admin can change
+   14 marks are files in `booker/public/division-icons/`, which no admin can change
 
 ---
 
