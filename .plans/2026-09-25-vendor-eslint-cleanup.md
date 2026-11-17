@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-25
 **App / scope:** `vendor/` only. The **19** files with findings, all listed below. No schema, dependency or other-app change.
-**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1 ✅ and S2 ✅ 2026-11-15 (29 → 17 → 11 problems, 0 warnings); S3–S4 ⬜.
+**Status:** IN PROGRESS — approved by the user 2026-11-15 ("lets fix the linting problems"). S1–S4 ✅ (2026-11-15/16): **`npm run lint` 0 errors, 0 warnings** (29 → 17 → 11 → 3 → 0). Left: 👤 staging smoke test (install prompt on a real phone, printing Transactions).
 **Baseline refreshed 2026-10-30** by I3 of `.plans/2026-10-29-vendor-followups-batch-1.md`: the 2026-09-25
 measurement had drifted. Now **26 errors, 3 warnings, 19 files**. **L7 is struck — already fixed.**
 Eight line references corrected; every other L item's `file:line` was re-checked and still holds.
@@ -18,18 +18,16 @@ Eight line references corrected; every other L item's `file:line` was re-checked
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-15, S2 done)
-- **Done so far:** S1 ✅ and S2 ✅. `npx eslint .` in `vendor/`: **11 problems (11 errors,
-  0 warnings)**, all S3/S4 items: 10 × `set-state-in-effect`, 1 × `static-components` (L22).
-  S1 and S2 are **both uncommitted** in `vendor/` (the user's S1 commit did not land; S2 touches
-  different files, so the two can still be committed separately).
-- **Next:** S3 (L14–L20, L22). Re-run `npx eslint .` first; expected start: 11. S3 includes the
-  three D1 targeted disables (L18, L19, L20; L16 as a fallback). Its live checks use the seed
-  account `jose@bookdeck.com`; ask the user before signing in, because approval is per task.
-- **Watch out for:** L25 is at `useAppShell.ts:472` (S1-F2). Warm a route before checking
-  client-side navigation (S1-F3).
-- **Before Playwright:** stop any `next dev` on `vendor/`. The visual suite and a dev server
-  cannot run at the same time (one Next lock per folder).
+## ▶ RESUME HERE (updated 2026-11-16, all four stages done)
+- **Done so far:** S1–S4 ✅. `npm run lint` in `vendor/` exits **0 (0 errors, 0 warnings)**. S2 is
+  committed (`1b40bf0`); **S1, S3 and S4 are uncommitted** in `vendor/`, and S1 and S4 both edit
+  `components/layout/AppShell/useAppShell.ts`.
+- **Next (👤 the user):** commit, deploy to staging, then the plan's two staging checks: the install
+  prompt on a real phone (L17) and printing the Transactions report (L16). Then close: Docs line,
+  status COMPLETE, `python3 scripts/plans-index.py`.
+- **Open findings for the user:** S4-F2 (a fresh sign-in never sets `currentUser`, so notifications
+  and the sidebar email stay empty until a reload — pre-existing, worth its own fix), plus the
+  reported-only S1-F3, S2-F2, S3-F2 to S3-F4 and S4-F3.
 
 ---
 
@@ -189,7 +187,21 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 - Edit staff A, then staff B: the form shows B.
 - Registration comboboxes still restore from the draft (the K2 check).
 
-## Stage S3 — Harder hooks and the gallery  ⬜ TODO
+## Stage S3 — Harder hooks and the gallery  ✅ DONE (2026-11-16)
+
+> **Verified (machine, local):** `npx eslint .` 11 → **3 problems, 0 warnings** (only S4 left);
+> `tsc` clean; `npm test` 583/583; full visual suite **219/219**, no baseline changed (so L22's
+> gallery change altered no screenshot). **Live (local, headless, `jose@bookdeck.com`, approved by
+> the user 2026-11-16; read-only, and the edited schedule's `updated_at` confirmed unchanged):**
+> Edit Schedule opens seeded ("Court Rental — Morning"); an edited title survives parent re-renders
+> (two viewport resizes); New after Edit opens empty; two quick range changes show refreshing, then
+> settle on the second ("from 01 Sept 2026"); the print view carries a "Generated" stamp; on an
+> emulated iPhone (Safari) the install prompt shows, and after Dismiss stays hidden across a reload;
+> in the gallery, replacing the ID photo gives a new object URL that loads; the guide's deferral
+> path holds (see S3-F2). 11/11.
+> Per item: L14 ✅ (P3, see S3-F1) · L15 ✅ (P2) · L16 ✅ (seed moved into the commit; the effect
+> only subscribes, no P4 needed) · L17 ✅ (P1) · L18 ✅ (P4) · L19 ✅ (P4) · L20 ✅ (P4) · L22 ✅
+> (`{body()}`; `Body` uses no hooks).
 
 - **L14** — `components/schedule/ScheduleFormModal/useScheduleForm.ts:43`: the hydration effect sets 9
   fields from `editSched` and resolves the offering, with a `presetDone` latch → **P3** on
@@ -232,7 +244,19 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
 - The install prompt stays hidden when dismissed (headless can't install, so this is the dismissed
   path only).
 
-## Stage S4 — `useAppShell` (auth shell)  ⬜ TODO — highest risk, last
+## Stage S4 — `useAppShell` (auth shell)  ✅ DONE (2026-11-16)
+
+> **Verified (machine, local):** `npx eslint .` 3 → **0 problems**; `npm run lint` exits 0; `tsc`
+> clean; `npm test` 583/583; full visual suite **219/219**, no baseline changed. **Live (local,
+> headless, `jose@bookdeck.com` + `rico@bookdeck.com` + a Mailpit recovery link, approved by the
+> user 2026-11-16; read-only, and jose's password hash and notification states confirmed unchanged
+> afterwards):** at 1280 px the sidebar starts open and at 800 px closed; after a session restore
+> both notification requests return 200 and the panel lists jose's 7; sign-out returns to the login
+> screen with no vendor data left; suspended rico is refused; a recovery link still reaches "Set a
+> new password" (nothing submitted). 7/7.
+> Per item: L23 ✅ (P1, guarded with `typeof window` because this hook runs during the server render
+> — the plan's "safe because AppShell renders nothing" was true for the markup but not for the hook)
+> · L24 ✅ (P3) · L25 ✅ (P2 on `userId`) · plus the recovery line, S4-F1.
 
 - **L23** — `components/layout/AppShell/useAppShell.ts:219` (was `:208`): `setSideOpen(true)` when
   `innerWidth >= 1024`, at the top of the auth-gate effect → **P1**: `useState(() => window.innerWidth
@@ -278,6 +302,51 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
   across midnight. The plan lists no live check for L13; covered by `tsc`, lint and the visual
   suite. ⬜ reported only.
 
+- **S3-F1 — L14's P3 is keyed on all three of the effect's inputs, not on `editSched` alone.**
+  (2026-11-16) The seeding effect depended on `editSched`, `offerings` and `presetOfferingId`, and
+  `useSchedulePage.ts` documents that it must re-run when `offerings` changes identity (that is how
+  a preset offering gets selected once the array arrives). Keying on `editSched` alone would have
+  dropped that, so the render-time comparison uses the same three values and runs exactly when the
+  effect did. The `presetDone` latch became state, because refs cannot be read during render. ✅
+- **S3-F2 — The Getting Started guide defers for any account with the completion modal open.**
+  It decides once, when completion settles; if "Complete your account" is open then, it returns
+  without spending the auto-open (by design, `useGuideModal.ts`). Every seed vendor checked (jose,
+  marco) shows that modal, so the "opens once on a fresh browser" path could not be shown live; the
+  deferral path was (11/11 run). L18's change is a comment-only disable line. ⬜ reported only.
+- **S3-F3 — L15: going back to the applied range before a fetch lands now clears "refreshing" at
+  once.** Before, it stayed on until the identical-range request committed. The table already shows
+  that range, so this is more accurate, not a regression. ⬜ reported only.
+- **S3-F4 — Dates render as "01 Sept 2026"**, not "Sep" (en-GB in current ICU data). Matters only to
+  tests that match the text. ⬜ reported only.
+
+- **S4-F1 — A fourth targeted disable, on the recovery skip.** (2026-11-16) Removing L23's
+  `setSideOpen` exposed the next synchronous setState in the same effect: `if (isRecoveryDetected())
+  { setIsCheckingAuth(false); return }`. The plan forbids changing the recovery skip, and rewriting
+  it risks a server/client mismatch on the recovery screen. The user chose a targeted disable,
+  extending D1 to this line (2026-11-16). ✅
+- **S4-F2 — A fresh form sign-in never sets `currentUser`.** `setCurrentUser` is called only on the
+  session-restore path (`useAppShell.ts`), not by `handleLoginSuccess`. So right after signing in,
+  notifications do not load and the sidebar shows no email, until the next reload. **Pre-existing:**
+  the same A/B against the committed `useAppShell.ts` (before S1/S4) made zero notification requests
+  too. Out of this plan's scope (a behaviour fix, not lint). ⬜ reported only — worth its own item.
+- **S4-F3 — A reload in the instant after sign-in can land on the login screen in dev.** Seen once
+  with S4's code and once with the committed code (that run straight after a file swap, during a dev
+  recompile); with a 2 s settle the current code restores every time. Not tied to S4. ⬜ reported
+  only.
+- **S4-F4 — L25 left a latent gap on logout; fixed.** (2026-11-16, found in the user's
+  behaviour review) `handleLogout` cleared `notifications` but not the new `notifLoadedFor`, so a
+  same-user sign-in in the same tab would have shown "You're all caught up" instead of a spinner
+  until the load landed. Unreachable today (a fresh sign-in never sets `currentUser`, S4-F2), but
+  it would surface once S4-F2 is fixed. One line added at the user's request:
+  `setNotifLoadedFor(null)` in `handleLogout`, which restores the old spinner behaviour exactly.
+  ✅ `tsc`, lint 0/0, `npm test` 583/583, S4 live re-run 7/7 (includes sign-out).
+- **Behaviour review (2026-11-16, at the user's request).** Every changed line of S1–S4 was re-read.
+  No change alters what data is shown, saved or allowed. Visible differences, all small: the 404
+  link navigates in-app instead of reloading (L4); Transactions dimming clears at once when the range
+  is set back before a fetch lands (S3-F3); the barangay list no longer flashes the previous city's
+  (L10, S2-F1); the booking countdown uses the time the screen opened (L13, S2-F2). Everything else
+  is identical or the same result one frame earlier (no momentary empty states).
+
 ## Decisions
 
 <!-- No item in this plan may execute while any OPEN: line below remains. None remain as of 2026-09-25. -->
@@ -286,6 +355,8 @@ baselines); live: 404 link, and login as `jose@bookdeck.com` (active) and `rico@
   render).
   - **(a) Recommended.** Allow `eslint-disable-next-line react-hooks/set-state-in-effect -- <reason>`
     on exactly those lines, each with a reason.
+  - **Extended 2026-11-16 by the user** to one more line: the recovery skip in `useAppShell.ts`
+    (S4-F1).
   - (b) Force a rewrite anyway, e.g. a `useObjectUrl` hook built on `useSyncExternalStore`. That adds
     more code than it removes.
 - **D2 — Dead `PackagesPage.tsx`** (L21). → **(a) move it to the trash, plus AppShell's commented import/case lines** (resolved 2026-09-25 by you). The page was deferred and nothing renders it.
