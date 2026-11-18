@@ -67,3 +67,10 @@ could offer a slot that has already started.
 elsewhere), and filter slots against Manila time. Audit every `new Date(<plain date>)` in booker first.
 **Verification when picked up:** unit tests that pin the time zone (e.g. run with `TZ=America/New_York`), plus a
 Playwright check with `timezoneId` set to a non-Manila zone.
+
+## F5 — EzzyShots has no production vendor to check the offering path against  ⬜ TODO
+
+**Found:** 2026-11-17, during P4 of `.plans/2026-11-16-ezzy-shots-division.md`.
+**What:** Booker production shows the EzzyShots tile and chip, and the icon menus work. The vendor-facing checks are not run: no EzzyShots vendor with an active offering exists on production, so a result card, the violet badge and the Shots label on a real vendor are unseen. Staging S4 also had no EzzyShots vendor (the staging row has 0 vendors).
+**Unblock:** the first EzzyShots vendor with an active offering on production or staging. Then check its result card and vendor page in both themes, and that a division filter returns it.
+**Status:** ⬜ TODO. Parked from the EzzyShots plan's P4; the user decides when to pick it up.

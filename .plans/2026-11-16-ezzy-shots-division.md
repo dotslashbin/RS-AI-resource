@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16
 **App / scope:** `booker/` (code), `vendor/` (one test line), `.plans/previews/booker-home-divisions-layout/` (3D icon source), hosted `public.divisions` data (user-run SQL). No migration, no `command/`, no `backbone/` file.
-**Status:** IN PROGRESS (approved 2026-11-16; Stages 1–3 done 2026-11-17; commits with the user; Stage 4 next) — release: staging ⬜ · production ⬜
+**Status:** COMPLETE (2026-11-17) — release: staging ✅ · production ✅. Open follow-ups, parked with reasons: P4 step 4 (vendor path, F5 in `.plans/2026-11-04-booker-followups.md`, unblock: first EzzyShots vendor with an active offering); stray `Shots` row id 14 on staging (user, later, after checking no vendor refers to it); test-account cleanup (user, later).
 
 > Make **EzzyShots** (`ezzy-shots`) a division that works the same as the other thirteen:
 > listed, coloured, filterable and searchable in Booker, and selectable at Vendor sign-up. The
@@ -15,17 +15,11 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-17, end of Stage 3)
-- **Done so far:** plan approved 2026-11-16. **Stage 1** (DSLR 3D icon), **Stage 2** (Booker I1–I6) and **Stage 3** (I7 Vendor test, I8 docs) complete. Commit drafts handed over: three repos (booker, vendor, root). 👤 The user commits; nothing is committed by an agent.
-- **Verified (machine):** Booker `npm test` 338/338, `tsc` clean, lint 18 (pre-existing), visual 209/209. Vendor 583/583, lint 0/0, `tsc` clean. **Not yet seen against real data**: that is S3/S4 on staging.
-- **Live where:** local — all changes in working trees, awaiting the user's commits · staging — EzzyShots row with a wrong slug (assumed; R1 confirms) · production — unknown (R1 confirms).
-- **Next:** **Stage 4 (👤)** — R1 on staging, then the slug-fix SQL (S1), *then* deploy Booker to staging (S2), then S3 (Vendor dropdown and deep link) and S4 (Booker checks). Order matters: see "Safe and unsafe states" under Release.
-- **Waiting on the user:** the three commits; R1 and S1–S4.
-- **Watch out for:**
-  - `DivisionIcon3d.tsx` is **generated**. Never hand-edit it. Edit the preview's `icons3d.js` and re-run the exporter (I3).
-  - Adding the slug to `DIVISION_SLUGS` breaks `tsc` until the 3D drawing exists (`Record<DivisionSlug, …>`). I1 and I3 land together.
-  - The `-bg` / `-fg` tokens are **retired** (booker `AGENTS.md` → "Division colours and icons"). Do not define them for the new slug (I2).
-
+## ▶ RESUME HERE (closed 2026-11-17)
+- **Plan COMPLETE 2026-11-17.** Stages 1–3 committed; staging S1–S4 accepted; production P1–P4 accepted, with P4 step 4 parked (F5).
+- **Live:** Booker release `07221bd` (0.32.0) and Vendor release `5b0fd6c` (0.61.0) are on production. EzzyShots is active there, slug `ezzy-shots`.
+- **Open follow-ups (not blocking closure):** F5 (vendor-path check, `.plans/2026-11-04-booker-followups.md`); stray `Shots` row id 14 on staging (you, later; check `vendors.division_id = 14` first); test-account cleanup from Command (you, later).
+- **Not done, by design:** the releases aren't merged to `master`; the release tags are local only.
 ---
 
 ## Investigation findings (2026-11-16)
@@ -82,7 +76,24 @@ Checked against the docs and plans changed since 2026-11-01:
 
 ## Pre-checks (👤, read-only; run in each environment before its SQL)
 
-### R1 — Inspect the row  ⬜ TODO
+### R1 — Inspect the row  🔄 IN PROGRESS (staging ✅ 2026-11-17; production results received 2026-11-17, one query to explain)
+**Staging, run by the user, results pasted 2026-11-17:**
+- Query 1: 2 rows. **id 15** `EzzyShots` / `ezzy-shots`, active, sort 15, created 2026-11-17 15:37:28, updated 15:37:50. This is the row that matters, and it passes the stop conditions (exact name, active). **id 14** `Shots` / `shots`, inactive, sort 14, created 2026-10-28: a different, older row. It was matched only by the `ilike '%shot%'` search. It is not EzzyShots, and it is harmless to Booker (which reads its list from code) and to Vendor sign-up (which shows only active rows).
+- Query 2: returned id 15, so `ezzy-shots` is **already taken by this row**, the state S1 produces.
+- **S1 on staging: ✅ run by the user (2026-11-17, user-reported).** The paste confirms the final state (slug `ezzy-shots`) and an update 22 seconds after creation, which fits the S1 update. It does **not** show the pre-fix slug, so the slug change itself is consistent with S1 but not proven by the paste.
+- Query 3: 0 vendors in EzzyShots, so S3/S4 need a test vendor assigned.
+- **Decision (2026-11-17, user): leave id 14 alone; the user will delete it later.** Before that delete, check `select count(*) from public.vendors where division_id = 14` returns 0, because `vendors.division_id` is `ON DELETE RESTRICT`. This is a follow-up, not closed by this plan. Original question: whether to remove the stray id 14. The schema says Command only ever disables a division, never deletes one (`schema.md`, `divisions` → delete semantics), and this one is already disabled. Leaving it is the design-consistent choice. A delete is destructive SQL and needs explicit approval, and a `RESTRICT` foreign key would block it if any vendor references id 14.
+- **Production, run by the user, results pasted 2026-11-17:**
+  - Query 1: one row, **id 14** `EzzyShots` / `ezzy-shots`, active, sort 14, created 2026-09-13, **updated 2026-11-17 02:49:47 UTC**. No stray `Shots` row.
+  - Query 2: returns id 14, so `ezzy-shots` is already taken, as on staging.
+  - Query 3: 0 vendors.
+  - ⚠️ **Release-order DEVIATION, confirmed by the user 2026-11-17:** the slug fix went to **production before staging was green**. Dated from the row's `updated_at`: **2026-11-17 02:49 UTC**. The user first said "a while ago", then confirmed on 2026-11-17 that the fix ran early and that production's slug is correct. `updated_at` only shows the last change to the row, so the date is the record, not proof that the slug was the only change. Recorded as a §12 deviation. Reason: not recorded by the user. Consequences: (a) production's vendor sign-up already offers EzzyShots (active row, F9) while Booker production does not list it yet; (b) P2's slug fix is therefore already in place, so P2 is 'done early', not 'not needed'; (c) the staging test (S3/S4) now runs after production has the data change. The data change is one row and reversible (slug back to `ezzyshots`). Need: the user to confirm the date, and whether anything else changed on this row.
+  - Earlier note (superseded): the release-order question. the production row was updated at 02:49 UTC on 2026-11-17, about 13 hours before the staging row was created (15:37 UTC the same day). Per §12, production is the last stage and must not change before staging is green. The paste does not show which column changed, or whether this was the S1 slug fix. Historically this workspace has drifted by doing prod first (`supabase-environments` note). Until the user answers, P2 is not confirmed as done or unneeded.
+  - If the user ran the slug fix on production early, record it as a deviation from §12 with a date and the reason; do not treat production as ahead of staging.
+- **P4 update (2026-11-17, user-reported):** the test account (a separate booker account, decision above) was used. The icon menus work as expected. Step 4 (vendor path) is parked as F5 in `2026-11-04-booker-followups.md`. **Accepted by the user 2026-11-17: P4 is good.** The user will delete the test account later; it is not in the table, and its alias is not recorded here.
+- **P4 blocker (2026-11-17, resolved by the separate account):** the user's production root account cannot sign in to Booker. Query result: `status` active, `portals` command/vendor/booker, `platform_roles` root only. `services/booker.service.ts` `verifyBookerAccess()` requires the booker portal **and** the `member` role, and `root` does not satisfy it, so it returns `no_access`. By design (`auth-and-roles.md`: elevated roles are granted in addition to portal access). Command's user editor cannot add `member` alongside `root`: `hooks/mutations/users/useUpdateUser.ts` models exactly one platform role and removes any other role row. Setting it on the user's own account would remove `root`; the last-root trigger (`20260807000002`) would refuse that delete, so the save fails partway. Do not use the editor on the root account. Option that needs no SQL: create a separate customer account in Command (booker portal, `member` role, active), use it for P4, then remove it through Command's delete, which is allowed when the account has no bookings. **Decision (2026-11-17, user): create a separate booker account** and run P4 as that account; root untouched. Route not yet chosen: Booker's own sign-up (`auth-and-roles.md`: registration grants booker and `member` automatically) or Command's add-user form. Clean up afterwards: delete the test account from Command (allowed while it has no bookings), and record the account's email alias in the plan.
+- Next on staging: S2 (Booker deploy), then S3 and S4 with a test vendor.
+- Next on staging: S2 (Booker deploy), then S3 and S4 with a test vendor.
 ```sql
 select id, name, slug, sort_order, is_active, created_at, updated_at
 from public.divisions
@@ -265,6 +276,20 @@ Grep `architecture/portals.md` for "13" and update only what is about the divisi
 | **New Booker, old slug** | EzzyShots tile and chip shown, but tapping it filters to **nothing** (vendors carry `ezzyshots`, which maps to `none`) | ⚠️ Visible but not harmful. Recover by running the SQL |
 | New Booker, slug fixed | Full division | ✅ target |
 
+### Reported by the user, 2026-11-17 (NOT verified by a recorded check)
+- **Booker:** staging deploy (S2) and production promotion (P3) of the release, reported as done. The deployment IDs are not in the plan.
+- **Vendor:** the release `5b0fd6c` was also promoted to production. The plan has no Vendor deploy (I7 is test-only), so this was not required, but it's harmless.
+- **"All are working":** this is the user's report. S3 (Vendor dropdown and `?division=` checks) and S4 (Booker checks on both themes, desktop and phone, with a test vendor assigned) are **not itemised**, and nothing in this file records a test vendor being assigned to EzzyShots. Mark S3, S4 and P4 done only once each check is listed with its result.
+- **Deviation #2 (§12, release order):** Booker went to production before the recorded staging checks (S3, S4) were written down. Like deviation #1, record the date and reason, or the staging evidence that existed at promotion time.
+- P1 (production parity): ✅ **done (user-reported, 2026-11-17).** `supabase migration list` shows the same migrations on local, staging and production. The output and `Target:` lines were not pasted, so this is a user report, not a recorded check. No migration was needed for this plan.
+
+### Shipped commits (checked 2026-11-17, read-only git)
+- **Booker:** `release/version-0.32.0` at `07221bd` (tag `v0.32.0`, local only), on origin. Contains our feature commit `8d98c15` plus a version bump only (`package.json`, `package-lock.json`). Not merged to `master` (still `5e3575f`, 0.31.0). Local `develop` is at the release commit; `origin/develop` is still at `8d98c15`.
+- **Vendor:** `release/version-0.61.0` at `5b0fd6c` (tag `v0.61.0`, local only), on origin. Contains `dad5765` plus a version bump only. Not merged to `master` (`3f5ad8b`, 0.60.1). Local `develop` at the release commit; `origin/develop` at `b45d944`.
+- **Command:** no changes from this work. Working tree clean, HEAD equals `origin/develop` (`885083c`), no `ezzy-shots` references in tracked files. It has a local branch named `feature/ezzy_shots` with no commits of its own.
+- **Open:** the release tags are not on origin, and the releases are not merged into `master` or `production`. Whether that's needed depends on the app's release process, which is the user's call. It is not needed for Vercel to deploy the staging branch.
+- **S2 must deploy `07221bd` (Booker) and `5b0fd6c` (Vendor)**, and P3 promotes the same deployments.
+
 ### Staging (production untouched throughout)
 | # | Who | Step | Check |
 |---|---|---|---|
@@ -295,7 +320,7 @@ Blast radius: one row, one column; `updated_at` bumps. No foreign key or trigger
 | P1 | 👤 | Parity: this plan's only production changes are the one row and the Booker deployment tested in S2 | ⛔ nothing else pending |
 | P2 | 👤 | R1 on **production**, then the same slug fix | ⛔ exactly 1 row. If production has **no** EzzyShots row, stop: it must be created in Command first, and then fixed by this SQL (F1) |
 | P3 | 👤 | Vercel **Promote** the exact staging Booker deployment from S2 | — |
-| P4 | 👤 + 🤖 | Production checks: a subset of S4 (EzzyShots tile and chip present, filter returns the EzzyShots vendors if any exist) | ⛔ green |
+| P4 | 👤 + 🤖 | Production checks: a subset of S4 (EzzyShots tile and chip present, filter returns the EzzyShots vendors if any exist) | ⛔ green. **✅ accepted by the user 2026-11-17** (icon menus, search and themes as reported). Step 4 (vendor path) ⏸ PARKED as F5 in `.plans/2026-11-04-booker-followups.md`: no EzzyShots vendor exists on production yet. Unblock: the first vendor with an active offering. |
 
 ## Verification
 - 🖥 **Machine (local):**
