@@ -2,8 +2,8 @@
 
 **Date:** 2026-11-19
 **App / scope:** `booker/`, `vendor/`, `backbone/` (one additive RPC only)
-**Status:** IN PROGRESS — approved 2026-11-19; build, review and docs done and verified locally (user tested locally 2026-11-20); commits and the staging release next — release: staging ⬜ · production ⬜
-**Release:** staging ⬜ · production ⬜
+**Status:** COMPLETE (2026-11-21) — built, reviewed, documented and released: staging (user-confirmed 2026-11-20) and production (user-confirmed 2026-11-21, P1–P4). Open items are parked, not blocking: F15, F19, F25.
+**Release:** staging ✅ · production ✅ (2026-11-21)
 
 > One-line framing: let a booker or vendor member share an offering as a link that opens Booker's public offering view, which an unregistered person can read without signing in, with a "sign up to book" invitation that returns them to that offering.
 
@@ -14,13 +14,12 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-20, docs done, commits drafted)
-- **Done so far:** stages 1–4, the stage 1–4 review (F22–F26) and I4 docs, all verified locally; **the user tested the whole flow locally on 2026-11-20 and reports it all works.**
-- **Branches:** `feature/shared_links` in `backbone`, `booker`, `vendor`. Commit drafts were handed over 2026-11-20 (one per repo, scoped `git add`); the user commits.
-- **Live where:** local — migration applied, code on branches · staging — nothing · production — nothing
-- **Next:** 👤 commits, then the staging release S1–S4 in "Release", then production P1–P4. The deployment guide given in chat on 2026-11-20 follows that table.
-- **Deferred:** the affiliate work ships after this plan is released; its re-run of the SQL test is ⏸ parked (F15).
-- **Watch out for:** deploy **booker before vendor** on each environment; `NEXT_PUBLIC_BOOKER_URL` must name the SAME environment's booker; never merge `backbone` into `master` (the Supabase GitHub integration watches it).
+## ▶ RESUME HERE (closed 2026-11-21)
+- **Done:** stages 1–4, the stage 1–4 review (F22–F26), I4 docs, and the release: staging S1–S4 (user-confirmed 2026-11-20), production P1–P4 (user-confirmed 2026-11-21; the user launched and tested production).
+- **Commits:** booker `b3ffd27` (`release/version-0.33.0`), vendor `ab45a0c` (`release/version-0.62.0`), root `61521ec` (`master`), backbone `54ffbf0` (`develop`).
+- **Affiliate:** `feature/affiliate_portal_groundwork` is rebased onto `develop` (verified 2026-11-21, F28). The affiliate work resumes in its own plan, `.plans/2026-11-14-affiliate-data-layer.md`, starting at F18.
+- **Parked, not blocking:** F15 (re-run the SQL test after the affiliate set is applied locally), F19, F25.
+- **Watch out for:** never merge `backbone` into `master`; deploy booker before vendor on any future release; `NEXT_PUBLIC_BOOKER_URL` must name the same environment's booker.
 ---
 
 ## BLOCKERS
@@ -170,6 +169,7 @@ All resolved 2026-11-19 in the grilling session.
 - F24 **Checked, not gaps:** (a) a vendor that is not active cannot share — the vendor dashboard opens only for an active, KYC-approved vendor [code: `vendor/components/layout/AppShell/useAppShell.ts:290-293`, `services/vendor-access.service.ts:114-118`]; (b) booker's service worker cannot serve a stale shared page or RPC — navigations are network-first and non-GET / cross-origin requests are never intercepted [code: `booker/public/sw.js:15-25`]; (c) the share sheet keeps the click's user activation on iOS — `shareLink` calls `navigator.share` synchronously before its first `await` [code: `lib/shareLink.ts`].
 - F25 **Deferred (minor):** `get_public_offering` returns every active photo path while both pages show at most three. Harmless at current sizes; capping it needs a new migration (the applied one is not edited). Revisit only if vendors upload many photos.
 - F27 **CLI 3.2 flags (found 2026-11-20 while writing the deployment guide) [run: `supabase db push --help`, `migration list --help`].** Both commands are "Local by default. Pass --remote for the linked project, or --remote=<ref|branch|url>"; `--linked` and `--project-ref` are no longer listed. The release table above was written with the old flags and is corrected. Without `--remote`, `db push` targets the LOCAL database.
+- F28 ✅ **Affiliate rebase verified 2026-11-21 [run, read-only].** `feature/affiliate_portal_groundwork` is `50bcdd9` on top of `54ffbf0` (`develop`). The affiliate folder lists `20261117000001` before `20261118000001`–`06`. No rename was needed. The step-4 rebase in "Branching and migration order" is done.
 - F26 **Docs inventory note:** `vendor/.env.local.example` lists only two keys, so it is not where variables are inventoried; `NEXT_PUBLIC_BOOKER_URL` goes into `vendor/AGENTS.md` → Environment and `architecture/production-env-checklist.md` (I4). No `ISSUES.md` exists in the workspace, so findings stay in this plan.
 - F4 The `/grill-me` name does not resolve to its own skill; the `grill-me` file redirects to `grilling`, which ran. `reverse-engineering` references the skills `architecture-docs` and `best-practices`, which are not in `.claude/skills/`. Not blocking; for the user to decide whether to fix the reference.
 
@@ -193,6 +193,7 @@ The affiliate work and this plan share one `supabase/migrations/` folder and one
 3. **Version per D11: `20261117000001`.** Nothing ever needs `--include-all`, provided this plan reaches each environment before the affiliate set.
 4. **Going back to the affiliate branch (the user's chosen sequence, 2026-11-19):** this plan merges to `develop` and deploys first; then **rebase `feature/affiliate_portal_groundwork` onto `develop`**. The affiliate commit only adds new files, so no conflicts are expected. After the rebase its folder holds `20261117000001` followed by `20261118000001`–`06`, which matches every environment's history.
    - **Rebase before running any `migration` command on that branch.** Checked out un-rebased, the folder lacks `20261117000001` while the local DB has it applied, so `migration list` shows it as remote-only and the CLI points at `migration repair`. **Do not repair**: marking it reverted leaves the function in place and the history wrong.
+   - ✅ Done 2026-11-21 (F28): the affiliate branch now sits on `54ffbf0`, `develop`'s share commit, as `50bcdd9`.
    - The rebase rewrites the affiliate commit. That branch had no remote on 2026-11-19 (`git branch -a`). If it is pushed later, the rebase needs `git push --force-with-lease`.
 5. **The local database does not switch with the branch.** A `db reset` rebuilds in filename order and **wipes local data**; it is destructive and needs your go-ahead.
 6. Never merge to `backbone` `master` (the Supabase GitHub integration watches it).
@@ -202,10 +203,10 @@ The affiliate work and this plan share one `supabase/migrations/` folder and one
 ### Staging (production untouched throughout)
 | # | Who | Step | Check |
 |---|---|---|---|
-| S1 | 👤 | `npx supabase migration list --remote` → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (adds `20261117000001` only; `--remote` alone = the linked project = staging) | ⛔ only this plan's migration pending |
-| S2 | 👤 | Set `NEXT_PUBLIC_BOOKER_URL` on the vendor staging deployment | ⛔ value is booker staging's origin |
-| S3 | 👤 | Deploy **booker** to staging, then **vendor** | — |
-| S4 | 👤 + 🤖 | Staging checks (Verification below) | ⛔ all green |
+| ✅ S1 | 👤 | `npx supabase migration list --remote` → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (adds `20261117000001` only; `--remote` alone = the linked project = staging) | ⛔ only this plan's migration pending — ✅ user-confirmed 2026-11-20 (not re-run by the agent) |
+| ✅ S2 | 👤 | Set `NEXT_PUBLIC_BOOKER_URL` on the vendor staging deployment | ⛔ value is booker staging's origin — ✅ user-confirmed 2026-11-20 |
+| ✅ S3 | 👤 | Deploy **booker** to staging, then **vendor** | — ✅ user-confirmed 2026-11-20 |
+| ✅ S4 | 👤 + 🤖 | Staging checks (Verification below) | ⛔ all green — ✅ user-confirmed 2026-11-20 ("the feature works fine"); the agent did not run the live checks; the native share sheet was seen on Windows (Nearby Sharing, app list) |
 
 ⛔ **Staging fully green before anything touches production.**
 
@@ -221,10 +222,10 @@ The affiliate work and this plan share one `supabase/migrations/` folder and one
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: `npx supabase migration list --remote=<prod-ref>` (and `--remote` for staging) | ⛔ prod = staging minus this plan's migration |
-| P2 | 👤 | `npx supabase db push --remote=<prod-ref> --dry-run`, then without `--dry-run` | ⛔ same checks as S1 |
-| P3 | 👤 | Set `NEXT_PUBLIC_BOOKER_URL` on the vendor production deployment, then Vercel **Promote** the tested booker staging deployment, then the tested vendor staging deployment | — |
-| P4 | 👤 + 🤖 | Production checks, including: production Vendor's Share link points at **production** Booker (F11) | ⛔ all green |
+| ✅ P1 | 👤 | Parity: `npx supabase migration list --remote=<prod-ref>` (and `--remote` for staging) | ⛔ prod = staging minus this plan's migration — ✅ user-confirmed 2026-11-21 |
+| ✅ P2 | 👤 | `npx supabase db push --remote=<prod-ref> --dry-run`, then without `--dry-run` | ⛔ same checks as S1 — ✅ user-confirmed 2026-11-21 |
+| ✅ P3 | 👤 | Set `NEXT_PUBLIC_BOOKER_URL` on the vendor production deployment, then Vercel **Promote** the tested booker staging deployment, then the tested vendor staging deployment | — ✅ user-confirmed 2026-11-21 |
+| ✅ P4 | 👤 + 🤖 | Production checks, including: production Vendor's Share link points at **production** Booker (F11) | ⛔ all green — ✅ user launched and tested on production, 2026-11-21 (the agent did not run the live checks) |
 
 ## Verification
 Machine-verifiable (agent runs):
@@ -234,7 +235,7 @@ Machine-verifiable (agent runs):
 - `booker/visual-tests/public-offering.spec.ts` and the shared-link cases in `photo-aspect.spec.ts`.
 - I3 SQL checks against the local database (run by the user, who applies migrations).
 
-Needs a live environment (staging, then production):
+Needs a live environment (staging, then production) — user-confirmed: staging 2026-11-20, production 2026-11-21; the agent did not run these checks:
 - Opening a shared link **signed out**, direct visit and refresh: the public view appears, not the login page.
 - The public view shows only the Q3 fields; no code, tagline or fulfilment pattern in the page or in the network response.
 - "Sign up to book" → register → lands back on the same offering; "Log in" does the same.
@@ -251,4 +252,4 @@ Needs a live environment (staging, then production):
 Not verified by this plan: booking or payment from a shared link beyond the sign-in invitation (out of scope); visual baselines for the new public page (defer to a follow-up unless you want them now).
 
 ## Docs
-**Docs:** `architecture/auth-and-roles.md`, `architecture/schema.md`, `architecture/portals.md`, `architecture/production-env-checklist.md`, `booker/AGENTS.md`, `vendor/AGENTS.md` (2026-11-20, I4). Re-check at close that `schema.md`'s row records staging and production as applied.
+**Docs:** `architecture/auth-and-roles.md`, `architecture/schema.md`, `architecture/portals.md`, `architecture/production-env-checklist.md`, `booker/AGENTS.md`, `vendor/AGENTS.md` (2026-11-20, I4). Re-checked at close 2026-11-21: `schema.md`'s row records staging and production as applied.
