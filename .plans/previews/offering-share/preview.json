@@ -1,0 +1,11 @@
+{
+  "app": "booker",
+  "viewports": [
+    "desktop",
+    "mobile"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ]
+}

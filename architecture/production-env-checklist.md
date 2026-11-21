@@ -41,6 +41,7 @@ environment this domain actually serves?"*
 | `PAYMONGO_SECRET_KEY` | ✅ | ✅ | — | 🔒 **secret** |
 | `PAYMONGO_WEBHOOK_SECRET` | ❌ **never** | ✅ | — | 🔒 **secret** |
 | `PORTAL_URL_VENDOR` / `_BOOKER` / `_COMMAND` | — | — | ✅ | config |
+| `NEXT_PUBLIC_BOOKER_URL` | ✅ | — | — | config |
 
 Optional, decide deliberately: `ALLOW_INDEXING` (`"1"` allows robots — **leave unset on
 staging**), `CSP_REPORT_ONLY`, `NEXT_SHOW_VERSION`, `NEXT_PUBLIC_APP_VERSION`.
@@ -84,6 +85,17 @@ Builds PayMongo's `success_url`/`cancel_url`. A bare hostname (`vendor.ezzy.ph`)
 **Config, not Secret** — a `NEXT_PUBLIC_` value is inlined into the browser bundle whatever
 Vercel labels it, so "Secret" promises a protection it cannot deliver.
 Each app gets **its own** origin — booker's is booker's, not vendor's.
+
+### `NEXT_PUBLIC_BOOKER_URL` — vendor only, the BOOKER origin of the same environment
+Added 2026-11-19 (`.plans/2026-11-19-offering-share-links.md`). Vendor's Share button builds
+links to Booker's public offering page from it (`vendor/lib/bookerLink.ts`). Set it to the
+booker deployment of the **same** environment: staging vendor → staging booker, production vendor
+→ production booker. Scheme included, no path, no trailing slash needed.
+Not `NEXT_PUBLIC_APP_URL`: that is vendor's own origin.
+Unset or invalid is **safe but silent**: the Share button simply does not appear, nothing errors.
+⚠️ A `NEXT_PUBLIC_` value is baked in at build time. After setting or changing it, redeploy;
+after a Promote to production, open a vendor Share link and confirm it points at **production**
+booker, not staging.
 
 ### `PAYOUT_ENCRYPTION_KEY` — identical across vendor AND command
 One key per Supabase project, **byte-identical** in both apps; local/staging/production each

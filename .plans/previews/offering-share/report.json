@@ -1,0 +1,31 @@
+{
+  "topic": "offering-share",
+  "app": "booker",
+  "date": "2026-11-19T18:29:05.352Z",
+  "cells": 16,
+  "screens": [
+    {
+      "id": "public",
+      "label": "1 · Shared link, signed out (with photo)"
+    },
+    {
+      "id": "public-nophoto",
+      "label": "2 · Shared link, signed out (no photos)"
+    },
+    {
+      "id": "unavailable",
+      "label": "3 · Shared link to an unavailable offering"
+    },
+    {
+      "id": "signedin-share",
+      "label": "4 · Signed-in offering page + Share (desktop: link copied)"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

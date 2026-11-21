@@ -356,6 +356,23 @@ Installable to a home screen on Android and iOS. `app/manifest.ts` declares name
   Marked, not hidden: 25 of 35 in local seed data are unbookable, mostly because a vendor has
   published no schedule yet, and hiding them would erase most of the catalogue.
 
+#### Shared offering links (2026-11-19)
+Plan `.plans/2026-11-19-offering-share-links.md`; design preview `.plans/previews/offering-share/`.
+- **Share** on the offering page (beside "Back to results") builds `<booker origin>/?offering=<uuid>`
+  and opens the system share sheet, or copies the link with a toast where there is none.
+- **A signed-out visitor opening the link sees a public offering page instead of the login page**
+  (`components/explore/PublicOfferingPage/`): photos, name, category, duration, division, description,
+  vendor name and city/province, price, and **"Sign up to book"** / **"Log in"**. No slots, address,
+  hours, staff, requirements, agreements or booking control. Data comes from the anon-callable
+  `get_public_offering` (see `auth-and-roles.md`). Unavailable links show one neutral "no longer
+  available" page; a failed call shows "try again".
+- Sign-up and log-in keep `?offering=`, so the visitor lands on that offering, signed in, with booking
+  intact. The parameter is then stripped, so a refresh goes to Home. A signed-in booker opening a dead
+  link gets a toast.
+- ⚠️ Booker still has **no general URL routing**: `?offering=` is the only parameter it reads (plan D10).
+- Limits: a pasted link previews as the generic Booker app in chat apps (no per-offering metadata,
+  plan D12). The sign-up/log-in screens have no "back to the offering" link (plan F19).
+
 ### What Is Live vs. Mock
 
 | Feature | Status |
@@ -581,6 +598,13 @@ auto-opens once per browser. See "Getting Started guide" below.
   - **Three actions, not two.** An offering may have many schedules — `schedules.offering_id` has no unique constraint and the schema names no "current" one — so the button is **Set up schedule** (none), **Update schedule** (exactly one), or **View schedules (N)** (several). The label and the destination come from one call to `lib/offeringSchedules.ts`, so a button cannot promise an edit form and deliver a list. With several, the Schedule page is filtered and **no modal opens**: there is no non-arbitrary schedule to pick, and the button says so
   - "Has a schedule" means has an **active** one — the count comes from the shell's array, which is `is_active = true`. Deliberately different from `countSchedulesForOffering()`, which counts every row because it answers the duration-flip question instead. Both are right for their own caller
   - Costs **no query**: the shell already holds every active schedule, the same way the booking counts and staff chips above are derived
+
+#### Sharing an offering (2026-11-19)
+Each **active** offering card has a **Share** button (icon-only on phones, like Performance). It
+builds a link to **Booker's** public offering page — `NEXT_PUBLIC_BOOKER_URL` + `/?offering=<uuid>` —
+never to vendor, and shares or copies it. Hidden for an inactive offering (its link would only say
+"no longer available") and when `NEXT_PUBLIC_BOOKER_URL` is unset. Plan
+`.plans/2026-11-19-offering-share-links.md` B4.
 
 #### Schedules Page (fully wired)
 - Calendar/list view of active schedules, **week starting Sunday** (2026-08)
@@ -1286,6 +1310,7 @@ Some features need to be built in multiple portals to be complete end-to-end:
 | Document upload | ⚠️ In-memory | ❌ (view only) | — |
 | Transactions / payouts | ✅ Live as **Payments** (renamed 2026-09-26) — booker's own spend, from bookings; filters, CSV, print, pagination. The overstated total is **fixed**: totals count money received over the filtered set | ✅ Live — payout ledger + fee split + print/PDF, from `booking_transactions` | ⚠️ Fee % setting and the **Payouts** page live; the separate platform-wide *Transactions* page is still mock (unblocked) |
 | Platform fee configuration | — | Read-only (shown per transaction) | ✅ Live — sets the global rate |
+| Shared offering links | ✅ Share + public page for signed-out visitors (2026-11-19) | ✅ Share on the offering card, links to Booker (2026-11-19) | — |
 | Notifications | ✅ Live | ✅ Live | ✅ Live + Type Settings admin |
 | Map / coordinates | ❌ Removed 2026-09-22 (Leaflet uninstalled). No `lat`/`lng` on `vendors`. ⚠️ Web gained **city-level** proximity 2026-10-15 (tiered ranking, no distances); mobile has not — parity item | — | — |
 | Installable PWA | ✅ Live (real-device verification pending, incl. PayMongo round-trip) | ✅ Live (real-device verification pending) | ✅ Live since 2026-08-18 (real-device install pending) |

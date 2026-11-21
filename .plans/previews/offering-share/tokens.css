@@ -1,0 +1,320 @@
+/*
+ * booker — shared preview tokens and chrome classes.
+ *
+ * ⚠️ SNAPSHOT, NOT AN IMPORT. Copied from `booker/app/globals.css` on 2026-10-18;
+ * DARK values resynced 2026-10-24 after the dark-mode lift (`.plans/2026-10-20-dark-mode-lift.md`),
+ * which had changed the app but not this copy. Line numbers below are from the first copy
+ * (`:root` at :47–94, `.dark` at :271–301, `@layer components` at :432–500). It is a copy by
+ * design — importing the real stylesheet would stop the preview being a static mock and would
+ * drag Tailwind's layers in with it. That also means this file GOES STALE: when booker's tokens
+ * change, change them here too, or a preview will be reviewed in last month's palette.
+ *
+ * This file is SYNCED into each preview as `tokens.css`. Edit it here, never there.
+ * See `.claude/skills/design-preview/SKILL.md`.
+ */
+
+:root {
+  color-scheme: light;
+
+  --db-page-bg:        linear-gradient(145deg,#eef2ff 0%,#f0f4ff 55%,#f5f3ff 100%);
+  --db-sidebar-bg:     #ffffff;
+  --db-sidebar-border: rgba(0,0,0,0.07);
+  --db-topbar-bg:      rgba(255,255,255,0.85);
+  --db-topbar-border:  rgba(0,0,0,0.07);
+  --db-card-bg:        #ffffff;
+  --db-card-border:    rgba(0,0,0,0.07);
+  --db-card-shadow:    0 2px 12px rgba(0,0,0,0.06);
+  --db-pill-bg:        #f8fafc;
+  --db-pill-border:    rgba(0,0,0,0.07);
+  --db-input-bg:       #f8fafc;
+  --db-input-border:   rgba(0,0,0,0.1);
+  --db-input-color:    #0f172a;
+  --db-sub-bg:         #f8fafc;
+  --db-divider:        rgba(0,0,0,0.07);
+  --db-strong:         #0f172a;
+  --db-text:           #5b6576;
+  --db-tone-popular-fg: #6d28d9;
+  --db-tone-money-fg:   #6d28d9;
+  --db-toggle-on:      #2563eb;
+  --db-toggle-off:     #e2e8f0;
+  --db-menu-btn-bg:     rgba(37,99,235,0.08);
+  --db-menu-btn-border: rgba(37,99,235,0.25);
+  --db-menu-btn-color:  #2563eb;
+  --db-menu-btn-shadow: 0 2px 8px rgba(37,99,235,0.15);
+  --db-page-accent:     #f0f4ff;
+  --db-panel-bg:        #ffffff;
+  --db-panel-border:    rgba(0,0,0,0.1);
+  --db-panel-shadow:    0 4px 6px -1px rgba(0,0,0,0.08), 0 16px 40px -4px rgba(0,0,0,0.14);
+
+  /* Division accents. Identical in both themes — they are built for white text on a coloured
+     band, which is exactly why they disappear as a wash on a dark surface. See `.db-shelf-head`. */
+  --div-none-deep:        #475569;
+  --div-ezzy-court-deep:  #024cd3;
+  --div-ezzy-care-deep:   #0b2d85;
+  --div-ezzy-well-deep:   #4a5b58;
+  --div-ezzy-drive-deep:  #0256b3;
+  --div-ezzy-pets-deep:   #8e4332;
+  --div-ezzy-food-deep:   #991b1b;
+  --div-ezzy-home-deep:   #1b252e;
+  --div-ezzy-ride-deep:   #075985;
+  --div-ezzy-law-deep:    #6b553e;
+  --div-ezzy-park-deep:   #a62908;
+  --div-ezzy-learn-deep:  #035848;
+  --div-ezzy-work-deep:   #8e4301;
+  --div-ezzy-stay-deep:   #35485f;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --db-page-bg:        linear-gradient(145deg,#080c18 0%,#0b1020 55%,#090e1a 100%);
+  --db-sidebar-bg:     #0f1526;
+  --db-sidebar-border: rgba(255,255,255,0.055);
+  --db-topbar-bg:      rgba(15,21,38,0.85);
+  --db-topbar-border:  rgba(255,255,255,0.06);
+  --db-card-bg:        rgba(255,255,255,0.055);
+  --db-card-border:    rgba(255,255,255,0.08);
+  --db-card-shadow:    0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --db-pill-bg:        rgba(255,255,255,0.05);
+  --db-pill-border:    rgba(255,255,255,0.07);
+  --db-input-bg:       rgba(255,255,255,0.06);
+  --db-input-border:   rgba(255,255,255,0.12);
+  --db-input-color:    #e2e8f0;
+  --db-sub-bg:         rgba(255,255,255,0.05);
+  --db-divider:        rgba(255,255,255,0.08);
+  --db-strong:         #f1f5f9;
+  /* #64748b measured 4.13:1 on the dark page and 3.93:1 on a dark card (booker D17/F22). */
+  --db-text:           #94a3b8;
+  --db-tone-popular-fg: #c4b5fd;
+  --db-tone-money-fg:   #c4b5fd;
+  --db-toggle-on:      #2563eb;
+  --db-toggle-off:     rgba(255,255,255,0.1);
+  --db-menu-btn-bg:     rgba(255,255,255,0.08);
+  --db-menu-btn-border: rgba(255,255,255,0.15);
+  --db-menu-btn-color:  #e2e8f0;
+  --db-menu-btn-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --db-page-accent:     #0f1526;
+  --db-panel-bg:        #1e283d;
+  --db-panel-border:    rgba(255,255,255,0.1);
+  --db-panel-shadow:    0 4px 6px -1px rgba(0,0,0,0.4), 0 16px 40px -4px rgba(0,0,0,0.6);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────────────────────
+   booker self-hosts Poppins through `next/font`, which is a build artefact and cannot be
+   loaded offline. Lato is the closest available fallback — letter shapes and spacing differ
+   slightly from the real screens, and that belongs in every booker preview's Limits section. */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-family: Lato, 'Segoe UI', system-ui, sans-serif; }
+body { background: var(--db-page-bg); color: var(--db-text); min-height: 100vh; }
+button { cursor: pointer; font: inherit; }
+input, select, textarea { outline: none; font: inherit; }
+input::placeholder { opacity: 0.5; }
+
+/* ── Chrome classes, copied from booker's `@layer components` ──────────────────────────── */
+.db-page    { background: var(--db-page-bg); }
+.db-sidebar { background: var(--db-sidebar-bg); border-right: 1px solid var(--db-sidebar-border); }
+.db-topbar  { background: var(--db-topbar-bg); border-bottom: 1px solid var(--db-topbar-border); backdrop-filter: blur(24px); }
+.db-tabbar  { background: var(--db-topbar-bg); border-bottom: 1px solid var(--db-topbar-border); backdrop-filter: blur(24px); }
+.db-card    { background: var(--db-card-bg); border: 1px solid var(--db-card-border); border-radius: 18px; box-shadow: var(--db-card-shadow); }
+.dark .db-card { backdrop-filter: blur(16px); }
+.db-pill    { background: var(--db-pill-bg); border: 1px solid var(--db-pill-border); border-radius: 12px; }
+.db-input   { background: var(--db-input-bg); border: 1px solid var(--db-input-border); border-radius: 12px; color: var(--db-input-color); outline: none; }
+.db-sub     { background: var(--db-sub-bg); border-radius: 12px; }
+.db-panel   { background: var(--db-panel-bg); border: 1px solid var(--db-panel-border); border-radius: 16px; box-shadow: var(--db-panel-shadow); }
+
+/*
+ * The shelf header: pipe, wash and arc band. Copied verbatim from `globals.css:459–494`,
+ * which is itself an extraction with its own warning — ONE rule set, three consumers, because
+ * hand-writing five headers made "squared" five separate edits the first time round.
+ *
+ * Everything derives from a single `--section-accent`, set by the consumer.
+ *
+ * ⚠️ Pick an accent visible in BOTH themes. `--div-*-deep` is identical in both, so at these
+ * alphas it vanishes on a dark surface — which is why Payments' month bar uses
+ * `--db-tone-money-fg` rather than Home's purple.
+ */
+.db-shelf-head {
+  --wash: 6%;
+  --arc: 20%;
+  --stroke: 11%;
+
+  background-color: color-mix(in srgb, var(--section-accent) var(--wash), transparent);
+  background-image:
+    repeating-radial-gradient(
+      circle at 100% 132%,
+      transparent 0 34px,
+      color-mix(in srgb, var(--section-accent) var(--arc), transparent) 34px 36px,
+      transparent 36px 68px
+    ),
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--section-accent) var(--stroke), transparent) 0 2px,
+      transparent 2px 46px
+    );
+  background-repeat: no-repeat, no-repeat;
+  background-position: right center, right center;
+  background-size: 200px 100%, 200px 100%;
+}
+.dark .db-shelf-head { --wash: 10%; --arc: 26%; --stroke: 14%; }
+
+.db-shelf-pipe { width: 4px; height: 20px; flex-shrink: 0; background: var(--section-accent); }
+
+@media (max-width: 640px) {
+  .db-shelf-head { background-size: 110px 100%, 110px 100%; }
+}
+
+/* ── `--pv-*` aliases ─────────────────────────────────────────────────────────────────────
+   The contract `chrome.css` renders against. It never names a `--db-*` token, so one layout
+   file serves all three apps; adding an app means writing its alias block, not copying that
+   file. Declared on `:root` and inherited, so the `.dark` overrides above flow through with no
+   second alias block. */
+:root {
+  --pv-strong:       var(--db-strong);
+  --pv-text:         var(--db-text);
+  --pv-divider:      var(--db-divider);
+  --pv-pill-bg:      var(--db-pill-bg);
+  --pv-pill-border:  var(--db-pill-border);
+  --pv-input-bg:     var(--db-input-bg);
+  --pv-input-border: var(--db-input-border);
+  --pv-input-color:  var(--db-input-color);
+  --pv-panel-bg:     var(--db-panel-bg);
+  --pv-panel-border: var(--db-panel-border);
+  --pv-panel-shadow: var(--db-panel-shadow);
+  --pv-danger:       #dc2626;
+}
+
+/* ── Chrome emitted by `_shared/booker.js` ─────────────────────────────────────────────── */
+.btop {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; position: sticky; top: 0; z-index: 20;
+}
+.btop-brand { font-size: 15px; font-weight: 800; color: var(--db-strong); white-space: nowrap; }
+.btop-brand span { color: var(--db-toggle-on); }
+.btop-search {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 12px; color: var(--db-text); font-size: 13px;
+}
+.btop-search-ph { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btop-spacer { flex: 1 1 auto; }
+.btop-acct {
+  min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center;
+  color: var(--db-strong);
+}
+/* Below md the top-bar field becomes an icon that opens Explore — a 236px field does not fit
+   a 360px bar. Mirrors booker's own breakpoint behaviour. */
+@media (max-width: 640px) {
+  .btop-search-ph { display: none; }
+  .btop-search { flex: 0 0 44px; justify-content: center; }
+}
+
+.btabs { display: flex; gap: 4px; padding: 0 12px; position: sticky; top: 64px; z-index: 19; }
+.btab {
+  min-height: 44px; display: flex; align-items: center; padding: 0 14px;
+  font-size: 13px; font-weight: 600; color: var(--db-text);
+  border-bottom: 2px solid transparent;
+}
+.btab.is-on { color: var(--db-toggle-on); border-bottom-color: var(--db-toggle-on); }
+
+.bshelf { margin: 20px 0; }
+.bshelf-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 12px; margin: 0 16px 12px;
+}
+.bshelf-title { font-size: 15px; font-weight: 700; color: var(--db-strong); }
+.bshelf-sub { font-size: 12px; color: var(--db-text); margin-top: 2px; }
+.bshelf-body { display: flex; gap: 12px; overflow-x: auto; padding: 2px 16px 8px;
+  /* ⚠️ BOTH are required. `overflow-x` alone lets the row grow past its clipping parent and
+     it never overflows ITSELF — this has cost a correction twice in booker. */
+  max-width: 100%; min-width: 0; }
+
+.bcard { flex: 0 0 200px; overflow: hidden; }
+.bcard-art {
+  height: 96px; display: flex; align-items: center; justify-content: center;
+  background: var(--db-page-accent);
+}
+.bcard-code {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--db-text);
+  /* A code can be SIX characters — booker grew a `codebadge` fixture because a real "RENTAL"
+     overflowed its tile past 77 green baselines. Clip rather than push the layout. */
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 8px;
+}
+.bcard-text { padding: 10px 12px 12px; }
+.bcard-title { font-size: 13px; font-weight: 600; color: var(--db-strong); }
+.bcard-vendor { font-size: 11px; color: var(--db-text); margin-top: 3px; }
+.bcard-price { font-size: 13px; font-weight: 700; color: var(--db-strong); margin-top: 6px; }
+
+.bloc {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 44px; padding: 0 14px; margin: 0 16px;
+  font-size: 13px; color: var(--db-strong);
+}
+
+/* The mapped shelf accents. ONE place, keyed by `data-accent` — booker's own convention, and
+   required anyway because `style-src 'self'` blocks an inline `style=""`.
+   ⚠️ Both of these are theme-aware tokens. Do not add a `--div-*-deep` accent without
+   checking it on a DARK bar first: those are identical in both themes and disappear at the
+   6–26% alphas this rule uses. */
+.bshelf-head[data-accent="popular"] { --section-accent: var(--db-tone-popular-fg); }
+.bshelf-head[data-accent="money"]   { --section-accent: var(--db-tone-money-fg); }
+.bshelf-head[data-accent="neutral"] { --section-accent: var(--db-text); }
+.bshelf-head[data-accent="action"]  { --section-accent: var(--db-toggle-on); }
+
+/* ── Division tints and the one map that applies them ──────────────────────────────────
+ *
+ * From `booker/app/globals.css:102–128` (`-fg`), `:149–162` (`-tile`). The `-deep` set is
+ * above. Added for the `booker-ui` preview, but they belong here: every booker surface that
+ * draws a division — Home's tiles, a shelf card, an offering card's fallback — needs them.
+ *
+ * ⚠️ `-tile` IS DECLARED IN `:root` ONLY AND STAYS LIGHT IN DARK MODE. That is deliberate in
+ * the app and must stay deliberate here: four of the thirteen marks are near-black line art
+ * (measured mean luminance — food 1, home 37, care 47, learn 67) and vanish on a dark card.
+ * Do not add a `.dark` override "for consistency"; it would delete four logos.
+ */
+:root {
+  --div-none-fg:        #475569;
+  --div-ezzy-court-fg:  #047857;
+  --div-ezzy-care-fg:   #0f766e;
+  --div-ezzy-well-fg:   #6d28d9;
+  --div-ezzy-drive-fg:  #1d4ed8;
+  --div-ezzy-pets-fg:   #92400e;
+  --div-ezzy-food-fg:   #b91c1c;
+  --div-ezzy-home-fg:   #334155;
+  --div-ezzy-ride-fg:   #0369a1;
+  --div-ezzy-law-fg:    #78551b;
+  --div-ezzy-park-fg:   #be123c;
+  --div-ezzy-learn-fg:  #14532d;
+  --div-ezzy-work-fg:   #c2410c;
+  --div-ezzy-stay-fg:   #3f5573;
+
+  --div-none-tile:        #f1f5f9;
+  --div-ezzy-court-tile:  #e1ebff;
+  --div-ezzy-care-tile:   #e2e6f0;
+  --div-ezzy-well-tile:   #eef2f1;
+  --div-ezzy-drive-tile:  #e1eefd;
+  --div-ezzy-pets-tile:   #feeeeb;
+  --div-ezzy-food-tile:   #fde8e8;
+  --div-ezzy-home-tile:   #e4e5e6;
+  --div-ezzy-ride-tile:   #e7f4fb;
+  --div-ezzy-law-tile:    #f8f3ee;
+  --div-ezzy-park-tile:   #fde7e2;
+  --div-ezzy-learn-tile:  #e1ebe9;
+  --div-ezzy-work-tile:   #ffefe1;
+  --div-ezzy-stay-tile:   #eef2f8;
+}
+
+/* ONE map, keyed by `data-division` — booker's own rule (`globals.css`, plan F51): a consumer
+   reads `--division-*`, never `--div-<slug>-*`, so a new division is one block here. */
+[data-division="none"]       { --division-tile: var(--div-none-tile);       --division-deep: var(--div-none-deep);       --division-fg: var(--div-none-fg); }
+[data-division="ezzy-court"] { --division-tile: var(--div-ezzy-court-tile); --division-deep: var(--div-ezzy-court-deep); --division-fg: var(--div-ezzy-court-fg); }
+[data-division="ezzy-care"]  { --division-tile: var(--div-ezzy-care-tile);  --division-deep: var(--div-ezzy-care-deep);  --division-fg: var(--div-ezzy-care-fg); }
+[data-division="ezzy-well"]  { --division-tile: var(--div-ezzy-well-tile);  --division-deep: var(--div-ezzy-well-deep);  --division-fg: var(--div-ezzy-well-fg); }
+[data-division="ezzy-drive"] { --division-tile: var(--div-ezzy-drive-tile); --division-deep: var(--div-ezzy-drive-deep); --division-fg: var(--div-ezzy-drive-fg); }
+[data-division="ezzy-pets"]  { --division-tile: var(--div-ezzy-pets-tile);  --division-deep: var(--div-ezzy-pets-deep);  --division-fg: var(--div-ezzy-pets-fg); }
+[data-division="ezzy-food"]  { --division-tile: var(--div-ezzy-food-tile);  --division-deep: var(--div-ezzy-food-deep);  --division-fg: var(--div-ezzy-food-fg); }
+[data-division="ezzy-home"]  { --division-tile: var(--div-ezzy-home-tile);  --division-deep: var(--div-ezzy-home-deep);  --division-fg: var(--div-ezzy-home-fg); }
+[data-division="ezzy-ride"]  { --division-tile: var(--div-ezzy-ride-tile);  --division-deep: var(--div-ezzy-ride-deep);  --division-fg: var(--div-ezzy-ride-fg); }
+[data-division="ezzy-law"]   { --division-tile: var(--div-ezzy-law-tile);   --division-deep: var(--div-ezzy-law-deep);   --division-fg: var(--div-ezzy-law-fg); }
+[data-division="ezzy-park"]  { --division-tile: var(--div-ezzy-park-tile);  --division-deep: var(--div-ezzy-park-deep);  --division-fg: var(--div-ezzy-park-fg); }
+[data-division="ezzy-learn"] { --division-tile: var(--div-ezzy-learn-tile); --division-deep: var(--div-ezzy-learn-deep); --division-fg: var(--div-ezzy-learn-fg); }
+[data-division="ezzy-work"]  { --division-tile: var(--div-ezzy-work-tile);  --division-deep: var(--div-ezzy-work-deep);  --division-fg: var(--div-ezzy-work-fg); }
+[data-division="ezzy-stay"]  { --division-tile: var(--div-ezzy-stay-tile);  --division-deep: var(--div-ezzy-stay-deep);  --division-fg: var(--div-ezzy-stay-fg); }

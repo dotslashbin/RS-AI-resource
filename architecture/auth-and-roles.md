@@ -528,7 +528,7 @@ $$;
 
 RLS is the *row* filter, but it only runs **after** PostgREST passes the table-level privilege check. The `public`-schema defaults grant the API roles no DML, so every table needs explicit `GRANT`s (see `20260620000001_api_role_grants.sql`):
 
-- **`anon`** — no table privileges (no policy targets anon; unauthenticated requests read nothing).
+- **`anon`** — no table privileges (no policy targets anon; unauthenticated requests read nothing). The one thing `anon` can do is **execute `get_public_offering(uuid)`** (see "Public shared-offering read" below), which returns a fixed whitelist for one offering — never a table.
 - **`authenticated`** — only the operations each table's RLS policies permit (never `TRUNCATE`); RLS then narrows to the allowed rows.
 - **`service_role`** — full DML (trusted server-side role; bypasses RLS).
 
@@ -643,6 +643,29 @@ using (true)
 using (public.is_active() and <record>.is_active = true)
 ```
 
+### Public shared-offering read (`get_public_offering`, 2026-11-19)
+The **only** data a signed-out visitor can read: one offering, opened from a shared link
+(booker `/?offering=<uuid>`; plan `.plans/2026-11-19-offering-share-links.md`). Migration
+`20261117000001_public_offering_rpc.sql`.
+
+- **A `SECURITY DEFINER` function, not anon RLS policies** (plan D2). Opening `offerings`,
+  `vendors` or `offering_attachments` to `anon` would expose every column (vendor phone,
+  email, address) to the anon key. The function exposes one id at a time and a fixed set of
+  fields; the tables stay `anon`-closed.
+- **Returns** offering `name`, `category`, `description`, `price`, `duration_minutes`,
+  `duration_unit`; division `slug`/`name`; vendor `name`, `city`, `province`; active
+  `kind = 'photo'` attachments with a `storage_path` (bucket `offering-photos`, public).
+  **Never** the offering id, code, fulfilment pattern, requirements or agreements, vendor
+  tagline, phone, email, address or hours, schedules, staff or slot counts. ⚠️ Add a field only
+  by changing the plan's D3 first: this list *is* the anonymous exposure.
+- **`NULL` for every unavailable case alike** — unknown id, inactive offering, vendor not
+  `active` — so the answer never reveals whether an offering existed.
+- **Grants:** `revoke all … from public, anon, authenticated`, then `grant execute … to anon,
+  authenticated, service_role`. This project's default privileges grant EXECUTE on every new
+  function to all three API roles, so a revoke from `public` alone is not enough.
+- Booker also calls it when signed in, to decide "no longer available" with the same rule.
+- Regression test: `backbone/supabase/tests/public_offering_rpc_test.sql` (local only).
+
 ---
 
 ## What Each Portal Can See
@@ -659,6 +682,9 @@ using (public.is_active() and <record>.is_active = true)
 | `vendor_kyc` | — | Own (read + resubmit) | All (read + review) |
 | `vendor_kyc_documents` | — | Own (add/remove while `rejected`) | All (read) |
 | `kyc_document_types` | All (guidance) | All (guidance) | All (+ manage) |
+
+**Signed out (`anon`):** no table at all. One function, `get_public_offering(uuid)`, returns the
+public fields of one active offering of an active vendor (see "Public shared-offering read").
 
 ---
 
@@ -677,7 +703,7 @@ If a new portal or role is ever needed:
 
 - `SUPABASE_SERVICE_ROLE_KEY` bypasses all RLS. It must never appear in client-side code, `.env.local` committed to version control, or any `NEXT_PUBLIC_` variable.
 - The service-role client (`lib/supabase/admin.ts` in the vendor portal) is used exclusively in server-side Route Handlers (e.g., the registration endpoint). It must never be imported in client components.
-- The `anon` key (used when no user is logged in) should only be able to read truly public data. Currently, all meaningful data requires an authenticated session.
+- The `anon` key (used when no user is logged in) should only be able to read truly public data. Since 2026-11-19 that is exactly one function, `get_public_offering(uuid)` (shared offering links); every table still requires an authenticated session. Any new anon-callable function is a security change under the approval gates.
 - Session handling is **client-side for all auth gating**: these are implicit-flow SPAs, so the Supabase browser client persists and refreshes the session in the browser, and the `useAppShell` hooks drive every access decision on the client. Do not implement custom session management.
 - ⚠️ **Corrected 2026-08-25 — there IS middleware, and it does refresh cookies.** This bullet previously said the apps have "no `middleware.ts`" and that `@supabase/ssr` server clients are "not [used] for middleware-based cookie refresh". Both halves were wrong. **Next 16 renamed middleware to `proxy.ts`**, and all three portals ship an identical one (`vendor/proxy.ts`, `booker/proxy.ts`, `command/proxy.ts`): it builds a `createServerClient`, calls `await supabase.auth.getUser()` to refresh the session cookie, and returns `NextResponse.next({ request })` on a catch-all matcher (`/((?!_next/static|_next/image|favicon.ico).*)`). A build prints it as `ƒ Proxy (Middleware)`. It performs **no redirect and no rewrite**, and never touches the query string — so it is a cookie-refresh layer, not a routing or gating layer, and the client-side gating above is still the whole story for access control. Grepping for `middleware.ts` will find nothing; grep for `proxy.ts`.
 - `prevent_status_self_update()` is a DB trigger that blocks any non-admin from changing their own `status_id` via a direct update, even if they have an authenticated session.
