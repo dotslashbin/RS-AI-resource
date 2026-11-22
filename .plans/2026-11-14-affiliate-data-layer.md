@@ -7,7 +7,7 @@
 approved this split). No `command/`, `affiliate/` or `booker/` code changes.
 **Status:** IN PROGRESS — approved 2026-11-15; stage 1 ✅ verified locally 2026-11-21 (M1–M7, T1
 105/105); stage 2 ✅ (E1, deno 42/42); stage 3 ✅ (V1; L1 aborted, F23);
-stage 4 (staging) next — release: staging ⬜ · production ⬜
+stage 4 (staging) in progress — release: staging 🔄 (S1 ✅) · production ⬜
 
 > The database half of the affiliate feature: who can read what, the commission ledger, the
 > referral-code history, payout details and withdrawals, plus the settings that switch it all
@@ -47,11 +47,11 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
   staging later; F23). V1 is **uncommitted** on
   vendor branch `release/version-0.62.1` (which also carries someone else's `AGENTS.md` edit):
   move it to a feature branch before committing.
-- **Next:** **stage 4 — staging release** (all 👤): first F18 step 2 on staging
-  (`npx supabase migration list --remote`; only `20261118000001`–`06` and `20261121000001`
-  pending), check `functions deploy` flags under CLI 3.2.0, then S1 `db push --remote`, S2 deploy
-  `send-notification-email`, S3 deploy vendor, S4 staging checks. ⛔ Order: migrations before the
-  vendor deploy (safe-pause table). Do **not** run `migration repair` or `--include-all`.
+- **Stage 4 in progress:** **S1 ✅ (2026-11-22)** — migrations on staging, verified read-only;
+  **S2 ✅ (2026-11-22)** — `send-notification-email` v19 on staging, checked read-only (see
+  Release → Staging). Production untouched.
+- **Next:** **S3** (👤) the vendor staging deploy of `feature/affiliate_work` (`6b3b9f0`, not yet
+  pushed; the user is preparing it). Then **S4** staging checks. ⛔ S3 only after S1 (done).
 - **Watch out for:**
   - `booking_transactions.payout_status` is **not** a usable commission signal: it stays
     `released` when a released booking is later refunded or disputed (F1). Commission keys on
@@ -1355,10 +1355,19 @@ completes a withdrawal), then the vendor app (needs `resolve_referral_code()`).
 | Tax rate set (staging only, by choice at S4) | ⚠️ one-way | Stamps `live_from` permanently on that environment. Fine on staging; **do not do it on production in this plan**. |
 
 ### Staging (production untouched throughout)
+
+**S1 ✅ DONE (2026-11-22)** — pushed by the user (`db push --remote`); F18 step 2 on staging done
+first (`migration list --remote`: exactly M1–M6 and M7 pending; dry run listed those seven only).
+Verified read-only with `supabase db query --remote --read-only`: all seven applied, none pending
+or remote-only; portals `vendor,booker,command,affiliate`; affiliate email row on; tax, minimum
+and go-live all NULL (commission off); default rate 1.00; 9/9 new tables, RLS on 9/9; 1 code
+backfilled for staging's 1 affiliate; 0 lines, 0 withdrawals; vendor browse policy is "active
+bookers can read active vendors" (M6); `bookings_sync_affiliate_commission` present;
+`resolve_referral_code` executable by `service_role` only; 5/5 affiliate notification types.
 | # | Who | Step | Check |
 |---|---|---|---|
 | S1 | 👤 | `cd backbone && npx supabase migration list --remote` (CLI 3.2.0; was `--linked`) → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (⚠️ 3.2.0: plain `db push` targets **local**) | ⛔ only M1–M7 pending (M7 = F19 fix); after push all seven listed remote |
-| S2 | 👤 | `npx supabase functions deploy send-notification-email` (linked = staging) | ⛔ new version in the dashboard |
+| S2 | 👤 | `npx supabase functions deploy send-notification-email --remote --no-verify-jwt` (CLI 3.2.0; was linked = staging) | ✅ DONE (2026-11-22) — user deployed; checked read-only with `functions list --remote`: `send-notification-email` **version 19** (was 18), ACTIVE, `verify_jwt: false`, updated 2026-11-22 17:35 UTC, target `backbone-staging`. `send-push-notification` untouched (v8). Expected: v19, JWT off, staging only — all met. Not yet verified: an email sent through v19 on staging (no staging path creates a receipt yet; covered by S4) |
 | S3 | 👤 | Deploy `vendor` to staging (the user's usual Vercel staging deploy) | — |
 | S4 | 👤 + 🤖 | Staging checks (Verification → staging) | ⛔ all green |
 
