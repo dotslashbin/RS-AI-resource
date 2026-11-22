@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **App / scope:** vendor/ web only — `lib/duration.ts` (+ new `lib/duration.test.ts`), `lib/types.ts` (comment), `components/offerings/OfferingFormModal/useOfferingForm.ts`, `components/offerings/OfferingFormFields/PriceDurationFields.tsx`, `components/offerings/OfferingFormModal/OfferingFormModal.tsx`, `components/offerings/OfferingCreateWizard/{useOfferingCreateWizard.ts,OfferingCreateWizard.tsx}`, `visual-tests/pilot.spec.ts`, `visual-tests/offering-wizard.spec.ts`. Docs: `architecture/schema.md`, `architecture/portals.md`. No schema, migration, pricing/charging logic, booker, Expo or data change.
-**Status:** IN PROGRESS — Stage 1 complete (I5 approved by the user 2026-11-21) — release: staging ⬜ · production ⬜
+**Status:** IN PROGRESS — Stage 1 complete (I5 approved 2026-11-21); staging ✅ (user-checked 2026-11-21) — release: staging ✅ · production ⬜
 
 > A display-only fix. The vendor offering form says "per hour" for a price that is actually
 > charged per block of `duration_minutes` (for example 4 hours). Make the label name the
@@ -17,8 +17,8 @@
 
 ## ▶ RESUME HERE (updated 2026-11-21, end of Stage 1)
 - **Done so far:** Stage 1 is complete. B1, B2, I1–I5, O1 and O2 are ✅; the user approved I5 on 2026-11-21.
-- **Live where:** local ✅ (uncommitted, vendor `feature/bug_fix_pricing_label` + root docs) · staging ⬜ · production ⬜
-- **Next:** S1: the user commits (vendor draft given 2026-11-21; root draft in the Stage 1 report) → S2 deploy to staging → S3.
+- **Live where:** local ✅ · staging ✅ (deployed and checked by the user, 2026-11-21) · production ⬜
+- **Next:** P1–P3 (production), the user's: confirm the staging build, then Promote the same deployment. Production is the last stage.
 - **Decisions:** D1 = A, D2 = yes, D3 = O3 parked (all 2026-11-21). No OPEN lines.
 - **Local state left behind:** the six tagged I5 offerings were **re-seeded on 2026-11-21 at the user's request** so they could look themselves, and are still in the local DB. Remove them with the I5 cleanup SQL when the user says so. Earlier, after the I5 run, they had been deleted (count 0, Summit back to 5), and the agent's :3100 server was stopped by PID (port free). I5's screenshots and script are in `/tmp/claude-1000/-home-joshua-RS/e65809e1-bdae-402e-b491-eb530ced7608/scratchpad/i5/` (`before/`, `after/`, `results.json`), which is scratch and can be cleared.
 - **Watch out for:**
@@ -228,9 +228,9 @@ Vendor web only. No migration, Edge Function, secret or env var, so the release 
 ### Staging (production untouched throughout)
 | # | Who | Step | Check |
 |---|---|---|---|
-| S1 | 👤 | ⛔ Only after I5 passes and the user has signed off. Commit on `feature/bug_fix_pricing_label` and push. Bump the vendor version per the user's usual release-branch flow (currently `0.62.0`) | branch in sync with origin; only this plan's files in the commit (draft via commit-drafting) |
-| S2 | 👤 | Deploy vendor to staging (Vercel) | ⛔ new version visible |
-| S3 | 👤 | Short confirmation on staging; the full matrix ran locally in I5: Add Offering with 4 hours to the review, then discard. Open the edit form of one multi-hour offering without saving, on desktop and on a phone | ⛔ "per 4 hours" on the label and the review; inputs aligned on the phone |
+| S1 | 👤 | ✅ 2026-11-21: vendor commit `8649de9` on `release/version-0.62.1` (not the feature branch named here), pushed, with the 0.62.1 bump as `7c97861`. Root commit `c98922f` (this plan, `schema.md`, `portals.md`, `INDEX.md`) | branch in sync with origin; only this plan's files in the commit (draft via commit-drafting) |
+| S2 | 👤 | ✅ 2026-11-21: vendor 0.62.1 deployed to staging by the user | ✅ user-checked on staging |
+| S3 | 👤 | ✅ 2026-11-21, user-checked and reported working. Short confirmation on staging; the full matrix ran locally in I5: Add Offering with 4 hours to the review, then discard. Open the edit form of one multi-hour offering without saving, on desktop and on a phone | ⛔ "per 4 hours" on the label and the review; inputs aligned on the phone |
 
 ⛔ **Staging fully green before anything touches production.**
 
