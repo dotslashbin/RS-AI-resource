@@ -6,7 +6,8 @@
 (`lib/referralLookup.ts` + a test). ⚠️ **Cross-app:** backbone + vendor ship together (P5
 approved this split). No `command/`, `affiliate/` or `booker/` code changes.
 **Status:** IN PROGRESS — approved 2026-11-15; stage 1 ✅ verified locally 2026-11-21 (M1–M7, T1
-105/105); stage 2 next — release: staging ⬜ · production ⬜
+105/105); stage 2 ✅ (E1, deno 42/42); stage 3 ✅ (V1; L1 parked);
+stage 4 (staging) next — release: staging ⬜ · production ⬜
 
 > The database half of the affiliate feature: who can read what, the commission ledger, the
 > referral-code history, payout details and withdrawals, plus the settings that switch it all
@@ -28,7 +29,7 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-21, end of stage 1 — verified locally)
+## ▶ RESUME HERE (updated 2026-11-21, end of stage 3)
 
 - **Done so far:** planning and approval (2026-11-14/15). **Stage 1 ✅ (2026-11-21):** M1–M6
   plus the corrective **M7** (`20261121000001_fix_referral_code_verdict.sql`, F19) applied locally
@@ -39,12 +40,17 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
 - **Files:** `backbone` branch `feature/affiliate_portal_groundwork` (rebased onto `develop`,
   `54ffbf0`). M1–M6 and T1 are in commit `50bcdd9`; **M7 and the T1 fixes are uncommitted**
   (the user commits).
-- **Next:** **stage 2 — E1**, the `send-notification-email` changes (five types in `types.ts`,
-  the bespoke `affiliateWithdrawalReceipt.ts`, registry entry, `deno test`). Backbone only.
-  Starts when the user says so; a fresh session is recommended. Still owed before **stage 4**:
-  F18 step 2 on staging and production (`migration list --remote` / `--remote=<prod-ref>`,
-  confirm `20261118000001`–`06` and `20261121000001` unapplied there), and checking the
-  `functions deploy` flags under CLI 3.2.0. Do **not** run `migration repair` or `--include-all`.
+- **Stage 2 ✅ (2026-11-21):** E1 — the receipt template, registry entry, five types; `deno test`
+  42/42 (F22). Uncommitted in `backbone/` (the user commits). Live local send not run (F22).
+- **Stage 3 ✅ (2026-11-21):** V1 done (vendor tests 609/609, lint and tsc clean; real
+  function checked by SQL). L1 ⏸ parked to plan 3 by the user (F23). V1 is **uncommitted** on
+  vendor branch `release/version-0.62.1` (which also carries someone else's `AGENTS.md` edit):
+  move it to a feature branch before committing.
+- **Next:** **stage 4 — staging release** (all 👤): first F18 step 2 on staging
+  (`npx supabase migration list --remote`; only `20261118000001`–`06` and `20261121000001`
+  pending), check `functions deploy` flags under CLI 3.2.0, then S1 `db push --remote`, S2 deploy
+  `send-notification-email`, S3 deploy vendor, S4 staging checks. ⛔ Order: migrations before the
+  vendor deploy (safe-pause table). Do **not** run `migration repair` or `--include-all`.
 - **Watch out for:**
   - `booking_transactions.payout_status` is **not** a usable commission signal: it stays
     `released` when a released booking is later refunded or disputed (F1). Commission keys on
@@ -317,6 +323,36 @@ Final run: **105/105 PASS**.
 ### F21 — Unused variable in `sync_affiliate_commission()`  📝 cosmetic (2026-11-21)
 `plpgsql_check` warns `unused variable "v_log_id"` (M4, applied). Harmless; fixing it would need a
 migration of its own. Fold into the next migration that touches this function, if any.
+
+### F22 — Stage 2 notes  📝 (2026-11-21)
+- **Receipt fixture is captured, not hand-written:** a real `affiliate_withdrawal_completed`
+  notification from `command_complete_withdrawal()` on the local DB, in a rolled-back
+  transaction (two completed bookings, one manual line, one booking refunded mid-processing →
+  one written-off line). Database left unchanged (verified by count).
+- **Files:** new `lib/templates/affiliateWithdrawalReceipt.ts`; `registry.ts` (one entry);
+  `types.ts` (five types, documentation union); `handler.test.ts` (+11 tests); `README.md` (one
+  line). The other four types render generic, as planned.
+- **Not run:** a live send through `supabase functions serve` + `local_smtp`. It starts a local
+  service, so it waits for the user's go-ahead; the first real check is then staging (S4).
+- **Pre-existing, not touched:** `deno lint` flags `jsr:@std/assert@1` on `handler.test.ts:5`
+  (`no-import-prefix`); the README's template list already omitted `kioskBookingConfirmed.ts` /
+  `payoutStatement.ts` and says generic "covers all 7 types".
+- **Tooling slip, disclosed:** a lookup ran `npx --yes deno --version`, which fetched the npm
+  `deno` package into npx's cache (outside the workspace). No app changed; `~/.deno/bin/deno`
+  (2.9.6) was used for every test.
+
+### F23 — L1 as planned would break tests and write no lines  ✅ resolved by parking L1 (2026-11-21)
+Found while starting stage 3 (read of `backbone/supabase/seed.sql` and the SQL tests):
+1. The seed inserts bookings **already `completed`** (Block 9b, `seed.sql` ~1325–1375), and
+   nina's referral is created last (Block 10, ~1547). The commission trigger fires on a status
+   **transition**, so seeding a tax rate would still write **no lines**.
+2. T1 asserts the tax rate **starts unset** (`affiliate_data_layer_test.sql:230`), and D1 makes
+   the tax rate unclearable once set, so a seeded tax rate breaks T1 after every `db reset`.
+3. `payout_statements_test.sql:145` and `withholding_and_corrections_test.sql:129` delete
+   ledger rows; a commission line on one would block that (`on delete restrict`).
+**Decision (the user, 2026-11-21):** park L1 to plan 3, which adds an opt-in `supabase/demo/`
+script for affiliate fixtures and leaves `seed.sql` and the tests untouched. D16's "(a) yes" is
+superseded by this. Plan 1 needs no seed fixtures: T1 builds its own.
 
 ## Open questions from the discovery log — answered
 
@@ -1042,7 +1078,7 @@ Staging check S4 includes a booker browsing vendors and booking.
 
 ## OTHER ITEMS
 
-### E1 — `send-notification-email`: five types, one bespoke receipt  ⬜ TODO
+### E1 — `send-notification-email`: five types, one bespoke receipt  ✅ DONE (2026-11-21) — machine-verified: `deno test` **42/42** (31 existing + 11 new) incl. type-check; the live local send is not run (F22)
 **Files:** `backbone/supabase/functions/send-notification-email/types.ts:14-60` (add the five
 types to the documentation union with a comment block, as for `payout_statement`);
 `lib/templates/registry.ts:189-196` (register `affiliate_withdrawal_completed`); new
@@ -1054,7 +1090,7 @@ The other four types render generic (F6). **Verify:** `deno test` in the functio
 withdrawal (live, local); staging redirect to the override inbox (memory: staging email
 override).
 
-### V1 — Vendor lookup resolves old codes  ⬜ TODO
+### V1 — Vendor lookup resolves old codes  ✅ DONE (2026-11-21) — `lib/referralLookup.ts` now calls `resolve_referral_code()`; new `lib/referralLookup.test.ts` 5/5; vendor `npm test` 609/609, `npm run lint` clean, `tsc --noEmit` clean (machine). Real function checked by SQL as `service_role` in a rolled-back transaction: current and old code → nina, unknown → NULL, `authenticated` cannot execute. Not run: a live signup through the vendor dev server (S4 covers it on staging). ⚠️ Uncommitted on vendor branch `release/version-0.62.1` — move to a feature branch before committing
 **File:** `vendor/lib/referralLookup.ts:45-84`. Replace the `affiliates` query and its
 named-FK embed with `admin.rpc("resolve_referral_code", { p_code: code })`. Keep: the
 normalise/well-formed short-circuit (`:56-59`), the loud `console.error` on an RPC error
@@ -1101,7 +1137,7 @@ Same harness as `withholding_and_corrections_test.sql` (rolled-back transaction,
   whatever its status; a Command admin still reads all.
 **Verify:** `psql … -f supabase/tests/affiliate_data_layer_test.sql` exits 0 (machine, local).
 
-### L1 — Local seed: affiliate fixtures  ⬜ TODO
+### L1 — Local seed: affiliate fixtures  ⏸ PARKED (2026-11-21, the user) — moved to plan 3. Why: F23. Unblocks when plan 3 needs a signed-in affiliate with lines; it adds an opt-in `supabase/demo/` script instead of changing `seed.sql`
 `backbone/supabase/seed.sql`: grant `nina` the `affiliate` portal; set the local tax rate
 (12%, the preview's sample) and minimum (₱5.00) **before** the seed completes its bookings, so
 the referred vendor's completed bookings produce lines plans 2 and 3 can develop against.
