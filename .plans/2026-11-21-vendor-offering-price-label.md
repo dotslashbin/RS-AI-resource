@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **App / scope:** vendor/ web only — `lib/duration.ts` (+ new `lib/duration.test.ts`), `lib/types.ts` (comment), `components/offerings/OfferingFormModal/useOfferingForm.ts`, `components/offerings/OfferingFormFields/PriceDurationFields.tsx`, `components/offerings/OfferingFormModal/OfferingFormModal.tsx`, `components/offerings/OfferingCreateWizard/{useOfferingCreateWizard.ts,OfferingCreateWizard.tsx}`, `visual-tests/pilot.spec.ts`, `visual-tests/offering-wizard.spec.ts`. Docs: `architecture/schema.md`, `architecture/portals.md`. No schema, migration, pricing/charging logic, booker, Expo or data change.
-**Status:** COMPLETE (2026-11-21) — Stage 1 done, I5 approved, staging ✅ and production ✅ (both user-checked 2026-11-21). O3 parked by decision (D3) — release: staging ✅ · production ✅
+**Status:** COMPLETE (2026-11-21) — Stage 1 done, I5 approved, staging ✅ and production ✅ (both user-checked 2026-11-21). O3 moved to follow-up plan 2026-11-21-vendor-mobile-remove-price-per-unit (D3) — release: staging ✅ · production ✅
 
 > A display-only fix. The vendor offering form says "per hour" for a price that is actually
 > charged per block of `duration_minutes` (for example 4 hours). Make the label name the
@@ -185,7 +185,7 @@ Run the full `npm run test:visual` after B1/B2. Per F3, expect zero screenshot d
 `vendor/lib/duration.ts:65` has no callers (grep, 2026-11-21). I1 replaces it in place, so the dead helper that invites the bug back is gone without a separate change. If D1 changes I1's approach, this becomes a plain deletion.
 
 ### O3 — Vendor mobile's unused `pricePerUnit()`  ⏸ PARKED (2026-11-21)
-`ezzy-vendor-mobile/src/lib/duration.ts:65`, no callers. **Why parked:** removing it touches a second app, which is an approval gate ("any change that touches more than one app in the same task"). It is dead code with no user-visible effect. **Unblocks when:** the user approves it here, or it is picked up in the next vendor-mobile plan.
+`ezzy-vendor-mobile/src/lib/duration.ts:65`, no callers. **Why parked:** removing it touches a second app, which is an approval gate ("any change that touches more than one app in the same task"). It is dead code with no user-visible effect. **Moved 2026-11-21 to its own follow-up plan:** `2026-11-21-vendor-mobile-remove-price-per-unit.md`. **Unblocks when:** the user approves that plan's open decisions (D1, D2) and its execution.
 
 ---
 
