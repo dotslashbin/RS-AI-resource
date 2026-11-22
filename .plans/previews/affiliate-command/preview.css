@@ -1,0 +1,460 @@
+/*
+ * affiliate-command — SCREEN-SPECIFIC rules only.
+ *
+ * Tokens are in `tokens.css` and shared chrome in `chrome.css` (generated from `_shared/`).
+ *
+ * ⚠️ The first part of this file (the `.af-*` rules) is a COPY of
+ * `../affiliate-dashboard/preview.css`, taken 2026-11-14 so both sides of the feature draw
+ * tables, badges, cards and the shell identically. The `.cm-*` rules at the end are this
+ * preview's own. Three command-themed previews now repeat the same shell: the case for a
+ * `_shared/command.js` + shared stylesheet is made (README F1).
+ *
+ * ⚠️ No inline `style=""` in screens.js — AT ALL (CSP, check 2).
+ */
+
+/* ── Shell ───────────────────────────────────────────────────────────────────────────────*/
+.af { min-height: 100vh; }
+.af-side { flex: 0 0 220px; display: flex; flex-direction: column; min-height: 100vh; }
+.af-brand { display: flex; align-items: center; gap: 10px; padding: 18px 16px; border-bottom: 1px solid var(--rs-divider); }
+.af-brand b, .af-top-brand b { color: var(--rs-strong); font-size: 13px; font-weight: 800; letter-spacing: -0.3px; }
+.af-logo {
+  flex: 0 0 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: #f1f5ff; border: 1px solid #dbe4ff; color: #2563eb; font-size: 14px; font-weight: 800;
+}
+.dark .af-logo { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+.af-nav { flex: 1 1 auto; padding: 12px 10px; }
+.af-navitem {
+  width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  margin-bottom: 2px; border: none; border-radius: 12px; background: transparent;
+  color: var(--rs-text); font-size: 13px; font-weight: 600; text-align: left;
+}
+.af-navitem.is-on, .af-tab.is-on { background: linear-gradient(135deg,#2563eb,#1e40af); color: #fff; }
+.af-navitem.is-on { box-shadow: 0 4px 20px rgba(37,99,235,0.4); }
+.af-user { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--rs-divider); }
+.af-avatar {
+  flex: 0 0 34px; height: 34px; border-radius: 99px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg,#2563eb,#4f46e5); color: #fff; font-size: 13px; font-weight: 800;
+}
+.af-user-text { min-width: 0; display: flex; flex-direction: column; font-size: 12px; }
+.af-user-text b { color: var(--rs-strong); }
+.af-user-text span { color: var(--rs-text); font-size: 11px; }
+.af-user-text b, .af-user-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.af-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.af-top { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 12px 24px; min-height: 57px; }
+.af-top-brand { display: none; align-items: center; gap: 8px; margin-right: auto; }
+.af-rate { padding: 7px 12px; font-size: 12px; color: var(--rs-text); white-space: nowrap; }
+.af-tabs { display: none; }
+.af-body { flex: 1 1 auto; padding: 24px; max-width: 1200px; width: 100%; }
+.af-head { margin-bottom: 18px; }
+.af-title { font-size: 22px; font-weight: 800; color: var(--rs-strong); letter-spacing: -0.4px; }
+.af-sub { font-size: 13px; color: var(--rs-text); margin-top: 4px; }
+
+/* ── Cards, KPIs ─────────────────────────────────────────────────────────────────────────*/
+.af .pvc { padding: 20px; }
+.af-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.af-kpis .pvc + .pvc { margin-top: 0; }
+/* Coloured 3px rules on the top AND bottom edge — the vendor tab bar's active-tab treatment
+   (`vendor/components/layout/TabBar/TabBar.tsx:41`), coloured per card from vendor's StatCard
+   palette: Payout Released emerald, Gross blue, Net indigo, and `urgent`'s amber→orange
+   gradient (`vendor/components/ui/StatCard/StatCard.tsx:63`) for Held. Same in both themes,
+   as in vendor. The card's own radius clips the rules into its corners. */
+.af-kpi { position: relative; overflow: hidden; }
+.af-kpi::before, .af-kpi::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 3px; background: var(--af-accent);
+}
+.af-kpi::before { top: 0; }
+.af-kpi::after { bottom: 0; }
+.af-kpi[data-accent="payout"]   { --af-accent: #10b981; }
+.af-kpi[data-accent="upcoming"] { --af-accent: #3b82f6; }
+.af-kpi[data-accent="held"]     { --af-accent: linear-gradient(90deg,#f59e0b,#f97316); }
+.af-kpi[data-accent="vendors"]  { --af-accent: #6366f1; }
+
+.af-kpi-k { font-size: 11px; font-weight: 500; color: var(--rs-text); }
+.af-kpi-v { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--rs-strong); margin-top: 8px; }
+.af-kpi-v[data-tone="est"] { color: var(--rs-text); }
+.af-kpi-v[data-tone="held"] { color: #b45309; }
+.dark .af-kpi-v[data-tone="held"] { color: #fbbf24; }
+.af-kpi-d { font-size: 11px; color: var(--rs-text); margin-top: 4px; }
+
+.af-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: flex-start; }
+.af-col { flex: 1 1 520px; min-width: 0; }
+.af-col-side { flex: 0 1 320px; }
+.af-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.af-card-title { font-size: 14px; font-weight: 700; color: var(--rs-strong); }
+.af-card-sub { font-size: 12px; color: var(--rs-text); margin-top: 3px; }
+.af-fine { font-size: 12px; line-height: 1.55; color: var(--rs-text); margin-top: 10px; }
+.af-fine b { color: var(--rs-strong); }
+.af-muted { color: var(--rs-text); opacity: 0.75; }
+.af-big { font-size: 22px; font-weight: 800; color: var(--rs-strong); white-space: nowrap; }
+.af-big span { font-size: 11px; font-weight: 500; color: var(--rs-text); margin-left: 6px; }
+
+/* Balance meter — a native <progress>, filled without any inline style. */
+.af-meter { display: block; width: 100%; height: 10px; margin-top: 4px; border: none; border-radius: 99px; overflow: hidden; appearance: none; -webkit-appearance: none; background: rgba(37,99,235,0.14); }
+.af-meter::-webkit-progress-bar { background: rgba(37,99,235,0.14); border-radius: 99px; }
+.af-meter::-webkit-progress-value { background: #10b981; border-radius: 99px; }
+.af-meter::-moz-progress-bar { background: #10b981; border-radius: 99px; }
+
+/* ── Tables ──────────────────────────────────────────────────────────────────────────────*/
+.af-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.af-table th {
+  text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--rs-text); padding: 0 10px 8px; white-space: nowrap;
+}
+.af-table td { padding: 11px 10px; border-top: 1px solid var(--rs-divider); color: var(--rs-text); vertical-align: top; }
+.af-table td b { color: var(--rs-strong); font-weight: 600; }
+.af-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.af-share { color: var(--rs-strong); font-weight: 700; }
+.af-table td.af-share { color: var(--rs-strong); }
+.af-ref { font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--rs-text); }
+.af-payout { white-space: nowrap; }
+.af-date-cell { white-space: nowrap; }
+.af-table td:last-child { white-space: nowrap; }
+.af-example { padding: 10px 12px; border-radius: 12px; background: var(--rs-sub-bg); }
+.af-note { display: block; font-size: 11px; color: var(--rs-text); margin-top: 2px; }
+.af-est { color: var(--rs-text); font-weight: 600; }
+.af-table tr[data-kind="upcoming"] td { border-top-style: dashed; }
+.af-table tr[data-kind="cancelled"] td,
+.af-table tr[data-kind="writeoff"] .af-share { opacity: 0.7; }
+.af-tablecard { padding: 12px 10px !important; }
+/* Overview's compact list drops the two amount columns; the Commission screen has them all. */
+.af-table:not(.is-full) .c-amt { display: none; }
+
+.af-badge {
+  display: inline-block; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap;
+  background: var(--rs-pill-bg); color: var(--rs-text); border: 1px solid transparent;
+}
+/* Colour + word: every badge carries its meaning in text, never in colour alone. */
+.af-badge[data-kind="upcoming"] { border: 1px dashed rgba(100,116,139,0.6); background: transparent; }
+.af-badge[data-kind="available"], .af-badge[data-vst="active"] { background: rgba(16,185,129,0.12); color: #047857; }
+/* Earned but still inside the 7-day wait: the same green as an OUTLINE, so "not yet" reads at a glance. */
+.af-badge[data-kind="earned"] { background: transparent; border-color: rgba(4,120,87,0.45); color: #047857; }
+.af-badge[data-kind="held"], .af-badge[data-vst="pending"]  { background: rgba(245,158,11,0.14); color: #92400e; }
+.af-badge[data-kind="adjust"]    { background: rgba(37,99,235,0.10); color: #1d4ed8; }
+.af-badge[data-kind="paid"]      { background: rgba(100,116,139,0.12); color: #334155; }
+.af-badge[data-kind="writeoff"]  { background: rgba(100,116,139,0.12); color: #334155; }
+.af-badge[data-kind="cancelled"], .af-badge[data-vst="suspended"] { background: rgba(239,68,68,0.10); color: #b91c1c; }
+.dark .af-badge[data-kind="available"], .dark .af-badge[data-vst="active"] { background: rgba(16,185,129,0.15); color: #34d399; }
+.dark .af-badge[data-kind="earned"] { background: transparent; border-color: rgba(52,211,153,0.45); color: #34d399; }
+.dark .af-badge[data-kind="held"], .dark .af-badge[data-vst="pending"]  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.dark .af-badge[data-kind="adjust"]   { background: rgba(37,99,235,0.18); color: #93c5fd; }
+.dark .af-badge[data-kind="paid"],
+.dark .af-badge[data-kind="writeoff"] { background: rgba(148,163,184,0.14); color: #cbd5e1; }
+.dark .af-badge[data-kind="cancelled"], .dark .af-badge[data-vst="suspended"] { background: rgba(239,68,68,0.15); color: #f87171; }
+
+.af-vlist { list-style: none; }
+.af-vlist li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--rs-divider); font-size: 13px; }
+.af-vname { color: var(--rs-strong); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Vendors ─────────────────────────────────────────────────────────────────────────────*/
+.af-code { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.af-code-v { font-size: 20px; font-weight: 800; letter-spacing: 1.5px; color: var(--rs-strong); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.af-copy { display: inline-flex; align-items: center; gap: 8px; }
+.af-legend-note { margin-top: 14px; }
+
+/* ── Commission ──────────────────────────────────────────────────────────────────────────*/
+.af-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.af-chip {
+  min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px; font-size: 13px; font-weight: 600;
+  background: var(--rs-pill-bg); border: 1px solid var(--rs-pill-border); color: var(--rs-text);
+}
+.af-chip.is-on { background: linear-gradient(135deg,#2563eb,#1e40af); border-color: transparent; color: #fff; }
+/* Date-range filter — vendor's DateRangeFilter: `sp-card p-4 space-y-3`, presets as
+   `px-3 rounded-lg text-[11px] font-semibold` with `btn-primary` when pressed, two
+   `sp-input` date fields in a two-up grid from `sm`. One change: vendor's presets are
+   `py-1.5` (~28px tall); here they meet the 44px floor (README F7). */
+.af-dr { margin-bottom: 12px; }
+.af .af-dr { padding: 16px; }
+.af-dr-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--rs-text); }
+.af-dr-title { font-size: 12px; font-weight: 600; color: var(--rs-strong); }
+.af-dr-showing { font-size: 11px; color: var(--rs-text); }
+.af-dr-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.af-pill {
+  min-height: 44px; min-width: 44px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 8px; border: 1px solid var(--rs-divider); background: transparent;
+  color: var(--rs-text); font-size: 11px; font-weight: 600;
+}
+.af-pill.is-on {
+  background: linear-gradient(135deg,#2563eb,#1d4ed8); border-color: transparent; color: #fff;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+}
+.af-dr-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.af-dr-field { min-width: 0; }
+.af-dr-lbl { display: block; font-size: 11px; font-weight: 600; color: var(--rs-text); margin-bottom: 6px; }
+.af-date { width: 100%; min-height: 44px; padding: 0 12px; font-size: 13px; color: var(--rs-strong); }
+
+.af-count { font-size: 11px; color: var(--rs-text); margin: 0 2px 8px; }
+.af-empty { text-align: center; padding: 28px 12px; }
+.af-empty .af-fine { margin: 6px auto 14px; max-width: 420px; }
+.af-legendcard { margin-top: 12px; }
+
+.af-legend { margin-top: 10px; }
+.af-legend div { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--rs-divider); align-items: baseline; }
+.af-legend dt { flex: 0 0 170px; }
+.af-legend dd { font-size: 12px; line-height: 1.5; color: var(--rs-text); }
+
+/* ── Settings ─────────────────────────────────────────────────────────────────────────────
+   Nav: the sidebar "Account" group copies command's `navLabelSpaced`; below 860px Settings is
+   a 44px gear in the top bar instead of a fifth tab. */
+.af-navlabel {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--rs-text); padding: 16px 10px 6px;
+}
+.af-gear {
+  display: none; width: 44px; height: 44px; align-items: center; justify-content: center; flex: 0 0 44px;
+  border-radius: 12px; border: 1px solid var(--rs-pill-border); background: var(--rs-pill-bg); color: var(--rs-text);
+}
+.af-gear.is-on { background: linear-gradient(135deg,#2563eb,#1e40af); border-color: transparent; color: #fff; }
+
+.af-grid-top { margin-top: 0; }
+/* Primary action — vendor's `.btn-primary` (`vendor/app/globals.css:186`); the shared chrome
+   leaves the colour to each app. Disabled keeps chrome.css's 0.45 opacity. */
+.pvb.btn-primary { background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; box-shadow: 0 4px 16px rgba(37,99,235,0.35); }
+.pvb.btn-primary:disabled { box-shadow: none; }
+.af-code-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.af-code .af-code-actions { justify-content: flex-end; }
+.af-col > .af-code-actions { margin-top: 12px; }
+.af-link {
+  display: flex; align-items: center; gap: 6px; margin: 6px 0 14px; font-size: 12px; color: var(--rs-text);
+  min-width: 0;
+}
+.af-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.af-codeform { margin-top: 14px; }
+.af-codein {
+  width: 100%; min-height: 44px; padding: 0 12px; font-size: 16px; font-weight: 700; letter-spacing: 1px;
+  color: var(--rs-strong); text-transform: uppercase;
+}
+.af-codein.is-invalid { border-color: #dc2626; }
+.af-norm { font-size: 12px; color: var(--rs-text); margin-top: 6px; }
+.af-norm b { color: var(--rs-strong); letter-spacing: 1px; }
+.af-codemsg { font-size: 12px; font-weight: 600; color: #b91c1c; margin-top: 4px; min-height: 18px; }
+.dark .af-codemsg { color: #f87171; }
+
+/* Rule checklist — the mark is a word-free glyph, so each rule ALSO states itself in text. */
+.af-rules { list-style: none; margin-top: 6px; font-size: 12px; color: var(--rs-text); }
+.af-rules li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.af-rules li::before {
+  content: "•"; flex: 0 0 18px; height: 18px; border-radius: 99px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; background: var(--rs-pill-bg); color: var(--rs-text);
+}
+.af-rules li[data-ok="1"]::before { content: "✓"; background: rgba(16,185,129,0.15); color: #047857; }
+.af-rules li[data-ok="0"]::before { content: "✕"; background: rgba(239,68,68,0.12); color: #b91c1c; }
+.af-rules li[data-ok="0"] { color: var(--rs-strong); }
+.dark .af-rules li[data-ok="1"]::before { color: #34d399; }
+.dark .af-rules li[data-ok="0"]::before { color: #f87171; }
+
+.af-keep {
+  margin: 14px 0; padding: 10px 12px; border-radius: 12px; font-size: 12px; line-height: 1.5;
+  background: rgba(37,99,235,0.07); border: 1px solid rgba(37,99,235,0.18); color: var(--rs-text);
+}
+.af-keep b { color: var(--rs-strong); }
+.dark .af-keep { background: rgba(59,130,246,0.10); border-color: rgba(96,165,250,0.22); }
+
+.af-locked {
+  display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px; border-radius: 12px;
+  background: var(--rs-sub-bg); font-size: 13px; line-height: 1.5; color: var(--rs-text);
+}
+.af-locked b { color: var(--rs-strong); }
+.af-locked .ic { margin-top: 2px; }
+
+.af-saved {
+  display: flex; gap: 10px; align-items: center; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px;
+  background: rgba(16,185,129,0.10); border: 1px solid rgba(16,185,129,0.25); color: #047857; font-size: 13px;
+}
+.af-saved b { font-weight: 700; }
+.dark .af-saved { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+
+.af-hist { list-style: none; margin-top: 10px; }
+.af-hist li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--rs-divider);
+}
+.af-hist-code { font-size: 13px; font-weight: 800; letter-spacing: 1px; color: var(--rs-strong); }
+.af-hist-meta { grid-row: 2; font-size: 11px; color: var(--rs-text); }
+.af-hist .af-badge { grid-row: 1 / span 2; grid-column: 2; }
+.af-badge[data-code="current"] { background: linear-gradient(135deg,#2563eb,#1e40af); color: #fff; }
+.af-badge[data-code="old"] { background: rgba(16,185,129,0.12); color: #047857; }
+.dark .af-badge[data-code="old"] { background: rgba(16,185,129,0.15); color: #34d399; }
+
+/* ── Withdraw ────────────────────────────────────────────────────────────────────────────*/
+.af-dest { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; font-size: 13px; color: var(--rs-text); }
+.af-dest b { font-size: 15px; color: var(--rs-strong); }
+.af-dest span { letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.af-waiting {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px;
+  background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #92400e; font-size: 13px; line-height: 1.5;
+}
+.af-waiting .ic { margin-top: 2px; }
+.dark .af-waiting { color: #fbbf24; }
+.af-stable { margin-top: 10px; }
+.af-fine + .af-code-actions { margin-top: 12px; }
+.af-code-actions { align-items: center; }
+.af-reason { font-size: 12px; color: var(--rs-text); }
+.af-actions-top { margin-top: 14px; }
+.af-how { margin-top: 10px; padding-left: 18px; font-size: 12px; line-height: 1.55; color: var(--rs-text); }
+.af-how li + li { margin-top: 6px; }
+
+/* Request progress: three steps; the current one is filled, done ones ticked — and each step is
+   a word, so the state never rests on colour. */
+.af-steps { list-style: none; display: flex; gap: 6px; margin: 4px 0 2px; }
+.af-steps li {
+  flex: 1 1 0; min-width: 0; padding: 8px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; text-align: center;
+  background: var(--rs-pill-bg); border: 1px solid var(--rs-pill-border); color: var(--rs-text);
+}
+.af-steps li[data-s="done"] { color: #047857; border-color: rgba(16,185,129,0.35); }
+.af-steps li[data-s="done"]::before { content: "✓ "; }
+.af-steps li[data-s="now"] { background: linear-gradient(135deg,#2563eb,#1e40af); border-color: transparent; color: #fff; }
+.dark .af-steps li[data-s="done"] { color: #34d399; }
+
+/* Preview annotation — deliberately unlike any app surface. */
+.af-pvnote {
+  border: 1px dashed rgba(148,163,184,0.7); border-radius: 12px; padding: 8px 12px; margin-bottom: 16px;
+  font-size: 12px; color: var(--rs-text);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────────────────*/
+@media (max-width: 1100px) {
+  .af-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .af-side { display: none; }
+  .af-top { padding: 10px 16px; position: sticky; top: 0; z-index: 2; }
+  .af-top-brand { display: flex; }
+  .af-gear { display: inline-flex; }
+  .af-tabs { display: flex; gap: 4px; padding: 6px 10px; overflow-x: auto; }
+  .af-tab {
+    flex: 1 0 auto; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 0 12px; border: none; border-radius: 12px; background: transparent;
+    color: var(--rs-text); font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .af-col-side { flex: 1 1 100%; }
+}
+@media (max-width: 640px) {
+  .af-body { padding: 16px; }
+  .af-rate { display: none; }
+  .af-tab .ic { display: none; }
+  .af-kpi-v { font-size: 19px; }
+  .af .pvc { padding: 16px; }
+
+  /* Table → stacked cards. Header row hidden; each cell labels itself from `data-label`. */
+  .af-table thead { display: none; }
+  .af-table, .af-table tbody, .af-table tr, .af-table td { display: block; width: 100%; }
+  .af-table tr { padding: 10px 0; border-top: 1px solid var(--rs-divider); }
+  .af-table tr[data-kind="upcoming"] { border-top-style: dashed; }
+  .af-table tr[data-kind="upcoming"] td { border-top: none; }
+  .af-table td { border: none; padding: 3px 0; display: flex; justify-content: space-between; gap: 12px; text-align: right; }
+  .af-table td::before { content: attr(data-label); color: var(--rs-text); font-size: 11px; text-align: left; flex-shrink: 0; }
+  .af-table td[data-label="Vendor"] { flex-direction: column; text-align: left; gap: 0; }
+  .af-table td[data-label="Vendor"]::before { display: none; }
+  .af-tablecard { padding: 4px 14px !important; }
+  .af-tablecard .af-table tr:first-child { border-top: none; }
+  .af-dr-fields { grid-template-columns: minmax(0, 1fr); }
+  /* Phone date fields at 16px: iOS Safari zooms into anything smaller (vendor/AGENTS.md). */
+  .af-date { font-size: 16px; }
+  .af-legend div { flex-direction: column; gap: 4px; }
+  .af-legend dt { flex: none; }
+}
+
+/* ══ Command-side additions ══════════════════════════════════════════════════════════════ */
+.cm-brand { display: flex; flex-direction: column; }
+.cm-brand span { font-size: 10px; color: var(--rs-text); }
+.af-navitem.is-inert, .af-tab.is-inert, .af-chip.is-inert { opacity: 0.55; cursor: default; }
+.af-chip { display: inline-flex; align-items: center; gap: 8px; }
+.af-navitem > span:first-child { flex: 1 1 auto; }
+.cm-count {
+  min-width: 20px; padding: 1px 6px; border-radius: 99px; font-size: 11px; font-weight: 800; text-align: center;
+  background: #f59e0b; color: #1f1300;
+}
+.cm-bell { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; }
+.cm-bell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-bell b { color: var(--rs-strong); }
+.af-top { justify-content: space-between; }
+
+.cm-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cm-back { margin-bottom: 12px; }
+.cm-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 10px 12px; }
+.cm-search { flex: 1 1 240px; min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; color: var(--rs-text); }
+.cm-toolbar-note { margin: 0; }
+.cm-rowact { text-align: right; white-space: nowrap; }
+.cm-filter { margin-top: -4px; }
+.af-kpis + .pvc { margin-top: 16px; }
+.cm-existing { opacity: 0.85; margin-top: 4px; }
+
+.cm-kv { margin-top: 10px; font-size: 13px; }
+.cm-kv div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--rs-divider); color: var(--rs-text); }
+.cm-kv dd { color: var(--rs-strong); text-align: right; font-variant-numeric: tabular-nums; }
+.cm-reveal { margin-top: 10px; padding: 2px 12px; border-radius: 12px; background: var(--rs-sub-bg); }
+.cm-reveal .cm-kv { margin-top: 0; }
+.cm-reveal .cm-kv div:first-child { border-top: none; }
+.cm-acct { letter-spacing: 1px; }
+.cm-checks { margin-top: 10px; }
+
+/* Withdrawal status and attention flags — a word in every badge, colour second. */
+.af-badge[data-w="requested"], .af-badge[data-flag="requested"] { background: rgba(245,158,11,0.16); color: #92400e; }
+.af-badge[data-w="processing"], .af-badge[data-flag="processing"] { background: rgba(37,99,235,0.12); color: #1d4ed8; }
+.af-badge[data-w="completed"] { background: rgba(16,185,129,0.12); color: #047857; }
+.af-badge[data-w="rejected"], .af-badge[data-flag="suspended"] { background: rgba(239,68,68,0.10); color: #b91c1c; }
+.af-badge[data-flag="nodetails"] { background: transparent; border: 1px dashed rgba(180,83,9,0.6); color: #92400e; }
+.af-badge[data-flag="payroll"] { background: rgba(100,116,139,0.12); color: #334155; }
+.dark .af-badge[data-w="requested"], .dark .af-badge[data-flag="requested"] { color: #fbbf24; }
+.dark .af-badge[data-w="processing"], .dark .af-badge[data-flag="processing"] { background: rgba(37,99,235,0.2); color: #93c5fd; }
+.dark .af-badge[data-w="completed"] { color: #34d399; }
+.dark .af-badge[data-w="rejected"], .dark .af-badge[data-flag="suspended"] { background: rgba(239,68,68,0.15); color: #f87171; }
+.dark .af-badge[data-flag="nodetails"] { border-color: rgba(251,191,36,0.6); color: #fbbf24; }
+.dark .af-badge[data-flag="payroll"] { background: rgba(148,163,184,0.14); color: #cbd5e1; }
+.af-table tr[data-w="completed"] td, .af-table tr[data-w="rejected"] td { opacity: 0.8; }
+
+/* Forms */
+.cm-field { margin-top: 12px; min-width: 0; }
+.cm-input { display: block; width: 100%; min-height: 44px; padding: 0 12px; font-size: 14px; color: var(--rs-strong); }
+.cm-area { min-height: 88px; padding: 10px 12px; line-height: 1.45; resize: vertical; }
+.cm-hint { font-size: 11px; color: var(--rs-text); margin-top: 5px; }
+.cm-formgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+.cm-set { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 14px; }
+.cm-check { position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; font-size: 13px; color: var(--rs-strong); cursor: pointer; }
+.cm-check input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.cm-box {
+  flex: 0 0 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--rs-input-border); background: var(--rs-input-bg); color: #fff; font-size: 13px; font-weight: 800;
+}
+.cm-check input:checked + .cm-box { background: #2563eb; border-color: #2563eb; }
+.cm-check input:focus-visible + .cm-box { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+/* Vendor picker (credit a vendor) */
+.cm-pick { list-style: none; margin-top: 12px; display: grid; gap: 8px; }
+.cm-pick li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--rs-pill-border); background: var(--rs-pill-bg); }
+.cm-pick li[data-on="1"] { border-color: #2563eb; }
+.cm-pick li[data-ok="0"] { opacity: 0.6; }
+.cm-pick-name { min-width: 0; display: flex; flex-direction: column; font-size: 13px; color: var(--rs-strong); }
+.cm-pick-name span { font-size: 11px; color: var(--rs-text); }
+
+/* Modal — no blur (command removed its backdrop blur in the dark-mode lift). */
+.cm-overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(8,12,24,0.6); }
+.cm-modal { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 20px; }
+.cm-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cm-modal-head h2 { font-size: 16px; font-weight: 800; color: var(--rs-strong); }
+.cm-x { flex: 0 0 44px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 12px; background: transparent; color: var(--rs-text); }
+.cm-modal-lead { margin-top: 4px; }
+.cm-modal-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.cm-modal-actions .af-reason { flex: 1 1 100%; text-align: right; }
+
+@media (max-width: 860px) {
+  .cm-set { grid-template-columns: minmax(0, 1fr); }
+  .af-tab { gap: 6px; }
+}
+@media (max-width: 640px) {
+  .cm-formgrid { grid-template-columns: minmax(0, 1fr); }
+  .cm-input { font-size: 16px; }
+  .cm-rowact { text-align: left; }
+  .af-table td[data-label=""]::before { display: none; }
+  .af-table td[data-label=""] { justify-content: flex-start; }
+  .cm-modal { padding: 16px; }
+}
+
+/* The row action sits at the right edge and never squeezes the name beside it. */
+.af-table td.cm-rowact .pvb { white-space: nowrap; }
+@media (min-width: 641px) {
+  .af-table td.cm-rowact { width: 1%; }
+  .cm-vendors td b { white-space: nowrap; }
+}

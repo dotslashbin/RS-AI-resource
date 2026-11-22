@@ -1,0 +1,11 @@
+{
+  "app": "command",
+  "viewports": [
+    "desktop",
+    "mobile"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ]
+}

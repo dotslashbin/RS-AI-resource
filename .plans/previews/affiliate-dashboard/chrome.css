@@ -1,0 +1,99 @@
+/*
+ * Generic preview chrome layout — synced into each preview as `chrome.css`. Edit it here.
+ *
+ * Styles the markup that `_shared/<app>.js` emits (`.pvb`, `.pvh`, `.pvf`, `.pvs`, `.pvc`,
+ * `.pvfield`) plus the preview bar.
+ *
+ * ⚠️ IT NEVER NAMES AN APP TOKEN. Everything resolves through the `--pv-*` aliases, which each
+ * `_shared/<app>.css` maps onto its own set (`--db-*`, `--sp-*`, `--rs-*`). That is what lets
+ * one layout file serve all three apps and mobile: add an app by writing its alias block, not
+ * by copying this file. If a rule here needs a token the alias set does not have, add the alias
+ * to all the app files rather than reaching for a concrete token in one.
+ */
+
+/* ── Controls ──────────────────────────────────────────────────────────────────────────────
+   ⚠️ 44px minimum is a requirement, not a look (ux-design §5). The runner fails any preview
+   with an interactive control under 44×44, so do not trim these for a tighter mock-up. */
+.pvb {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--pv-pill-bg);
+  border: 1px solid var(--pv-pill-border);
+  color: var(--pv-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+.pvb:disabled { opacity: 0.45; cursor: not-allowed; }
+.pvb.btn-primary { border: none; }
+
+/* ── Header ───────────────────────────────────────────────────────────────────────────────*/
+.pvh { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 12px; }
+.pvh-back {
+  min-height: 44px; min-width: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; background: transparent;
+  border: 1px solid var(--pv-pill-border); color: var(--pv-strong);
+}
+.pvh-text { flex: 1 1 auto; min-width: 0; }
+.pvh-title { font-size: 20px; font-weight: 700; color: var(--pv-strong); line-height: 1.25; }
+.pvh-sub { font-size: 13px; color: var(--pv-text); margin-top: 4px; }
+.pvh-pill { padding: 6px 12px; font-size: 12px; color: var(--pv-text); white-space: nowrap; }
+
+/* ── Footer ───────────────────────────────────────────────────────────────────────────────*/
+.pvf {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 16px 20px;
+  border-top: 1px solid var(--pv-divider);
+}
+.pvf-note { flex: 1 1 240px; font-size: 12px; color: var(--pv-text); line-height: 1.5; }
+.pvf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ── Split ────────────────────────────────────────────────────────────────────────────────
+   ⚠️ `min-width: 0` on both children, not just `overflow`. A flex child defaults to
+   min-width:auto and grows past its parent, so a long value stops the column shrinking and
+   nothing ever overflows *itself*. This has cost a correction twice in booker. */
+.pvs { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 20px; align-items: flex-start; }
+.pvs-main  { flex: 1 1 420px; min-width: 0; }
+.pvs-aside { flex: 0 1 300px; min-width: 0; }
+@media (max-width: 860px) {
+  .pvs-aside { flex: 1 1 100%; }
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────────────────────────*/
+.pvc { padding: 16px; }
+.pvc + .pvc { margin-top: 12px; }
+
+/* ── Field ────────────────────────────────────────────────────────────────────────────────*/
+.pvfield + .pvfield { margin-top: 14px; }
+.pvfield-lbl { font-size: 12px; font-weight: 600; color: var(--pv-strong); margin-bottom: 6px; }
+.pvfield-req { color: var(--pv-danger); }
+.pvfield-input { width: 100%; min-height: 44px; padding: 0 12px; }
+.pvfield-input.is-invalid { border-color: var(--pv-danger); }
+.pvfield-hint { font-size: 11px; color: var(--pv-text); margin-top: 5px; }
+.pvfield-err {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--pv-danger); margin-top: 5px;
+}
+
+.ic { flex-shrink: 0; }
+
+/* ── The preview bar. Not part of any design; hidden by `?chrome=off`. ─────────────────── */
+.pv-bar {
+  position: fixed; right: 12px; bottom: 12px; z-index: 9999;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 12px;
+  background: var(--pv-panel-bg);
+  border: 1px solid var(--pv-panel-border);
+  box-shadow: var(--pv-panel-shadow);
+  color: var(--pv-strong); font-size: 12px;
+}
+.pv-bar label { display: flex; align-items: center; gap: 6px; }
+.pv-bar select {
+  min-height: 44px; padding: 0 8px; border-radius: 8px;
+  background: var(--pv-input-bg); border: 1px solid var(--pv-input-border);
+  color: var(--pv-input-color);
+}
+.pv-label { font-weight: 700; letter-spacing: 0.08em; color: var(--pv-text); }
+.pv-hidden .pv-bar { display: none; }

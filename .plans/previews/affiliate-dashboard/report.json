@@ -1,0 +1,67 @@
+{
+  "topic": "affiliate-dashboard",
+  "app": "affiliate",
+  "date": "2026-11-14T02:54:39.913Z",
+  "cells": 52,
+  "screens": [
+    {
+      "id": "overview",
+      "label": "Dashboard overview"
+    },
+    {
+      "id": "vendors",
+      "label": "Vendors list"
+    },
+    {
+      "id": "lines",
+      "label": "Commission lines · all dates"
+    },
+    {
+      "id": "lines-lastmonth",
+      "label": "Commission · last month"
+    },
+    {
+      "id": "lines-empty",
+      "label": "Commission · no matches"
+    },
+    {
+      "id": "withdraw",
+      "label": "Withdraw · below the minimum"
+    },
+    {
+      "id": "withdraw-ready",
+      "label": "Withdraw · ready"
+    },
+    {
+      "id": "withdraw-requested",
+      "label": "Withdraw · requested"
+    },
+    {
+      "id": "withdraw-processing",
+      "label": "Withdraw · processing"
+    },
+    {
+      "id": "withdraw-nodetails",
+      "label": "Withdraw · no payout details"
+    },
+    {
+      "id": "settings",
+      "label": "Settings · change code"
+    },
+    {
+      "id": "settings-error",
+      "label": "Settings · reserved word"
+    },
+    {
+      "id": "settings-saved",
+      "label": "Settings · saved, next change in 30 days"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}

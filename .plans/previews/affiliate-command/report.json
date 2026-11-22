@@ -1,0 +1,67 @@
+{
+  "topic": "affiliate-command",
+  "app": "command",
+  "date": "2026-11-14T14:07:55.834Z",
+  "cells": 52,
+  "screens": [
+    {
+      "id": "affiliates",
+      "label": "Affiliates · list"
+    },
+    {
+      "id": "affiliate",
+      "label": "Affiliate · detail"
+    },
+    {
+      "id": "payout-details",
+      "label": "Affiliate · replace payout details"
+    },
+    {
+      "id": "change-referrer",
+      "label": "Affiliate · change a vendor's referrer"
+    },
+    {
+      "id": "attach-vendor",
+      "label": "Affiliate · credit a vendor"
+    },
+    {
+      "id": "affiliate-staff",
+      "label": "Staff affiliate · detail"
+    },
+    {
+      "id": "payroll",
+      "label": "Staff affiliate · record payroll"
+    },
+    {
+      "id": "withdrawals",
+      "label": "Withdrawals · queue"
+    },
+    {
+      "id": "withdrawal",
+      "label": "Withdrawal · requested"
+    },
+    {
+      "id": "withdrawal-reject",
+      "label": "Withdrawal · reject"
+    },
+    {
+      "id": "withdrawal-processing",
+      "label": "Withdrawal · processing, complete"
+    },
+    {
+      "id": "settings",
+      "label": "Settings · not set yet"
+    },
+    {
+      "id": "settings-set",
+      "label": "Settings · set"
+    }
+  ],
+  "sheets": [
+    "contact-desktop-light.png",
+    "contact-desktop-dark.png",
+    "contact-mobile-light.png",
+    "contact-mobile-dark.png"
+  ],
+  "failures": []
+}
