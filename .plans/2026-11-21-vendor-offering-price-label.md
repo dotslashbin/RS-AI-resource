@@ -18,9 +18,9 @@
 ## ▶ RESUME HERE (updated 2026-11-21, end of Stage 1)
 - **Done so far:** Stage 1 is complete. B1, B2, I1–I5, O1 and O2 are ✅; the user approved I5 on 2026-11-21.
 - **Live where:** local ✅ · staging ✅ · production ✅ (promoted and checked by the user, 2026-11-21)
-- **Next:** nothing in this plan. O3 (vendor mobile `pricePerUnit`) stays parked until the user approves it. Local test rows: see below.
+- **Next:** nothing in this plan. O3 (vendor mobile `pricePerUnit`) stays parked until the user approves it.
 - **Decisions:** D1 = A, D2 = yes, D3 = O3 parked (all 2026-11-21). No OPEN lines.
-- **Local state left behind:** the six tagged I5 offerings were **re-seeded on 2026-11-21 at the user's request** so they could look themselves, and are still in the local DB. Remove them with the I5 cleanup SQL when the user says so. Earlier, after the I5 run, they had been deleted (count 0, Summit back to 5), and the agent's :3100 server was stopped by PID (port free). I5's screenshots and script are in `/tmp/claude-1000/-home-joshua-RS/e65809e1-bdae-402e-b491-eb530ced7608/scratchpad/i5/` (`before/`, `after/`, `results.json`), which is scratch and can be cleared.
+- **Local state left behind:** the six tagged I5 offerings (description `price-label plan 2026-11-21 local check`, vendor Summit Athletics Club) are still in the local DB. **The user chose on 2026-11-21 to keep them** for their own testing. Remove them with the I5 cleanup SQL only when the user asks. They are local only and never reached staging or production.
 - **Watch out for:**
   - Local data has offerings whose `duration_minutes` is out of step with the unit (for example 1 minute on `day`, 2 minutes on `hour`; seen 2026-11-21 in other vendors' rows). The edit form seeds a non-whole quantity for those, so `durationLabel` is empty and the suffix stays hidden. That is existing behaviour and out of scope. Don't mistake it for an I5 failure (F6).
   - A booker can book **quantity > 1** (F1), so "per booking" is not what the database charges. Don't write "per booking" in the UI or in `schema.md`.
@@ -269,4 +269,4 @@ Vendor web only. No migration, Edge Function, secret or env var, so the release 
 **Can't be machine-checked:** how the wording reads to a real vendor. The user covers that at the I5 sign-off and at S3.
 
 ## Docs
-**Docs:** `architecture/schema.md`, `architecture/portals.md` (O1, committed `c98922f`). Not re-checked at close: `architecture/conventions.md`, `architecture/booking-flow.md`
+**Docs:** `architecture/schema.md`, `architecture/portals.md` (O1, committed `c98922f`); `vendor/AGENTS.md` test-file count 41 → 45 (stale before this plan; it now includes `lib/duration.test.ts`; only the test and baseline counts were re-counted). Checked at close on 2026-11-21, nothing to change: `architecture/conventions.md`, `architecture/booking-flow.md` (its "not per unit" at `:145` is about schedule slots, not price), and the root `AGENTS.md`. Grep for `per unit`, `pricePerUnit` and `price per hour` across `architecture/` and the vendor docs found nothing else stale
