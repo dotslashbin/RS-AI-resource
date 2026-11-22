@@ -5,13 +5,13 @@
 197 plans — current: ABORTED 3 · BLOCKED 1 · COMPLETE 116 · DRAFT 21 · IN PROGRESS 33 · — 2 · legacy: 21.
 Status and scope come from each plan's own header; open the plan before relying on it.
 
-⚠️ 21 of these are **not committed yet** — listed unlinked and marked `(uncommitted)`, because a link to a file that is not in the repo breaks for everyone else. Each re-links itself once its plan is committed and this script is re-run.
+⚠️ 20 of these are **not committed yet** — listed unlinked and marked `(uncommitted)`, because a link to a file that is not in the repo breaks for everyone else. Each re-links itself once its plan is committed and this script is re-run.
 
 ## Current
 
 | Date | Plan | Status | Scope | Related |
 |---|---|---|---|---|
-| 2026-11-21 | Vendor — the offering price label must name the whole block, not "per hour" (uncommitted) | IN PROGRESS — Stage 1 complete (I5 approved by the user 2026-11-21) — release: staging ⬜ · production ⬜ | vendor/ web only — lib/duration.ts (+ new lib/duration.test.ts), lib/… |  |
+| 2026-11-21 | [Vendor — the offering price label must name the whole block, not "per hour"](2026-11-21-vendor-offering-price-label.md) | IN PROGRESS — Stage 1 complete (I5 approved by the user 2026-11-21) — release: staging ⬜ · production ⬜ | vendor/ web only — lib/duration.ts (+ new lib/duration.test.ts), lib/… |  |
 | 2026-11-19 | [Shareable offering links (Booker + Vendor)](2026-11-19-offering-share-links.md) | COMPLETE (2026-11-21) — built, reviewed, documented and released: staging (user-confirmed 2026-11-20) and production (… | booker/, vendor/, backbone/ (one additive RPC only) |  |
 | 2026-11-16 | [EzzyShots division — correct the slug, make it a first-class division in Booker](2026-11-16-ezzy-shots-division.md) | COMPLETE (2026-11-17) — release: staging ✅ · production ✅. Open follow-ups, parked with reasons: P4 step 4 (vendor pat… | booker/ (code), vendor/ (one test line), .plans/previews/booker-home-… |  |
 | 2026-11-15 | [Vendor KYC — accept file names with consecutive dots, keep the traversal guard,…](2026-11-15-vendor-kyc-filename-validation.md) | COMPLETE (2026-11-15) — release: staging ✅ · production ✅ (vendor 0.60.1, Vercel Promote by the user; S1–S6 and P1–P4… | vendor/ only — lib/kycSubmission.ts, lib/kycSubmission.test.ts, one c… |  |

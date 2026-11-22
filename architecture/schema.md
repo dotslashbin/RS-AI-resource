@@ -542,7 +542,7 @@ Bookable services defined by a vendor. Each vendor defines its own offerings ind
 | `name` | `text` | Display name, e.g. "1-Hour Court Rental" |
 | `code` | `text` | Short badge, e.g. `RENT`. Max 6 chars, uppercase. Unique per vendor. ⚠️ **Vendor-editable — never group or join on it.** Unique-per-vendor makes it *look* like a key, but a rename silently re-attributes anything keyed on it. Use `offerings.id`: the vendor booking counts, the offering performance modal and the assigned-staff list on the offering card all learned this the hard way |
 | `description` | `text` | |
-| `price` | `numeric(10,2)` | Philippine Peso. Non-negative. **Per unit of duration**, not per booking |
+| `price` | `numeric(10,2)` | Philippine Peso. Non-negative. **Per block** of `duration_minutes` (e.g. one 4-hour block): not per hour, and not per booking, since a booking of N blocks pays `price × N` |
 | `duration_minutes` | `integer` | NOT NULL, default `60`, `check (> 0)`. Length of ONE bookable unit, normalised to minutes. The single source of truth for all slot and overlap arithmetic |
 | `duration_unit` | `text` | NOT NULL, default `hour`. CHECK in (`minute`, `hour`, `day`, `week`, `month`). The vendor's chosen frame — and the granularity discriminator. See the note below |
 | `requirements` | `jsonb` | Array of `{id, label, required}` objects defining documents bookers must upload. Default `[]` |
@@ -584,7 +584,7 @@ Unique constraint: `(vendor_id, code)` — a code is unique within a vendor but 
 > form states this at the point of entry rather than letting a booker discover it at
 > the point of booking.
 
-> **Price is per UNIT, not per booking.** `price_paid` is derived by
+> **Price is per BLOCK (one `duration_minutes` length), not per hour and not per booking.** `price_paid` is derived by
 > `check_booking_consistency()` as `price * quantity` and pinned — clients do not
 > supply it. See `bookings`.
 
