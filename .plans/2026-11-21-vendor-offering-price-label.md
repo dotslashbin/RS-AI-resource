@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-21
 **App / scope:** vendor/ web only — `lib/duration.ts` (+ new `lib/duration.test.ts`), `lib/types.ts` (comment), `components/offerings/OfferingFormModal/useOfferingForm.ts`, `components/offerings/OfferingFormFields/PriceDurationFields.tsx`, `components/offerings/OfferingFormModal/OfferingFormModal.tsx`, `components/offerings/OfferingCreateWizard/{useOfferingCreateWizard.ts,OfferingCreateWizard.tsx}`, `visual-tests/pilot.spec.ts`, `visual-tests/offering-wizard.spec.ts`. Docs: `architecture/schema.md`, `architecture/portals.md`. No schema, migration, pricing/charging logic, booker, Expo or data change.
-**Status:** IN PROGRESS — Stage 1 complete (I5 approved 2026-11-21); staging ✅ (user-checked 2026-11-21) — release: staging ✅ · production ⬜
+**Status:** COMPLETE (2026-11-21) — Stage 1 done, I5 approved, staging ✅ and production ✅ (both user-checked 2026-11-21). O3 parked by decision (D3) — release: staging ✅ · production ✅
 
 > A display-only fix. The vendor offering form says "per hour" for a price that is actually
 > charged per block of `duration_minutes` (for example 4 hours). Make the label name the
@@ -17,8 +17,8 @@
 
 ## ▶ RESUME HERE (updated 2026-11-21, end of Stage 1)
 - **Done so far:** Stage 1 is complete. B1, B2, I1–I5, O1 and O2 are ✅; the user approved I5 on 2026-11-21.
-- **Live where:** local ✅ · staging ✅ (deployed and checked by the user, 2026-11-21) · production ⬜
-- **Next:** P1–P3 (production), the user's: confirm the staging build, then Promote the same deployment. Production is the last stage.
+- **Live where:** local ✅ · staging ✅ · production ✅ (promoted and checked by the user, 2026-11-21)
+- **Next:** nothing in this plan. O3 (vendor mobile `pricePerUnit`) stays parked until the user approves it. Local test rows: see below.
 - **Decisions:** D1 = A, D2 = yes, D3 = O3 parked (all 2026-11-21). No OPEN lines.
 - **Local state left behind:** the six tagged I5 offerings were **re-seeded on 2026-11-21 at the user's request** so they could look themselves, and are still in the local DB. Remove them with the I5 cleanup SQL when the user says so. Earlier, after the I5 run, they had been deleted (count 0, Summit back to 5), and the agent's :3100 server was stopped by PID (port free). I5's screenshots and script are in `/tmp/claude-1000/-home-joshua-RS/e65809e1-bdae-402e-b491-eb530ced7608/scratchpad/i5/` (`before/`, `after/`, `results.json`), which is scratch and can be cleared.
 - **Watch out for:**
@@ -237,9 +237,9 @@ Vendor web only. No migration, Edge Function, secret or env var, so the release 
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: the production candidate is the exact staging deployment from S2 | same commit / version |
-| P2 | 👤 | Vercel **Promote** that staging deployment | — |
-| P3 | 👤 | On a vendor account the user owns: **Add Offering**, step 2, enter qty 4 + hour and a price, step to the review, then close and **discard** at the leave prompt. Nothing is saved, and no other vendor's account or data is opened | ⛔ label reads "per 4 hours"; review reads "₱… per 4 hours" |
+| P1 | 👤 | ✅ 2026-11-21, user: production candidate is the staging deployment from S2 | same commit / version (`7c97861`, 0.62.1) |
+| P2 | 👤 | ✅ 2026-11-21, user promoted that staging deployment in Vercel | — |
+| P3 | ✅ 2026-11-21, user | On a vendor account the user owns: **Add Offering**, step 2, enter qty 4 + hour and a price, step to the review, then close and **discard** at the leave prompt. Nothing is saved, and no other vendor's account or data is opened | ⛔ label reads "per 4 hours"; review reads "₱… per 4 hours" | ✅ user reports checks passed |
 
 ---
 
@@ -269,4 +269,4 @@ Vendor web only. No migration, Edge Function, secret or env var, so the release 
 **Can't be machine-checked:** how the wording reads to a real vendor. The user covers that at the I5 sign-off and at S3.
 
 ## Docs
-**Docs:** to be filled in at close: `architecture/schema.md`, `architecture/portals.md` (O1, D2 = yes).
+**Docs:** `architecture/schema.md`, `architecture/portals.md` (O1, committed `c98922f`). Not re-checked at close: `architecture/conventions.md`, `architecture/booking-flow.md`
