@@ -6,7 +6,7 @@
 (`lib/referralLookup.ts` + a test). ⚠️ **Cross-app:** backbone + vendor ship together (P5
 approved this split). No `command/`, `affiliate/` or `booker/` code changes.
 **Status:** IN PROGRESS — approved 2026-11-15; stage 1 ✅ verified locally 2026-11-21 (M1–M7, T1
-105/105); stage 2 ✅ (E1, deno 42/42); stage 3 ✅ (V1; L1 parked);
+105/105); stage 2 ✅ (E1, deno 42/42); stage 3 ✅ (V1; L1 aborted, F23);
 stage 4 (staging) next — release: staging ⬜ · production ⬜
 
 > The database half of the affiliate feature: who can read what, the commission ledger, the
@@ -43,7 +43,8 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
 - **Stage 2 ✅ (2026-11-21):** E1 — the receipt template, registry entry, five types; `deno test`
   42/42 (F22). Uncommitted in `backbone/` (the user commits). Live local send not run (F22).
 - **Stage 3 ✅ (2026-11-21):** V1 done (vendor tests 609/609, lint and tsc clean; real
-  function checked by SQL). L1 ⏸ parked to plan 3 by the user (F23). V1 is **uncommitted** on
+  function checked by SQL). L1 ✖ aborted 2026-11-22 (option B: data through the apps, tested on
+  staging later; F23). V1 is **uncommitted** on
   vendor branch `release/version-0.62.1` (which also carries someone else's `AGENTS.md` edit):
   move it to a feature branch before committing.
 - **Next:** **stage 4 — staging release** (all 👤): first F18 step 2 on staging
@@ -350,9 +351,16 @@ Found while starting stage 3 (read of `backbone/supabase/seed.sql` and the SQL t
    the tax rate unclearable once set, so a seeded tax rate breaks T1 after every `db reset`.
 3. `payout_statements_test.sql:145` and `withholding_and_corrections_test.sql:129` delete
    ledger rows; a commission line on one would block that (`on delete restrict`).
-**Decision (the user, 2026-11-21):** park L1 to plan 3, which adds an opt-in `supabase/demo/`
-script for affiliate fixtures and leaves `seed.sql` and the tests untouched. D16's "(a) yes" is
-superseded by this. Plan 1 needs no seed fixtures: T1 builds its own.
+**Decision (the user, 2026-11-21):** park L1 to plan 3. **Revised 2026-11-22 (the user,
+option B):** no seed change and no demo script at all. Affiliate data comes from the apps: plan
+2's Command Settings sets the tax rate, and completing a referred booking writes real lines. No
+affiliate has used a referral yet; that end-to-end test happens later, preferably on staging.
+Options weighed: (A) an opt-in `supabase/demo/` script, which would still break T1 locally until
+a `db reset` (point 2 above); (C) the original L1, restructured, needing a T1 harness change.
+D16's "(a) yes" is superseded. Plan 1 needs no seed fixtures: T1 builds its own.
+**Consequence for local work:** no seeded user holds the `affiliate` portal, so the affiliate
+app cannot be signed into locally until a portal is granted (plan 2's Users-page chip, or by
+hand for a test).
 
 ## Open questions from the discovery log — answered
 
@@ -1137,7 +1145,7 @@ Same harness as `withholding_and_corrections_test.sql` (rolled-back transaction,
   whatever its status; a Command admin still reads all.
 **Verify:** `psql … -f supabase/tests/affiliate_data_layer_test.sql` exits 0 (machine, local).
 
-### L1 — Local seed: affiliate fixtures  ⏸ PARKED (2026-11-21, the user) — moved to plan 3. Why: F23. Unblocks when plan 3 needs a signed-in affiliate with lines; it adds an opt-in `supabase/demo/` script instead of changing `seed.sql`
+### L1 — Local seed: affiliate fixtures  ✖ ABORTED (2026-11-22, the user: option B) — no seed or demo-script fixtures. Why: F23. Affiliate data is created through the apps instead: the tax rate via plan 2's Command Settings, lines by completing referred bookings for real — tested on staging, by the user's preference
 `backbone/supabase/seed.sql`: grant `nina` the `affiliate` portal; set the local tax rate
 (12%, the preview's sample) and minimum (₱5.00) **before** the seed completes its bookings, so
 the referred vendor's completed bookings produce lines plans 2 and 3 can develop against.
