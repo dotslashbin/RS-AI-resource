@@ -50,6 +50,7 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
   functions plans 2 and 3 will call"), the Command preview (`.plans/previews/affiliate-command/`),
   the discovery log, and findings F4 (Command's stale "old links stop" warning), F15 (eight
   agent choices still for the user to confirm, notably (b) and (c)) and F22–F23.
+- **Plan 2 drafted (2026-11-23):** [`2026-11-23-affiliate-command.md`](2026-11-23-affiliate-command.md) — DRAFT, 18 open decisions; its F1/M1 finds M3's `details_enc ~ '^v1\.'` CHECK incompatible with Command's `v2` crypto.
 - **Staging test data to clean up (the user):** test vendors "Testing Affiliate INt", "Black
   Curve", "White Cup" and the account `puds@noise.com`; `TESTREF`'s holder now has code `TSTREF2`.
 - **Watch out for:**
@@ -362,6 +363,17 @@ D16's "(a) yes" is superseded. Plan 1 needs no seed fixtures: T1 builds its own.
 app cannot be signed into locally until a portal is granted (plan 2's Users-page chip, or by
 hand for a test).
 
+### F24 — M3's payout CHECK refuses Command's encryption format  ⚠️ found by plan 2, 2026-11-23
+`20261118000003_affiliate_payout_methods.sql:29` requires `details_enc ~ '^v1\.'`, but Command's
+`lib/payout/crypto.server.ts` writes row-bound `v2.` blobs and deliberately refuses `v1`. So no
+payout details can be saved, and therefore no withdrawal opened (Q46), on any environment where
+M3 is applied (local, staging). T1 passed because its fixture wrote the literal `'v1.AAAA…'`
+(`affiliate_data_layer_test.sql:452`). The draft (this plan's M3) copied the vendor table's old
+format note. **Fix:** plan 2's corrective migration ("plan 2 M1", `^v2\.`) and the one T1
+fixture line, decided as plan 2 D1. Consequence for this plan: S4 tested referrals only; payout
+details and withdrawals are first tested live in plan 2's staging stage. When production
+resumes, plan 2 M1 must reach production with or right after this plan's migrations.
+
 ## Open questions from the discovery log — answered
 
 | Discovery question | Answer |
@@ -410,7 +422,9 @@ Plain RLS reads (SELECT only, own rows for the affiliate, all rows for Command):
 `affiliates`, `affiliate_referral_codes`, `affiliate_referral_code_changes`,
 `affiliate_payout_methods`, `affiliate_commissions`, `affiliate_withdrawals`. Command only:
 `affiliate_commission_status_log`, `affiliate_payout_method_log`, `affiliate_payout_view_log`,
-`vendor_referral_changes`. The settings stay readable by every authenticated user, as today.
+`vendor_referral_changes`. The settings are readable by **Command admins only**
+(`20260726000001` narrowed that policy; corrected 2026-11-24, plan 2 F4): the affiliate reads the
+minimum through `affiliate_balance()`, a definer function, so nothing depends on a wider read.
 **Nothing an affiliate can read carries booker data**: lines snapshot booking date, amount and
 fee; they hold a `transaction_id` (an opaque id the affiliate cannot dereference) and never a
 `booking_id`, booker id, name or reference.

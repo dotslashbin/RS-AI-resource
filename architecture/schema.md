@@ -976,7 +976,7 @@ Single-row global **money policy**: the commission the platform takes from every
 
 **The withholding columns deliberately do NOT follow that rule** (`20260911000001`): they default to 1.00 / 50.00. The commission is a commercial choice a migration must not make; withholding is a tax obligation the business already has, and a zero default would make every "to transfer" figure on the Payouts page overstate what staff should send — while the backfill recorded zero withholding on existing rows.
 
-**RLS:** all authenticated users SELECT (the trigger reads it via SECURITY DEFINER, and both the Command settings UI and the vendor Transactions page surface the rate); only `admin`/`root` on the `command` portal UPDATE. No INSERT/DELETE for authenticated — the single row is seed-fixed, mirroring `notification_email_settings`.
+**RLS:** **Command admin/root SELECT only** since `20260726000001` narrowed the earlier "all authenticated" read (the ledger trigger and the affiliate functions read it as SECURITY DEFINER; affiliates see the minimum through `affiliate_balance()`); only `admin`/`root` on the `command` portal UPDATE. No INSERT/DELETE for authenticated — the single row is seed-fixed, mirroring `notification_email_settings`.
 
 > **Neither rule is applied live at read time.** Both are snapshotted onto each `booking_transactions` row when payment is confirmed. Editing them affects future payments only; a saved payout changes afterwards only through `correct_booking_transaction()`, which logs it — see `booking_transactions` and `booking_transaction_corrections`.
 
