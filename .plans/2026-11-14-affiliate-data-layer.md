@@ -7,7 +7,7 @@
 approved this split). No `command/`, `affiliate/` or `booker/` code changes.
 **Status:** IN PROGRESS — approved 2026-11-15; stage 1 ✅ verified locally 2026-11-21 (M1–M7, T1
 105/105); stage 2 ✅ (E1, deno 42/42); stage 3 ✅ (V1; L1 aborted, F23);
-stage 4 (staging) in progress — release: staging 🔄 (S1 ✅) · production ⬜
+stage 4 ✅ (staging, 2026-11-24) — release: staging ✅ · production ⏸ PARKED (2026-11-24: deferred until the affiliate app is deployed and tested on staging)
 
 > The database half of the affiliate feature: who can read what, the commission ledger, the
 > referral-code history, payout details and withdrawals, plus the settings that switch it all
@@ -29,29 +29,29 @@ Predecessors: `2026-09-17-affiliate-referral-codes-interim.md` (attribution, liv
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-21, end of stage 3)
+## ▶ RESUME HERE (updated 2026-11-24 — staging done, production parked, docs synced)
 
-- **Done so far:** planning and approval (2026-11-14/15). **Stage 1 ✅ (2026-11-21):** M1–M6
-  plus the corrective **M7** (`20261121000001_fix_referral_code_verdict.sql`, F19) applied locally
-  by the user; **T1 105/105 PASS**, `db lint` clean, the share plan's `public_offering_rpc_test.sql`
-  6/6 after M6 (its F15). T1 harness defects fixed along the way (F20). One cosmetic warning (F21).
-- **Live where:** local — M1–M7 applied · staging — none of this plan (at `20261117000001`) ·
-  production — none of this plan (at `20261117000001`).
-- **Files:** `backbone` branch `feature/affiliate_portal_groundwork` (rebased onto `develop`,
-  `54ffbf0`). M1–M6 and T1 are in commit `50bcdd9`; **M7 and the T1 fixes are uncommitted**
-  (the user commits).
-- **Stage 2 ✅ (2026-11-21):** E1 — the receipt template, registry entry, five types; `deno test`
-  42/42 (F22). Uncommitted in `backbone/` (the user commits). Live local send not run (F22).
-- **Stage 3 ✅ (2026-11-21):** V1 done (vendor tests 609/609, lint and tsc clean; real
-  function checked by SQL). L1 ✖ aborted 2026-11-22 (option B: data through the apps, tested on
-  staging later; F23). V1 is **uncommitted** on
-  vendor branch `release/version-0.62.1` (which also carries someone else's `AGENTS.md` edit):
-  move it to a feature branch before committing.
-- **Stage 4 in progress:** **S1 ✅ (2026-11-22)** — migrations on staging, verified read-only;
-  **S2 ✅ (2026-11-22)** — `send-notification-email` v19 on staging, checked read-only (see
-  Release → Staging). Production untouched.
-- **Next:** **S3** (👤) the vendor staging deploy of `feature/affiliate_work` (`6b3b9f0`, not yet
-  pushed; the user is preparing it). Then **S4** staging checks. ⛔ S3 only after S1 (done).
+- **Done so far:** planning and approval (2026-11-14/15). Stage 1 ✅ M1–M7 + T1 (105/105, `db lint`
+  clean; M7 fixed an M2 bug, F19). Stage 2 ✅ E1, the receipt email (`deno test` 42/42; local live
+  send ✅). Stage 3 ✅ V1, the vendor lookup (vendor tests 609/609); L1 ✖ aborted (option B, F23).
+  Stage 4 ✅ staging: S1 migrations, S2 email function v19, S3 vendor 0.63.0, S4 referral checks
+  green (current code, old code after a change, unknown code).
+- **Live where:** local — M1–M7 · staging — M1–M7, `send-notification-email` v19, vendor
+  `release/version-0.63.0` (`0d79d6d`) · production — **nothing of this plan** (parked).
+- **Committed:** backbone `50bcdd9`, `aa84316`, `f33ef15` on `feature/affiliate_portal_groundwork`;
+  vendor `6b3b9f0` (`feature/affiliate_work`) and the release commit `0d79d6d`; plans in the root
+  repo. Uncommitted: only this round's doc sync (root repo). Stray `backbone/deno.lock` (untracked;
+  delete).
+- **Production ⏸ PARKED (2026-11-24, the user):** P1–P5 wait until plans 2 (`command/`) and 3
+  (`affiliate/`) are built, deployed and tested on staging. When production resumes, run this
+  plan's P-table first (migrations → email function → vendor Promote), then plans 2 and 3's.
+- **Next:** write **plan 2 (`command/`)** in a fresh session, per
+  `.claude/skills/plan-authoring/SKILL.md`. Start from: this plan's function table ("The
+  functions plans 2 and 3 will call"), the Command preview (`.plans/previews/affiliate-command/`),
+  the discovery log, and findings F4 (Command's stale "old links stop" warning), F15 (eight
+  agent choices still for the user to confirm, notably (b) and (c)) and F22–F23.
+- **Staging test data to clean up (the user):** test vendors "Testing Affiliate INt", "Black
+  Curve", "White Cup" and the account `puds@noise.com`; `TESTREF`'s holder now has code `TSTREF2`.
 - **Watch out for:**
   - `booking_transactions.payout_status` is **not** a usable commission signal: it stays
     `released` when a released booking is later refunded or disputed (F1). Commission keys on
@@ -1368,8 +1368,8 @@ bookers can read active vendors" (M6); `bookings_sync_affiliate_commission` pres
 |---|---|---|---|
 | S1 | 👤 | `cd backbone && npx supabase migration list --remote` (CLI 3.2.0; was `--linked`) → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (⚠️ 3.2.0: plain `db push` targets **local**) | ⛔ only M1–M7 pending (M7 = F19 fix); after push all seven listed remote |
 | S2 | 👤 | `npx supabase functions deploy send-notification-email --remote --no-verify-jwt` (CLI 3.2.0; was linked = staging) | ✅ DONE (2026-11-22) — user deployed; checked read-only with `functions list --remote`: `send-notification-email` **version 19** (was 18), ACTIVE, `verify_jwt: false`, updated 2026-11-22 17:35 UTC, target `backbone-staging`. `send-push-notification` untouched (v8). Expected: v19, JWT off, staging only — all met. Not yet verified: an email sent through v19 on staging (no staging path creates a receipt yet; covered by S4) |
-| S3 | 👤 | Deploy `vendor` to staging (the user's usual Vercel staging deploy) | — |
-| S4 | 👤 + 🤖 | Staging checks (Verification → staging) | ⛔ all green |
+| S3 | 👤 | Deploy `vendor` to staging (the user's usual Vercel staging deploy) | ✅ DONE (2026-11-23) — user deployed. Deployed commit recorded by the user's pre-deploy check as `release/version-0.63.0` at `0d79d6d` (a version bump on top of `6b3b9f0`; the release branch's only other change is the version). The user's report, not checked in the Vercel dashboard by me |
+| S4 | 👤 + 🤖 | Staging checks (Verification → staging) | ✅ DONE (2026-11-24) — referral checks green. DB (read-only, `supabase db query --remote`): check 1 current code `TESTREF` → REF one (Vendor 'Testing Affiliate INt', pending_activation); check 2 after the user changed the code to `TSTREF2` in Command: a new vendor (Black Curve) credits REF one with `TESTREF` recorded, and the code-changed email sent; check 3 `NOPE2026`: vendor White Cup created, no referral row. Commission lines 0, withdrawals 0, referrals 4 at the end. Logs (Vercel, user): two `[vendor/register] referral code NOPE2026 did not resolve` warnings, expected; no `lookup failed`. Not done: the in-app Command screens for plan 2, and the affiliate app (plan 3). ⚠️ The test account `puds@noise.com` (White Cup) and the vendors above remain on staging; the user will clean up |
 
 ⛔ **Staging fully green before anything touches production.** A parked staging check needs a
 dated user decision here before P1.
@@ -1377,11 +1377,11 @@ dated user decision here before P1.
 ### Production (last stage)
 | # | Who | Step | Check |
 |---|---|---|---|
-| P1 | 👤 | Parity: `npx supabase migration list --remote=<prod-ref>` (the `# prod` ref in `backbone/.env`, never re-link) and `--remote` (staging) — CLI 3.2.0 | ⛔ production = staging minus M1–M7; function and vendor versions match what staging tested |
-| P2 | 👤 | `npx supabase db push --remote=<prod-ref> --dry-run` → `npx supabase db push --remote=<prod-ref>` (CLI 3.2.0) (outside a busy hour: M4's trigger DDL briefly queues booking writes) | ⛔ M1–M7 listed remote |
-| P3 | 👤 | `npx supabase functions deploy send-notification-email --project-ref <prod>` | ⛔ new version visible |
-| P4 | 👤 | Vercel **Promote** the exact `vendor` staging deployment tested in S4 | — |
-| P5 | 👤 + 🤖 | Production checks (Verification → production) | ⛔ all green |
+| P1 | 👤 | Parity: `npx supabase migration list --remote=<prod-ref>` (the `# prod` ref in `backbone/.env`, never re-link) and `--remote` (staging) — CLI 3.2.0 | ⛔ production = staging minus M1–M7; function and vendor versions match what staging tested ⏸ PARKED (2026-11-24, the user): production deferred until the affiliate app is deployed and tested on staging. Unblocks when plans 2 (Command) and 3 (affiliate app) are built and the user has tested them on staging. |
+| P2 | 👤 | `npx supabase db push --remote=<prod-ref> --dry-run` → `npx supabase db push --remote=<prod-ref>` (CLI 3.2.0) (outside a busy hour: M4's trigger DDL briefly queues booking writes) | ⛔ M1–M7 listed remote ⏸ PARKED (2026-11-24, the user): production deferred until the affiliate app is deployed and tested on staging. Unblocks when plans 2 (Command) and 3 (affiliate app) are built and the user has tested them on staging. |
+| P3 | 👤 | `npx supabase functions deploy send-notification-email --project-ref <prod>` | ⛔ new version visible ⏸ PARKED (2026-11-24, the user): production deferred until the affiliate app is deployed and tested on staging. Unblocks when plans 2 (Command) and 3 (affiliate app) are built and the user has tested them on staging. |
+| P4 | 👤 | Vercel **Promote** the exact `vendor` staging deployment tested in S4 | — ⏸ PARKED (2026-11-24, the user): production deferred until the affiliate app is deployed and tested on staging. Unblocks when plans 2 (Command) and 3 (affiliate app) are built and the user has tested them on staging. |
+| P5 | 👤 + 🤖 | Production checks (Verification → production) | ⛔ all green ⏸ PARKED (2026-11-24, the user): production deferred until the affiliate app is deployed and tested on staging. Unblocks when plans 2 (Command) and 3 (affiliate app) are built and the user has tested them on staging. |
 
 ---
 
@@ -1417,10 +1417,12 @@ on hosted projects (no affiliate can sign in until plan 2 grants the portal and 
 the app — T1 covers RLS locally with simulated claims).
 
 ## Docs
-**Docs:** to do at close — `architecture/schema.md` (five migration rows; new tables; the
-`platform_fee_settings` columns; trigger notes on `bookings` and
-`booking_transaction_corrections`; ER diagram), `architecture/auth-and-roles.md` (portal 4,
-affiliates' own-row reads, the function table, update "Affiliates — a capability"),
-`architecture/email-notifications-guide.md` (five types, the receipt template),
-`architecture/overview.md` / `portals.md` (affiliate portal now has a data layer),
-`backbone/supabase/functions/send-notification-email/README.md`.
+**Docs:** synced 2026-11-24 for what is live on staging (the plan is not closed: production is
+parked) — `architecture/schema.md` (seven migration rows, `portals`, `platform_fee_settings`,
+`affiliates`, `vendor_referrals`, notification types, ER diagram, and an "Affiliate ledger,
+codes and payouts" section), `architecture/auth-and-roles.md` (portal 4, the narrowed vendor
+browsing policy, "The affiliate portal and its data layer"), `architecture/email-notifications-guide.md`
+(the receipt template and the four generic types), `architecture/overview.md` (affiliate portal
+status), `architecture/portals.md` (old codes resolve; Command's stale warning),
+`backbone/supabase/functions/send-notification-email/README.md` (template line). At close: mark
+the production rows in `schema.md` as applied.

@@ -36,7 +36,7 @@ for the tab-bar layout and below 640px for the phone layout (tables become cards
 | Withdraw · processing | Ezzy has started: step two is current and **Cancel is gone**. |
 | Withdraw · no payout details | Minimum reached but no destination on file (Q46): a warning, Withdraw disabled with the reason, and how to set the destination. |
 | Settings · change code | The current code and share link, a "Change your code" form with **live checks** (try `nina2026`, `my admin`, `abc`, `rina01`), the reassurance that old links keep working, and the code history (Q16). |
-| Settings · reserved word | `ezzy-rina` refused because it contains EZZY; Save disabled with a reason. |
+| Settings · reserved word | `ezzy-rina` refused because it contains EZZY; Save disabled with a reason. ✖ **Dropped 2026-11-15** (discovery P7: no blocked or reserved words; any well-formed code is accepted). Not to be built in plan 3. |
 | Settings · saved | After saving RINADP: confirmation, next change from 4 Dec 2026, old codes marked **Still works**. |
 
 **No booker data anywhere** (Q12). **No sign-up** in the shell (Q10, invite only).

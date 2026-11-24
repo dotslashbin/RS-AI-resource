@@ -338,6 +338,7 @@ Portals are rows in the `portals` table (seeded, not user-editable):
 | 1 | `vendor` | Ezzy Vendor (`./vendor`) |
 | 2 | `booker` | Ezzy Booker (`./booker`) |
 | 3 | `command` | Ezzy Command (`./command`) |
+| 4 | `affiliate` | Ezzy Affiliate (`./affiliate`) — row added by `20261118000001`; app in setup, no one granted yet |
 
 Access to a portal is determined by the presence of a `user_portals` row for `(user_id, portal_id)`. A user can have access to multiple portals — their `profiles` row is shared across all of them.
 
@@ -419,9 +420,11 @@ rows**, so every portal gate refuses them by the ordinary rule in this document
 - ⚠️ **Accepted residual risk.** Such a user can still use *Forgot Password* on any
   portal, set a password and obtain a valid Supabase session; each portal then signs
   them out at the gate. With the raw JWT, RLS lets an active user with no portals read
-  only public catalogue data — **active vendors** (`20260515000001`, gated on
-  `is_active()` alone), the lookup tables and `divisions`. Judged acceptable; the
-  stronger alternative (a GoTrue ban) was declined as affiliate-specific machinery.
+  only public catalogue data — the lookup tables, `divisions`, and active offerings,
+  schedules and staff. Judged acceptable; the stronger alternative (a GoTrue ban) was
+  declined as affiliate-specific machinery. ✅ **Narrowed 2026-11-18 (`20261118000006`):**
+  active **vendors** — whose rows carry phone and email — now need the `booker` portal, so
+  affiliates see no vendor contact details (affiliate Q12).
 - **Suspending the user is the off switch.** A referral is credited only when the
   affiliate's profile is `active` (`vendor/lib/referralLookup.ts`), so suspension stops
   new attributions while leaving past ones intact.
@@ -439,6 +442,30 @@ rows**, so every portal gate refuses them by the ordinary rule in this document
   FK, is now the guard against careless deletion.
 
 ---
+
+### The affiliate portal and its data layer (2026-11-18)
+
+Plan of record: `.plans/2026-11-14-affiliate-data-layer.md` (migrations `20261118000001`–`06`,
+`20261121000001`; local and staging, production parked). Discovery decisions:
+`.plans/2026-11-02-affiliate-dashboard-discovery.md`.
+
+- **Signing in:** the `affiliate` portal row (4) exists. An affiliate needs an active profile
+  **and** that portal; still no role. Command will grant it (plan 2); none is granted yet.
+- **What an affiliate reads (RLS, own rows only, active + `affiliate` portal):** their
+  `affiliates` row, code history, payout destination (masked `display`; the ciphertext is
+  unreadable without the server key, as for vendors), commission lines and withdrawals.
+  Vendors only through `affiliate_my_vendors()`: name, status, signup and activation dates,
+  never contact details. **Nothing an affiliate can read carries booker data.**
+- **Writes are definer functions only.** Affiliate callers: `check_my_referral_code`,
+  `change_my_referral_code` (once per 30 days), `affiliate_request_withdrawal`,
+  `affiliate_cancel_withdrawal`; reads `affiliate_balance`, `affiliate_my_vendors`,
+  `affiliate_my_upcoming`. Command callers (admin/root, active): terms, code changes, payout
+  details, the withdrawal lifecycle, payroll, manual adjustments, referrer changes.
+- **No one acts on their own affiliate account in Command** (Q8). One helper,
+  `affiliate_assert_command_actor()`, refuses it in every Command function, and a trigger on
+  `booking_transaction_corrections` refuses a fee correction by the transaction's own referrer.
+- **The vendor app's lookup** calls `resolve_referral_code()`, executable by `service_role`
+  only, so old codes keep crediting their holder.
 
 ## RLS Helper Functions
 
@@ -642,6 +669,9 @@ using (true)
 -- (no vendor membership required — this is public catalogue data)
 using (public.is_active() and <record>.is_active = true)
 ```
+⚠️ **`vendors` also requires the booker portal** since `20261118000006` (policy "active bookers
+can read active vendors": `is_active() and is_portal_member('booker')` and an active status),
+because vendor rows carry contact details. The other catalogue tables still use the pattern above.
 
 ### Public shared-offering read (`get_public_offering`, 2026-11-19)
 The **only** data a signed-out visitor can read: one offering, opened from a shared link

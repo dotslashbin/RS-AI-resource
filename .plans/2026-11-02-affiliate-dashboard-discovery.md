@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-02 (discovery started 2026-10-30)
 **App / scope:** Discovery only — no code, no migration, no implementation plan. Future scope spans `backbone/` (portal row, read access, commission ledger, code history, withdrawals, settings, email function), `command/` (Affiliates section, withdrawals queue, payout details, settings), the **`affiliate/` app** (the screens) and one change in `vendor/` (the referral-code lookup).
-**Status:** IN PROGRESS — discovery closed 2026-11-14 (Q1–Q50, P5, P6); both previews approved. Next: implementation plan 1 (data layer), then 2 (Command), then 3 (affiliate app).
+**Status:** IN PROGRESS — discovery closed 2026-11-14 (Q1–Q50, P5–P7); both previews approved. Plan 1 (data layer) is on staging, production parked (2026-11-24). Next: plan 2 (Command), then 3 (affiliate app).
 
 > A record of the facts established, the decisions the user has made and the questions
 > still open for the affiliate dashboard. This is **not** an implementation plan: it has no
@@ -15,7 +15,7 @@
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-13, after round 7)
+## ▶ RESUME HERE (updated 2026-11-24)
 
 - **Where we are:** all seven discovery rounds are answered (Q1–Q50). **No open questions.**
   The app-setup plan is COMPLETE (2026-11-03); `affiliate/` exists, committed and pushed.
@@ -43,13 +43,16 @@
   stand-in, not the real Command shell).
 - **Affiliate preview:** ✅ **revised version approved by the user 2026-11-14** (rate, after-tax
   column, line references, withdrawals).
-- **Discovery is closed.** Open for **plan 2 (Command)** only, user decisions: what staff see
-  when "Start processing" drops a line, and rejecting after processing started (Command
-  preview F2, F4). They do not block plan 1.
-- **Next:** write **plan 1 (data layer)** in a new session, per
-  `.claude/skills/plan-authoring/SKILL.md`. ✅ Drafted 2026-11-14:
-  [`2026-11-14-affiliate-data-layer.md`](2026-11-14-affiliate-data-layer.md) (DRAFT, D1–D16
-  open). It also asks command F2–F4 (its D5–D7), because plan 1 defines those functions.
+- **Discovery is closed.** The two items once left open for plan 2 (Command preview F2, F4) were
+  decided in plan 1 (D5, D6, 2026-11-15).
+- **Plan 1 (data layer):** [`2026-11-14-affiliate-data-layer.md`](2026-11-14-affiliate-data-layer.md)
+  — built, verified locally and **released to staging 2026-11-24**; production parked until plans
+  2 and 3 are tested on staging. It settled command F2–F4 as its D5–D7 (refuse below the minimum
+  at processing; reject after processing only as "transfer failed"; waive the minimum only on
+  account closure), so they are **no longer open for plan 2**. Later decisions: P7 (no blocked
+  words) and option B for local fixtures (its F23).
+- **Next:** write **plan 2 (`command/`)** in a new session, per
+  `.claude/skills/plan-authoring/SKILL.md`, starting from plan 1's RESUME HERE and function table.
 - **Method used here:** `.claude/skills/grilling/SKILL.md`: rounds of numbered questions,
   each with a recommended answer; facts are looked up, decisions are the user's.
 

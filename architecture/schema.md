@@ -98,6 +98,13 @@ All schema lives in `./backbone/supabase/migrations/`. Migrations are applied in
 | `20261004000002_unbookable_offerings.sql` | `get_unbookable_offerings()` → `uuid[]` of active offerings with no schedule that still has a future occurrence (booker's Explore marks them). ⚠️ **`security invoker`, not definer** — both tables it reads are already visible to the caller, so definer rights would add privilege it has no use for. ⚠️ **Returns one array, not a set**: a single-column `returns table` collapses back to a scalar set, and the two render differently over PostgREST, so a client written for the wrong shape marks nothing silently. Errs toward "bookable" — a false *unbookable* would hide a real offering |
 | `20261111000001_booker_insert_settlement.sql` | **Insert-time guard on `bookings` for signed-in callers** (`bookings_settle_on_insert`, BEFORE INSERT): `is_paid` is derived (true only when the trigger-derived `price_paid` is 0), `payment_reference` is cleared, `status` is forced to `pending` and `booked_via` to `booker`, whatever the client sent. Closes a hole where the INSERT policy had no column guard, so a booker could POST a priced booking already paid/confirmed (reproduced 2026-11-11). Settling a free booking **at insert** writes no ₱0 ledger row, the same as the kiosk. System actors (no JWT: kiosk route, seed, cron) are untouched. Also replaces `booker_cancel_booking()`: "paid" now means paid **and** priced, so a booker can cancel a settled free booking. Plan `.plans/2026-11-11-booker-free-offerings.md` |
 | `20261117000001_public_offering_rpc.sql` | **One public read for shared offering links: `get_public_offering(uuid) → jsonb`**, `SECURITY DEFINER`, `stable`, `search_path = public`, callable by `anon`. Returns the agreed public fields of ONE active offering of an `active` vendor (offering name, category, description, price, duration; division; vendor name, city, province; active photo paths) and `NULL` for every unavailable case alike. No table, column, policy or table grant changes; `anon` still cannot read any table. Grants: revoke from `public, anon, authenticated`, then execute to `anon, authenticated, service_role`. ⚠️ **The version is deliberately earlier than its write date (2026-11-19)** so it sorts before the unapplied affiliate set `20261118000001`–`06`, which ships after it. Test: `supabase/tests/public_offering_rpc_test.sql`. Rollback: `drop function public.get_public_offering(uuid);`. ✅ Applied to local (2026-11-19), staging (user-confirmed 2026-11-20) and production (user-confirmed 2026-11-21). Plan `.plans/2026-11-19-offering-share-links.md` B1. See `auth-and-roles.md` → "Public shared-offering read" |
+| `20261118000001_affiliate_portal_and_settings.sql` | **Affiliate data layer, part 1** (plan `.plans/2026-11-14-affiliate-data-layer.md` M1). The `affiliate` portal row (4) and its `notification_email_settings` row (no push row: a missing push row means push off); four `platform_fee_settings` columns (`affiliate_tax_percent`, `affiliate_default_rate_percent` default 1.00, `affiliate_min_withdrawal`, `affiliate_commission_live_from`) with a trigger that **stamps go-live the first time the tax rate is set and never lets it change**, and a CHECK that the tax rate cannot be cleared afterwards; `affiliates.commission_rate_percent` (NULL = default) and `affiliates.is_staff`; affiliates read their own row; `set_affiliate_terms()`. ✅ Local and staging (2026-11-22); ⏸ production parked |
+| `20261118000002_affiliate_referral_codes.sql` | M2. `affiliate_referral_codes` (every code ever held, reserved to its holder forever; backfilled) and `affiliate_referral_code_changes` (append-only history), both append-only for `service_role` too; one guard trigger on `affiliates.referral_code` for **every** write path (format, reserved-to-someone-else → `23505`, history row, "code changed" notification); `resolve_referral_code()` (**service role only** — the vendor register route) and the check / change functions. No blocked-word list (the user's decision P7, 2026-11-15). ✅ Local and staging; ⏸ production |
+| `20261118000003_affiliate_payout_methods.sql` | M3. `affiliate_payout_methods` (app-encrypted, masked `display`, mirrors `vendor_payout_methods`) + `affiliate_payout_method_log` + `affiliate_payout_view_log`. Written only through `set_affiliate_payout_method()`, called with the Command admin's own session; refuses the admin's own account. ✅ Local and staging; ⏸ production |
+| `20261118000004_affiliate_commissions_and_withdrawals.sql` | M4, the ledger. `affiliate_commissions` (one earned line per paid booking, ± adjustment lines per fee correction, manual lines), `affiliate_commission_status_log`, `affiliate_withdrawals`; the AFTER trigger **`bookings_sync_affiliate_commission`** on `bookings` status changes; two triggers on `booking_transaction_corrections` (Q8 guard and the adjustment line); the balance / vendors / upcoming read functions and the withdrawal functions; four withdrawal notification types. **Writes nothing while the tax rate is unset.** ✅ Local and staging; ⏸ production |
+| `20261118000005_vendor_referral_changes.sql` | M5. `vendor_referral_changes` (append-only) + `change_vendor_referrer()` (forward-only) and `credit_vendor_referral()` (within 30 days of signup), Command only, reason required, never on the caller's own account. ✅ Local and staging; ⏸ production |
+| `20261118000006_vendor_read_requires_booker_portal.sql` | M6. Replaces "active users can read active vendors" (`20260515000001`) with **"active bookers can read active vendors"**: the booker portal is now required, so affiliates and other portal-less users no longer read vendor contact details through the raw API. Vendor members and Command keep their own policies. ✅ Local and staging; ⏸ production |
+| `20261121000001_fix_referral_code_verdict.sql` | M7, corrective for M2 (plan F19): `referral_code_verdict()` declared `v_held uuid` for a text code, so every code check past "taken" raised. Body otherwise identical. Found by `db lint` and the plan's T1 on the first local apply. ✅ Local and staging; ⏸ production |
 | `20260819000001_legal_acceptances.sql` | `legal_acceptances` — append-only proof that a user agreed to Ezzy's policies at signup. One row **per document**, not per signup |
 | `20260819000002_legal_acceptances_service_role_grant.sql` | Corrective: grants `service_role` SELECT + INSERT on `legal_acceptances`. `20260819000001` wrongly assumed the `on all tables` grant in `20260620000001` covers new tables — it does not, and **every signup would have failed** at the consent insert. Second occurrence of this gap after `20260816000002` |
 | `20260821000001_account_deletion_requests.sql` | `account_deletion_requests` — vendor-initiated account closure. Actor FKs are **nullable + `set null` with email/name snapshots** (same call as `legal_acceptances`): the row must survive the deletion it records. `authenticated` gets SELECT only — creation snapshots an email and computes eligibility server-side, and execution is destructive, so both are service-role routes. Grants `service_role` **explicitly**, the gap that produced `20260816000002` and `20260819000002` |
@@ -151,6 +158,11 @@ auth.users
 
   vendors ──► vendor_status_log (status-change audit trail)
   profiles ──► affiliates (0..1 per user; the referral code) ──► vendor_referrals ◄── vendors
+                 │  affiliate_referral_codes (every code ever held) + _changes (history)
+                 │  affiliate_payout_methods (+ _log, _view_log)
+                 └► affiliate_commissions ◄── booking_transactions (one earned line per paid
+                       │                       booking; ± lines per correction)
+                       └► affiliate_withdrawals  (+ affiliate_commission_status_log)
                 (affiliate is a capability, not a role)          (0..1 per vendor)
   vendors ──► vendor_kyc (1:1 header) ──► vendor_kyc_documents
                   (kyc_type + review state)   (label + storage_path)
@@ -174,12 +186,12 @@ Used by: `profiles.status_id`, `vendors.status_id`
 ---
 
 ### `portals`
-Lookup of the three application portals. Seeded once; not user-editable.
+Lookup of the application portals. Seeded by migration; not user-editable.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `smallint` | PK, identity |
-| `name` | `text` | `vendor` (1), `booker` (2), `command` (3) |
+| `name` | `text` | `vendor` (1), `booker` (2), `command` (3), `affiliate` (4, since `20261118000001`) |
 
 ---
 
@@ -953,6 +965,10 @@ Single-row global **money policy**: the commission the platform takes from every
 | `fee_percent` | `numeric(5,2)` | NOT NULL, default `0`, `check (>= 0 and <= 100)`. Percentage deducted from each payment |
 | `withholding_rate_percent` | `numeric(5,2)` | NOT NULL, default `1.00`, `check (0–100)`. Withholding = payout × rate% × base% |
 | `withholding_base_percent` | `numeric(5,2)` | NOT NULL, default `50.00`, `check (0–100)`. The portion of the payout the rate applies to; `50` is "of one half". Saved as a pair with the rate — half a rule snapshotted onto payments is a rule nobody chose |
+| `affiliate_tax_percent` | `numeric(5,2)` | Nullable, `0 ≤ x < 100` (`20261118000001`). The tax taken off Ezzy's fee before affiliate commission. **Starts NULL: no commission is calculated until it is set** (affiliate Q34, Q41) |
+| `affiliate_default_rate_percent` | `numeric(5,2)` | NOT NULL, default `1.00`. The affiliate rate when `affiliates.commission_rate_percent` is NULL (Q35) |
+| `affiliate_min_withdrawal` | `numeric(10,2)` | Nullable, `> 0`. **Withdrawals are off while NULL** (Q45) |
+| `affiliate_commission_live_from` | `timestamptz` | Stamped by the `platform_fee_settings_stamp_affiliate_live_from` trigger the first time the tax rate is set; never changes afterwards, and a CHECK refuses clearing the tax rate once it is stamped. Commission counts only bookings first completed at or after it (Q36) |
 | `updated_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The Command admin who last changed the rate. Written by the app layer — `set_updated_at()` only maintains `updated_at` |
 | `updated_at` | `timestamptz` | Default `now()`; maintained by the `set_updated_at()` trigger |
 
@@ -1094,6 +1110,11 @@ Platform-wide on/off controls per notification type. Seeded in migration; manage
 | `account_deletion_completed` | vendor | A closure has been executed. **Written before the account is deleted** — see `account_deletion_requests` |
 | `account_deletion_rejected` | vendor | Command cannot action a closure request |
 | `account_deletion_pending_review` | command | A vendor requests account closure |
+| `affiliate_referral_code_changed` | affiliate | An affiliate's referral code changed (not on import). Generic template (`20261118000002`) |
+| `affiliate_withdrawal_requested` | command | An affiliate (or Command on their behalf) opened a withdrawal; one row per active admin/root (`20261118000004`) |
+| `affiliate_withdrawal_received` | affiliate | The affiliate's withdrawal request was received |
+| `affiliate_withdrawal_completed` | affiliate | Ezzy sent the withdrawal. **Bespoke receipt template** listing its lines |
+| `affiliate_withdrawal_rejected` | affiliate | Command rejected the withdrawal, with the reason |
 
 **RLS:** All authenticated users can SELECT (needed by triggers and the app layer's `is_enabled` check). Only `admin` / `root` roles can UPDATE. No app-layer INSERT or DELETE.
 
@@ -1380,10 +1401,20 @@ are untouched by having a row here. See `auth-and-roles.md` → *Affiliates*.
 | `user_id` | `uuid` | PK, FK → `profiles` ON DELETE CASCADE. One code per user, at most |
 | `referral_code` | `text NOT NULL UNIQUE` | `CHECK (~ '^[A-Z0-9]{4,32}$')`. Typed by a Command admin, always stored upper-cased — which is what makes the unique index effectively case-insensitive |
 | `created_by` | `uuid` | FK → `profiles` ON DELETE SET NULL. The admin who created it. No index — accepted, the table is tiny |
+| `commission_rate_percent` | `numeric(5,2)` | Nullable, `0–100` (`20261118000001`). Per-affiliate override; NULL = `platform_fee_settings.affiliate_default_rate_percent` |
+| `is_staff` | `boolean` | NOT NULL, default `false`. Staff affiliates are paid through payroll and cannot request withdrawals (Q48) |
 | `created_at` / `updated_at` | `timestamptz` | `set_updated_at()` trigger |
 
-**RLS:** Command admin/root SELECT. **Grants:** `authenticated` SELECT only; `service_role`
-full DML; `anon` nothing. Writes go through Command's `/api/users` and `/api/affiliates`.
+**RLS:** Command admin/root SELECT; since `20261118000001` an affiliate also reads **their own
+row** (active profile + `affiliate` portal). **Grants:** `authenticated` SELECT only; `service_role`
+full DML; `anon` nothing. Writes go through Command's `/api/users` and `/api/affiliates`, and
+the terms columns through `set_affiliate_terms()`.
+
+**Every write to `referral_code` passes one guard** (`affiliates_referral_code_guard` /
+`affiliates_referral_code_record`, `20261118000002`), whatever the path: a code reserved to
+someone else in `affiliate_referral_codes` raises `23505`; each change writes a history row and,
+except for imports, a "code changed" notification. Old codes stay reserved to their holder and
+keep crediting them (affiliate Q16a).
 
 > ⚠️ **Two FKs to `profiles`** (`user_id`, `created_by`) make any bare embed between the
 > two tables **ambiguous** — PostgREST refuses the entire request with `PGRST201`, not
@@ -1403,9 +1434,12 @@ vendor; a vendor with no referral simply has no row.
 | `referral_code` | `text NOT NULL` | The code as used at signup, **snapshotted**. The only surviving attribution once `affiliate_user_id` is nulled, and what keeps history true if an affiliate's code is later changed |
 | `created_at` | `timestamptz` | Time of attribution. For "when did they sign up", use `vendors.created_at` |
 
-**RLS:** Command admin/root SELECT. **Grants:** as `affiliates`. Written **only** by the
-vendor app's `POST /api/auth/register`, inside the same rollback-safe request that creates
-the vendor, and only when the `?ref=` code resolves to an **active** affiliate.
+**RLS:** Command admin/root SELECT. **Grants:** as `affiliates`. Written by the vendor app's
+`POST /api/auth/register`, inside the same rollback-safe request that creates the vendor, and
+only when `resolve_referral_code()` returns an **active** affiliate. Since `20261118000002` that
+includes an affiliate's **old** codes: the snapshot keeps the code as used. Since
+`20261118000005` Command also writes here through `change_vendor_referrer()` and
+`credit_vendor_referral()`, each logged in `vendor_referral_changes`.
 
 **Why it is not a column on `vendors`.** The `vendors` UPDATE policy lets a vendor-admin
 update their whole row, so a referral column there would be editable — and erasable — by
@@ -1451,6 +1485,37 @@ order by affiliate_name, v.created_at;
 
 A closed vendor still appears (closure scrubs the vendor row but keeps its name) with
 blank vendor-user columns, because closure deletes its memberships.
+
+---
+
+### Affiliate ledger, codes and payouts (`20261118000002`–`20261118000005`)
+
+Plan of record: `.plans/2026-11-14-affiliate-data-layer.md` — its function table lists every
+callable function with its caller, and its findings explain the non-obvious choices. Summary:
+
+| Table | What it holds | Writes | Reads |
+|---|---|---|---|
+| `affiliate_referral_codes` | Every code ever held, PK on the code; `user_id` → `profiles` SET NULL (a NULL owner still blocks reuse) | the `affiliates` guard trigger and the backfill only; append-only | the affiliate (own), Command |
+| `affiliate_referral_code_changes` | Each change: from, to, source (`backfill` / `command` / `affiliate` / `import`), actor | the guard trigger only; append-only | the affiliate (own), Command |
+| `affiliate_payout_methods` | One destination per affiliate: `details_enc` (app-encrypted with `PAYOUT_ENCRYPTION_KEY`), masked `display` | `set_affiliate_payout_method()` only | the affiliate (own), Command |
+| `affiliate_payout_method_log` / `affiliate_payout_view_log` | Masked change history incl. how identity was confirmed / who decrypted | the function above / Command's decrypt route (service role insert) | Command |
+| `affiliate_commissions` | Lines: `earned` (one per paid booking, UNIQUE on the transaction), `adjustment` (UNIQUE per correction), `manual`. Money and rate snapshotted; status `earned` → `held` / `in_withdrawal` → `withdrawn` / `cancelled` / `written_off`. "Available" = `earned` and `available_at` (7 days after completion) passed | definer functions and triggers only; a pin trigger refuses changing any money column | the affiliate (own), Command |
+| `affiliate_commission_status_log` | Every status change, linked to the `booking_status_log` row that caused it | definer functions only; append-only | Command |
+| `affiliate_withdrawals` | Requests: `requested` → `processing` → `completed`, or `cancelled` / `rejected` (`transfer_failed` when rejected after processing); one open per affiliate | definer functions only | the affiliate (own), Command |
+| `vendor_referral_changes` | Command's referrer changes and late credits, with reason | the two M5 functions only; append-only | Command |
+
+**What drives the ledger.** `bookings_sync_affiliate_commission` (AFTER UPDATE OF `status` on
+`bookings`; sorts after `bookings_log_status_change` so it can link to that row) writes an earned
+line on a booking's **first** completion when the tax rate is set, go-live has passed, the vendor
+has an active referrer, and that referrer is not a member of the vendor. It **does not** read
+`booking_transactions.payout_status`, which never leaves `released` on a later refund. Disputes
+hold lines, refunds cancel them, and a refund after withdrawal writes the line off. Fee
+corrections add a ± line through a trigger on `booking_transaction_corrections`, which also
+refuses a correction made by the transaction's own referrer.
+
+**Grants.** None of these tables has a write grant for any API role; the append-only ones also
+`revoke all … from service_role` before granting SELECT (the `20260911000003` lesson). No
+affiliate-readable table carries a booking id or anything about the booker.
 
 ---
 

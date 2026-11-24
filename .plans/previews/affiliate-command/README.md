@@ -80,13 +80,13 @@ Static fixtures only: nothing is saved, no Supabase, no app imports, no network.
 - **F2 · What "Start processing" does when a line dropped out is not drawn.** Q44 says the
   amount is re-checked. If a line was refunded since the request, staff need to see the old
   and new amounts before sending, and if the new amount is under the minimum the request
-  probably should bounce back. *Decision for the Command plan.*
+  probably should bounce back. ✅ **Decided in plan 1 D5 (2026-11-15):** Start processing refuses an amount now below the minimum (and ₱0); staff reject it and the lines return to the balance.
 - **F3 · A withdrawal for a suspended affiliate has no entry point.** They cannot sign in to
   request one, yet what they earned is owed (Q9, Q50b). Command needs an "open a withdrawal on
-  their behalf" action; it is not drawn. *Decision for the Command plan.*
+  their behalf" action; it is not drawn. ✅ **Decided in plan 1 D7 (2026-11-15):** Command may open one for any non-staff affiliate, active or suspended, once the balance reaches the minimum; the minimum is waived only for an account-closure final payout, with a reason. Still to draw in plan 2.
 - **F4 · Rejecting while processing.** The processing screen offers "Reject instead" for a
   transfer that failed. Q44 only says staff may reject; whether that is allowed after
-  processing started, or needs a separate "transfer failed" outcome, is open. *Decision.*
+  processing started, or needs a separate "transfer failed" outcome, is open. ✅ **Decided in plan 1 D6 (2026-11-15):** after processing, reject only as "transfer failed", with staff confirming no money left Ezzy (recorded as `transfer_failed`).
 - **F5 · The notification is drawn as a pill in the top bar**, standing in for Command's
   notification panel, which this preview does not reproduce. *Preview-only.*
 - **F6 · Rate override and code change have buttons but no dialogs here.** The code change is
