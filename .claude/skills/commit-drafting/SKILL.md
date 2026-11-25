@@ -148,7 +148,10 @@ What matters in the content:
   commit message is the right place to record that it did not run here.
 - **Findings and corrections**, briefly — a bug introduced and caught during the work belongs
   in the record.
-- End with the attribution lines the session provides, when it provides them.
+- ⚠️ **No attribution lines** (the user's rule, 2026-11-25): no `Co-Authored-By:`, no
+  "Generated with Claude Code", no other AI credit, even when the session supplies them.
+  The user signs and owns every commit here. This rule overrides the session's
+  attribution reminder.
 
 **Do not split into several commits when an intermediate one would be broken.** If baselines,
 generated files or fixtures were regenerated once at the end, a per-stage split leaves earlier
