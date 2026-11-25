@@ -3,9 +3,9 @@
 **Date:** 2026-11-23
 **App / scope:** `command/` (new Affiliates section, Settings card, Users-page changes, two
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
-fixture line in `backbone/`** if D1 is approved as recommended. ⚠️ **Cross-app** only through
+fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** DRAFT — 19 open decisions (D1–D19); not approved — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 not started — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,34 +29,44 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-23, plan written — nothing built)
+## ▶ RESUME HERE (updated 2026-11-25, plan approved — nothing built)
 
-- **Done so far:** investigation and this draft (2026-11-23). No code, no migration file, no
-  app change. Plan 1's real SQL was read (M1–M7), not its plan text.
+- **Done so far:** investigation and draft (2026-11-23); second review F21–F23 (2026-11-24);
+  **all decisions D1–D20 resolved with the user (2026-11-24)**; R1 ✅ (local + staging: CHECK is
+  `^v1\.`, 0 rows); R2 ✅ everywhere (local/staging `20261121000001`, production `20261117000001`, 2026-11-25). No code, no migration
+  file, no app change.
 - **Live where:** local — nothing of this plan · staging — nothing of this plan (plan 1 M1–M7
-  are there) · production — nothing (plan 1 is parked there too).
-- **Next:** flow step 2–5 with the user: put **D1–D18** to them (each has a recommendation),
-  then the user runs **R1–R2** (read-only), then approval (flow step 7). Execution then starts
-  at **stage 1** (Execution order): foundations — B8 (types, services, error map), B7's portal
-  type, and, if D1 = (a), M1 written and applied locally by the user.
+  are there) · production — nothing (plan 1 parked there too).
+- **Approved:** ✅ by the user, 2026-11-25 (flow step 7).
+- **Next:** **stage 1** (Execution order): B8 (interfaces, service skeletons,
+  `lib/affiliateErrors.ts`), the `Portal` type change (B7 part), and M1: 🤖 write
+  `20261123000001_affiliate_payout_details_v2.sql` exactly as drafted + the T1 fixture line
+  (`affiliate_data_layer_test.sql:452`, `v1.` → `v2.`); 👤 apply locally; 🤖 re-run T1 + `db lint`.
+  One stage, then stop and report.
+- **Decisions that shape the build (read them in DECISIONS):** D1 exact `^v2\.`; D2 per-row
+  balance calls; D3 import as a Command screen; D6 portal ⇔ affiliates row; D15 route refuses
+  self; **D19 closure blocked while owed money** (net > 0 or an open withdrawal; a new
+  `affiliate_balance` closure blocker in Command only, D20); D18 tax rate set on staging in S4.
 - **Watch out for:**
-  - **B1 is a real blocker found here, not in plan 1:** plan 1's
-    `affiliate_payout_methods.details_enc` CHECK demands a `v1.` prefix, but Command's crypto
-    module writes `v2.` (row-bound) and refuses to decrypt `v1` by design. No payout details —
-    and therefore no withdrawal (payout details are required, Q46) — can be saved until D1 is
-    settled.
-  - **Setting the tax rate is one-way** (plan 1 D1). Setting it on the **local** DB also breaks
-    plan 1's T1 test (`affiliate_data_layer_test.sql:230` asserts it starts unset) until the next
-    `db reset` (plan 1 F23). On staging it stamps go-live permanently; on production it is the
-    go-live switch itself and is **not** part of this plan's release (D16).
+  - **Tax wording (D18):** Q27 excludes **withholding**; the after-tax **rate** (Q34) stays and
+    is the go-live switch. Don't add a withholding line, and don't drop the rate.
+  - **Setting the tax rate is one-way** (plan 1 D1). Locally it also breaks plan 1's T1
+    (`affiliate_data_layer_test.sql:230`) until the next `db reset` (plan 1 F23). On staging it
+    is done deliberately in S4 (D18); on production it is the go-live switch and is **not** a
+    release step (D16).
+  - **Closure blocker (B2, D19):** compute it with the route's service-role client by summing
+    lines — `affiliate_balance` refuses a service-role caller (`20261118000001:128-130`). Net ≤ 0
+    does not block (Q4-neg writes it off).
   - The Platform Fee page reads one row; once B3 adds the affiliate columns to its select, a
-    Command build on a database **without** plan 1's M1 cannot load the page at all (F18).
-    Plan 1's production P-table must run before this plan's production Promote.
+    Command build on a database **without** plan 1's M1 cannot load the page (F18). Plan 1's
+    production P-table runs before this plan's production Promote.
   - `affiliate_withdrawals` has **five** FKs to `profiles` and `affiliate_referral_code_changes`
-    two: every `profiles(...)` embed on them must name its FK, or PostgREST refuses the whole
-    query (PGRST201, the K1 trap; F7).
-  - The user applies every migration (memory: user runs migrations). No agent database writes
-    anywhere; staging and production steps are 👤.
+    two: every `profiles(...)` embed must name its FK (PGRST201, F7).
+  - B4's nav entry changes the committed `pilot` sidebar baselines (F22): regenerate only those,
+    deliberately.
+  - `npx supabase` fetched CLI **3.4.0** on 2026-11-24 (plan text says 3.2.0); flags used here
+    (`--remote`, `--read-only`) worked unchanged. Re-check `--help` before S1.
+  - The user applies every migration and runs every hosted step. No agent database writes.
 
 ---
 
@@ -96,7 +106,7 @@ Command shell (preview F1); a rate-change audit log (plan 1 deferred list).
 
 1. **Affiliates number in the tens, not thousands, at launch** (plan 1 Assumption 1: "a
    handful"). D2's per-row balance call depends on it. If wrong, D2 (b) instead.
-2. **`affiliate_payout_methods` is empty on local and staging.** No app writes it yet and
+2. **`affiliate_payout_methods` is empty on local and staging.** ✅ Confirmed by R1 (2026-11-24). No app writes it yet and
    plan 1 S1 found no withdrawals. R1 confirms; if a row exists, M1's re-validation fails and
    the row's owner must be told before it is replaced.
 3. **The affiliate app is not deployed to staging when this plan's staging stage starts.** So
@@ -307,7 +317,7 @@ and passes the message through otherwise — never by matching message text.
 
 ## MIGRATIONS (each an approval gate — drafted, not written)
 
-### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ⬜ TODO (only if D1 = a)
+### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ⬜ TODO (D1 = a, approved 2026-11-24; file not yet written)
 **Why:** F1. **File (when approved):** `backbone/supabase/migrations/20261123000001_affiliate_payout_details_v2.sql`
 (sorts after every environment's newest version, `20261121000001`; re-check with
 `migration list` on each before applying, as plan 1 F18 did).
@@ -372,10 +382,9 @@ with the next action spelled out: "This affiliate has commission on record, so t
 status can't be removed. Suspend the user instead; to pay a final balance first, open a
 withdrawal from Affiliates (account-closure waiver)." The modal's `GET /api/affiliates` response
 gains `hasCommission` so Remove explains itself before the click (same reasoning as its
-`referralCount`).
-**Third path (F21, per D19):** account closure. `lib/accountDeletion/` computes eligibility at request time and re-checks before executing; both checks gain the same predicate: an affiliate with an available, held or in-withdrawal balance, or an open withdrawal, is not eligible until a final payout is completed (Command opens it with the closure waiver, I6). Lines already withdrawn or written off do not block. The closure queue shows the reason, as it does for its other blockers.
-**Verification:** a unit-testable predicate in `lib/` (`node --test`, machine); live on local:
-add a manual line to a test affiliate (B4/I5), then try Remove and Delete → both refused.
+`referralCount`). Per D6, Remove is also refused while the user still holds the `affiliate` portal ("Remove the Affiliate portal first").
+**Third path (F21, D19 = a, 2026-11-24):** account closure. Command computes eligibility live per vendor in `app/api/account-deletion/route.ts:84-105` (`fetchEligibility`), shows it in the queue (GET `:134`) and re-checks it immediately before executing (POST `:171`); the user deleted is `request.requested_by`, and only when the scope deletes the user (`lib/accountDeletion/execute.server.ts:165-168`). Add a fourth `BlockerCode` `affiliate_balance` to `lib/accountDeletion/eligibility.ts:57-63` (counts gain `affiliateOwed`), computed for `requested_by` **only when the scope deletes that user**: blocks while the user has an `affiliate_withdrawals` row in `requested` / `processing`, or the **net sum** of their `affiliate_commissions.amount` in `earned`, `held` or `in_withdrawal` is > 0 (service-role read, the route's existing client; not `affiliate_balance`, which refuses a service-role caller). A net ≤ 0 does not block: Q4-neg writes off a negative balance at closure. Lines not yet available (7-day clock) and held lines (open dispute) still block, so a closure may have to wait for them. Lines `withdrawn`, `written_off` or `cancelled` do not block. Next action shown with the blocker: "This person is still owed affiliate commission. Open a final withdrawal from Affiliates (account-closure waiver), complete it, then close the account." `eligibility.test.ts` gains the new code's cases. Vendor app side: per D20.
+**Verification:** a unit-testable predicate in `lib/` (`node --test`, machine), plus `lib/accountDeletion/eligibility.test.ts` cases for `affiliate_balance` (net > 0 blocks; net ≤ 0 and withdrawn-only do not; open withdrawal blocks). Live on local: add a manual line to a test affiliate (B4/I5), then try Remove and Delete → both refused; a closure request by a vendor-admin affiliate with a positive balance shows the blocker and refuses to execute; after a waived final withdrawal is completed, the blocker clears.
 
 ### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  ⬜ TODO
 **Files:**
@@ -601,7 +610,7 @@ the same `AffiliateModal` (it already takes a `User`; the detail builds one) —
 History: every row of `affiliate_referral_code_changes` (named FK embed for `changed_by`, F7) with
 "Current" / "Still works" badges from `affiliate_referral_codes`; source labels: `affiliate` →
 "Changed by the affiliate", `command` → "Changed by Ezzy" (+ name when `changed_by` is set),
-`backfill` → "Recorded at launch", `import` → "Imported" (D4).
+`backfill` → "Recorded at launch", `import` → "Imported" (kept for completeness; per D4 = a nothing writes `import` yet, so imported codes read "Changed by Ezzy").
 **Verification:** tsc, lint, `npm test` (error map) (machine). Live local: change a test
 affiliate's code → history row carries your name; change your own → refused. Staging: S4.
 
@@ -720,90 +729,91 @@ this person and is never given to anyone else. Wording only.
 ## DECISIONS
 <!-- Hard gate (plan-authoring §7): no item executes while any OPEN line remains. -->
 
-- **OPEN: D1 — How Command stores affiliate payout details (F1, B1).** (a) **Recommended:** M1
+- **D1 — How Command stores affiliate payout details (F1, B1).** → **(a) M1 with the exact `^v2\.` CHECK** (resolved 2026-11-24) — keeps Command's row-bound v2 crypto unchanged; an exact prefix catches a wrong writer, and a key rotation can carry its own one-line migration. Options were: (a) M1
   (exact `^v2\.` CHECK) and Command's existing `v2` crypto, AAD = the affiliate's `user_id`.
   (a′) M1 with the looser `^v[0-9]+\.`, so a key rotation needs no migration. (b) No migration:
   Command writes `v1`-prefixed blobs with its own affiliate-only decrypt branch — rejected: it
   reuses the prefix that means "not row-bound, refuse" in the vendor format, a trap for the next
   reader. (c) No migration: drop the AAD and write true `v1` — rejected: reintroduces the
   row-swap attack `v2` exists to stop.
-- **OPEN: D2 — Balances on the list (F13).** (a) **Recommended:** one `affiliate_balance` call per
+- **D2 — Balances on the list (F13).** → **(a) one `affiliate_balance` call per affiliate, in parallel** (resolved 2026-11-24) — no migration and one definition of the buckets; revisit with (b) past ~100 affiliates. Options were: (a) one `affiliate_balance` call per
   affiliate, in parallel (tens of rows, Assumption 1; one definition of the buckets). (b) A
   migration adding a Command-only `command_affiliate_balances()` returning every affiliate's
   buckets — the right answer past ~100 affiliates. (c) Sum lines in the browser — rejected: a
   second definition of "available".
-- **OPEN: D3 — Where the import lives (Q39).** (a) **Recommended:** a Command screen + server route
+- **D3 — Where the import lives (Q39).** → **(a) a Command screen + server route** (resolved 2026-11-24) — the service-role key never leaves Vercel, and it can be re-run from any environment's Command. Options were: (a) a Command screen + server route
   (admin session, the service-role key never leaves Vercel, re-runnable from any environment's
   Command). (b) A Node script the user runs with an environment's service-role key on their own
   machine — puts that key on disk per run (core rules: secrets). (c) SQL by hand — cannot create
   Auth users properly and is raw SQL outside migrations.
-- **OPEN: D4 — The history label for imported codes.** (a) **Recommended:** no migration; the M2
+- **D4 — The history label for imported codes.** → **(a) no migration** (resolved 2026-11-24) — verified the label is the only difference: imports are INSERTs, so they send no notification (`20261118000002:193`), and the 30-day clock counts self-service changes only (`:273`, `:303`). Options were: (a) no migration; the M2
   guard records `command` (the setting `app.referral_code_source` cannot be set through
   PostgREST), so imported codes read "Changed by Ezzy" with no name. (b) A small migration adding
   a `service_role`-only definer function that sets the source to `import` and inserts the
   affiliate (plan 1's deferred list foresaw it) — exact "Imported" label, one more function.
-- **OPEN: D5 — Set-password link priority with the affiliate portal.** (a) **Recommended:**
+- **D5 — Set-password link priority with the affiliate portal.** → **(a) `command` > `vendor` > `affiliate` > `booker`** (resolved 2026-11-24) — resolution takes the first granted portal with no fall-through (`portalOrigins.server.ts:102-103`), so affiliate must rank above the sometimes-blank booker. Options were: (a)
   `command` > `vendor` > `affiliate` > `booker` — affiliate above booker matters because
   production's booker variable has been blank before and a booker-who-becomes-affiliate must
   still get a link; vendor above affiliate because a vendor's password works in both and vendor
   is their main tool. (b) `command` > `affiliate` > `vendor` > `booker`.
-- **OPEN: D6 — Tie the `affiliate` portal to an affiliates row.** (a) **Recommended:** the portal
+- **D6 — Tie the `affiliate` portal to an affiliates row.** → **(a) tie them** (resolved 2026-11-24) — avoids accounts that can sign in to an app that refuses everything. Options were: (a) the portal
   can be granted only to someone with a referral code (Add User requires the code when the chip is
   on; Edit User offers the chip only to existing affiliates; `POST /api/users` refuses it without
   a code), and Remove affiliate is refused while the user still holds the portal ("Remove the
   Affiliate portal first"). Otherwise a person can sign in to an app that refuses everything
   (affiliate caller = portal **and** row, M1 `:155-156`). (b) Leave them independent; the
   affiliate app explains the empty state (plan 3).
-- **OPEN: D7 — The preview's "No one (remove the referral)" (F5).** (a) **Recommended:** drop it
+- **D7 — The preview's "No one (remove the referral)" (F5).** → **(a) drop it from v1** (resolved 2026-11-24) — Q18 decided moving, not removing; no migration. Options were: (a) drop it
   from v1; Q18 decided moving a referrer, not removing one. (b) Keep it: needs a new M5-style
   function (migration) with its own reason and log kind.
-- **OPEN: D8 — The preview's "Sent by" and "Date sent" (F5).** (a) **Recommended:** drop both; the
+- **D8 — The preview's "Sent by" and "Date sent" (F5).** → **(a) drop both** (resolved 2026-11-24) — `completed_at` is the date and the reference is what the receipt shows (columns checked, M4 `:53-57`); no migration. Options were: (a) drop both; the
   date is `completed_at`, and the transfer reference is what the affiliate's receipt shows.
   (b) Fold them into the reference text ("InstaPay · 1234567") — no migration, but the receipt
   then prints it. (c) A migration adding two columns.
-- **OPEN: D9 — Plan 1 F15 (b): Command-opened withdrawals email the affiliate "Withdrawal
+- **D9 — Plan 1 F15 (b): Command-opened withdrawals email** → **(a) keep the email** (resolved 2026-11-24) — the wording (M4 `:1256`) is true for Command-opened ones; I6's dialog says it goes. Was: Command-opened withdrawals email the affiliate "Withdrawal
   received… processed within 5 business days".** (a) **Recommended:** keep it; it is true and
   tells a suspended or departing affiliate the money is coming. Command's dialog says the email
   goes. (b) Change the wording for Command-opened ones — a migration replacing
   `command_open_withdrawal`.
-- **OPEN: D10 — Plan 1 F15 (c): crediting a vendor requires an active referrer.** (a)
+- **D10 — Plan 1 F15 (c): crediting a vendor requires an active referrer.** → **(a) keep active-only** (resolved 2026-11-24) — same rule as moving one; a suspended affiliate earns nothing new (Q9). Options were: (a)
   **Recommended:** keep it (same rule as moving one; a suspended affiliate earns nothing new
   anyway, Q9). The dialogs are disabled for a non-active affiliate with the reason. (b) Allow it
   for suspended affiliates — a migration, and the credit would earn nothing until reactivation.
-- **OPEN: D11 — Checking the invite locally (F14).** (a) **Recommended:** no config change in this
+- **D11 — Checking the invite locally (F14).** → **(a) no config change** (resolved 2026-11-24) — 3002 is already allow-listed (`config.toml:160`); plan 3 owns the affiliate app's port. Options were: (a) no config change in this
   plan: locally set `PORTAL_URL_AFFILIATE=http://localhost:3002` (already allow-listed) and run the
   affiliate app on 3002 for the click-through, with booker stopped; plan 3 decides the affiliate's
   real local port and its allowlist entry. (b) Add a port (e.g. 3003) to `config.toml` now —
   a backbone change and a local Supabase restart (needs the user's go-ahead).
-- **OPEN: D12 — Who may set the tax rate the first time.** (a) **Recommended:** admin or root (what
+- **D12 — Who may set the tax rate the first time.** → **(a) admin or root, with the rate retyped to confirm** (resolved 2026-11-24) — matches the UPDATE policy (`20260725000001:69-79`, checked); retyping is the closure-queue precedent. Options were: (a) admin or root (what
   RLS already allows, `20260725000001:69-79`), with the rate typed a second time to confirm — the
   closure queue's "typing replaces root-gating" precedent (`useClosureQueue.ts:66-77`). (b) Root
   only in the UI (the database would still let an admin through a direct call).
-- **OPEN: D13 — Import: an email that already has an account.** (a) **Recommended:** make that
+- **D13 — Import: an email that already has an account.** → **(a) make that account an affiliate** (resolved 2026-11-24) — labelled in the dry run; refused for admin/root. Options were: (a) make that
   account an affiliate (code + portal), no new account — the dry run labels it so the user sees it
   first. Refuse it if the account is admin/root (privileged). (b) Refuse every existing email.
-- **OPEN: D14 — Clearing the minimum while withdrawals are open.** (a) **Recommended:** allow it
+- **D14 — Clearing the minimum while withdrawals are open.** → **(a) allow it, with B3's warning** (resolved 2026-11-24) — keeps the Q45 off switch usable at any time. Options were: (a) allow it
   with the warning in B3 (it is the "withdrawals off" switch, Q45). (b) Refuse while any withdrawal
   is open.
-- **OPEN: D15 — An admin making themselves an affiliate.** (a) **Recommended:** refuse in
+- **D15 — An admin making themselves an affiliate.** → **(a) refuse in the route** (resolved 2026-11-24) — the route inserts with the service role for any body `userId` (`app/api/affiliates/route.ts:166-176`, checked), so only the route can refuse; Q8's intent. Options were: (a) refuse in
   `POST /api/affiliates` and `POST /api/users` cannot (it creates a new account, never the
   caller); another admin creates staff affiliates (Q8's intent: no one sets up their own
   earnings). (b) Allow it; Q8's database checks still stop every later action on it.
-- **OPEN: D16 — Switching commission on in production.** (a) **Recommended:** not a release step of
+- **D16 — Switching commission on in production.** → **(a) not a release step** (resolved 2026-11-24) — the user sets it on a chosen date after plans 1–3 are live; recorded here then. Options were: (a) not a release step of
   any plan; after plans 1–3 are live in production, the user sets the tax rate and minimum on
   production Command on a date they choose, recorded in this plan as a dated decision. (b) Make
   it P5 of this plan.
-- **OPEN: D17 — What the identity confirmation records (Q32; the column needs ≥ 5 characters).**
+- **D17 — What the identity confirmation records (Q32; the column needs ≥ 5 characters).** → **(a) required method + optional note, stored as one sentence** (resolved 2026-11-24) — records how identity was checked.
   (a) **Recommended:** a required "How you confirmed it's them" choice (Phone call to the number on
   file · Video call · In person) plus an optional note, stored as one sentence, e.g. "Phone call
   to the number on file — spoke to Rina 14 Oct". (b) A checkbox only, storing a fixed sentence (the
   preview) — records less.
-- **OPEN: D19 — Account closure of an affiliate who is still owed money (F21; Q9, Q50b).** (a)
+- **D19 — Account closure of an affiliate who is still owed money (F21; Q9, Q50b).** → **(a) closure is blocked until the balance is paid out** (resolved 2026-11-24) — keeps discovery Q9/Q50b. The user first chose (b) write-off; on being told it reverses Q9 and that plan 1's schema cannot mark an unpaid balance `written_off` without a withdrawal (`20261118000004:144`, so a write-off would need a new function), the user chose (a). Options were: (a)
   **Recommended:** closure is not eligible until the balance is paid out: Command opens a final
   withdrawal with the closure waiver (I6), completes it, then executes the closure. Nothing is
   lost and the record is clean. (b) Allow closure and write the balance off, with the amount
   recorded in the closure's review notes. Simpler, but the affiliate loses money Q9 says is owed.
-- **OPEN: D18 — Setting the tax rate on staging (plan 1 Assumption 4).** (a) **Recommended:** yes,
+- **D20 — Should the vendor app's closure-request check also know the affiliate blocker (from D19)?** → **(a) Command only** (resolved 2026-11-24) — keeps plan 2 single-app apart from M1; Command's live eligibility and pre-execute re-check (`app/api/account-deletion/route.ts:134, 171`) enforce D19. Accepted cost: the vendor-admin is not told at request time why closure waits. (b) was: also add it to `vendor/lib/accountDeletion/eligibility.server.ts` — cross-app.
+- **D18 — Setting the tax rate on staging (plan 1 Assumption 4).** → **(a) yes, during S4** (resolved 2026-11-24) — the only way to see real commission lines before production. The user first asked whether tax had been excluded; clarified that Q27 excludes **withholding** (plan 2 adds none) while Q34's after-tax rate (fee × (1 − tax %) × rate) stands, and the user confirmed keeping it. Options were: (a) yes,
   during S4, accepting that staging's go-live is stamped permanently — the only way to see real
   commission lines before production. (b) No: S4 uses manual lines only, and the commission
   trigger is first exercised in production.
@@ -826,7 +836,8 @@ this person and is never given to anyone else. Wording only.
 
 ## Read-only pre-checks (the user runs them; nothing is changed)
 
-### R1 — The payout CHECK's name and the table's contents  ⬜ TODO
+### R1 — The payout CHECK's name and the table's contents  ✅ DONE (2026-11-24)
+**Result (agent-run, read-only):** local (psql with `default_transaction_read_only=on`, confirmed `on`) and staging (`npx supabase db query --remote --read-only`, target `backbone-staging (fbxbwnfeimzhgxpshdpa)`) both show `affiliate_payout_methods_details_enc_check` = `CHECK ((details_enc ~ '^v1\.'::text))`, **0 rows**, 0 not-v2. M1's constraint name is confirmed; its re-validation will scan an empty table. Production not checked (plan 1 is not there; see R2).
 Local and staging (`npx supabase db query --remote --read-only` for staging, as plan 1 S1):
 ```sql
 select conname, pg_get_constraintdef(oid) from pg_constraint
@@ -837,7 +848,14 @@ select count(*) as rows, count(*) filter (where details_enc !~ '^v2\.') as not_v
 Expected: `affiliate_payout_methods_details_enc_check` = `^v1\.`, 0 rows. Any row → stop and
 decide before M1.
 
-### R2 — Newest applied migration everywhere  ⬜ TODO
+### R2 — Newest applied migration everywhere  ✅ DONE (2026-11-25)
+**Result:** newest applied version is `20261121000001` on **local** (read-only psql) and **staging**
+(read-only `db query`, 2026-11-24). **Production** (`npx supabase migration list
+--remote=pdkejyjidrfxksaczvfy`, run by the agent with the user's explicit permission, 2026-11-25):
+newest applied is `20261117000001`; plan 1's seven (`20261118000001`–`06`, `20261121000001`) are
+local-only there, as expected while plan 1's production is parked; no remote-only versions. So
+`20261123000001` sorts last on every environment and M1's file name is final.
+
 `npx supabase migration list` (local), `--remote` (staging), `--remote=<prod-ref>` (production,
 CLI 3.2.0): newest must be ≤ `20261121000001` for M1's file name to sort last; otherwise rename M1
 to a later version before writing it.
@@ -846,7 +864,12 @@ to a later version before writing it.
 
 ## Execution order
 
-0. **Now:** resolve D1–D18 with the user; R1, R2; approval (flow step 7).
+0. **Now:** ✅ D1–D20 resolved (2026-11-24); ✅ R1; ✅ R2 (local, staging, production); ✅ approval (user, 2026-11-25).
+**Environment rule (user, 2026-11-25):** stages 1–5 run against **local only** (code, local DB, local
+dev servers). Nothing is pushed, deployed or tested on staging before stage 6, and nothing touches
+production — no migration, env var, deploy, data fix or test — before stage 7, which stays last.
+The only production contact so far is R2's read-only `migration list` (2026-11-25).
+
 1. **Stage 1 — foundations (local).** B8 (interfaces, service skeletons, `affiliateErrors`), the
    `Portal` type change (B7 part), B1/M1: 🤖 write M1 + the T1 fixture line once approved; 👤 apply
    locally; 🤖 re-run T1 + `db lint`. Gate: T1 105/105; `npm test`, lint, `tsc` green.
@@ -945,7 +968,7 @@ a staff affiliate.
 8. Staff: manual line → payroll payment recorded, no email.
 9. Attribution: credit a vendor signed up < 30 days ago with no referrer; move it to the other test
    affiliate; both logged.
-10. Deletion guards: Remove affiliate and Delete user both refused for the partner (has lines).
+10. Deletion guards: Remove affiliate and Delete user both refused for the partner (has lines). Closure (D19): only if a staging vendor-admin test account is also an affiliate with a balance, its closure request shows the affiliate blocker; else covered locally and noted.
 11. Import: dry run of a three-row file (new, existing, refused), apply, re-run (all skipped), send
     one invitation.
 12. Notifications settings page shows the affiliate rows correctly.
