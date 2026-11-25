@@ -35,8 +35,15 @@ turns out to contradict what you assumed:
 
 ```bash
 cd backbone
-npx supabase migration list --linked
+scripts/migration-status.sh staging   # or: prod
 ```
+
+The script takes the project ref from `backbone/.env`, prints it, and runs
+`npx supabase migration list --remote=<ref>` and nothing else. It reports "In sync"
+or lists the migration files missing from that project. Running the CLI by hand:
+`npx supabase migration list --remote` targets the linked project (staging), and
+`--remote=<ref>` targets any other. Since CLI 3.x a bare `migration list` reads the
+**local** stack, so check the `Target:` line it prints.
 
 Each row pairs the local migration with its remote counterpart; an **empty
 `remote`** means not yet applied. Reading it beats guessing — on 2026-08-02 this
