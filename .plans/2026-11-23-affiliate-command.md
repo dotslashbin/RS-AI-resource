@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 code ✅ machine-verified (2026-11-25, local), its live local checks ⬜ with the user; stage 3 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15; L2.16 waits for I5); stage 3 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -35,12 +35,13 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
   (B8, `Portal` type, M1 on local). **Stage 2 code ✅ (2026-11-25, local), machine-verified:** B3, B7,
   B2, I1 (PATCH part), I9, I10, I8. Machine: `npm test` 220/220 (42 new), `tsc` 0, `build` 0, lint
   19 / 5 = F24 unchanged, Playwright: new `settings-affiliate-commission.spec.ts` 5/5, full suite 94
-  pass + 7 expected/flake (F26, F27). **Not yet run:** the stage's live local checks (list in the
-  stage-2 report and under each item's "Live local"), owned by the user.
+  pass + 7 expected/flake (F26, F27). **Not yet run:** the stage's live local checks — now written into the plan as
+  Verification → "Manual local checks — stage 2 (L2)", L2.1–L2.16.
 - **Live where:** local — M1 applied; stage 2 code in the working tree, uncommitted · staging —
   nothing of this plan · production — nothing.
 - **Approved:** ✅ by the user, 2026-11-25 (flow step 7).
-- **Next:** (1) the user runs stage 2's live local checks (D11: `PORTAL_URL_AFFILIATE=http://localhost:3002`
+- **Manual local run (2026-11-25):** L2.1–L2.15 ✅ (Verification → L2); L2.16 ⏸ until I5. F30 (cosmetic help text) and F31 (note) found.
+- **Next (was):** (1) the user runs stage 2's live local checks (D11: `PORTAL_URL_AFFILIATE=http://localhost:3002`
   in `command/.env.local`, affiliate app on 3002 with booker stopped — or "not configured" if plan 3's
   app is not runnable yet) and commits; (2) **stage 3** in a new session: B4, I2, I3, I5 — and
   **F25: I1's code-history component moves into B4** (it needs the detail page to live on). Still ⬜
@@ -312,6 +313,21 @@ the only difference. Only those six were regenerated (`-g "usermodal|useraddmoda
 `PORTAL_CFG` colours are mirrored on the notification settings page, where violet already means
 "Both". Affiliate is `#ec4899` in both places so the two pages agree.
 
+### F30 — Settings card: field help text follows the SAVED value, not what is typed  (L2 run, 2026-11-25)  ⬜ TODO (cosmetic, reported)
+In B3's card, the tax and minimum help lines read from the saved settings (`taxSaved` / `minSaved`).
+So with 12 typed into an unset tax box the line still says "Not set: no commission is being
+calculated", and with the minimum box cleared it still says "Affiliates can withdraw once their
+available balance reaches this". Accurate about what is saved, confusing while editing. The
+warning, the example and the confirmation all follow the typed values. Fix (small, stage 3 or
+later): key the two help lines on the typed value, or say "Saved: …". Not fixed here.
+
+### F31 — The first code-history row from Add User / Make affiliate has no actor  (L2 run, 2026-11-25)  ✅ (note, expected)
+L2.11's SQL shows the creation row (`NULL → L2TEST01`, `source = command`) with `changed_by` NULL:
+`POST /api/users` and `POST /api/affiliates` insert with the service role (no function exists for
+it, contract table), so the M2 guard records no actor. Later changes through PATCH do record the
+admin (F3 fixed). B4's history (F25) must label a NULL-actor `command` row "Changed by Ezzy" with no
+name, as I1 already says.
+
 ### F29 — Two small knock-ons fixed in passing  (stage 2, 2026-11-25)  ✅
 (1) `command/README.md`'s "The `PORTAL_URL_*` trio" heading became "The four `PORTAL_URL_*`
 variables"; `architecture/auth-and-roles.md:190` cites it by name and was updated to match. (2) The
@@ -416,7 +432,7 @@ a request value (the vendor rule, `crypto.server.ts:178-180`). The tests beside 
 (`crypto.server.test.ts`) gain one case: a blob sealed for user A fails for user B.
 **Verification:** `npm test` (machine); B6's live save + reveal (local, then staging).
 
-### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local L2.13, L2.15 ✅; L2.16 (money refusals) ⏸ until I5
 **Done (stage 2, 2026-11-25):** new pure `lib/affiliateRemoval.ts` (wording + `hasAffiliateMoneyRecord`,
 `removeAffiliateRefusal`: referrals → money → portal, D6) + 9 tests; new server-only
 `lib/affiliateRecords.server.ts` (`readAffiliateMoneyRecord`: any `affiliate_commissions` or
@@ -444,7 +460,7 @@ gains `hasCommission` so Remove explains itself before the click (same reasoning
 **Third path (F21, D19 = a, 2026-11-24):** account closure. Command computes eligibility live per vendor in `app/api/account-deletion/route.ts:84-105` (`fetchEligibility`), shows it in the queue (GET `:134`) and re-checks it immediately before executing (POST `:171`); the user deleted is `request.requested_by`, and only when the scope deletes the user (`lib/accountDeletion/execute.server.ts:165-168`). Add a fourth `BlockerCode` `affiliate_balance` to `lib/accountDeletion/eligibility.ts:57-63` (counts gain `affiliateOwed`), computed for `requested_by` **only when the scope deletes that user**: blocks while the user has an `affiliate_withdrawals` row in `requested` / `processing`, or the **net sum** of their `affiliate_commissions.amount` in `earned`, `held` or `in_withdrawal` is > 0 (service-role read, the route's existing client; not `affiliate_balance`, which refuses a service-role caller). A net ≤ 0 does not block: Q4-neg writes off a negative balance at closure. Lines not yet available (7-day clock) and held lines (open dispute) still block, so a closure may have to wait for them. Lines `withdrawn`, `written_off` or `cancelled` do not block. Next action shown with the blocker: "This person is still owed affiliate commission. Open a final withdrawal from Affiliates (account-closure waiver), complete it, then close the account." `eligibility.test.ts` gains the new code's cases. Vendor app side: per D20.
 **Verification:** a unit-testable predicate in `lib/` (`node --test`, machine), plus `lib/accountDeletion/eligibility.test.ts` cases for `affiliate_balance` (net > 0 blocks; net ≤ 0 and withdrawn-only do not; open withdrawal blocks). Live on local: add a manual line to a test affiliate (B4/I5), then try Remove and Delete → both refused; a closure request by a vendor-admin affiliate with a positive balance shows the blocker and refuses to execute; after a waived final withdrawal is completed, the blocker clears.
 
-### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  ✅ DONE on local (2026-11-25) — machine + live local L2.1–L2.5 ✅; staging S4 ⬜; F30 cosmetic open
 **Done (stage 2, 2026-11-25):** as listed below. `PlatformFeeSettings` + 4 fields; the service reads
 them and gains `updateAffiliateCommissionSettings` (never sends `affiliate_commission_live_from`);
 `usePlatformFeeSettingsPage.saveAffiliateCommission` (refusals worded by `affiliateErrorMessage`,
@@ -618,7 +634,7 @@ reveal uses it), so no new secret.
 read-only SQL one `affiliate_payout_method_log` row and one `affiliate_payout_view_log` row;
 try saving on your own account → refused. Staging: S4.
 
-### B7 — Users page: the `affiliate` portal and the invite (Q10)  🔄 IN PROGRESS — code ✅ machine-verified (stage 1 + 2, 2026-11-25); live local ⬜ (user, D11)
+### B7 — Users page: the `affiliate` portal and the invite (Q10)  ✅ DONE on local (2026-11-25) — machine + live local L2.6–L2.9 ✅ (invite aimed at :3002 confirmed in the mail catcher; click-through into the affiliate app is plan 3's); staging S2/S4 ⬜
 **Done (stage 2, 2026-11-25):** `ALL_PORTALS` + `affiliate`; `PORTAL_CFG.affiliate` (pink, F28);
 `portalOrigins.server.ts`: `isPortal` accepts it, `PRIORITY` = command > vendor > affiliate > booker
 (D5), the "unreachable" comment removed. D6 as one pure rule, `affiliateAccessError(portals, code)` in
@@ -705,7 +721,7 @@ exit 0; `npx eslint` on the stage's files exit 0 (repo-wide lint: F24).
 
 ## IMPORTANT
 
-### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ machine-verified (2026-11-25); history ⏸ → B4 (F25); live local ⬜ (user)
+### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ (machine + live local L2.11, 2026-11-25); history ⏸ → B4 (F25)
 **Done (stage 2, 2026-11-25):** `PATCH /api/affiliates` keeps URL and response but calls
 `rpc("change_referral_code")` on the cookie-bound client (`lib/supabase/server.ts`); refusals
 (42501 / 23505 / 22023 / P0001) → 400 with `affiliateErrorMessage`, anything else → 500 + log.
@@ -815,7 +831,7 @@ sample file with one of each class; apply; re-run → all "already imported"; in
 S4 with two or three throwaway rows (staging email override delivers every invite to
 `cto@ezzy.ph`, memory).
 
-### I8 — Notifications: the new types and the affiliate email row (F9, F17)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); visual check ⬜ (user, local)
+### I8 — Notifications: the new types and the affiliate email row (F9, F17)  ✅ DONE on local (2026-11-25) — machine + live local L2.14 ✅
 **Done (stage 2, 2026-11-25):** five types in `NotificationType`; icons in `NotificationItem`
 (HandCoins / CheckCircle / XCircle / Link2); settings labels (requested → "Command", the four →
 "Affiliate"), an "Affiliate" colour, the `affiliate` email-row description as written below, and the
@@ -829,7 +845,7 @@ description ("Withdrawal updates, receipts and code-change notices emailed to af
 **Verification:** tsc (the exhaustive map), lint (machine); visual check of the Settings →
 Notifications page (local).
 
-### I9 — Make-affiliate routes: registry-aware pre-check, no self-assignment (F10, D15)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+### I9 — Make-affiliate routes: registry-aware pre-check, no self-assignment (F10, D15)  ✅ DONE on local (2026-11-25) — machine + live local L2.10, L2.12 ✅
 **Done (stage 2, 2026-11-25):** pure `isReferralCodeReservedToOther(owner, userId)` in
 `lib/referralCode.ts` (own old code allowed; a NULL owner retired for everyone; a new account owns
 nothing) + 5 tests; `isReferralCodeTaken` in `lib/affiliateRecords.server.ts` reads `affiliates`
@@ -1007,7 +1023,7 @@ The only production contact so far is R2's read-only `migration list` (2026-11-2
 1. **Stage 1 — foundations (local).** B8 (interfaces, service skeletons, `affiliateErrors`), the
    `Portal` type change (B7 part), B1/M1: 🤖 write M1 + the T1 fixture line once approved; 👤 apply
    locally; 🤖 re-run T1 + `db lint`. Gate: T1 105/105; `npm test`, lint, `tsc` green.
-2. **Stage 2 — Settings and Users page (local).** 🔄 code ✅ 2026-11-25 (machine), live local ⬜ (user). B3, B7, B2, I1, I9, I10, I8. These are
+2. **Stage 2 — Settings and Users page (local).** ✅ 2026-11-25 (machine + manual L2.1–L2.15; L2.16 → after I5). B3, B7, B2, I1, I9, I10, I8. These are
    independent of the Affiliates section and make the programme switchable and grantable.
 3. **Stage 3 — Affiliates section, read and terms (local).** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3, I5.
 4. **Stage 4 — Money out (local).** B6 (needs M1 applied locally), B5, I6, I4. Live local run of the
@@ -1023,21 +1039,21 @@ required) and I5 or real lines (money to withdraw); B7's invite click-through ne
 that environment; I1's PATCH change ships with I10's copy. Stages 2 and 3 can swap; 4 cannot move
 before 1.
 
-## Big table (updated 2026-11-25, after stage 2 code)
+## Big table (updated 2026-11-25, after the stage 2 manual run)
 
 | ✓ | Status | Stage | Item | What | Who | Why / notes |
 |---|---|---|---|---|---|---|
 | [x] | ✅ 2026-11-25 | 1 | B8 | Interfaces, mappers, `affiliateErrors` | Me | Foundation every screen uses; 30 tests |
 | [x] | ✅ local 2026-11-25 | 1 | M1 | Payout CHECK → `^v2\.` | You (apply) / Me (write) | F1: Command's v2 blobs were refused; T1 105/105 |
 | [ ] | 🔄 | 1→4 | B1 | crypto note + A-vs-B test | Me | M1 part done; rest with B6 (stage 4) |
-| [ ] | 🔄 code ✅ | 2 | B3 | Settings: affiliate commission card | Me → You (live) | Makes the programme switchable; spec 5/5, math 6 tests |
-| [ ] | 🔄 code ✅ | 2 | B7 | Affiliate portal chip, D5 origin, D6 rule, README | Me → You (live, D11) | How affiliates sign in; +12 tests; 6 baselines (F27) |
-| [ ] | 🔄 code ✅ | 2 | B2 | Remove/Delete/closure guarded by money | Me → You (live after I5) | F2/F21: stops stranding owed money; +18 tests |
-| [ ] | 🔄 code ✅ | 2 | I1 | Code change via `change_referral_code` | Me → You (live) | F3: records the admin, refuses self; history → B4 (F25) |
-| [ ] | 🔄 code ✅ | 2 | I9 | Registry-aware pre-check; refuse self (D15) | Me → You (live) | F10: no wasted account on a reserved code; +5 tests |
+| [x] | ✅ local 2026-11-25 | 2 | B3 | Settings: affiliate commission card | Me | L2.1–L2.5 ✅; F30 cosmetic open |
+| [x] | ✅ local 2026-11-25 | 2 | B7 | Affiliate portal chip, D5 origin, D6 rule, README | Me | L2.6–L2.9 ✅; invite → :3002 confirmed |
+| [ ] | 🔄 | 2 | B2 | Remove/Delete/closure guarded by money | Me | L2.13/L2.15 ✅; L2.16 ⏸ until I5 |
+| [ ] | 🔄 | 2 | I1 | Code change via `change_referral_code` | Me | L2.11 ✅ (changed_by = admin); history → B4 (F25) |
+| [x] | ✅ local 2026-11-25 | 2 | I9 | Registry-aware pre-check; refuse self (D15) | Me | L2.10, L2.12 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | I10 | Stale "code is freed" copy | Me | F11: grep clean |
-| [ ] | 🔄 code ✅ | 2 | I8 | Notification types, icons, affiliate email row | Me → You (visual) | F9/F17; tsc enforces the map |
-| [ ] | ⬜ | 2 | L2 | Stage 2 live local checks | You | Listed in the stage-2 report; not run by the agent |
+| [x] | ✅ local 2026-11-25 | 2 | I8 | Notification types, icons, affiliate email row | Me | L2.14 ✅ |
+| [ ] | 🔄 15/16 | 2 | L2 | Stage 2 manual local checks | Me (user-permitted) | L2.1–L2.15 ✅ 2026-11-25; L2.16 ⏸ until I5 |
 | [ ] | ⬜ | 2 | C2 | Commit stage 2 (command + root) | You | Drafts in the stage-2 report |
 | [ ] | ⬜ | 3 | B4 | Affiliates list + detail (+ I1 history, F25) | Me | The section the money screens hang off |
 | [ ] | ⬜ | 3 | I2 | Rate override + staff flag | Me | Q7, Q48 |
@@ -1051,6 +1067,7 @@ before 1.
 | [ ] | ⬜ | — | F24 | Command lint backlog 19 / 5 | You (decide) | Pre-existing; reported, not fixed |
 | [ ] | ⏸ | 3 | F25 | `ReferralCodeHistory` | Me | Parked: no screen until B4; unblocks with B4 |
 | [ ] | ⬜ | — | F26 | `overview-light` load flake | You (decide) | Passed alone; not a stage-2 change |
+| [ ] | ⬜ | 3+ | F30 | Settings help text follows saved value | Me | Cosmetic, found in L2 |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
 | [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
 | [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
@@ -1110,6 +1127,41 @@ log rows (`affiliate_payout_method_log`, `affiliate_payout_view_log`,
 `affiliate_referral_code_changes.changed_by`, `vendor_referral_changes`,
 `affiliate_commission_status_log`). Emails land in the local mail catcher. Not run locally unless
 the user accepts T1 breaking until `db reset`: setting the tax rate.
+
+**Manual local checks — stage 2 (L2)**  🔄 15/16 ✅ (run 2026-11-25 by the agent with the user's permission, in a visible Chromium on WSLg driven over CDP, signed in by the user as Root Admin; screenshots shown in-session) · L2.16 ⏸
+Run against local Command (`http://localhost:3000`, never `127.0.0.1`) signed in as a local Command
+admin. Setup: `PORTAL_URL_AFFILIATE=http://localhost:3002` in `command/.env.local` (D11), Command
+restarted. For the invite click-through, the affiliate app on 3002 with booker stopped; without it
+the expected outcome is "not configured". Each check writes local test data only; list what was
+created afterwards so it can be cleaned up (or cleared by `db reset`). **Never** switch the tax rate on
+locally (T1, plan 1 F23).
+
+| # | Item | Steps | Expected | Status |
+|---|---|---|---|---|
+| L2.1 | B3 | Settings → Platform Fee | Affiliate card loads unset, "switched off" note shown | ✅ 2026-11-25 — card unset, "switched off" note shown |
+| L2.2 | B3 | Change and save the platform fee, then the withholding (restore both after) | Both still save (regression, F18) | ✅ 2026-11-25 — fee 12→12.5 and withholding 1→1.5 both saved (toasts), both restored; SQL 12.00 / 1.00 / 50.00 |
+| L2.3 | B3 | Save a minimum only (e.g. ₱5), then a default rate (e.g. 1.5%) | Toasts; "Settings last changed … by <you>" | ✅ 2026-11-25 — toasts; "last changed just now by Root Admin"; SQL 1.50 / 5.00 |
+| L2.4 | B3 | Clear the minimum | Amber warning about withdrawals turning off; save it, then set it back | ✅ 2026-11-25 — short warning (SQL: 0 open withdrawals); saved cleared; F30 noted |
+| L2.5 | B3, D12 | Type a tax rate, press Save; type a different rate in the confirm box; then **Cancel** | Retype panel; "Switch commission on" stays disabled on a mismatch; Cancel saves nothing | ✅ 2026-11-25 — confirm disabled on 21, enabled on 12; Cancel saved nothing; SQL tax NULL, live_from NULL; example ₱192.00 → ₱168.96 → ₱1.69 at the local 12% fee |
+| L2.6 | B7, D6 | Users → Add User, tick Affiliate, leave the code empty | Code label says required; red message; Create disabled | ✅ 2026-11-25 — label "(required for the Affiliate portal)", D6 message, Create disabled |
+| L2.7 | B7, D5 | Same with a fresh code and a test email | User created; the set-password email in the local mail catcher points at `http://localhost:3002` (or "not configured" if the variable is unset) | ✅ 2026-11-25 — created (`L2TEST01`, portal `affiliate`); mail catcher link `redirect_to=http://localhost:3002`; click-through into the affiliate app not run (plan 3's app) |
+| L2.8 | B7, D6 | Edit a non-affiliate user | Affiliate chip disabled, "Make them an affiliate first" | ✅ 2026-11-25 — chip disabled, title "Make them an affiliate first", hint line (Ana Flores; cancelled) |
+| L2.9 | B7, D6 | Edit an affiliate without the portal → grant Affiliate → save; then toggle their status | Grant saves; status toggle still works | ✅ 2026-11-25 — Liza granted (SQL `affiliate,booker`) then restored (`booker`); test user suspended and reactivated with the portal held |
+| L2.10 | I9, D15 | Open your own user → Make affiliate | "Another admin must make you an affiliate." | ✅ 2026-11-25 — "Another admin must make you an affiliate."; SQL no affiliates row, no registry code |
+| L2.11 | I1 | Change a test affiliate's code | Blue "old code keeps crediting" note; success; read-only SQL `select from_code, to_code, source, changed_by from affiliate_referral_code_changes order by changed_at desc limit 1;` → `changed_by` = you, `source` = `command` | ✅ 2026-11-25 — note shown; SQL `L2TEST01 → L2TEST02`, `command`, `changed_by` = root@bookdeck.com (F3 fixed) |
+| L2.12 | I9 | Add User / Make affiliate with the OLD code from L2.11 | `REFERRAL_CODE_TAKEN`; no new account appears in the list | ✅ 2026-11-25 — "already in use"; SQL no `auth.users` / `profiles` row for the email (refused before `createUser`) |
+| L2.13 | B2, D6 | Remove affiliate on someone holding the Affiliate portal | Disabled with "Remove the Affiliate portal first…" | ✅ 2026-11-25 — Remove disabled, title "Remove the Affiliate portal first (Edit User)…" |
+| L2.14 | I8 | Settings → Notifications | Five affiliate rows (requested → Command, four → Affiliate, pink); Affiliate email row; Command row mentions withdrawal requests | ✅ 2026-11-25 — requested → Command, four → Affiliate (pink); Affiliate email row; Command row names withdrawal requests |
+| L2.15 | B2 | Closures tab | Queue loads as before | ✅ 2026-11-25 — "No closure requests"; `GET /api/account-deletion` 200 (local has no requests, so the blocker itself is L2.16) |
+| L2.16 | B2 | Remove / Delete / closure for an affiliate with a manual line | All refused (closure shows the affiliate blocker) | ⏸ waits for I5 (stage 3) — no way to create a money line from Command before then |
+
+*Local test data left by the L2 run (2026-11-25), for cleanup or `db reset`:* user `l2-test-1@example.com`
+("L2 Test Affiliate One", id `d3c20666-6acd-44c1-ac11-4aaf7ab3d9e9`, member, active, portal `affiliate`,
+affiliate with code `L2TEST02`); registry rows `L2TEST01` and `L2TEST02` reserved to it; two
+`affiliate_referral_code_changes` rows; one "Reset your password" message in the mail catcher.
+`platform_fee_settings` values are back to baseline but `updated_by` / `updated_at` now show Root
+Admin, 2026-11-25. Liza Cruz's portals restored to `booker`. `PORTAL_URL_AFFILIATE=http://localhost:3002`
+added to `command/.env.local` (D11), left in place.
 
 **Live, staging (S4)** — with two staging accounts besides the tester (Q8): a partner affiliate and
 a staff affiliate.
