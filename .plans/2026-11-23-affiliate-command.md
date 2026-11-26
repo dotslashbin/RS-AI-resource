@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15; L2.16 waits for I5); stage 3 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,23 +29,27 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-25, stage 2 code ✅ — start stage 3 in a new session)
+## ▶ RESUME HERE (updated 2026-11-25, stage 3 ✅ on local — start stage 4 in a new session)
 
 - **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅**
-  (B8, `Portal` type, M1 on local). **Stage 2 code ✅ (2026-11-25, local), machine-verified:** B3, B7,
-  B2, I1 (PATCH part), I9, I10, I8. Machine: `npm test` 220/220 (42 new), `tsc` 0, `build` 0, lint
-  19 / 5 = F24 unchanged, Playwright: new `settings-affiliate-commission.spec.ts` 5/5, full suite 94
-  pass + 7 expected/flake (F26, F27). **Not yet run:** the stage's live local checks — now written into the plan as
-  Verification → "Manual local checks — stage 2 (L2)", L2.1–L2.16.
-- **Live where:** local — M1 applied; stage 2 code in the working tree, uncommitted · staging —
-  nothing of this plan · production — nothing.
-- **Approved:** ✅ by the user, 2026-11-25 (flow step 7).
-- **Manual local run (2026-11-25):** L2.1–L2.15 ✅ (Verification → L2); L2.16 ⏸ until I5. F30 (cosmetic help text) and F31 (note) found.
-- **Next (was):** (1) the user runs stage 2's live local checks (D11: `PORTAL_URL_AFFILIATE=http://localhost:3002`
-  in `command/.env.local`, affiliate app on 3002 with booker stopped — or "not configured" if plan 3's
-  app is not runnable yet) and commits; (2) **stage 3** in a new session: B4, I2, I3, I5 — and
-  **F25: I1's code-history component moves into B4** (it needs the detail page to live on). Still ⬜
-  from B1: the `crypto.server.ts` note and the A-vs-B test (with B6, stage 4).
+  (B8, `Portal`, M1 on local). **Stage 2 ✅ on local** (B3, B7, B2, I1 PATCH, I9, I10, I8; L2.1–L2.15).
+  **Stage 3 code ✅ (2026-11-25, local), machine-verified:** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3,
+  I5, F30. Machine: `npm test` 242/242 (22 new), `tsc` 0, `build` 0, lint 19 / 5 = F24 (stage-3 files
+  clean), new `visual-tests/affiliates.spec.ts` 11/11, full suite 113/113 after the four F22 baselines
+  (sidebar/tabbar × light/dark) were reviewed and regenerated — nothing else changed.
+- **Manual local run (2026-11-25):** L3.1–L3.13 ✅, L2.16 ✅ (Remove + Delete refused on money); L3.14 ⏸
+  (self needs a second admin; fixture-covered) and the closure blocker ⏸ (no local closure request;
+  `eligibility.test.ts`). New finding F37 (list badge order), for the user.
+- **Live where:** local — M1 applied; stage 2 committed (command `5c8f68c`); stage 3 in the working tree,
+  uncommitted · staging — nothing of this plan · production — nothing.
+- **Open for the user:** F33 (Change referrer left enabled on a suspended affiliate's page — confirm or
+  overrule); F37 (badge order); F36 (baseline the new fixture mode or not); close F30/F35 if satisfied; F24, F26 as before.
+- **Next:** (1) the user commits stage 3; (2) **stage 4** in a new session:
+  B6 (payout entry + reveal, needs M1 — done locally), B5 (withdrawals queue; adds the Withdrawals sub-tab,
+  F32), I6, I4, plus B1's leftover `crypto.server.ts` note and A-vs-B test. The detail's payout card,
+  open-on-behalf and payroll buttons slot into `AffiliateDetail` (F34); new dialogs reuse
+  `AffiliateDialog` + `affiliateForm.module.css` and read through `affiliatesApi.ts` (add the new calls
+  there and to the fixture's fake).
 - **Decisions that shape the build (read them in DECISIONS):** D1 exact `^v2\.`; D2 per-row
   balance calls; D3 import as a Command screen; D6 portal ⇔ affiliates row; D15 route refuses
   self; **D19 closure blocked while owed money** (net > 0 or an open withdrawal; a new
@@ -262,7 +266,12 @@ leaves their lines with `affiliate_user_id` NULL: the same unreachable money as 
 path B2 did not list. Q9 and Q50b say earned commission is paid out on closure, so the closure
 flow must see the balance first.
 
-### F22 — The new nav item changes committed visual baselines  (second review, 2026-11-24)
+### F22 — The new nav item changes committed visual baselines  (second review, 2026-11-24)  ✅ regenerated (stage 3, 2026-11-25)
+*Stage 3:* the full run failed exactly `sidebar-{light,dark}` (990 / 997 px) and `tabbar-{light,dark}` (59 /
+58 px). Images opened: the sidebar gains only "Affiliates" under Management; the tab bar gains only the new
+tab's icon at its right edge (the bar scrolls horizontally at the 900 px fixture width, so the label sits past
+the fold — existing behaviour). Only those four regenerated (`-g "ui-gallery (sidebar|tabbar)-(light|dark)$"
+--update-snapshots`), re-run 4/4, full suite green after.
 `visual-tests/pilot.spec.ts:44` captures `sidebar` and `tabbar` panes; the committed baselines
 `pilot.spec.ts-snapshots/sidebar-{light,dark}-chromium-linux.png` render
 `components/layout/Sidebar` from `app/ui-gallery/page.tsx:555-558`, and `TabBar` builds from
@@ -290,7 +299,7 @@ those files (`app/api/users/route.ts`, `useUpdateUser.ts`) are edited in stage 2
 existing `any`s unless the edit touches the line (surgical changes).
 *Stage 2 (2026-11-25):* still 19 / 5 after stage 2, the same 11 files; every stage-2 file lints clean.
 
-### F25 — I1's code-history component has no screen until B4  (stage 2, 2026-11-25)  ⏸ PARKED → stage 3
+### F25 — I1's code-history component has no screen until B4  (stage 2, 2026-11-25)  ✅ unparked and built in stage 3 (2026-11-25) — see I1
 I1 lists `components/affiliates/ReferralCodeHistory/` among its files, but the only place the plan
 mounts it is the Affiliates detail (B4, stage 3). Built in stage 2 it would be unmounted and
 unverifiable, so it moves to stage 3 with B4. I1's security half (F3: the PATCH through
@@ -313,7 +322,7 @@ the only difference. Only those six were regenerated (`-g "usermodal|useraddmoda
 `PORTAL_CFG` colours are mirrored on the notification settings page, where violet already means
 "Both". Affiliate is `#ec4899` in both places so the two pages agree.
 
-### F30 — Settings card: field help text follows the SAVED value, not what is typed  (L2 run, 2026-11-25)  ⬜ TODO (cosmetic, reported)
+### F30 — Settings card: field help text follows the SAVED value, not what is typed  (L2 run, 2026-11-25)  🔄 fixed in code and verified live L3.13 (2026-11-25) — left open for the user to close: the hook returns `taxSet` / `minSet` from the typed values (`nextTax` / `nextMin`) instead of `taxSaved` / `minSaved`; `settings-affiliate-commission.spec.ts` still green; live L3.13 ⬜
 In B3's card, the tax and minimum help lines read from the saved settings (`taxSaved` / `minSaved`).
 So with 12 typed into an unset tax box the line still says "Not set: no commission is being
 calculated", and with the minimum box cleared it still says "Affiliates can withdraw once their
@@ -333,6 +342,39 @@ name, as I1 already says.
 variables"; `architecture/auth-and-roles.md:190` cites it by name and was updated to match. (2) The
 Command email row on Settings → Notifications said "new registrations and vendor approvals"; since
 plan 1 it also emails `affiliate_withdrawal_requested` (generic template), so it now says so (I8).
+
+### F32 — The Withdrawals sub-tab waits for B5  (stage 3, 2026-11-25)  ⏸ PARKED → stage 4
+B4's text gives `AffiliatesPage` two sub-tabs (Affiliates · Withdrawals with the open count). The queue
+is B5 (stage 4); a sub-tab with nothing behind it would be an empty screen. Stage 3 renders the Affiliates
+view only; `AffiliatesPage` adds the tab bar when B5 lands. Unblocks: B5.
+
+### F33 — Change referrer stays enabled on a non-active affiliate's page  (stage 3, 2026-11-25)  ⬜ for the user to confirm
+I3 says "Both buttons are disabled when the affiliate on the page is not active". For **Credit**, the page's
+affiliate receives the vendor, and the database refuses a non-active referrer (D10), so it is disabled with
+the reason. For **Change referrer**, the page's affiliate is the one the vendor moves *away from*; the
+receiver is chosen in the dialog, which lists active affiliates only, and `change_vendor_referrer` checks
+only the receiver. Disabling it would block moving vendors off a suspended affiliate, which the database
+allows and is a likely reason to use it. Built that way; say if you want it disabled as written.
+
+### F34 — Detail actions that belong to stage 4  (stage 3, 2026-11-25)  ✅ (note)
+The payout card is read-only (masked label, last changed) until B6 adds "Show full details" / "Replace
+details"; "Open a withdrawal" (I6) and "Record payroll payment" (I4) are not on the detail yet. The staff
+banner already says payroll payments get recorded here.
+
+### F35 — The "Credit a vendor" list's anti-join is checked live only  (stage 3, 2026-11-25)  🔄 verified live in L3.8 (2026-11-25: exactly the 23 vendors with no referrer) — left open for the user to close
+`listCreditableVendors` filters `.is("vendor_referrals", null)` on the embed. Local PostgREST is v14.5,
+which supports null filters on embeds (v11+), but no machine test reaches it without a Command session
+(the fixture fakes the service). L3.8 is its first real run.
+
+### F36 — The new fixture mode is behavioural only, not baselined  (stage 3, 2026-11-25)  ✅ (note)
+`/ui-gallery?mode=affiliates` is not registered in `pilot.spec.ts`: registering a mode accepts its pixels
+(pilot header), which needs your review of the images first. Add it later if you want pixel coverage.
+
+### F37 — A suspended partner without payout details shows "No payout details", not "Suspended", on the list  (L3 run, 2026-11-25)  ⬜ for the user to decide
+B4's badge order is open withdrawal → no payout details (non-staff) → suspended → payroll, and the list
+follows it, so L3.10's suspended L2 Test read "No payout details". The KPI ("1 suspended") and the detail's
+account badge do say Suspended. If suspension should outrank missing details on the list, swap two lines in
+`attentionFor` (`lib/affiliateDisplay.ts`) and its test; not changed here because the order was specified.
 
 ---
 
@@ -432,7 +474,7 @@ a request value (the vendor rule, `crypto.server.ts:178-180`). The tests beside 
 (`crypto.server.test.ts`) gain one case: a blob sealed for user A fails for user B.
 **Verification:** `npm test` (machine); B6's live save + reveal (local, then staging).
 
-### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local L2.13, L2.15 ✅; L2.16 (money refusals) ⏸ until I5
+### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified; live local L2.13, L2.15, L2.16 Remove + Delete ✅ (2026-11-25); closure blocker live ⏸ (no local closure request — machine-covered)
 **Done (stage 2, 2026-11-25):** new pure `lib/affiliateRemoval.ts` (wording + `hasAffiliateMoneyRecord`,
 `removeAffiliateRefusal`: referrals → money → portal, D6) + 9 tests; new server-only
 `lib/affiliateRecords.server.ts` (`readAffiliateMoneyRecord`: any `affiliate_commissions` or
@@ -517,7 +559,29 @@ for: unset state, confirmation gate, live state, invalid inputs (machine, port 3
 local: save the minimum only; save the default rate; **do not set the tax rate locally unless the
 user accepts that T1 then fails until `db reset`** (Watch out). Staging: S4.
 
-### B4 — The Affiliates section: list and detail (Q37)  ⬜ TODO
+### B4 — The Affiliates section: list and detail (Q37)  🔄 IN PROGRESS — code ✅ machine-verified; live local L3.1–L3.5 ✅ (2026-11-25); only L3.14 (self, live) ⏸ — machine-covered; F22 baselines ✅ regenerated after review (2026-11-25)
+**Done (stage 3, 2026-11-25):** `lib/navigation.ts` "Affiliates" (HandCoins) after Closures + `PAGE_TITLES`;
+`AppShell` lazy-loads `AffiliatesPage` with `callerId = currentUser?.id`. New `components/affiliates/`:
+`affiliatesApi.ts` (the section's data access as one object behind a React context, real services by
+default; the /ui-gallery fixture injects a fake so the real hooks run without a session — DIP),
+`AffiliatesPage/` (list ⇄ detail, list reloaded on Back only after a write), `AffiliateList/` (KPIs, search
+by name/email/code, one badge per row, Type per plan 1 D12, loading/empty/error/no-match states; a failed
+balance shows "—" with its sentence on that row), `AffiliateDetail/` (balance with the blocker in words,
+referred vendors, commission lines 100 at a time with Show more, withdrawals or — for staff — payroll
+payments, profile, masked payout card, code history; each card loads and fails on its own; self: banner,
+no actions, **no `affiliate_balance` call**, F6/Q8), shared `AffiliateDialog/` frame and
+`affiliateForm.module.css`. Services: `listAffiliates` (paged, F7 named FKs, masked payout columns only),
+`getAffiliateDetail`, `getAffiliateBalance` (D2: one call per row, `Promise.all`, never self),
+`listReferredVendors`, `getCodeHistory`, `listCommissionLines`, `listCreditableVendors`, terms read/write and
+the three other writes; `listOpenWithdrawals`, `listWithdrawalsFor`. Pure `lib/affiliateDisplay.ts`
+(type, badge, rate line, input pre-checks, credit window, referrer filter, code labels) + 22 tests.
+`AffiliateListRow` gained `role`, `portals`, `isVendorMember`, `hasPayoutDetails` (`hasAffiliatePortal` moved
+off `AffiliateDetail`; `portals` covers it). Not in stage 3 (F32, F34): the Withdrawals sub-tab, payout
+entry/reveal, open-on-behalf and payroll buttons arrive with B5/B6/I6/I4.
+**Verified (machine, 2026-11-25):** `visual-tests/affiliates.spec.ts` 11/11 on `/ui-gallery?mode=affiliates`
+(list KPIs/badges/search; one balance call per affiliate and none for self; empty + error; partner detail;
+self read-only with no balance call; staff variant; plus the I1/I2/I3/I5 cases below); `npm test` 242/242;
+tsc 0; build 0; lint 19/5 = F24, every stage-3 file clean. Screens reviewed by eye in light, dark and 390 px.
 **Files:**
 - `command/lib/navigation.ts:10-25` add `{ id: "affiliates", label: "Affiliates", icon: HandCoins }`
   (lucide, already a dependency) **after `closures`** (Management, per the `:15-24` comments);
@@ -721,7 +785,12 @@ exit 0; `npx eslint` on the stage's files exit 0 (repo-wide lint: F24).
 
 ## IMPORTANT
 
-### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ (machine + live local L2.11, 2026-11-25); history ⏸ → B4 (F25)
+### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ (machine + live local L2.11, 2026-11-25); history ✅ machine + live L3.5–L3.6 (2026-11-25) → **I1 ✅ DONE on local**
+**Stage 3 (2026-11-25):** `components/affiliates/ReferralCodeHistory/` (pure display + its CSS module, no
+hook: no state) on the detail; labels from `codeSourceLabel` (F31: a NULL-actor `command` row reads
+"Changed by Ezzy" with no name), "Current" / "Still works" from `affiliate_referral_codes`. "Change code"
+on the detail opens the Users page's `AffiliateModal` with a `User` built from the detail (no second modal).
+Verified (machine): spec "detail: a partner's…" asserts both labels and badges; `affiliateDisplay.test.ts`.
 **Done (stage 2, 2026-11-25):** `PATCH /api/affiliates` keeps URL and response but calls
 `rpc("change_referral_code")` on the cookie-bound client (`lib/supabase/server.ts`); refusals
 (42501 / 23505 / 22023 / P0001) → 400 with `affiliateErrorMessage`, anything else → 500 + log.
@@ -747,7 +816,12 @@ History: every row of `affiliate_referral_code_changes` (named FK embed for `cha
 **Verification:** tsc, lint, `npm test` (error map) (machine). Live local: change a test
 affiliate's code → history row carries your name; change your own → refused. Staging: S4.
 
-### I2 — Rate override and staff flag (Q7, Q48)  ⬜ TODO
+### I2 — Rate override and staff flag (Q7, Q48)  ✅ DONE on local (2026-11-25) — machine + live L3.7; staging S4 ⬜
+**Done (stage 3):** `AffiliateTermsModal/` (render / hook / CSS). Save re-reads `affiliates` (`getAffiliateTerms`)
+and sends the field it did not edit as stored now. Rate pre-check `parseRateOverride` refuses > 2 decimals
+instead of rounding (JS and Postgres round 1.255 differently). Verified (machine): spec — re-read sends the
+colleague's 3% when only the staff flag changes (`readTerms:juan | setTerms:juan:3:true`); invalid rate
+disables Save; back to default sends NULL; 0% explained.
 **Files:** new `components/affiliates/AffiliateTermsModal/` (`.tsx`, `useAffiliateTermsModal.ts`,
 `.module.css`).
 **Fix approach:** one dialog with "Use the default rate (n%)" / "Override: __ %" (0–100, 2 dp;
@@ -759,7 +833,13 @@ rate they were earned at" (Q7). Refusal `affiliate_open_request` explains the st
 the open withdrawal.
 **Verification:** tsc, lint; behavioural spec on a fixture (machine); live local + S4.
 
-### I3 — Attribution dialogs: credit a vendor, change referrer (Q18, Q19; plan 1 D8)  ⬜ TODO
+### I3 — Attribution dialogs: credit a vendor, change referrer (Q18, Q19; plan 1 D8)  ✅ DONE on local (2026-11-25) — machine + live L3.8–L3.10; staging S4 ⬜; F33 still yours to confirm
+**Done (stage 3):** `CreditVendorModal/` and `ChangeReferrerModal/` (each render / hook / CSS). Credit lists
+vendors with no referrer from the last 60 days (anti-join, F35), those past 30 days disabled "Past 30
+days"; Change referrer picks from active affiliates minus the current referrer (F15) and the caller (Q8),
+no removal option (D7). Credit is disabled on a non-active affiliate's page with the reason; Change
+referrer is **not** (F33). Verified (machine): spec — past-window vendor disabled, reason gate, exact
+picker contents, no "No one/remove", calls recorded; suspended affiliate's Credit disabled with reason.
 **Files:** new `components/affiliates/CreditVendorModal/` and
 `components/affiliates/ChangeReferrerModal/` (each `.tsx`, `use….ts`, `.module.css`).
 **Fix approach:** Credit — list vendors with **no** `vendor_referrals` row signed up in the last
@@ -780,7 +860,12 @@ from here and no email is sent" (preview; M4 `:1535-1612` sends none). Refusals 
 **Verification:** tsc, lint, fixture spec; live local + S4 (needs a staff affiliate with a manual
 line).
 
-### I5 — Manual adjustment (Q36)  ⬜ TODO
+### I5 — Manual adjustment (Q36)  ✅ DONE on local (2026-11-25) — machine + live L3.11–L3.12; staging S4 ⬜
+**Done (stage 3):** `AdjustmentModal/` (render / hook / CSS): signed ₱ amount (≠ 0, ≤ 2 dp, typographic minus
+accepted), reason ≥ 10 "shown to the affiliate", confirm step "Add ₱X to <name>'s available balance now" /
+"Take ₱X off…". Not offered on the admin's own record. Verified (machine): spec — zero refused, negative
+confirm sentence, nothing sent before Confirm, call recorded, a database refusal shown in
+`affiliateErrors`' words.
 **Files:** new `components/affiliates/AdjustmentModal/` (`.tsx`, `useAdjustmentModal.ts`,
 `.module.css`).
 **Fix approach:** signed amount (₱, 2 dp, ≠ 0; a negative takes money back), reason ≥ 10 marked
@@ -1025,7 +1110,7 @@ The only production contact so far is R2's read-only `migration list` (2026-11-2
    locally; 🤖 re-run T1 + `db lint`. Gate: T1 105/105; `npm test`, lint, `tsc` green.
 2. **Stage 2 — Settings and Users page (local).** ✅ 2026-11-25 (machine + manual L2.1–L2.15; L2.16 → after I5). B3, B7, B2, I1, I9, I10, I8. These are
    independent of the Affiliates section and make the programme switchable and grantable.
-3. **Stage 3 — Affiliates section, read and terms (local).** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3, I5.
+3. **Stage 3 — Affiliates section, read and terms (local).** ✅ 2026-11-25 (machine + manual L3.1–L3.13, L2.16; L3.14 ⏸). B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3, I5, F30.
 4. **Stage 4 — Money out (local).** B6 (needs M1 applied locally), B5, I6, I4. Live local run of the
    full lifecycle: manual line → open on behalf → start → reveal → complete; a second one rejected;
    a third rejected after processing as transfer-failed.
@@ -1039,7 +1124,7 @@ required) and I5 or real lines (money to withdraw); B7's invite click-through ne
 that environment; I1's PATCH change ships with I10's copy. Stages 2 and 3 can swap; 4 cannot move
 before 1.
 
-## Big table (updated 2026-11-25, after the stage 2 manual run)
+## Big table (updated 2026-11-25, after the stage 3 manual run)
 
 | ✓ | Status | Stage | Item | What | Who | Why / notes |
 |---|---|---|---|---|---|---|
@@ -1048,26 +1133,34 @@ before 1.
 | [ ] | 🔄 | 1→4 | B1 | crypto note + A-vs-B test | Me | M1 part done; rest with B6 (stage 4) |
 | [x] | ✅ local 2026-11-25 | 2 | B3 | Settings: affiliate commission card | Me | L2.1–L2.5 ✅; F30 cosmetic open |
 | [x] | ✅ local 2026-11-25 | 2 | B7 | Affiliate portal chip, D5 origin, D6 rule, README | Me | L2.6–L2.9 ✅; invite → :3002 confirmed |
-| [ ] | 🔄 | 2 | B2 | Remove/Delete/closure guarded by money | Me | L2.13/L2.15 ✅; L2.16 ⏸ until I5 |
-| [ ] | 🔄 | 2 | I1 | Code change via `change_referral_code` | Me | L2.11 ✅ (changed_by = admin); history → B4 (F25) |
+| [ ] | 🔄 | 2 | B2 | Remove/Delete/closure guarded by money | Me | L2.13/15/16 ✅; closure live ⏸ (no local request) |
+| [x] | ✅ local 2026-11-25 | 2→3 | I1 | Code change + history | Me | L2.11, L3.5, L3.6 ✅ |
 | [x] | ✅ local 2026-11-25 | 2 | I9 | Registry-aware pre-check; refuse self (D15) | Me | L2.10, L2.12 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | I10 | Stale "code is freed" copy | Me | F11: grep clean |
 | [x] | ✅ local 2026-11-25 | 2 | I8 | Notification types, icons, affiliate email row | Me | L2.14 ✅ |
-| [ ] | 🔄 15/16 | 2 | L2 | Stage 2 manual local checks | Me (user-permitted) | L2.1–L2.15 ✅ 2026-11-25; L2.16 ⏸ until I5 |
-| [ ] | ⬜ | 2 | C2 | Commit stage 2 (command + root) | You | Drafts in the stage-2 report |
-| [ ] | ⬜ | 3 | B4 | Affiliates list + detail (+ I1 history, F25) | Me | The section the money screens hang off |
-| [ ] | ⬜ | 3 | I2 | Rate override + staff flag | Me | Q7, Q48 |
-| [ ] | ⬜ | 3 | I3 | Credit vendor / change referrer | Me | Q18, Q19 |
-| [ ] | ⬜ | 3 | I5 | Manual adjustment | Me | Q36; also unlocks B2's live checks |
+| [x] | ✅ 16/16 | 2 | L2 | Stage 2 manual local checks | Me (user-permitted) | L2.16 run with L3 (closure part machine) |
+| [x] | ✅ | 2 | C2 | Commit stage 2 (command + root) | You | command `5c8f68c`; root `3e33de5`, `f5de000` |
+| [ ] | 🔄 | 3 | B4 | Affiliates list + detail (+ I1 history, F25) | Me | Machine ✅; L3.1–L3.5 ✅; L3.14 ⏸ (self, fixture-covered) |
+| [x] | ✅ local 2026-11-25 | 3 | I2 | Rate override + staff flag | Me | L3.7 ✅ |
+| [x] | ✅ local 2026-11-25 | 3 | I3 | Credit vendor / change referrer | Me | L3.8–L3.10 ✅; F33 for you |
+| [x] | ✅ local 2026-11-25 | 3 | I5 | Manual adjustment | Me | L3.11–L3.12 ✅ |
+| [ ] | 🔄 13/14 | 3 | L3 | Stage 3 manual local checks | Me (user-permitted) | L3.1–L3.13 ✅; L3.14 ⏸ |
+| [ ] | ⬜ | 3 | C3 | Commit stage 3 (command + root) | You | Drafts in the stage-3 report |
 | [ ] | ⬜ | 4 | B6 | Payout details entry + reveal | Me | Needs M1 (done locally) |
 | [ ] | ⬜ | 4 | B5 | Withdrawals queue + lifecycle | Me | Needs B6 + money |
 | [ ] | ⬜ | 4 | I6 | Open a withdrawal on behalf | Me | D7 closure waiver |
 | [ ] | ⬜ | 4 | I4 | Payroll for staff | Me | Q48 |
 | [ ] | ⬜ | 5 | I7 | Pre-launch import | Me | D3, D4, D13 |
 | [ ] | ⬜ | — | F24 | Command lint backlog 19 / 5 | You (decide) | Pre-existing; reported, not fixed |
-| [ ] | ⏸ | 3 | F25 | `ReferralCodeHistory` | Me | Parked: no screen until B4; unblocks with B4 |
+| [x] | ✅ 2026-11-25 | 3 | F25 | `ReferralCodeHistory` | Me | Built on the detail (I1) |
 | [ ] | ⬜ | — | F26 | `overview-light` load flake | You (decide) | Passed alone; not a stage-2 change |
-| [ ] | ⬜ | 3+ | F30 | Settings help text follows saved value | Me | Cosmetic, found in L2 |
+| [ ] | 🔄 | 3 | F30 | Settings help text follows typed value | You (close) | Fixed; L3.13 ✅ |
+| [x] | ✅ 2026-11-25 | 3 | F22 | Sidebar/tabbar baselines | Me | Reviewed, only the nav item; 4 regenerated |
+| [ ] | ⏸ | 4 | F32 | Withdrawals sub-tab | Me | Arrives with B5 |
+| [ ] | ⬜ | 3 | F33 | Change referrer on a suspended affiliate | You (confirm) | Left enabled: DB checks the receiver only |
+| [ ] | 🔄 | 3 | F35 | Credit list anti-join | You (close) | Verified L3.8 |
+| [ ] | ⬜ | 3 | F37 | List badge: suspended vs no details | You (decide) | Order as specified in B4 |
+| [ ] | ⬜ | — | F36 | Baseline `mode=affiliates`? | You (decide) | Behavioural only for now |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
 | [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
 | [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
@@ -1128,7 +1221,7 @@ log rows (`affiliate_payout_method_log`, `affiliate_payout_view_log`,
 `affiliate_commission_status_log`). Emails land in the local mail catcher. Not run locally unless
 the user accepts T1 breaking until `db reset`: setting the tax rate.
 
-**Manual local checks — stage 2 (L2)**  🔄 15/16 ✅ (run 2026-11-25 by the agent with the user's permission, in a visible Chromium on WSLg driven over CDP, signed in by the user as Root Admin; screenshots shown in-session) · L2.16 ⏸
+**Manual local checks — stage 2 (L2)**  ✅ 16/16 (L2.16 run 2026-11-25 with L3; its closure part machine-covered only) (run 2026-11-25 by the agent with the user's permission, in a visible Chromium on WSLg driven over CDP, signed in by the user as Root Admin; screenshots shown in-session) · L2.16 ⏸
 Run against local Command (`http://localhost:3000`, never `127.0.0.1`) signed in as a local Command
 admin. Setup: `PORTAL_URL_AFFILIATE=http://localhost:3002` in `command/.env.local` (D11), Command
 restarted. For the invite click-through, the affiliate app on 3002 with booker stopped; without it
@@ -1153,7 +1246,7 @@ locally (T1, plan 1 F23).
 | L2.13 | B2, D6 | Remove affiliate on someone holding the Affiliate portal | Disabled with "Remove the Affiliate portal first…" | ✅ 2026-11-25 — Remove disabled, title "Remove the Affiliate portal first (Edit User)…" |
 | L2.14 | I8 | Settings → Notifications | Five affiliate rows (requested → Command, four → Affiliate, pink); Affiliate email row; Command row mentions withdrawal requests | ✅ 2026-11-25 — requested → Command, four → Affiliate (pink); Affiliate email row; Command row names withdrawal requests |
 | L2.15 | B2 | Closures tab | Queue loads as before | ✅ 2026-11-25 — "No closure requests"; `GET /api/account-deletion` 200 (local has no requests, so the blocker itself is L2.16) |
-| L2.16 | B2 | Remove / Delete / closure for an affiliate with a manual line | All refused (closure shows the affiliate blocker) | ⏸ waits for I5 (stage 3) — no way to create a money line from Command before then |
+| L2.16 | B2 | **Run after L3.11** (I5 now exists). On L2 Test Affiliate One (has a manual line, no referrals after L3.9): Users → Affiliate → Remove; Users → Delete user; Closures if any request exists | Remove disabled with "This affiliate has commission on record…" (money is checked before the portal, `removeAffiliateRefusal`). Delete refused with the commission sentence, nothing deleted (SQL: `profiles` row still there). Closure: only if a local closure request by a vendor-admin affiliate exists, it shows the affiliate blocker; else machine-covered (`eligibility.test.ts`) and noted | ✅ 2026-11-25 (Remove, Delete) — Remove disabled with the commission sentence; `DELETE /api/users` 400 "…commission on record and cannot be deleted…", SQL `auth.users`/`profiles`/`affiliates` still 1/1/1. Closure ⏸: local has 0 closure requests, so the blocker stays machine-covered (`eligibility.test.ts`) |
 
 *Local test data left by the L2 run (2026-11-25), for cleanup or `db reset`:* user `l2-test-1@example.com`
 ("L2 Test Affiliate One", id `d3c20666-6acd-44c1-ac11-4aaf7ab3d9e9`, member, active, portal `affiliate`,
@@ -1162,6 +1255,38 @@ affiliate with code `L2TEST02`); registry rows `L2TEST01` and `L2TEST02` reserve
 `platform_fee_settings` values are back to baseline but `updated_by` / `updated_at` now show Root
 Admin, 2026-11-25. Liza Cruz's portals restored to `booker`. `PORTAL_URL_AFFILIATE=http://localhost:3002`
 added to `command/.env.local` (D11), left in place.
+
+**Manual local checks — stage 3 (L3)**  🔄 13/14 ✅ · L3.14 ⏸ (run 2026-11-25 by the agent with the user's permission, `/sim-manual-test`, visible Chromium on WSLg over CDP, signed in by the user as Root Admin; screenshots shown in-session, read-only SQL for every write)
+Run against local Command (`http://localhost:3000`) signed in as the local Root Admin. Seeded affiliates
+`NINA2026` (Nina, no portals, 1 referred vendor) and `LIZA2026` (Liza, `booker`), plus L2's test affiliate
+`L2TEST02` (`l2-test-1@example.com`, portal `affiliate`). Every check writes **local** test data only; list
+it afterwards for cleanup or `db reset`. **Never** set the tax rate (T1, plan 1 F23). Read-only SQL through
+`docker exec supabase_db_fbxbwnfeimzhgxpshdpa psql … -c "set default_transaction_read_only=on" -c "…"`.
+
+| # | Item | Steps | Expected | Status |
+|---|---|---|---|---|
+| L3.1 | B4, F22 | Sidebar → Management | "Affiliates" after Closures (hand-coins icon); the mobile tab bar lists it too | ✅ 2026-11-25 — sidebar: … Closures \| Affiliates \| Settings; top tab bar shows it, active |
+| L3.2 | B4, D2, F6 | Open Affiliates | Three rows (Nina Partner, Liza Booker, L2 Test Partner); Available shows ₱0.00 per row (no "—" error); KPIs: 3 affiliates, 0 open withdrawals; "No payout details" counts the non-staff without details | ✅ 2026-11-25 — 3 rows (Liza Booker, Nina Partner, L2 Test Partner), each ₱ 0.00, no "—" (three balance calls succeeded); KPIs 3 · 0 open · 3 without details |
+| L3.3 | B4 | Search `liza`, then `zzz` | One row; then "No affiliate matches…" | ✅ 2026-11-25 — `liza` → 1 row; `zzz` → "No affiliate matches “zzz”." |
+| L3.4 | B4 | Open Nina | Balance card (rate "(default)" at Settings' rate), referred vendor row with status and code used, code history row, "No commission lines yet.", "No withdrawals yet.", "No payout details yet…" | ✅ 2026-11-25 — rate "1% … (default)", buckets ₱0.00, minimum Off + "Withdrawals are off…" (local min NULL); Citywide Sports Center Active · NINA2026; empty lines/withdrawals; no payout details; NINA2026 "Recorded at launch" · Current |
+| L3.5 | I1, F25, F31 | Open L2 Test Affiliate One → Referral codes | `L2TEST02` "Changed by Ezzy (Root Admin)" · Current; `L2TEST01` "Changed by Ezzy" with **no name** · Still works | ✅ 2026-11-25 — L2TEST02 "Changed by Ezzy (Root Admin) · was L2TEST01" · Current; L2TEST01 "Changed by Ezzy" (no name) · Still works; SQL creation row `changed_by` NULL. Dates show 26 Nov: Manila time of an evening-UTC 25 Nov row (correct) |
+| L3.6 | I1 | "Change code" on that detail | The Users-page code dialog opens with the blue "old code keeps crediting" note when a new code is typed; **Cancel** (PATCH itself was L2.11) | ✅ 2026-11-25 — Users-page dialog prefilled L2TEST02; typing L3TEST03 shows the blue note; Cancel; SQL code still L2TEST02 |
+| L3.7 | I2 | "Rate and staff flag" → Override 2 → Save; list row; then back to "Use the default rate" → Save | Toast; detail rate "2% … (override)", list "2% override"; SQL `select commission_rate_percent, is_staff from affiliates where referral_code='L2TEST02'` → `2.00, f`, then `NULL, f` | ✅ 2026-11-25 — override 2 → toast, detail "2% … (override)", list "2% override", SQL `2.00, f`; default → `NULL, f`; staff on → `NULL, t`, banner + "Not needed" + list "Staff · Paid through payroll"; staff off → `NULL, f` (baseline restored) |
+| L3.8 | I3 | "Credit a vendor" on L2 Test → pick a vendor signed up < 30 days ago with no referrer (e.g. *Reference*, 16 Nov) → reason ≥ 10 → submit | List shows vendors < 60 days, older than 30 greyed "Past 30 days"; toast; vendor appears under Referred vendors; SQL `select kind, to_code, changed_by from vendor_referral_changes order by changed_at desc limit 1` → `credit`, `L2TEST02`, Root Admin's id. ⚠️ first live test of the `.is("vendor_referrals", null)` anti-join (F35) | ✅ 2026-11-25 — picker lists exactly the 23 vendors with no referrer < 60 days (anti-join works, F35): 6 eligible, 17 "Past 30 days" disabled; credited *Reference*; SQL `credit`, NULL → L2TEST02, changed_by Root Admin |
+| L3.9 | I3, D7, D10, F15 | On that vendor's row → "Change referrer" | Picker lists Nina and Liza only (not L2 Test, not you); **no** "No one / remove" option; move to Nina with a reason → row leaves L2 Test, appears on Nina; SQL latest row `change`, `from_code L2TEST02`, `to_code NINA2026` | ✅ 2026-11-25 — options exactly [Liza, Nina] (current referrer excluded; Root Admin isn't an affiliate), no remove option; moved to Nina; SQL `change`, L2TEST02 → NINA2026, Root Admin |
+| L3.10 | I3, D10, F33 | Users → suspend L2 Test → its Affiliates detail; then reactivate | "Credit a vendor" disabled with "Only an active affiliate can be credited with a vendor."; list badge "Suspended" | ✅ 2026-11-25 — suspended (SQL) → Credit disabled with the reason, account badge Suspended, KPI "2 active · 1 suspended"; list badge reads "No payout details", not "Suspended" — B4's order ranks it first, so the checklist's expectation was wrong (F37); reactivated (SQL `active`) |
+| L3.11 | I5 | "Add adjustment" on L2 Test: ₱10, reason ≥ 10 → Continue → Confirm | Confirm reads "Add ₱ 10.00 to L2 Test Affiliate One's available balance now."; toast; Available ₱10.00; line "Manual" with the reason; SQL `select kind, amount, status from affiliate_commissions order by created_at desc limit 1` → `manual, 10.00, earned`, and its status-log row `changed_by` = you | ✅ 2026-11-25 — confirm "Add ₱ 10.00 to L2 Test Affiliate One's available balance now."; Available ₱10.00; line C-10039 Manual; SQL `manual, 10.00, earned`, status log → earned by Root Admin |
+| L3.12 | I5 | Adjustment −2.50 | Confirm reads "Take ₱ 2.50 off…"; Available ₱7.50; list Available ₱7.50, KPI "Available, not requested" ₱7.50 across 1 | ✅ 2026-11-25 — confirm "Take ₱ 2.50 off…"; detail and list ₱7.50, KPI ₱7.50 across 1; SQL C-10040 `-2.50` |
+| L3.13 | F30 | Settings → Platform Fee → Affiliate card: type 12 in the (unset) tax box, **don't save**; clear the minimum box; then Reset | Tax help changes from "Not set: no commission…" to "Stored on each commission line…" as you type; minimum help reads "Not set: withdrawals are off for everyone." once cleared; Reset restores; **nothing saved** (SQL tax NULL) | ✅ 2026-11-25 — tax help switches to "Stored on each commission line…" on typing 12; minimum help follows typing (5 → "Affiliates can withdraw…", cleared → "Not set…"; local minimum was already NULL, so the mirror of the written step); Cancel restores; SQL tax/min/live_from all NULL |
+| L3.14 | B4, Q8 | Only if another local admin can make the tester an affiliate: the tester's own detail | "This is your own affiliate account…", no buttons, no balance; else covered by the fixture spec (machine) and noted | ⏸ 2026-11-25 — no second local admin signed in to make the tester an affiliate (D15 refuses self); covered by the fixture spec (machine) only |
+
+*Local test data left by the L3 run (2026-11-25), for cleanup or `db reset`:* on L2 Test Affiliate One
+(`d3c20666-6acd-44c1-ac11-4aaf7ab3d9e9`): two manual lines C-10039 (+10.00) and C-10040 (−2.50), each with a
+creation row in `affiliate_commission_status_log`; terms back to `NULL, f`; status back to active. Vendor
+*Reference* (`cc83f1fc-8eb2-45b0-a9a8-d5ec87054866`) now has a `vendor_referrals` row crediting **Nina
+(NINA2026)**, plus two `vendor_referral_changes` rows (credit to L2TEST02, change to NINA2026). Platform-fee
+settings untouched (tax, minimum, live_from NULL). No env var added. Dev server :3000 and Chromium :9222
+started and stopped by the agent.
 
 **Live, staging (S4)** — with two staging accounts besides the tester (Q8): a partner affiliate and
 a staff affiliate.
