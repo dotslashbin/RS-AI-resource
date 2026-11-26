@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 code ✅ machine-verified (2026-11-25, local), its live local checks ⬜ with the user; stage 3 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,19 +29,22 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-25, stage 1 ✅ — start stage 2 in a new session)
+## ▶ RESUME HERE (updated 2026-11-25, stage 2 code ✅ — start stage 3 in a new session)
 
-- **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅
-  (2026-11-25, local):** B8 ✅ (interfaces, mappers, `lib/affiliateErrors.ts` + 30 tests); B7's
-  `Portal` type ✅ (plus the type-forced, unreachable `ORIGIN_ENV.affiliate` entry — B7 note); M1 ✅
-  on local (user applied; T1 105/105, `db lint` clean). Machine: `npm test` 178/178, `tsc` 0,
-  `build` 0, stage files lint clean; repo-wide lint fails on 19 pre-existing errors (F24).
-- **Live where:** local — M1 applied · staging — nothing of this plan · production — nothing.
+- **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅**
+  (B8, `Portal` type, M1 on local). **Stage 2 code ✅ (2026-11-25, local), machine-verified:** B3, B7,
+  B2, I1 (PATCH part), I9, I10, I8. Machine: `npm test` 220/220 (42 new), `tsc` 0, `build` 0, lint
+  19 / 5 = F24 unchanged, Playwright: new `settings-affiliate-commission.spec.ts` 5/5, full suite 94
+  pass + 7 expected/flake (F26, F27). **Not yet run:** the stage's live local checks (list in the
+  stage-2 report and under each item's "Live local"), owned by the user.
+- **Live where:** local — M1 applied; stage 2 code in the working tree, uncommitted · staging —
+  nothing of this plan · production — nothing.
 - **Approved:** ✅ by the user, 2026-11-25 (flow step 7).
-- **Next:** **stage 2** (Execution order) in a new session: B3, B7 (rest: `ALL_PORTALS`,
-  `PORTAL_CFG`, `isPortal`/`PRIORITY` per D5, D6 rules, README), B2, I1, I9, I10, I8. Still ⬜ from
-  B1: the `crypto.server.ts` header/parameter note and the A-vs-B test (with B6, stage 4).
-  Lint gate = no new problems beyond F24's 19 / 5.
+- **Next:** (1) the user runs stage 2's live local checks (D11: `PORTAL_URL_AFFILIATE=http://localhost:3002`
+  in `command/.env.local`, affiliate app on 3002 with booker stopped — or "not configured" if plan 3's
+  app is not runnable yet) and commits; (2) **stage 3** in a new session: B4, I2, I3, I5 — and
+  **F25: I1's code-history component moves into B4** (it needs the detail page to live on). Still ⬜
+  from B1: the `crypto.server.ts` note and the A-vs-B test (with B6, stage 4).
 - **Decisions that shape the build (read them in DECISIONS):** D1 exact `^v2\.`; D2 per-row
   balance calls; D3 import as a Command screen; D6 portal ⇔ affiliates row; D15 route refuses
   self; **D19 closure blocked while owed money** (net > 0 or an open withdrawal; a new
@@ -50,19 +53,18 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
   - **Tax wording (D18):** Q27 excludes **withholding**; the after-tax **rate** (Q34) stays and
     is the go-live switch. Don't add a withholding line, and don't drop the rate.
   - **Setting the tax rate is one-way** (plan 1 D1). Locally it also breaks plan 1's T1
-    (`affiliate_data_layer_test.sql:230`) until the next `db reset` (plan 1 F23). On staging it
-    is done deliberately in S4 (D18); on production it is the go-live switch and is **not** a
-    release step (D16).
-  - **Closure blocker (B2, D19):** compute it with the route's service-role client by summing
-    lines — `affiliate_balance` refuses a service-role caller (`20261118000001:128-130`). Net ≤ 0
-    does not block (Q4-neg writes it off).
-  - The Platform Fee page reads one row; once B3 adds the affiliate columns to its select, a
-    Command build on a database **without** plan 1's M1 cannot load the page (F18). Plan 1's
-    production P-table runs before this plan's production Promote.
+    (`affiliate_data_layer_test.sql:230`) until the next `db reset` (plan 1 F23). B3's card now
+    makes this a two-step action (retype), but it still works on local: **don't** switch it on there
+    unless you accept T1 failing until `db reset`.
+  - The Platform Fee page now selects plan 1's four affiliate columns (B3): a Command build on a
+    database **without** plan 1's migrations cannot load the page (F18). Plan 1's production
+    P-table runs before this plan's production Promote.
   - `affiliate_withdrawals` has **five** FKs to `profiles` and `affiliate_referral_code_changes`
     two: every `profiles(...)` embed must name its FK (PGRST201, F7).
   - B4's nav entry changes the committed `pilot` sidebar baselines (F22): regenerate only those,
-    deliberately.
+    deliberately. Stage 2 already regenerated the six user-modal baselines (F27).
+  - Command's `lib/accountDeletion/eligibility.ts` now deliberately differs from vendor's copy
+    (the `affiliate_balance` blocker, D20; header says so). Don't "re-sync" it from vendor.
   - `npx supabase` fetched CLI **3.4.0** on 2026-11-24 (plan text says 3.2.0); flags used here
     (`--remote`, `--read-only`) worked unchanged. Re-check `--help` before S1.
   - The user applies every migration and runs every hosted step. No agent database writes.
@@ -285,6 +287,36 @@ files lint clean on their own (`npx eslint <files>`, exit 0). So "lint green" in
 means **no new problems, the count stays at 19 / 5**, until someone fixes the backlog. Several of
 those files (`app/api/users/route.ts`, `useUpdateUser.ts`) are edited in stage 2: leave their
 existing `any`s unless the edit touches the line (surgical changes).
+*Stage 2 (2026-11-25):* still 19 / 5 after stage 2, the same 11 files; every stage-2 file lints clean.
+
+### F25 — I1's code-history component has no screen until B4  (stage 2, 2026-11-25)  ⏸ PARKED → stage 3
+I1 lists `components/affiliates/ReferralCodeHistory/` among its files, but the only place the plan
+mounts it is the Affiliates detail (B4, stage 3). Built in stage 2 it would be unmounted and
+unverifiable, so it moves to stage 3 with B4. I1's security half (F3: the PATCH through
+`change_referral_code`, the admin recorded as `changed_by`, own account refused) is done in stage 2,
+and `changed_by` can already be confirmed by read-only SQL. Unblocks: B4's detail page exists.
+
+### F26 — `pilot` `overview-light` flaked once under full-suite load  (stage 2, 2026-11-25)  ⬜ TODO (reported, not fixed)
+In the full Playwright run, `overview-light` failed with a different pixel count on each retry frame
+(1,356 / 3,222 / 1,866, ratio 0.01); it passed alone straight after. Stage 2 touches nothing that
+screen renders. Same class as the backdrop-blur / load note in `playwright.config.ts` and memory
+(Playwright stalls under load). Not fixed here; re-run alone before treating it as a regression.
+
+### F27 — Adding Affiliate to `ALL_PORTALS` changed six committed user-modal baselines  (stage 2, 2026-11-25)  ✅ regenerated
+`usermodal`, `useraddmodal`, `userview` × light/dark failed (13–22 % of pixels) because the Affiliate
+chip now renders and wraps to a second row. The actual images were opened and checked: the chip is
+the only difference. Only those six were regenerated (`-g "usermodal|useraddmodal|userview"
+--update-snapshots`), then re-run green (6/6). Committed baselines: they go in the command commit.
+
+### F28 — The affiliate chip colour is pink, not violet  (stage 2, 2026-11-25)  ✅ (note)
+`PORTAL_CFG` colours are mirrored on the notification settings page, where violet already means
+"Both". Affiliate is `#ec4899` in both places so the two pages agree.
+
+### F29 — Two small knock-ons fixed in passing  (stage 2, 2026-11-25)  ✅
+(1) `command/README.md`'s "The `PORTAL_URL_*` trio" heading became "The four `PORTAL_URL_*`
+variables"; `architecture/auth-and-roles.md:190` cites it by name and was updated to match. (2) The
+Command email row on Settings → Notifications said "new registrations and vendor approvals"; since
+plan 1 it also emails `affiliate_withdrawal_requested` (generic template), so it now says so (I8).
 
 ---
 
@@ -384,7 +416,22 @@ a request value (the vendor rule, `crypto.server.ts:178-180`). The tests beside 
 (`crypto.server.test.ts`) gain one case: a blob sealed for user A fails for user B.
 **Verification:** `npm test` (machine); B6's live save + reveal (local, then staging).
 
-### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  ⬜ TODO
+### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+**Done (stage 2, 2026-11-25):** new pure `lib/affiliateRemoval.ts` (wording + `hasAffiliateMoneyRecord`,
+`removeAffiliateRefusal`: referrals → money → portal, D6) + 9 tests; new server-only
+`lib/affiliateRecords.server.ts` (`readAffiliateMoneyRecord`: any `affiliate_commissions` or
+`affiliate_withdrawals` row, `null` on a failed read). `DELETE /api/affiliates` and `DELETE /api/users`
+refuse on money (and Remove on the portal, D6), **fail closed** on a failed read (500, nothing
+deleted). `GET /api/affiliates` returns `hasCommission` (true when unknown); `useAffiliateModal`
+uses the same `removeAffiliateRefusal` for the button's tooltip. Closure: `eligibility.ts` gains
+`affiliate_balance`, `affiliateOwed` (centavo sum, NaN/non-finite → owed), `OWED_COMMISSION_STATUSES`,
+`OPEN_WITHDRAWAL_STATUSES`, `scopeDeletesUser` (also used by `execute.server.ts` now, one definition);
+`app/api/account-deletion/route.ts` computes it for `requested_by` only when the scope deletes the
+login, paged past 1000 rows, failing closed on an error or incomplete read; GET (queue) and POST
+(pre-execute) both use it, including rows with no vendor attached. `ClosureQueue` labels it with the
+next action. The header of `eligibility.ts` records the deliberate divergence from vendor's copy (D20).
+**Verified (machine):** `eligibility.test.ts` +9 cases (net > 0 blocks; net ≤ 0 and a float-drift sum do not; withdrawn lines are never read — the owed-status list is pinned; open withdrawal blocks; bad input blocks; scopes); `affiliateRemoval.test.ts` 9;
+tsc, build, lint (no new problems). **Live local waits partly on stage 3:** a money record needs I5's manual line (or B6/B5), so the Remove/Delete/closure live checks run after I5.
 **Files:** `command/app/api/affiliates/route.ts:252-288`, `command/app/api/users/route.ts:283-296`,
 `components/users/AffiliateModal/useAffiliateModal.ts:40-61` (the button's own pre-check).
 **Fix approach:** before deleting, also count `affiliate_commissions` (any status) and
@@ -397,7 +444,22 @@ gains `hasCommission` so Remove explains itself before the click (same reasoning
 **Third path (F21, D19 = a, 2026-11-24):** account closure. Command computes eligibility live per vendor in `app/api/account-deletion/route.ts:84-105` (`fetchEligibility`), shows it in the queue (GET `:134`) and re-checks it immediately before executing (POST `:171`); the user deleted is `request.requested_by`, and only when the scope deletes the user (`lib/accountDeletion/execute.server.ts:165-168`). Add a fourth `BlockerCode` `affiliate_balance` to `lib/accountDeletion/eligibility.ts:57-63` (counts gain `affiliateOwed`), computed for `requested_by` **only when the scope deletes that user**: blocks while the user has an `affiliate_withdrawals` row in `requested` / `processing`, or the **net sum** of their `affiliate_commissions.amount` in `earned`, `held` or `in_withdrawal` is > 0 (service-role read, the route's existing client; not `affiliate_balance`, which refuses a service-role caller). A net ≤ 0 does not block: Q4-neg writes off a negative balance at closure. Lines not yet available (7-day clock) and held lines (open dispute) still block, so a closure may have to wait for them. Lines `withdrawn`, `written_off` or `cancelled` do not block. Next action shown with the blocker: "This person is still owed affiliate commission. Open a final withdrawal from Affiliates (account-closure waiver), complete it, then close the account." `eligibility.test.ts` gains the new code's cases. Vendor app side: per D20.
 **Verification:** a unit-testable predicate in `lib/` (`node --test`, machine), plus `lib/accountDeletion/eligibility.test.ts` cases for `affiliate_balance` (net > 0 blocks; net ≤ 0 and withdrawn-only do not; open withdrawal blocks). Live on local: add a manual line to a test affiliate (B4/I5), then try Remove and Delete → both refused; a closure request by a vendor-admin affiliate with a positive balance shows the blocker and refuses to execute; after a waived final withdrawal is completed, the blocker clears.
 
-### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  ⬜ TODO
+### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+**Done (stage 2, 2026-11-25):** as listed below. `PlatformFeeSettings` + 4 fields; the service reads
+them and gains `updateAffiliateCommissionSettings` (never sends `affiliate_commission_live_from`);
+`usePlatformFeeSettingsPage.saveAffiliateCommission` (refusals worded by `affiliateErrorMessage`,
+re-read after save). New `components/settings/AffiliateCommissionSettings/` (render / hook / CSS):
+"switched off" status, three fields with the CHECK ranges, live-since line (Manila), D12 inline
+confirmation that enables only when the retyped rate equals the one being saved, D14 warning when
+the minimum is cleared (counts open withdrawals via new `countOpenWithdrawals()`; falls back to a
+general sentence if the count fails), worked example from new pure `lib/affiliateMath.ts`
+(integer-centavo, half-away-from-zero, matching `round(numeric, 2)`), F16 footer. `/ui-gallery?mode=affiliatecommission`
+(`&live=1`) fixture.
+**Verified (machine):** `affiliateMath.test.ts` 6 (plan 1's ₱176.00 → ₱154.88 → ₱1.55; ₱5,165 to a
+₱5 minimum; the 1.005 half-centavo case); `visual-tests/settings-affiliate-commission.spec.ts` 5/5
+(unset + retype gate + cancel; minimum-only save skips the gate; live: can't clear tax, example
+figures, live change needs no gate; invalid values; clearing the minimum warns);
+`settings-withholding.spec.ts` still green; tsc, build, lint clean.
 **Files:**
 - `command/lib/types.ts:15-22` `PlatformFeeSettings` gains `affiliateTaxPercent: number | null`,
   `affiliateDefaultRatePercent: number`, `affiliateMinWithdrawal: number | null`,
@@ -556,7 +618,22 @@ reveal uses it), so no new secret.
 read-only SQL one `affiliate_payout_method_log` row and one `affiliate_payout_view_log` row;
 try saving on your own account → refused. Staging: S4.
 
-### B7 — Users page: the `affiliate` portal and the invite (Q10)  🔄 IN PROGRESS — `Portal` type ✅ (stage 1, 2026-11-25; tsc + `npm test` green); the rest ⬜ (stage 2)
+### B7 — Users page: the `affiliate` portal and the invite (Q10)  🔄 IN PROGRESS — code ✅ machine-verified (stage 1 + 2, 2026-11-25); live local ⬜ (user, D11)
+**Done (stage 2, 2026-11-25):** `ALL_PORTALS` + `affiliate`; `PORTAL_CFG.affiliate` (pink, F28);
+`portalOrigins.server.ts`: `isPortal` accepts it, `PRIORITY` = command > vendor > affiliate > booker
+(D5), the "unreachable" comment removed. D6 as one pure rule, `affiliateAccessError(portals, code)` in
+`lib/userAccess.ts` (same shape as `commandAccessError`), used by: `POST /api/users` (before
+`createUser`), `useUpdateUser` (before any write, judged only on portals being **added**, so
+`toggleStatus` and unrelated edits of an existing holder are never refused), and `UserModal` (Add:
+the code label reads "required for the Affiliate portal" and Save waits for it; Edit: the chip is
+shown but disabled for a non-affiliate, with "Make them an affiliate first", and stays removable for
+someone who already holds it). `UserToolbar` lists Affiliate automatically. README: env table row,
+"The four `PORTAL_URL_*` variables" (priority, no fall-through, the booker rule restated for
+affiliate, the shared local 3002 per D11).
+**Verified (machine):** `portalOrigins.server.test.ts` +7 (affiliate-only, > booker, booker blank
+still links, < vendor, < command, blank affiliate → not_configured with no fall-through, malformed →
+misconfigured); `userAccess.test.ts` +5 (D6); tsc, build, lint; six user-modal baselines regenerated
+after review (F27).
 **Stage 1 note:** adding `"affiliate"` to `Portal` made `ORIGIN_ENV: Record<Portal, string>` in
 `lib/portalOrigins.server.ts` fail type-check, so it gained `affiliate: "PORTAL_URL_AFFILIATE"` now,
 with a comment that it is unreachable: `isPortal` and `PRIORITY` still ignore `affiliate`, so
@@ -628,7 +705,14 @@ exit 0; `npx eslint` on the stage's files exit 0 (repo-wide lint: F24).
 
 ## IMPORTANT
 
-### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  ⬜ TODO
+### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ machine-verified (2026-11-25); history ⏸ → B4 (F25); live local ⬜ (user)
+**Done (stage 2, 2026-11-25):** `PATCH /api/affiliates` keeps URL and response but calls
+`rpc("change_referral_code")` on the cookie-bound client (`lib/supabase/server.ts`); refusals
+(42501 / 23505 / 22023 / P0001) → 400 with `affiliateErrorMessage`, anything else → 500 + log.
+`validateCode` is format-only and synchronous. `AffiliateModal`'s red warning is replaced by the
+one-line blue note ("Links using the old code keep crediting this affiliate. Old codes are never given
+to anyone else."); the now-unused `.warning*` CSS removed. **Not done:** `ReferralCodeHistory` — moved
+to B4 (F25).
 **Files:** `command/app/api/affiliates/route.ts:200-241` (PATCH), `:56-72` (`validateCode` keeps
 format checks only), `components/users/AffiliateModal/AffiliateModal.tsx:80-89`,
 new `components/affiliates/ReferralCodeHistory/ReferralCodeHistory.tsx` (pure display: props in,
@@ -731,7 +815,12 @@ sample file with one of each class; apply; re-run → all "already imported"; in
 S4 with two or three throwaway rows (staging email override delivers every invite to
 `cto@ezzy.ph`, memory).
 
-### I8 — Notifications: the new types and the affiliate email row (F9, F17)  ⬜ TODO
+### I8 — Notifications: the new types and the affiliate email row (F9, F17)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); visual check ⬜ (user, local)
+**Done (stage 2, 2026-11-25):** five types in `NotificationType`; icons in `NotificationItem`
+(HandCoins / CheckCircle / XCircle / Link2); settings labels (requested → "Command", the four →
+"Affiliate"), an "Affiliate" colour, the `affiliate` email-row description as written below, and the
+Command row's description now names withdrawal requests (F29). **Verified (machine):** tsc (the
+exhaustive map compiles), build, lint.
 **Files:** `lib/types.ts:220-239` add the five affiliate types (Command receives only
 `affiliate_withdrawal_requested`, administers all five); `NotificationItem.tsx:7-23` icons (the
 exhaustive map forces this); `NotificationSettingsPage.tsx:7-41` labels ("Command" for
@@ -740,7 +829,13 @@ description ("Withdrawal updates, receipts and code-change notices emailed to af
 **Verification:** tsc (the exhaustive map), lint (machine); visual check of the Settings →
 Notifications page (local).
 
-### I9 — Make-affiliate routes: registry-aware pre-check, no self-assignment (F10, D15)  ⬜ TODO
+### I9 — Make-affiliate routes: registry-aware pre-check, no self-assignment (F10, D15)  🔄 IN PROGRESS — code ✅ machine-verified (2026-11-25); live local ⬜ (user)
+**Done (stage 2, 2026-11-25):** pure `isReferralCodeReservedToOther(owner, userId)` in
+`lib/referralCode.ts` (own old code allowed; a NULL owner retired for everyone; a new account owns
+nothing) + 5 tests; `isReferralCodeTaken` in `lib/affiliateRecords.server.ts` reads `affiliates`
+**and** `affiliate_referral_codes`; used by `POST /api/users` (before `createUser`) and
+`POST /api/affiliates`. `POST /api/affiliates` refuses `userId === caller` ("Another admin must make
+you an affiliate.") before anything else (D15). The inserts still handle 23505 (race).
 **Files:** `app/api/users/route.ts:62-66`, `app/api/affiliates/route.ts:56-72, 162-176`.
 **Fix approach:** the pre-check also reads `affiliate_referral_codes` (code held by someone else →
 `REFERRAL_CODE_TAKEN` before any account exists). Per D15, `POST /api/affiliates` refuses
@@ -749,7 +844,13 @@ because the insert is a service-role write.
 **Verification:** `npm test` for any extracted predicate, live local (reserved old code refused
 before creation; self refused).
 
-### I10 — Stale copy on the Users page (F11)  ⬜ TODO
+### I10 — Stale copy on the Users page (F11)  ✅ DONE (2026-11-25)
+**Done:** `useAffiliateModal` comment, the Remove button's tooltip ("Stops this code crediting
+anyone. The code stays reserved to this person…"), the `DELETE` and `PATCH` doc comments in
+`app/api/affiliates/route.ts`, and `useAffiliate`'s two comments. **Verified (machine, 2026-11-25):**
+`grep -rn "freed\|stop being credited\|stops being credited\|stop working\|stops working"` over
+`command/` app, components, hooks, lib, services, README returns only the two comments that describe
+the removed claim (`AffiliateModal.tsx:81`, `AffiliateModal.module.css:5`) — nothing stale.
 **Files:** `useAffiliateModal.ts:96-100` (comment), `AffiliateModal.tsx:99-107` (Remove title
 text), `app/api/affiliates/route.ts:200-207, 243-251` (comments).
 **Fix approach:** removing affiliate status stops the code crediting; the code stays reserved to
@@ -906,9 +1007,9 @@ The only production contact so far is R2's read-only `migration list` (2026-11-2
 1. **Stage 1 — foundations (local).** B8 (interfaces, service skeletons, `affiliateErrors`), the
    `Portal` type change (B7 part), B1/M1: 🤖 write M1 + the T1 fixture line once approved; 👤 apply
    locally; 🤖 re-run T1 + `db lint`. Gate: T1 105/105; `npm test`, lint, `tsc` green.
-2. **Stage 2 — Settings and Users page (local).** B3, B7, B2, I1, I9, I10, I8. These are
+2. **Stage 2 — Settings and Users page (local).** 🔄 code ✅ 2026-11-25 (machine), live local ⬜ (user). B3, B7, B2, I1, I9, I10, I8. These are
    independent of the Affiliates section and make the programme switchable and grantable.
-3. **Stage 3 — Affiliates section, read and terms (local).** B4, I2, I3, I5.
+3. **Stage 3 — Affiliates section, read and terms (local).** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3, I5.
 4. **Stage 4 — Money out (local).** B6 (needs M1 applied locally), B5, I6, I4. Live local run of the
    full lifecycle: manual line → open on behalf → start → reveal → complete; a second one rejected;
    a third rejected after processing as transfer-failed.
@@ -921,6 +1022,38 @@ Couplings: B6 needs M1 on the same environment; B5's lifecycle needs B6 (payout 
 required) and I5 or real lines (money to withdraw); B7's invite click-through needs plan 3's app on
 that environment; I1's PATCH change ships with I10's copy. Stages 2 and 3 can swap; 4 cannot move
 before 1.
+
+## Big table (updated 2026-11-25, after stage 2 code)
+
+| ✓ | Status | Stage | Item | What | Who | Why / notes |
+|---|---|---|---|---|---|---|
+| [x] | ✅ 2026-11-25 | 1 | B8 | Interfaces, mappers, `affiliateErrors` | Me | Foundation every screen uses; 30 tests |
+| [x] | ✅ local 2026-11-25 | 1 | M1 | Payout CHECK → `^v2\.` | You (apply) / Me (write) | F1: Command's v2 blobs were refused; T1 105/105 |
+| [ ] | 🔄 | 1→4 | B1 | crypto note + A-vs-B test | Me | M1 part done; rest with B6 (stage 4) |
+| [ ] | 🔄 code ✅ | 2 | B3 | Settings: affiliate commission card | Me → You (live) | Makes the programme switchable; spec 5/5, math 6 tests |
+| [ ] | 🔄 code ✅ | 2 | B7 | Affiliate portal chip, D5 origin, D6 rule, README | Me → You (live, D11) | How affiliates sign in; +12 tests; 6 baselines (F27) |
+| [ ] | 🔄 code ✅ | 2 | B2 | Remove/Delete/closure guarded by money | Me → You (live after I5) | F2/F21: stops stranding owed money; +18 tests |
+| [ ] | 🔄 code ✅ | 2 | I1 | Code change via `change_referral_code` | Me → You (live) | F3: records the admin, refuses self; history → B4 (F25) |
+| [ ] | 🔄 code ✅ | 2 | I9 | Registry-aware pre-check; refuse self (D15) | Me → You (live) | F10: no wasted account on a reserved code; +5 tests |
+| [x] | ✅ 2026-11-25 | 2 | I10 | Stale "code is freed" copy | Me | F11: grep clean |
+| [ ] | 🔄 code ✅ | 2 | I8 | Notification types, icons, affiliate email row | Me → You (visual) | F9/F17; tsc enforces the map |
+| [ ] | ⬜ | 2 | L2 | Stage 2 live local checks | You | Listed in the stage-2 report; not run by the agent |
+| [ ] | ⬜ | 2 | C2 | Commit stage 2 (command + root) | You | Drafts in the stage-2 report |
+| [ ] | ⬜ | 3 | B4 | Affiliates list + detail (+ I1 history, F25) | Me | The section the money screens hang off |
+| [ ] | ⬜ | 3 | I2 | Rate override + staff flag | Me | Q7, Q48 |
+| [ ] | ⬜ | 3 | I3 | Credit vendor / change referrer | Me | Q18, Q19 |
+| [ ] | ⬜ | 3 | I5 | Manual adjustment | Me | Q36; also unlocks B2's live checks |
+| [ ] | ⬜ | 4 | B6 | Payout details entry + reveal | Me | Needs M1 (done locally) |
+| [ ] | ⬜ | 4 | B5 | Withdrawals queue + lifecycle | Me | Needs B6 + money |
+| [ ] | ⬜ | 4 | I6 | Open a withdrawal on behalf | Me | D7 closure waiver |
+| [ ] | ⬜ | 4 | I4 | Payroll for staff | Me | Q48 |
+| [ ] | ⬜ | 5 | I7 | Pre-launch import | Me | D3, D4, D13 |
+| [ ] | ⬜ | — | F24 | Command lint backlog 19 / 5 | You (decide) | Pre-existing; reported, not fixed |
+| [ ] | ⏸ | 3 | F25 | `ReferralCodeHistory` | Me | Parked: no screen until B4; unblocks with B4 |
+| [ ] | ⬜ | — | F26 | `overview-light` load flake | You (decide) | Passed alone; not a stage-2 change |
+| [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
+| [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
+| [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
 
 ## Release (§12)
 

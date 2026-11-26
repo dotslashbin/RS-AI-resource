@@ -11,7 +11,7 @@ Status and scope come from each plan's own header; open the plan before relying 
 
 | Date | Plan | Status | Scope | Related |
 |---|---|---|---|---|
-| 2026-11-23 | [Affiliate feature — plan 2 of 3: Command](2026-11-23-affiliate-command.md) | IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 next — release: staging ⬜ · productio… | command/ (new Affiliates section, Settings card, Users-page changes,… |  |
+| 2026-11-23 | [Affiliate feature — plan 2 of 3: Command](2026-11-23-affiliate-command.md) | IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 code ✅ machine-verified (2026-11-25,… | command/ (new Affiliates section, Settings card, Users-page changes,… |  |
 | 2026-11-21 | [Vendor — the offering price label must name the whole block, not "per hour"](2026-11-21-vendor-offering-price-label.md) | COMPLETE (2026-11-21) — Stage 1 done, I5 approved, staging ✅ and production ✅ (both user-checked 2026-11-21). O3 moved… | vendor/ web only — lib/duration.ts (+ new lib/duration.test.ts), lib/… |  |
 | 2026-11-21 | [Vendor mobile — remove the unused pricePerUnit() helper](2026-11-21-vendor-mobile-remove-price-per-unit.md) | DRAFT — release: none decided (see D2) | ezzy-vendor-mobile/ only — src/lib/duration.ts (lines 64–67). Follow-… |  |
 | 2026-11-19 | [Shareable offering links (Booker + Vendor)](2026-11-19-offering-share-links.md) | COMPLETE (2026-11-21) — built, reviewed, documented and released: staging (user-confirmed 2026-11-20) and production (… | booker/, vendor/, backbone/ (one additive RPC only) |  |
