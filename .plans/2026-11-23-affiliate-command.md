@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 not started — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,20 +29,19 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-25, plan approved — nothing built)
+## ▶ RESUME HERE (updated 2026-11-25, stage 1 ✅ — start stage 2 in a new session)
 
-- **Done so far:** investigation and draft (2026-11-23); second review F21–F23 (2026-11-24);
-  **all decisions D1–D20 resolved with the user (2026-11-24)**; R1 ✅ (local + staging: CHECK is
-  `^v1\.`, 0 rows); R2 ✅ everywhere (local/staging `20261121000001`, production `20261117000001`, 2026-11-25). No code, no migration
-  file, no app change.
-- **Live where:** local — nothing of this plan · staging — nothing of this plan (plan 1 M1–M7
-  are there) · production — nothing (plan 1 parked there too).
+- **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅
+  (2026-11-25, local):** B8 ✅ (interfaces, mappers, `lib/affiliateErrors.ts` + 30 tests); B7's
+  `Portal` type ✅ (plus the type-forced, unreachable `ORIGIN_ENV.affiliate` entry — B7 note); M1 ✅
+  on local (user applied; T1 105/105, `db lint` clean). Machine: `npm test` 178/178, `tsc` 0,
+  `build` 0, stage files lint clean; repo-wide lint fails on 19 pre-existing errors (F24).
+- **Live where:** local — M1 applied · staging — nothing of this plan · production — nothing.
 - **Approved:** ✅ by the user, 2026-11-25 (flow step 7).
-- **Next:** **stage 1** (Execution order): B8 (interfaces, service skeletons,
-  `lib/affiliateErrors.ts`), the `Portal` type change (B7 part), and M1: 🤖 write
-  `20261123000001_affiliate_payout_details_v2.sql` exactly as drafted + the T1 fixture line
-  (`affiliate_data_layer_test.sql:452`, `v1.` → `v2.`); 👤 apply locally; 🤖 re-run T1 + `db lint`.
-  One stage, then stop and report.
+- **Next:** **stage 2** (Execution order) in a new session: B3, B7 (rest: `ALL_PORTALS`,
+  `PORTAL_CFG`, `isPortal`/`PRIORITY` per D5, D6 rules, README), B2, I1, I9, I10, I8. Still ⬜ from
+  B1: the `crypto.server.ts` header/parameter note and the A-vs-B test (with B6, stage 4).
+  Lint gate = no new problems beyond F24's 19 / 5.
 - **Decisions that shape the build (read them in DECISIONS):** D1 exact `^v2\.`; D2 per-row
   balance calls; D3 import as a Command screen; D6 portal ⇔ affiliates row; D15 route refuses
   self; **D19 closure blocked while owed money** (net > 0 or an open withdrawal; a new
@@ -275,6 +274,18 @@ F1 is plan 1's M3 bug, found here. Plan 1 now records it as its F24, pointing to
 first live test of payout details and withdrawals. Plan 1's settings note (F4 here) is corrected
 in plan 1 and in `architecture/schema.md` at the same time.
 
+### F24 — Command's `npm run lint` already fails, before this plan  (stage 1, 2026-11-25)  ⬜ TODO (reported, not fixed)
+`npm --prefix command run lint` exits 1 with **19 errors, 5 warnings**, every one in a file this
+plan has not touched (`app/api/users/route.ts`, `services/users.service.ts`,
+`services/vendors.service.ts`, `services/command.service.ts`, `lib/constants.ts`,
+`app/not-found.tsx`, `ClosureQueue.tsx`, `useAppShell.ts`, `useUpdateUser.ts`,
+`useCreateVendor.ts`, `useUpdateVendor.ts`): 18 `no-explicit-any` plus unused-import warnings — the
+class `2026-08-07-command-root-only-command-access.md:534` already called endemic. Stage 1's
+files lint clean on their own (`npx eslint <files>`, exit 0). So "lint green" in this plan's gates
+means **no new problems, the count stays at 19 / 5**, until someone fixes the backlog. Several of
+those files (`app/api/users/route.ts`, `useUpdateUser.ts`) are edited in stage 2: leave their
+existing `any`s unless the edit touches the line (surgical changes).
+
 ---
 
 ## How Command calls plan 1 (the contract this plan builds on)
@@ -317,7 +328,7 @@ and passes the message through otherwise — never by matching message text.
 
 ## MIGRATIONS (each an approval gate — drafted, not written)
 
-### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ⬜ TODO (D1 = a, approved 2026-11-24; file not yet written)
+### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ✅ DONE on local (2026-11-25) · staging ⬜ (S1) · production ⏸ — D1 = a, approved 2026-11-24; file and T1 fixture line written exactly as drafted; applied locally by the user; verified (machine, local): newest local version `20261123000001`, constraint reads `CHECK ((details_enc ~ '^v2\.'::text))` (read-only psql), T1 exit 0 "all 105 cases passed" (the one plpgsql_check warning is plan 1's known F21), `npx supabase db lint` "No schema errors found"
 **Why:** F1. **File (when approved):** `backbone/supabase/migrations/20261123000001_affiliate_payout_details_v2.sql`
 (sorts after every environment's newest version, `20261121000001`; re-check with
 `migration list` on each before applying, as plan 1 F18 did).
@@ -363,7 +374,7 @@ Plus the one test-fixture line: `backbone/supabase/tests/affiliate_data_layer_te
 
 ## BLOCKERS (the Command side is not safe or not usable without these)
 
-### B1 — Payout-details format (F1)  ⬜ TODO
+### B1 — Payout-details format (F1)  🔄 IN PROGRESS — M1 part in stage 1 (see M1); the `crypto.server.ts` header/parameter note and the A-vs-B test case are still ⬜, done with B6 in stage 4
 **Files:** M1 (above) · `command/lib/payout/crypto.server.ts:13-16` (header: "Command never writes
 a payout destination" becomes false), `:151` (`encryptDetails(details, vendorId)` — the AAD
 parameter is any row id; rename the parameter to `rowId` or add a comment, nothing else changes).
@@ -545,7 +556,12 @@ reveal uses it), so no new secret.
 read-only SQL one `affiliate_payout_method_log` row and one `affiliate_payout_view_log` row;
 try saving on your own account → refused. Staging: S4.
 
-### B7 — Users page: the `affiliate` portal and the invite (Q10)  ⬜ TODO
+### B7 — Users page: the `affiliate` portal and the invite (Q10)  🔄 IN PROGRESS — `Portal` type ✅ (stage 1, 2026-11-25; tsc + `npm test` green); the rest ⬜ (stage 2)
+**Stage 1 note:** adding `"affiliate"` to `Portal` made `ORIGIN_ENV: Record<Portal, string>` in
+`lib/portalOrigins.server.ts` fail type-check, so it gained `affiliate: "PORTAL_URL_AFFILIATE"` now,
+with a comment that it is unreachable: `isPortal` and `PRIORITY` still ignore `affiliate`, so
+origin resolution is unchanged until stage 2 adds both (D5). `ALL_PORTALS` / `PORTAL_CFG` are
+deliberately untouched: adding the chip before D6's code requirement would let it be granted bare.
 **Files:**
 - `command/lib/types.ts:1` `Portal` adds `"affiliate"`; `lib/constants.ts:33` `ALL_PORTALS`;
   `:101-105` `PORTAL_CFG` gains an affiliate colour (tokens, both themes).
@@ -568,7 +584,24 @@ try saving on your own account → refused. Staging: S4.
   (`architecture/auth-and-roles.md:193` is the precedent).
 **Verification:** `npm test` (origins), tsc, lint (machine). Live local per D11. Staging: S2/S4.
 
-### B8 — Foundations: interfaces, services, error wording  ⬜ TODO
+### B8 — Foundations: interfaces, services, error wording  ✅ DONE (2026-11-25)
+**Done:** `services/affiliates.service.ts` (appended: `WithdrawBlocker`, `AffiliateBalance`,
+`AffiliateListRow`, `AffiliateDetail`, `CommissionLine` + kind/status unions,
+`CommissionStatusLogEntry`, `ReferralCodeChange` + source union, `AffiliatePayoutSummary`,
+`PayoutMethodLogEntry`, `VendorReferralChange`, each table row with a private `…DbRow` and an
+exported `to…` mapper); new `services/affiliateWithdrawals.service.ts` (`AffiliateWithdrawal`,
+`WithdrawalStatus`, mapper); new `lib/affiliateErrors.ts` + `lib/affiliateErrors.test.ts`.
+Nullability read from the `create table` statements (`20260917000001`, `20261118000001`–`05`). No
+fetchers yet (they arrive with their screens). `affiliateErrorMessage(error, context?)` takes an
+optional `"start_processing"` context because `affiliate_below_minimum` needs the D5 reject
+prompt there and a different sentence at open-on-behalf. The 23514/23505 constraint name is read
+from the quoted identifier in Postgres's standard `violates … constraint "<name>"` message
+(PostgREST sends no constraint field); 23505 is `REFERRAL_CODE_TAKEN` except `affiliates_pkey`
+("already an affiliate"), since the M2 guard's raise carries no constraint name in its message.
+`lib/types.ts`'s `NotificationType` (I8) and `PlatformFeeSettings` (B3) changes stay with those items.
+**Verified (machine, 2026-11-25):** `npm --prefix command test` 178/178 pass (30 new, one per mapped
+hint/constraint plus pass-through and generic cases); `npx tsc --noEmit` exit 0; `npm run build`
+exit 0; `npx eslint` on the stage's files exit 0 (repo-wide lint: F24).
 **Files:**
 - Hand-written interfaces (repo rule; nullability checked against the `create table`
   statements, not plan text): `DbRow` types private to `services/affiliates.service.ts` and
