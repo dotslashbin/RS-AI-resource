@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 next — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 ✅ on local (2026-11-26: machine + manual L4, 11/13; L4.10/L4.12 fixture-only); stage 5 ✅ on local (2026-11-27: machine + manual L5, 6/7); C4 (commit, user) then stage 6 next; commit C4 moved to right before staging — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,8 +29,18 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-25, stage 3 ✅ on local — start stage 4 in a new session)
+## ▶ RESUME HERE (updated 2026-11-27, stages 4 and 5 ✅ on local — next: C4 commit (user), then stage 6 staging)
 
+- **Stage 5 ✅ on local (2026-11-27, uncommitted):** I7 — `lib/affiliateImport.ts` (+21 tests), `app/api/affiliates/import`,
+  `components/affiliates/AffiliateImport/` (third sub-tab), `lib/users/createAccount.server.ts` extracted verbatim from
+  `POST /api/users` (re-verified live: L5.1–L5.2). Live L5 6/7 (L5.7 non-root invite ⏸, fixture). F44 fixed in stage.
+- **Stage 4 ✅ on local (2026-11-26, uncommitted):** B1, B6, B5, I6, I4, F32; L4 11/13 (L4.10, L4.12 ⏸, fixture).
+- **Next: C4** — the user commits stages 4–5 together (moved here 2026-11-26), from the drafts in the stage-5 report
+  (command + root). **Then stage 6** (staging, S1–S4) in a new session: S1 applies M1 to staging first.
+- **Open for the user:** F43 (dev service worker), F38, F41, F33, F36, F37; close F30/F35 if satisfied; F24 (now 16/5),
+  F26. Notes: F39, F40, F42, F44.
+- **Environment notes:** `:3000` held by `agent-virtual-office` (2026-11-26/27), so manual runs used `:3001`. For a manual
+  run after code edits, unregister Command's service worker in the test browser first (F43).
 - **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅**
   (B8, `Portal`, M1 on local). **Stage 2 ✅ on local** (B3, B7, B2, I1 PATCH, I9, I10, I8; L2.1–L2.15).
   **Stage 3 code ✅ (2026-11-25, local), machine-verified:** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3,
@@ -40,11 +50,12 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 - **Manual local run (2026-11-25):** L3.1–L3.13 ✅, L2.16 ✅ (Remove + Delete refused on money); L3.14 ⏸
   (self needs a second admin; fixture-covered) and the closure blocker ⏸ (no local closure request;
   `eligibility.test.ts`). New finding F37 (list badge order), for the user.
-- **Live where:** local — M1 applied; stage 2 committed (command `5c8f68c`); stage 3 in the working tree,
-  uncommitted · staging — nothing of this plan · production — nothing.
+- **Live where:** local — M1 applied; stage 2 committed (command `5c8f68c`); stage 3 committed
+  (command `a1b7906`, root `8262165`; checked 2026-11-25, command tree clean) · staging — nothing of
+  this plan · production — nothing.
 - **Open for the user:** F33 (Change referrer left enabled on a suspended affiliate's page — confirm or
   overrule); F37 (badge order); F36 (baseline the new fixture mode or not); close F30/F35 if satisfied; F24, F26 as before.
-- **Next:** (1) the user commits stage 3; (2) **stage 4** in a new session:
+- **Next:** **stage 4** in a new session:
   B6 (payout entry + reveal, needs M1 — done locally), B5 (withdrawals queue; adds the Withdrawals sub-tab,
   F32), I6, I4, plus B1's leftover `crypto.server.ts` note and A-vs-B test. The detail's payout card,
   open-on-behalf and payroll buttons slot into `AffiliateDetail` (F34); new dialogs reuse
@@ -343,7 +354,7 @@ variables"; `architecture/auth-and-roles.md:190` cites it by name and was update
 Command email row on Settings → Notifications said "new registrations and vendor approvals"; since
 plan 1 it also emails `affiliate_withdrawal_requested` (generic template), so it now says so (I8).
 
-### F32 — The Withdrawals sub-tab waits for B5  (stage 3, 2026-11-25)  ⏸ PARKED → stage 4
+### F32 — The Withdrawals sub-tab waits for B5  (stage 3, 2026-11-25)  ✅ built with B5 (2026-11-26): Affiliates · Withdrawals sub-tabs with the open count; spec `queue (B5, F32)`
 B4's text gives `AffiliatesPage` two sub-tabs (Affiliates · Withdrawals with the open count). The queue
 is B5 (stage 4); a sub-tab with nothing behind it would be an empty screen. Stage 3 renders the Affiliates
 view only; `AffiliatesPage` adds the tab bar when B5 lands. Unblocks: B5.
@@ -375,6 +386,55 @@ B4's badge order is open withdrawal → no payout details (non-staff) → suspen
 follows it, so L3.10's suspended L2 Test read "No payout details". The KPI ("1 suspended") and the detail's
 account badge do say Suspended. If suspension should outrank missing details on the list, swap two lines in
 `attentionFor` (`lib/affiliateDisplay.ts`) and its test; not changed here because the order was specified.
+
+### F38 — The ported payout messages are written to a vendor  (stage 4, 2026-11-25)  ⬜ for the user to decide
+`parsePayoutDetails`' messages were ported verbatim from vendor (B6), so an admin entering an affiliate's
+GCash details can read "Enter the name registered to **your** GCash account." The dialog's own help lines are
+worded for the admin; only a refused field shows vendor's sentence. Options: accept; or reword in **both**
+apps (cross-app, so the two copies stay identical). Not changed.
+
+### F39 — Stage 4 was built across three sessions  (stage 4, 2026-11-26)  ✅ (note)
+The 2026-11-25 session wrote the libraries, the route, the services and five components and hit its usage
+limit. An unrecorded session (2026-11-26 10:12–10:28) then wrote `WithdrawalDetail/`, the sub-tabs, the
+detail wiring, the fixture fake and 14 new spec cases (16 after F40's split), and left the plan untouched. The 2026-11-26 evening
+session read each of those files against B5/B6/I4/I6 before adopting them, then ran every check. Nothing was
+rewritten.
+
+### F40 — Playwright needs a longer timeout while the machine is loaded  (stage 4, 2026-11-26)  ✅ (note)
+Load average 21–38 from processes outside this workspace (an `nx serve` for another repo, `pixel-agents`,
+other Claude sessions). At the default 30 s, 3 of 25 affiliates cases timed out mid-wait. All passed alone or
+with `--timeout=120000`, so none was a code failure. The config's `webServer` also gave up after 120 s, so
+the agent started `npm run dev -- --port 3300` itself (`reuseExistingServer`). The committed config is
+unchanged. One long case was split into three (`open on behalf`, ≤ 2 page loads each). *2026-11-27, quiet
+machine:* full suite 133/133 at the default 30 s (stage 5's run), so stage 4's cases now have default-timeout evidence.
+
+### F41 — `payouts` "Ezzy fee column … sorts" flaked once under load  (stage 4, 2026-11-26)  ⬜ TODO (reported, not fixed)
+In the full run (load ~30) the sort assertion (`visual-tests/payouts.spec.ts:293`) saw the old order; it
+passed twice alone (2.8 s each, `--repeat-each=2`), and in stage 5's full run (2026-11-27). Stage 4 changes no payouts code. Same shape as F26: the
+assertion follows a click that the page had not yet applied. Yours to decide whether to harden it.
+
+### F42 — Notification emails don't reach the local mail catcher  (L4 run, 2026-11-26)  ✅ (note; checklist corrected)
+L4's checklist expected "Withdrawal received" and the receipt in the mail catcher. Locally that catcher only gets
+Auth mail: notification emails go through plan 1's pipeline (`supabase functions serve` + vault secrets,
+`architecture/email-local-run-quickstart.md`), which was not running and was not started. The database side was
+checked instead: one `notifications` row per step (received, sent, not processed; none for payroll, as M4 says).
+The emails themselves are checked on staging (S4.6, override inbox). No code change.
+
+### F43 — In `next dev`, Command's service worker keeps serving the first copy of a chunk  (L5 run, 2026-11-27)  ⬜ for the user to decide (pre-existing, dev only)
+`public/sw.js` serves `/_next/static/*` cache-first. In production those names carry a content hash, so that is
+safe. Under `next dev` (webpack) they do not (`…AffiliatesPage_tsx.js`), so a browser that loaded the page once
+keeps the old code after an edit, even across a hard reload and a cleared HTTP cache. L5.3's first attempt showed
+no Import tab although the server's chunk had it (curl: 10 matches). Unregistering the worker and deleting
+`offline-v2` in the test profile fixed it. The worker does **not** cache `/api/affiliate-payout` or
+`/api/affiliates/import` (it returns early for anything outside `/_next/static/`), so no payout data is at rest.
+Options: skip registration in development, or leave it and remember the unregister step for manual runs.
+
+### F44 — Invitations were offered only right after an import  (L5 run, 2026-11-27)  ✅ fixed in I7
+I7 says invitations wait until `PORTAL_URL_AFFILIATE` is live, which is usually days after the import, by which time
+the post-import screen is gone; a re-run showed "Already imported" with no button. The route now returns the account
+id for already-imported rows, and the screen offers "Send invitation" / "Send to all listed" for them too.
+Verified: spec (dry run offers juan@, not lea@; Send to all includes juan) and live L5.6.
+
 
 ---
 
@@ -464,7 +524,7 @@ Plus the one test-fixture line: `backbone/supabase/tests/affiliate_data_layer_te
 
 ## BLOCKERS (the Command side is not safe or not usable without these)
 
-### B1 — Payout-details format (F1)  🔄 IN PROGRESS — M1 part in stage 1 (see M1); the `crypto.server.ts` header/parameter note and the A-vs-B test case are still ⬜, done with B6 in stage 4
+### B1 — Payout-details format (F1)  ✅ DONE on local (2026-11-26) — M1 (stage 1); crypto note + A-vs-B test; live save/reveal L4.2–L4.3 ✅ (`v2.` prefix in the row)
 **Files:** M1 (above) · `command/lib/payout/crypto.server.ts:13-16` (header: "Command never writes
 a payout destination" becomes false), `:151` (`encryptDetails(details, vendorId)` — the AAD
 parameter is any row id; rename the parameter to `rowId` or add a comment, nothing else changes).
@@ -626,7 +686,7 @@ empty, error) and detail (partner, staff, self) with a behavioural spec (machine
 seeded `NINA2026` / `LIZA2026` (plan 1 F16) and one test affiliate created through Users
 (staging S4 repeats it).
 
-### B5 — Withdrawals queue and lifecycle (Q44; plan 1 D5, D6)  ⬜ TODO
+### B5 — Withdrawals queue and lifecycle (Q44; plan 1 D5, D6)  ✅ DONE on local (2026-11-26) — machine (npm test 311/311, tsc 0, build 0, lint clean, spec 27/27, full suite 128/129 = F41) + live L4.4–L4.9 ✅; D5 live (L4.10) ⏸ fixture-only; staging S4 ⬜
 **Files:** new `services/affiliateWithdrawals.service.ts` (queue, one withdrawal with its lines
 and status log, and the start / complete / reject / open / payroll calls); new
 `components/affiliates/WithdrawalQueue/` (`.tsx`, `useWithdrawalQueue.ts`, `.module.css`) and
@@ -661,7 +721,7 @@ processing, completed, rejected, transfer-failed) + behavioural spec (machine). 
 lifecycle live on local and staging through I6 (open on behalf), since no affiliate app exists
 yet (Assumption 3).
 
-### B6 — Payout details: entry and "show full details" (Q17, Q26, Q32; plan 1 D9)  ⬜ TODO
+### B6 — Payout details: entry and "show full details" (Q17, Q26, Q32; plan 1 D9)  ✅ DONE on local (2026-11-26) — machine + live L4.2, L4.3, L4.6 ✅ (1 method-log row per save, 1 view-log row per reveal, dev log clean of details); self (L4.12) ⏸ fixture-only; F38 for the user; staging S4 ⬜
 **Files:**
 - Ports from vendor, verbatim, each with the `crypto.server.ts`-style "keep byte-compatible"
   header and its tests copied beside it: `vendor/lib/payout/banks.ts` → `command/lib/payout/banks.ts`;
@@ -852,7 +912,7 @@ not active, with the reason, because the database requires an active referrer (p
 **Verification:** tsc, lint, fixture spec (machine); live local: credit a seeded vendor with no
 referral, move it back, read `vendor_referral_changes` (read-only SQL). Staging: S4.
 
-### I4 — Payroll for staff affiliates (Q30, Q48)  ⬜ TODO
+### I4 — Payroll for staff affiliates (Q30, Q48)  ✅ DONE on local (2026-11-26) — machine + live L4.11 ✅; staging S4 ⬜
 **Files:** new `components/affiliates/PayrollModal/` (`.tsx`, `usePayrollModal.ts`, `.module.css`).
 **Fix approach:** shows the whole available balance and line count (from `affiliate_balance` and
 the lines), payroll date (`type=date`, default today Manila), reference ≥ 3; "No transfer is made
@@ -875,7 +935,7 @@ your own account.
 **Verification:** tsc, lint, fixture spec; live local (this is also how S4 creates money to
 withdraw).
 
-### I6 — Open a withdrawal on an affiliate's behalf (preview F3; plan 1 D7)  ⬜ TODO
+### I6 — Open a withdrawal on an affiliate's behalf (preview F3; plan 1 D7)  ✅ DONE on local (2026-11-26) — machine + live L4.4, L4.8, L4.9 ✅ (the waiver path is fixture-only: live balances were above the minimum); staging S4 ⬜
 **Files:** new `components/affiliates/OpenWithdrawalModal/` (`.tsx`, `useOpenWithdrawalModal.ts`,
 `.module.css`), launched from the affiliate detail when `withdraw_blocker` is null **or** is
 `below_minimum` (for the waiver) and the affiliate is non-staff.
@@ -885,7 +945,7 @@ when the account is being closed" (D7: the database cannot verify it; the reason
 States plainly that the affiliate is emailed "Withdrawal received" (plan 1 F15 b, D9).
 **Verification:** tsc, lint, fixture spec; live local + S4.
 
-### I7 — Pre-launch import (Q39)  ⬜ TODO (shape per D3, D4, D13)
+### I7 — Pre-launch import (Q39)  ✅ DONE on local (2026-11-27) — machine (npm test 332/332 incl. 21 `affiliateImport`, tsc 0, build 0, stage-5 files lint-clean, repo lint 16/5, full suite 133/133 on a quiet machine before the F44/past-tense edits, then 131/133 after them at load ~13 — the two misses (`pilot` vendors-dark, 394 px; a settings case's 30 s timeout) passed alone at once, and every affiliates case passed: F40's load class) + live L5.1–L5.6 ✅ (the extraction re-verified through Add User); L5.7 ⏸ fixture-only; F44 fixed in stage; staging S4.11 ⬜
 **Files (D3 = a):** new `components/affiliates/AffiliateImport/` (`.tsx`, `useAffiliateImport.ts`,
 `.module.css`) as a third sub-tab, root and admin; new pure `lib/affiliateImport.ts` (RFC 4180
 parse — no new dependency — header check `name,email,code,rate`, per-row validation with the
@@ -1111,10 +1171,12 @@ The only production contact so far is R2's read-only `migration list` (2026-11-2
 2. **Stage 2 — Settings and Users page (local).** ✅ 2026-11-25 (machine + manual L2.1–L2.15; L2.16 → after I5). B3, B7, B2, I1, I9, I10, I8. These are
    independent of the Affiliates section and make the programme switchable and grantable.
 3. **Stage 3 — Affiliates section, read and terms (local).** ✅ 2026-11-25 (machine + manual L3.1–L3.13, L2.16; L3.14 ⏸). B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3, I5, F30.
-4. **Stage 4 — Money out (local).** B6 (needs M1 applied locally), B5, I6, I4. Live local run of the
+4. **Stage 4 — Money out (local).** ✅ 2026-11-26 (machine + manual L4, 11/13). B6 (needs M1 applied locally), B5, I6, I4. Live local run of the
    full lifecycle: manual line → open on behalf → start → reveal → complete; a second one rejected;
    a third rejected after processing as transfer-failed.
-5. **Stage 5 — Import (local).** I7.
+5. **Stage 5 — Import (local).** ✅ 2026-11-27 (machine + manual L5, 6/7). I7.
+   **Commit (C4) — right before staging** (user, 2026-11-26): stages 4 and 5 are committed together here,
+   by the user, from the drafts in the stage-5 report; no per-stage commit for 4 or 5.
 6. **Stage 6 — Staging release** (below). Stops for the user's "staging is green".
 7. **Stage 7 — Production release, always last** — ⏸ parked until plans 1–3 are tested on
    staging; then plan 1's P-table first, this plan's next, plan 3's after.
@@ -1130,7 +1192,7 @@ before 1.
 |---|---|---|---|---|---|---|
 | [x] | ✅ 2026-11-25 | 1 | B8 | Interfaces, mappers, `affiliateErrors` | Me | Foundation every screen uses; 30 tests |
 | [x] | ✅ local 2026-11-25 | 1 | M1 | Payout CHECK → `^v2\.` | You (apply) / Me (write) | F1: Command's v2 blobs were refused; T1 105/105 |
-| [ ] | 🔄 | 1→4 | B1 | crypto note + A-vs-B test | Me | M1 part done; rest with B6 (stage 4) |
+| [x] | ✅ local 2026-11-26 | 1→4 | B1 | crypto note + A-vs-B test | Me | Tests ✅; live L4.2–L4.3 ✅ |
 | [x] | ✅ local 2026-11-25 | 2 | B3 | Settings: affiliate commission card | Me | L2.1–L2.5 ✅; F30 cosmetic open |
 | [x] | ✅ local 2026-11-25 | 2 | B7 | Affiliate portal chip, D5 origin, D6 rule, README | Me | L2.6–L2.9 ✅; invite → :3002 confirmed |
 | [ ] | 🔄 | 2 | B2 | Remove/Delete/closure guarded by money | Me | L2.13/15/16 ✅; closure live ⏸ (no local request) |
@@ -1145,23 +1207,31 @@ before 1.
 | [x] | ✅ local 2026-11-25 | 3 | I3 | Credit vendor / change referrer | Me | L3.8–L3.10 ✅; F33 for you |
 | [x] | ✅ local 2026-11-25 | 3 | I5 | Manual adjustment | Me | L3.11–L3.12 ✅ |
 | [ ] | 🔄 13/14 | 3 | L3 | Stage 3 manual local checks | Me (user-permitted) | L3.1–L3.13 ✅; L3.14 ⏸ |
-| [ ] | ⬜ | 3 | C3 | Commit stage 3 (command + root) | You | Drafts in the stage-3 report |
-| [ ] | ⬜ | 4 | B6 | Payout details entry + reveal | Me | Needs M1 (done locally) |
-| [ ] | ⬜ | 4 | B5 | Withdrawals queue + lifecycle | Me | Needs B6 + money |
-| [ ] | ⬜ | 4 | I6 | Open a withdrawal on behalf | Me | D7 closure waiver |
-| [ ] | ⬜ | 4 | I4 | Payroll for staff | Me | Q48 |
-| [ ] | ⬜ | 5 | I7 | Pre-launch import | Me | D3, D4, D13 |
+| [x] | ✅ | 3 | C3 | Commit stage 3 (command + root) | You | command `a1b7906`; root `8262165` |
+| [x] | ✅ local 2026-11-26 | 4 | B6 | Payout details entry + reveal | Me | L4.2, L4.3, L4.6 ✅; F38 for you |
+| [x] | ✅ local 2026-11-26 | 4 | B5 | Withdrawals queue + lifecycle | Me | L4.4–L4.9 ✅; D5 live ⏸ (fixture only) |
+| [x] | ✅ local 2026-11-26 | 4 | I6 | Open a withdrawal on behalf | Me | L4.4, L4.8, L4.9 ✅; waiver fixture-only |
+| [x] | ✅ local 2026-11-26 | 4 | I4 | Payroll for staff | Me | L4.11 ✅ |
+| [ ] | 🔄 11/13 | 4 | L4 | Stage 4 manual local checks | Me (user-permitted) | L4.10 (D5) and L4.12 (self) ⏸, fixture-covered; email → F42 |
+| [x] | ✅ local 2026-11-27 | 5 | I7 | Pre-launch import | Me | L5.1–L5.6 ✅; L5.7 ⏸ (fixture); F44 fixed |
+| [ ] | 🔄 6/7 | 5 | L5 | Stage 5 manual local checks | Me (user-permitted) | L5.7 (non-root invite) ⏸, fixture-covered |
 | [ ] | ⬜ | — | F24 | Command lint backlog 19 / 5 | You (decide) | Pre-existing; reported, not fixed |
 | [x] | ✅ 2026-11-25 | 3 | F25 | `ReferralCodeHistory` | Me | Built on the detail (I1) |
 | [ ] | ⬜ | — | F26 | `overview-light` load flake | You (decide) | Passed alone; not a stage-2 change |
 | [ ] | 🔄 | 3 | F30 | Settings help text follows typed value | You (close) | Fixed; L3.13 ✅ |
 | [x] | ✅ 2026-11-25 | 3 | F22 | Sidebar/tabbar baselines | Me | Reviewed, only the nav item; 4 regenerated |
-| [ ] | ⏸ | 4 | F32 | Withdrawals sub-tab | Me | Arrives with B5 |
+| [x] | ✅ 2026-11-26 | 4 | F32 | Withdrawals sub-tab | Me | Built with B5; spec ✅ |
 | [ ] | ⬜ | 3 | F33 | Change referrer on a suspended affiliate | You (confirm) | Left enabled: DB checks the receiver only |
 | [ ] | 🔄 | 3 | F35 | Credit list anti-join | You (close) | Verified L3.8 |
 | [ ] | ⬜ | 3 | F37 | List badge: suspended vs no details | You (decide) | Order as specified in B4 |
 | [ ] | ⬜ | — | F36 | Baseline `mode=affiliates`? | You (decide) | Behavioural only for now |
+| [ ] | ⬜ | 4 | F38 | Ported payout messages say "your" | You (decide) | Accept, or reword in both apps |
+| [ ] | ⬜ | 4 | F41 | `payouts` sort flake under load | You (decide) | Passed alone twice; not a stage-4 change |
+| [x] | ✅ 2026-11-26 | 4 | F42 | Notification emails not local | Me | Rows checked; emails at S4 |
+| [ ] | ⬜ | 5 | F43 | Dev service worker serves stale chunks | You (decide) | Pre-existing, dev only; no payout data cached |
+| [x] | ✅ 2026-11-27 | 5 | F44 | Invite already-imported rows | Me | Fixed in I7; L5.6 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
+| [ ] | ⬜ | 5→6 | C4 | Commit stages 4–5 (command + root) | You | Moved here by the user (2026-11-26): one commit right before staging, not one per stage |
 | [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
 | [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
 
@@ -1287,6 +1357,64 @@ creation row in `affiliate_commission_status_log`; terms back to `NULL, f`; stat
 (NINA2026)**, plus two `vendor_referral_changes` rows (credit to L2TEST02, change to NINA2026). Platform-fee
 settings untouched (tax, minimum, live_from NULL). No env var added. Dev server :3000 and Chromium :9222
 started and stopped by the agent.
+
+**Manual local checks — stage 4 (L4)**  ✅ 11/13 · L4.10, L4.12 ⏸ (run 2026-11-26 by the agent with the user's permission, `/sim-manual-test`, visible Chromium on WSLg over CDP, Command on :3001, signed in by the user as Root Admin (root@bookdeck.com); screenshots shown in-session, read-only SQL for every write)
+Local Command signed in by the user as the local Root Admin. ⚠️ `:3000` is held by a server the agent did
+not start (`agent-virtual-office`, 2026-11-26), so Command runs on `http://localhost:3001` unless the user
+frees 3000. Data: L2 Test Affiliate One (`L2TEST02`, partner, ₱7.50 available from L3, no payout details).
+Local minimum withdrawal is NULL (withdrawals off): L4.1 sets ₱5, L4.13 clears it again. **Never** set the
+tax rate (T1, plan 1 F23). Every email goes to the local mail catcher (54324). Completions and the payroll
+payment are final by design: test data, listed afterwards for `db reset`. Read-only SQL via
+`scripts/q-readonly.sh`; `details_enc` is read only as `left(details_enc, 3)`.
+
+| # | Item | Steps | Expected | Status |
+|---|---|---|---|---|
+| L4.1 | D14, I6 | Settings → Platform Fee → minimum ₱5 → Save | Toast; SQL `affiliate_min_withdrawal` = 5.00 | ✅ 2026-11-26 — toast; SQL min 5.00 by Root Admin; tax / live_from still NULL |
+| L4.2 | B6, D17 | L2 Test detail → "Add payout details": check Save's reason; BDO, a name, `0012-3456-7890`, "Phone call to the number on file" + note → Save | Save disabled with its reason until complete; toast; card "BDO Unibank ••••••••7890", "Entered by Root Admin … Identity confirmed by: Phone call …"; SQL one `affiliate_payout_methods` row, `left(details_enc,3)` = `v2.`; `affiliate_payout_method_log` count 1 with that sentence, `changed_by` Root Admin | ✅ 2026-11-26 — Save disabled with "Choose the bank…" then "Say how you confirmed it's them"; card "BDO Unibank ••••••••7890", "Entered by Root Admin … Identity confirmed by: Phone call to the number on file — L4 live check"; SQL 1 method row, prefix `v2.`, created_by Root Admin; 1 log row (from NULL → bank) with that sentence |
+| L4.3 | B6 | "Show full details" | Bank, name, `001234567890` shown with Copy; no Hide; SQL `affiliate_payout_view_log` count 1 (viewed_by Root Admin) | ✅ 2026-11-26 — Bank / name / `001234567890` with Copy; no Hide, button gone after one press; SQL view log 1 (Root Admin) |
+| L4.4 | I6, D9 | "Open a withdrawal" (blocker clear at ₱7.50 ≥ ₱5): no waiver shown; reason ≥ 10 → Open | Toast; Withdrawals sub-tab "1 open"; row W-… Requested ₱7.50; mail "Withdrawal received"; SQL `requested`, `opened_by` Root Admin, requested 7.50, both lines `in_withdrawal` | ✅ 2026-11-26 — no waiver offered; W-1022 requested ₱7.50, opened_by Root Admin with the reason, destination snapshot BDO ••••7890; C-10039/C-10040 `in_withdrawal`; notification row `affiliate_withdrawal_received`. **Email not checked: see F42** (the mail catcher only gets Auth mail locally) |
+| L4.5 | B5 | Withdrawals → open it → checks → "Start processing" | Checks all ✓; then "Send exactly ₱ 7.50", no dropped-lines note; SQL `processing`, amount 7.50, `processing_started_by` Root Admin | ✅ 2026-11-26 — sub-tab "Withdrawals 1"; row W-1022 ₱7.50 BDO ••••7890 Requested; 4 checks passed; "Send exactly ₱ 7.50", no dropped-lines note; Complete disabled "Enter the transfer reference first"; SQL `processing`, 7.50, started by Root Admin |
+| L4.6 | B6 | On the processing screen: "Show full details"; look for "Replace details" | Same plaintext; no Replace; SQL view log count 2 | ✅ 2026-11-26 — no Replace; reveal works on the processing screen; SQL view log 2 |
+| L4.7 | B5 | Complete: button disabled until a reference; `L4-TRANSFER-1` → Mark as completed | Read-only record with the reference; mail "Your withdrawal has been sent"; SQL `completed`, lines `withdrawn`, status-log rows `in_withdrawal → withdrawn` by Root Admin | ✅ 2026-11-26 — disabled at 2 chars, enabled at `L4-TRANSFER-1`; read-only record, no actions left; SQL `completed`, reference, completed_by Root Admin; 4 status-log rows (→ in_withdrawal, → withdrawn) by Root Admin; notification "Your withdrawal has been sent" (F42 for email) |
+| L4.8 | B5, I5 | Add adjustment +₱6 → Open a withdrawal → Reject (before processing), reason ≥ 10 | SQL `rejected`, `transfer_failed` f, the line back to `earned`; mail "Your withdrawal was not processed" with the reason | ✅ 2026-11-26 — C-10041 +₱6.00; W-1023 rejected before processing, no transfer-failed box shown; SQL `rejected`, transfer_failed f, not started, reason, by Root Admin; C-10041 back to `earned`; notification "Your withdrawal was not processed" |
+| L4.9 | B5, D6 | Open again (₱6) → Start → "Reject instead": Reject disabled until "I confirmed no money left Ezzy…" is ticked → Reject | SQL `rejected`, `transfer_failed` t, `processing_started_at` set, the line back to `earned` | ✅ 2026-11-26 — W-1024 started; Reject disabled "Confirm no money left Ezzy first" until ticked; record "Transfer: Failed"; SQL `rejected`, transfer_failed t, started; C-10041 back to `earned` |
+| L4.10 | B5, D5 | Start refused below the minimum → reject panel prefilled | ⏸ needs a line to leave a requested withdrawal (a booking refund/dispute); manual lines cannot. Fixture-covered (spec) | ⏸ |
+| L4.11 | I4, Q48 | L2 Test → Rate and staff flag → staff on; "Record payroll payment": date defaults to today (Manila), reference `L4-PAYROLL-1` → Record | Dialog shows ₱6.00 and "1 available line", "no email"; SQL withdrawal `completed`, `paid_through_payroll` t, `paid_on` today; no new mail; then staff off | ✅ 2026-11-26 — as staff: Open a withdrawal hidden, Record payroll shown; dialog ₱6.00, "1 available line", "no email is sent", date 2026-11-27 (Manila today), disabled until a reference; W-1025 under Payroll payments, button then disabled "Nothing is available to pay yet."; SQL `completed`, paid_through_payroll t, paid_on 2026-11-27, no destination, C-10041 `withdrawn`; no new notification; staff back to f |
+| L4.12 | B6, Q8 | The admin's own record | ⏸ no second local admin to make the tester an affiliate (D15); fixture-covered (spec `self (B6, Q8)`) | ⏸ |
+| L4.13 | cleanup | Settings → clear the minimum → Save; SQL settings back to NULL | Minimum NULL; staff flag `f` | ✅ 2026-11-26 — clearing warning shown; SQL min NULL, tax / live_from NULL, rate 1.00; staff f |
+
+*Local test data left by the L4 run (2026-11-26), for cleanup or `db reset`:* on L2 Test Affiliate One
+(`d3c20666-6acd-44c1-ac11-4aaf7ab3d9e9`): one `affiliate_payout_methods` row (BDO, `••••••••7890`, test values) and its
+log row; two `affiliate_payout_view_log` rows; manual line C-10041 (+6.00); withdrawals W-1022 (completed, ₱7.50,
+`L4-TRANSFER-1`), W-1023 (rejected), W-1024 (rejected, transfer failed), W-1025 (payroll, `L4-PAYROLL-1`); their
+status-log rows; four notifications. Lines C-10039/40/41 are now `withdrawn`. Settings back to baseline (minimum
+NULL) but `updated_by` / `updated_at` show Root Admin, 2026-11-26. Terms back to `NULL, f`. No env var added.
+Command :3001 (pid 16918) and Chromium :9222 (pid 17359) started and stopped by the agent. `:3000`
+(`agent-virtual-office`) left alone.
+
+**Manual local checks — stage 5 (L5)**  ✅ 6/7 · L5.7 ⏸ (run 2026-11-27 by the agent with the user's permission, `/sim-manual-test`, visible Chromium on WSLg over CDP, Command on :3001; the user's L4 sign-in (root@bookdeck.com) persisted in the test profile; screenshots shown in-session, read-only SQL for every write)
+Local Command signed in by the user as the local Root Admin (a new permission: the L4 one does not carry over).
+Command on `:3001` if `:3000` is still held by `agent-virtual-office`. `PORTAL_URL_AFFILIATE=http://localhost:3002`
+is already in `command/.env.local` (L2). Test data is tagged `l5-…@example.com` / `L5…` codes. The mail catcher
+(54324) receives Auth mail, so set-password links land there. The "before" half of the `createAccount` extraction
+check is L2.6–L2.7 (2026-11-25, pre-extraction code); L5.1–L5.2 are the "after".
+
+| # | Item | Steps | Expected | Status |
+|---|---|---|---|---|
+| L5.1 | I7 (extraction) | Users → Add User: "L5 Test Member", `l5-test-1@example.com`, member, active, **Booker** portal, no code → Create | Created as before; SQL `profiles` name/active, `user_portals` booker, `user_roles` member; mail catcher "Reset your password" for that address (`PORTAL_URL_BOOKER` is set locally) | ✅ 2026-11-27 — created; list row "L5 Test Member · Member · Active"; SQL active, portal `booker`, role `member`; mail catcher "Reset your password" for it (same as before the extraction) |
+| L5.2 | I7 (extraction) | Add User with the Affiliate chip and code `L5TEST01` (`l5-test-2@example.com`) | Created as an affiliate, as L2.7: SQL `affiliates` row `L5TEST01`, portal `affiliate`; mail link `redirect_to=http://localhost:3002` | ✅ 2026-11-27 — SQL active, portal `affiliate`, `L5TEST01`, created_by Root Admin; mail link `redirect_to=http://localhost:3002` (as L2.7) |
+| L5.3 | I7, D13 | Affiliates → Import → a CSV with: new (`l5-import-1@example.com`, `L5IMP01`, rate 1.5); existing = L5.1's account (`L5IMP02`); already = L2 Test (`l2-test-1@example.com`, `L2TEST02`); refused admin (`root@bookdeck.com`); refused reserved (`l5-import-3@example.com`, `L2TEST01`); invalid (bad email) | Verdicts in that order; summary counts; "Import 2 rows"; SQL no `auth.users` row for `l5-import-1` yet | ✅ 2026-11-27 — verdicts exactly new · existing · already · refused (admin) · refused (`L2TEST01` reserved) · fix the row; "Import 2 rows"; SQL 0 `l5-import-%` users. First attempt showed no Import tab: a stale service-worker chunk (F43), not the code |
+| L5.4 | I7, D4 | Import 2 rows → Confirm | 2 Imported; SQL: `l5-import-1` member, active, portal `affiliate`, `affiliates` `L5IMP01` rate 1.50, created_by Root Admin; L5.1's account gains portal `affiliate` and `L5IMP02`; `affiliate_referral_code_changes` rows `source` `command`, `changed_by` NULL (D4, F31); **no** new mail for either | ✅ 2026-11-27 — "2 imported; 1 already imported, 3 refused"; SQL `l5-import-1` member, active, portal `affiliate`, `L5IMP01` rate 1.50, created_by Root Admin; `l5-test-1` portals `affiliate,booker`, `L5IMP02`; both code-history rows `command`, changed_by NULL (D4); no account for the refused row; mail count unchanged (2 → 2). Found: future-tense reason after import — fixed ("Account created…", "Made an affiliate…") |
+| L5.5 | I7 | Choose the same file again | `l5-import-1` and L5.1's account now "Already imported"; "Import 0 rows" disabled with "Nothing in this file can be imported." | ✅ 2026-11-27 — "0 new accounts, 0 existing, 3 already imported, 2 refused, 1 to fix"; "Import 0 rows" disabled with its reason. Found F44 (no invitation on a re-run) — fixed in I7 |
+| L5.6 | I7 | Send invitation to `l5-import-1` | "Sent"; mail catcher "Reset your password" for it, link `redirect_to=http://localhost:3002` | ✅ 2026-11-27 (after F44's fix) — re-run lists Send invitation for the three already-imported rows; sent to `l5-import-1` → "Sent"; mail catcher "Reset your password" for it, `redirect_to=http://localhost:3002` |
+| L5.7 | I7 | Send to all as a non-root admin | ⏸ no second, non-root local admin; fixture-covered (spec "Send to all stops when the route refuses") | ⏸ |
+
+*Local test data left by the L5 run (2026-11-27), for cleanup or `db reset`:* users `l5-test-1@example.com`
+("L5 Test Member", member, active, portals `affiliate,booker`, affiliate `L5IMP02`), `l5-test-2@example.com` ("L5 Test
+Affiliate", `L5TEST01`), `l5-import-1@example.com` ("L5 Import New", `L5IMP01`, rate 1.50); registry rows and
+code-history rows for `L5TEST01`, `L5IMP01`, `L5IMP02`; three "Reset your password" messages in the mail catcher. No
+settings or env changes. Command :3001 (pid 96400) and Chromium :9222 (pid 96682) started and stopped by the agent;
+in the test profile the service worker was unregistered and its cache emptied (F43). `:3000` left alone.
 
 **Live, staging (S4)** — with two staging accounts besides the tester (Q8): a partner affiliate and
 a staff affiliate.
