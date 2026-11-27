@@ -35,8 +35,8 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
   `components/affiliates/AffiliateImport/` (third sub-tab), `lib/users/createAccount.server.ts` extracted verbatim from
   `POST /api/users` (re-verified live: L5.1–L5.2). Live L5 6/7 (L5.7 non-root invite ⏸, fixture). F44 fixed in stage.
 - **Stage 4 ✅ on local (2026-11-26, uncommitted):** B1, B6, B5, I6, I4, F32; L4 11/13 (L4.10, L4.12 ⏸, fixture).
-- **Next: C4** — the user commits stages 4–5 together (moved here 2026-11-26), from the drafts in the stage-5 report
-  (command + root). **Then stage 6** (staging, S1–S4) in a new session: S1 applies M1 to staging first.
+- **C4 ✅ (2026-11-27):** stages 4–5 committed — command `6eba784`, root `c9719ca`.
+- **Next: stage 6** (staging, S1–S4) in a new session: S1 applies M1 to staging first.
 - **Open for the user:** F43 (dev service worker), F38, F41, F33, F36, F37; close F30/F35 if satisfied; F24 (now 16/5),
   F26. Notes: F39, F40, F42, F44.
 - **Environment notes:** `:3000` held by `agent-virtual-office` (2026-11-26/27), so manual runs used `:3001`. For a manual
@@ -1231,7 +1231,7 @@ before 1.
 | [ ] | ⬜ | 5 | F43 | Dev service worker serves stale chunks | You (decide) | Pre-existing, dev only; no payout data cached |
 | [x] | ✅ 2026-11-27 | 5 | F44 | Invite already-imported rows | Me | Fixed in I7; L5.6 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
-| [ ] | ⬜ | 5→6 | C4 | Commit stages 4–5 (command + root) | You | Moved here by the user (2026-11-26): one commit right before staging, not one per stage |
+| [x] | ✅ 2026-11-27 | 5→6 | C4 | Commit stages 4–5 (command + root) | You | command `6eba784`, root `c9719ca` (both signed, via `/auto-git`); moved here by the user 2026-11-26 |
 | [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
 | [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
 
