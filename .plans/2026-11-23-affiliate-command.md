@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 ✅ on local (2026-11-26: machine + manual L4, 11/13; L4.10/L4.12 fixture-only); stage 5 ✅ on local (2026-11-27: machine + manual L5, 6/7); C4 (commit, user) then stage 6 next; commit C4 moved to right before staging — release: staging ⬜ · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 ✅ on local (2026-11-26: machine + manual L4, 11/13; L4.10/L4.12 fixture-only); stage 5 ✅ on local (2026-11-27: machine + manual L5, 6/7); C4 ✅ (2026-11-27); stage 6 ✅ on staging (2026-11-28: S1 M1 applied, S2 blank, S3 deployed, S4 14/16 with S4.12 ⏸ by dated user decision; deployment id to record) — release: staging ✅ (gate reached 2026-11-28) · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -29,18 +29,24 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 
 ---
 
-## ▶ RESUME HERE (updated 2026-11-27, stages 4 and 5 ✅ on local — next: C4 commit (user), then stage 6 staging)
+## ▶ RESUME HERE (updated 2026-11-28 — stage 6 ✅ on staging, STOPPED at the staging gate)
 
-- **Stage 5 ✅ on local (2026-11-27, uncommitted):** I7 — `lib/affiliateImport.ts` (+21 tests), `app/api/affiliates/import`,
-  `components/affiliates/AffiliateImport/` (third sub-tab), `lib/users/createAccount.server.ts` extracted verbatim from
-  `POST /api/users` (re-verified live: L5.1–L5.2). Live L5 6/7 (L5.7 non-root invite ⏸, fixture). F44 fixed in stage.
-- **Stage 4 ✅ on local (2026-11-26, uncommitted):** B1, B6, B5, I6, I4, F32; L4 11/13 (L4.10, L4.12 ⏸, fixture).
-- **C4 ✅ (2026-11-27):** stages 4–5 committed — command `6eba784`, root `c9719ca`.
-- **Next: stage 6** (staging, S1–S4) in a new session: S1 applies M1 to staging first.
-- **Open for the user:** F43 (dev service worker), F38, F41, F33, F36, F37; close F30/F35 if satisfied; F24 (now 16/5),
-  F26. Notes: F39, F40, F42, F44.
-- **Environment notes:** `:3000` held by `agent-virtual-office` (2026-11-26/27), so manual runs used `:3001`. For a manual
-  run after code edits, unregister Command's service worker in the test browser first (F43).
+- **Stage 6 ✅ on staging (2026-11-27/28):** S1 M1 applied by the user (CHECK `^v2\.`, newest `20261123000001`); S2
+  `PORTAL_URL_AFFILIATE` blank (confirmed by behaviour, S4.16); S3 Command deployed (**deployment id + commit still to
+  record — P4 needs it**); S4 14/16 green, run by the agent on staging with the user's go (see the S4 table and the
+  Release → "Staging run log"). D18: tax 12 % set on staging, go-live `2026-11-27 16:43:17 UTC` (permanent).
+- **Parked:** S4.12 (real earned line) by the user's dated decision 2026-11-28 — booking `30000000-…0003` at Summit
+  (attributed to TSTREF2 by the user's direct insert) is `returned` and should auto-complete around 2026-11-30 01:00 UTC;
+  a later session can verify the line read-only. S4.15's closure part (no staging closure request).
+- **Next:** nothing in this plan until production. **Stage 7 stays ⏸** until plans 1–3 are tested on staging and the user
+  says go (plan 3, the affiliate app, is not written yet). Before P1: record S3's deployment id.
+- **Open for the user:** F45, F46, F47 (new); F43, F38, F41, F33, F36, F37; close F30/F35 if satisfied; F24, F26.
+  Staging test data from S4 is listed under the S4 table.
+- **Environment notes:** `backbone/` CLI targets staging with `--remote`; the CLI prints "· production" after the staging
+  project's name (its own environment label, not the production project).
+
+## (history) Earlier RESUME notes
+
 - **Done so far:** investigation, reviews, D1–D20, R1, R2, approval (2026-11-23 → 25). **Stage 1 ✅**
   (B8, `Portal`, M1 on local). **Stage 2 ✅ on local** (B3, B7, B2, I1 PATCH, I9, I10, I8; L2.1–L2.15).
   **Stage 3 code ✅ (2026-11-25, local), machine-verified:** B4 (+ I1's `ReferralCodeHistory`, F25), I2, I3,
@@ -436,6 +442,28 @@ id for already-imported rows, and the screen offers "Send invitation" / "Send to
 Verified: spec (dry run offers juan@, not lea@; Send to all includes juan) and live L5.6.
 
 
+### F45 — An invalid edit in the affiliate settings card has no Cancel  (S4.2, 2026-11-27)  ⬜ for the user to decide (cosmetic)
+`useAffiliateCommissionSettings.ts:89`: `isDirty = isValid && (…)`, and the card shows Cancel only while `isDirty`.
+So after go-live, blanking the tax ("Commission is live, so the tax rate can't be cleared…") leaves Save disabled
+and no Cancel; the only ways back are retyping the value or reloading. Same for any invalid value in that card.
+Nothing can be saved wrongly. Option: show Cancel whenever the typed values differ from the saved ones, valid or not.
+
+### F46 — Add User with a code never says whether the set-password email went  (S4.4, 2026-11-27)  ⬜ for the user to decide
+`useUsers.ts:37` (`notifyCreated`): a created affiliate's toast carries the code and share link and returns before
+the `emailStatus` branches. Its comment says an affiliate "typically holds no portal", which D6 made untrue: the
+Affiliate portal now **requires** a code, so for every affiliate-portal account made in Add User the email outcome
+(sent · not configured · misconfigured · failed) is never shown. On staging it hid "not configured" (S2 blank,
+expected); once `PORTAL_URL_AFFILIATE` is set, a typo'd value or a failed send would be just as silent. Import's
+"Send invitation" does show the status (S4.16). Options: add the email status to the affiliate toast's
+description (Command only, small), or accept and invite through Import.
+
+
+### F47 — Booker shows a booking's date one day early in a browser west of UTC  (S4.12, 2026-11-28)  ⬜ for the user to decide (pre-existing, booker, not this plan)
+In staging booker on this machine (time zone EST), booking `30000000-…0003` with `booked_date` 2026-04-27 read
+"Apr 26, 2026", and the others were one day early too (2026-06-28 → "Jun 27"). Likely a date-only value parsed as UTC
+midnight and shown in local time; the cause was **not** traced in code. Browsers in Manila (UTC+8) would not show it.
+Outside this plan's scope (booker); recorded so it isn't lost.
+
 ---
 
 ## How Command calls plan 1 (the contract this plan builds on)
@@ -478,7 +506,7 @@ and passes the message through otherwise — never by matching message text.
 
 ## MIGRATIONS (each an approval gate — drafted, not written)
 
-### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ✅ DONE on local (2026-11-25) · staging ⬜ (S1) · production ⏸ — D1 = a, approved 2026-11-24; file and T1 fixture line written exactly as drafted; applied locally by the user; verified (machine, local): newest local version `20261123000001`, constraint reads `CHECK ((details_enc ~ '^v2\.'::text))` (read-only psql), T1 exit 0 "all 105 cases passed" (the one plpgsql_check warning is plan 1's known F21), `npx supabase db lint` "No schema errors found"
+### M1 — Let `affiliate_payout_methods` hold Command's row-bound `v2` blobs  ✅ DONE on local (2026-11-25) · staging ✅ (S1, 2026-11-27: applied by the user; read-only check `^v2\.`, newest `20261123000001`) · production ⏸ — D1 = a, approved 2026-11-24; file and T1 fixture line written exactly as drafted; applied locally by the user; verified (machine, local): newest local version `20261123000001`, constraint reads `CHECK ((details_enc ~ '^v2\.'::text))` (read-only psql), T1 exit 0 "all 105 cases passed" (the one plpgsql_check warning is plan 1's known F21), `npx supabase db lint` "No schema errors found"
 **Why:** F1. **File (when approved):** `backbone/supabase/migrations/20261123000001_affiliate_payout_details_v2.sql`
 (sorts after every environment's newest version, `20261121000001`; re-check with
 `migration list` on each before applying, as plan 1 F18 did).
@@ -534,7 +562,7 @@ a request value (the vendor rule, `crypto.server.ts:178-180`). The tests beside 
 (`crypto.server.test.ts`) gain one case: a blob sealed for user A fails for user B.
 **Verification:** `npm test` (machine); B6's live save + reveal (local, then staging).
 
-### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified; live local L2.13, L2.15, L2.16 Remove + Delete ✅ (2026-11-25); closure blocker live ⏸ (no local closure request — machine-covered)
+### B2 — Guard the "remove" paths and account closure with money, not only referrals (F2, F21)  🔄 IN PROGRESS — code ✅ machine-verified; live local L2.13, L2.15, L2.16 Remove + Delete ✅ (2026-11-25); closure blocker live ⏸ (no local closure request — machine-covered) · staging S4.15 ✅ (2026-11-27: Remove + Delete refused on money and on referrals; closure part ⏸, staging has no closure request)
 **Done (stage 2, 2026-11-25):** new pure `lib/affiliateRemoval.ts` (wording + `hasAffiliateMoneyRecord`,
 `removeAffiliateRefusal`: referrals → money → portal, D6) + 9 tests; new server-only
 `lib/affiliateRecords.server.ts` (`readAffiliateMoneyRecord`: any `affiliate_commissions` or
@@ -562,7 +590,7 @@ gains `hasCommission` so Remove explains itself before the click (same reasoning
 **Third path (F21, D19 = a, 2026-11-24):** account closure. Command computes eligibility live per vendor in `app/api/account-deletion/route.ts:84-105` (`fetchEligibility`), shows it in the queue (GET `:134`) and re-checks it immediately before executing (POST `:171`); the user deleted is `request.requested_by`, and only when the scope deletes the user (`lib/accountDeletion/execute.server.ts:165-168`). Add a fourth `BlockerCode` `affiliate_balance` to `lib/accountDeletion/eligibility.ts:57-63` (counts gain `affiliateOwed`), computed for `requested_by` **only when the scope deletes that user**: blocks while the user has an `affiliate_withdrawals` row in `requested` / `processing`, or the **net sum** of their `affiliate_commissions.amount` in `earned`, `held` or `in_withdrawal` is > 0 (service-role read, the route's existing client; not `affiliate_balance`, which refuses a service-role caller). A net ≤ 0 does not block: Q4-neg writes off a negative balance at closure. Lines not yet available (7-day clock) and held lines (open dispute) still block, so a closure may have to wait for them. Lines `withdrawn`, `written_off` or `cancelled` do not block. Next action shown with the blocker: "This person is still owed affiliate commission. Open a final withdrawal from Affiliates (account-closure waiver), complete it, then close the account." `eligibility.test.ts` gains the new code's cases. Vendor app side: per D20.
 **Verification:** a unit-testable predicate in `lib/` (`node --test`, machine), plus `lib/accountDeletion/eligibility.test.ts` cases for `affiliate_balance` (net > 0 blocks; net ≤ 0 and withdrawn-only do not; open withdrawal blocks). Live on local: add a manual line to a test affiliate (B4/I5), then try Remove and Delete → both refused; a closure request by a vendor-admin affiliate with a positive balance shows the blocker and refuses to execute; after a waived final withdrawal is completed, the blocker clears.
 
-### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  ✅ DONE on local (2026-11-25) — machine + live local L2.1–L2.5 ✅; staging S4 ⬜; F30 cosmetic open
+### B3 — Settings: the "Affiliate commission" card (Q34, Q35, Q45; plan 1 D1)  ✅ DONE on local (2026-11-25) — machine + live local L2.1–L2.5 ✅; staging ✅ (2026-11-27, S4.1–S4.3); F30 cosmetic open
 **Done (stage 2, 2026-11-25):** as listed below. `PlatformFeeSettings` + 4 fields; the service reads
 them and gains `updateAffiliateCommissionSettings` (never sends `affiliate_commission_live_from`);
 `usePlatformFeeSettingsPage.saveAffiliateCommission` (refusals worded by `affiliateErrorMessage`,
@@ -619,7 +647,7 @@ for: unset state, confirmation gate, live state, invalid inputs (machine, port 3
 local: save the minimum only; save the default rate; **do not set the tax rate locally unless the
 user accepts that T1 then fails until `db reset`** (Watch out). Staging: S4.
 
-### B4 — The Affiliates section: list and detail (Q37)  🔄 IN PROGRESS — code ✅ machine-verified; live local L3.1–L3.5 ✅ (2026-11-25); only L3.14 (self, live) ⏸ — machine-covered; F22 baselines ✅ regenerated after review (2026-11-25)
+### B4 — The Affiliates section: list and detail (Q37)  🔄 IN PROGRESS — code ✅ machine-verified; live local L3.1–L3.5 ✅ (2026-11-25); only L3.14 (self, live) ⏸ — machine-covered; F22 baselines ✅ regenerated after review (2026-11-25) · staging S4.6 ✅ (2026-11-27; self case n/a, Root Admin is not an affiliate)
 **Done (stage 3, 2026-11-25):** `lib/navigation.ts` "Affiliates" (HandCoins) after Closures + `PAGE_TITLES`;
 `AppShell` lazy-loads `AffiliatesPage` with `callerId = currentUser?.id`. New `components/affiliates/`:
 `affiliatesApi.ts` (the section's data access as one object behind a React context, real services by
@@ -686,7 +714,7 @@ empty, error) and detail (partner, staff, self) with a behavioural spec (machine
 seeded `NINA2026` / `LIZA2026` (plan 1 F16) and one test affiliate created through Users
 (staging S4 repeats it).
 
-### B5 — Withdrawals queue and lifecycle (Q44; plan 1 D5, D6)  ✅ DONE on local (2026-11-26) — machine (npm test 311/311, tsc 0, build 0, lint clean, spec 27/27, full suite 128/129 = F41) + live L4.4–L4.9 ✅; D5 live (L4.10) ⏸ fixture-only; staging S4 ⬜
+### B5 — Withdrawals queue and lifecycle (Q44; plan 1 D5, D6)  ✅ DONE on local (2026-11-26) — machine (npm test 311/311, tsc 0, build 0, lint clean, spec 27/27, full suite 128/129 = F41) + live L4.4–L4.9 ✅; D5 live (L4.10) ⏸ fixture-only; staging ✅ (2026-11-27, S4.10–S4.11)
 **Files:** new `services/affiliateWithdrawals.service.ts` (queue, one withdrawal with its lines
 and status log, and the start / complete / reject / open / payroll calls); new
 `components/affiliates/WithdrawalQueue/` (`.tsx`, `useWithdrawalQueue.ts`, `.module.css`) and
@@ -721,7 +749,7 @@ processing, completed, rejected, transfer-failed) + behavioural spec (machine). 
 lifecycle live on local and staging through I6 (open on behalf), since no affiliate app exists
 yet (Assumption 3).
 
-### B6 — Payout details: entry and "show full details" (Q17, Q26, Q32; plan 1 D9)  ✅ DONE on local (2026-11-26) — machine + live L4.2, L4.3, L4.6 ✅ (1 method-log row per save, 1 view-log row per reveal, dev log clean of details); self (L4.12) ⏸ fixture-only; F38 for the user; staging S4 ⬜
+### B6 — Payout details: entry and "show full details" (Q17, Q26, Q32; plan 1 D9)  ✅ DONE on local (2026-11-26) — machine + live L4.2, L4.3, L4.6 ✅ (1 method-log row per save, 1 view-log row per reveal, dev log clean of details); self (L4.12) ⏸ fixture-only; F38 for the user; staging ✅ (2026-11-27, S4.9)
 **Files:**
 - Ports from vendor, verbatim, each with the `crypto.server.ts`-style "keep byte-compatible"
   header and its tests copied beside it: `vendor/lib/payout/banks.ts` → `command/lib/payout/banks.ts`;
@@ -758,7 +786,7 @@ reveal uses it), so no new secret.
 read-only SQL one `affiliate_payout_method_log` row and one `affiliate_payout_view_log` row;
 try saving on your own account → refused. Staging: S4.
 
-### B7 — Users page: the `affiliate` portal and the invite (Q10)  ✅ DONE on local (2026-11-25) — machine + live local L2.6–L2.9 ✅ (invite aimed at :3002 confirmed in the mail catcher; click-through into the affiliate app is plan 3's); staging S2/S4 ⬜
+### B7 — Users page: the `affiliate` portal and the invite (Q10)  ✅ DONE on local (2026-11-25) — machine + live local L2.6–L2.9 ✅ (invite aimed at :3002 confirmed in the mail catcher; click-through into the affiliate app is plan 3's); staging ✅ (2026-11-27, S4.4, S4.16; S2 blank)
 **Done (stage 2, 2026-11-25):** `ALL_PORTALS` + `affiliate`; `PORTAL_CFG.affiliate` (pink, F28);
 `portalOrigins.server.ts`: `isPortal` accepts it, `PRIORITY` = command > vendor > affiliate > booker
 (D5), the "unreachable" comment removed. D6 as one pure rule, `affiliateAccessError(portals, code)` in
@@ -845,7 +873,7 @@ exit 0; `npx eslint` on the stage's files exit 0 (repo-wide lint: F24).
 
 ## IMPORTANT
 
-### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ (machine + live local L2.11, 2026-11-25); history ✅ machine + live L3.5–L3.6 (2026-11-25) → **I1 ✅ DONE on local**
+### I1 — Code change through `change_referral_code`; code history (Q16d; F3)  🔄 IN PROGRESS — PATCH + note ✅ (machine + live local L2.11, 2026-11-25); history ✅ machine + live L3.5–L3.6 (2026-11-25) → **I1 ✅ DONE on local** · staging S4.8 ✅ (2026-11-27)
 **Stage 3 (2026-11-25):** `components/affiliates/ReferralCodeHistory/` (pure display + its CSS module, no
 hook: no state) on the detail; labels from `codeSourceLabel` (F31: a NULL-actor `command` row reads
 "Changed by Ezzy" with no name), "Current" / "Still works" from `affiliate_referral_codes`. "Change code"
@@ -876,7 +904,7 @@ History: every row of `affiliate_referral_code_changes` (named FK embed for `cha
 **Verification:** tsc, lint, `npm test` (error map) (machine). Live local: change a test
 affiliate's code → history row carries your name; change your own → refused. Staging: S4.
 
-### I2 — Rate override and staff flag (Q7, Q48)  ✅ DONE on local (2026-11-25) — machine + live L3.7; staging S4 ⬜
+### I2 — Rate override and staff flag (Q7, Q48)  ✅ DONE on local (2026-11-25) — machine + live L3.7; staging ✅ (2026-11-27, S4.7)
 **Done (stage 3):** `AffiliateTermsModal/` (render / hook / CSS). Save re-reads `affiliates` (`getAffiliateTerms`)
 and sends the field it did not edit as stored now. Rate pre-check `parseRateOverride` refuses > 2 decimals
 instead of rounding (JS and Postgres round 1.255 differently). Verified (machine): spec — re-read sends the
@@ -893,7 +921,7 @@ rate they were earned at" (Q7). Refusal `affiliate_open_request` explains the st
 the open withdrawal.
 **Verification:** tsc, lint; behavioural spec on a fixture (machine); live local + S4.
 
-### I3 — Attribution dialogs: credit a vendor, change referrer (Q18, Q19; plan 1 D8)  ✅ DONE on local (2026-11-25) — machine + live L3.8–L3.10; staging S4 ⬜; F33 still yours to confirm
+### I3 — Attribution dialogs: credit a vendor, change referrer (Q18, Q19; plan 1 D8)  ✅ DONE on local (2026-11-25) — machine + live L3.8–L3.10; staging ✅ (2026-11-27, S4.14); F33 still yours to confirm
 **Done (stage 3):** `CreditVendorModal/` and `ChangeReferrerModal/` (each render / hook / CSS). Credit lists
 vendors with no referrer from the last 60 days (anti-join, F35), those past 30 days disabled "Past 30
 days"; Change referrer picks from active affiliates minus the current referrer (F15) and the caller (Q8),
@@ -912,7 +940,7 @@ not active, with the reason, because the database requires an active referrer (p
 **Verification:** tsc, lint, fixture spec (machine); live local: credit a seeded vendor with no
 referral, move it back, read `vendor_referral_changes` (read-only SQL). Staging: S4.
 
-### I4 — Payroll for staff affiliates (Q30, Q48)  ✅ DONE on local (2026-11-26) — machine + live L4.11 ✅; staging S4 ⬜
+### I4 — Payroll for staff affiliates (Q30, Q48)  ✅ DONE on local (2026-11-26) — machine + live L4.11 ✅; staging ✅ (2026-11-27, S4.13)
 **Files:** new `components/affiliates/PayrollModal/` (`.tsx`, `usePayrollModal.ts`, `.module.css`).
 **Fix approach:** shows the whole available balance and line count (from `affiliate_balance` and
 the lines), payroll date (`type=date`, default today Manila), reference ≥ 3; "No transfer is made
@@ -920,7 +948,7 @@ from here and no email is sent" (preview; M4 `:1535-1612` sends none). Refusals 
 **Verification:** tsc, lint, fixture spec; live local + S4 (needs a staff affiliate with a manual
 line).
 
-### I5 — Manual adjustment (Q36)  ✅ DONE on local (2026-11-25) — machine + live L3.11–L3.12; staging S4 ⬜
+### I5 — Manual adjustment (Q36)  ✅ DONE on local (2026-11-25) — machine + live L3.11–L3.12; staging ✅ (2026-11-27, S4.10–S4.11)
 **Done (stage 3):** `AdjustmentModal/` (render / hook / CSS): signed ₱ amount (≠ 0, ≤ 2 dp, typographic minus
 accepted), reason ≥ 10 "shown to the affiliate", confirm step "Add ₱X to <name>'s available balance now" /
 "Take ₱X off…". Not offered on the admin's own record. Verified (machine): spec — zero refused, negative
@@ -935,7 +963,7 @@ your own account.
 **Verification:** tsc, lint, fixture spec; live local (this is also how S4 creates money to
 withdraw).
 
-### I6 — Open a withdrawal on an affiliate's behalf (preview F3; plan 1 D7)  ✅ DONE on local (2026-11-26) — machine + live L4.4, L4.8, L4.9 ✅ (the waiver path is fixture-only: live balances were above the minimum); staging S4 ⬜
+### I6 — Open a withdrawal on an affiliate's behalf (preview F3; plan 1 D7)  ✅ DONE on local (2026-11-26) — machine + live L4.4, L4.8, L4.9 ✅ (the waiver path is fixture-only: live balances were above the minimum); staging ✅ (2026-11-27, S4.10)
 **Files:** new `components/affiliates/OpenWithdrawalModal/` (`.tsx`, `useOpenWithdrawalModal.ts`,
 `.module.css`), launched from the affiliate detail when `withdraw_blocker` is null **or** is
 `below_minimum` (for the waiver) and the affiliate is non-staff.
@@ -945,7 +973,7 @@ when the account is being closed" (D7: the database cannot verify it; the reason
 States plainly that the affiliate is emailed "Withdrawal received" (plan 1 F15 b, D9).
 **Verification:** tsc, lint, fixture spec; live local + S4.
 
-### I7 — Pre-launch import (Q39)  ✅ DONE on local (2026-11-27) — machine (npm test 332/332 incl. 21 `affiliateImport`, tsc 0, build 0, stage-5 files lint-clean, repo lint 16/5, full suite 133/133 on a quiet machine before the F44/past-tense edits, then 131/133 after them at load ~13 — the two misses (`pilot` vendors-dark, 394 px; a settings case's 30 s timeout) passed alone at once, and every affiliates case passed: F40's load class) + live L5.1–L5.6 ✅ (the extraction re-verified through Add User); L5.7 ⏸ fixture-only; F44 fixed in stage; staging S4.11 ⬜
+### I7 — Pre-launch import (Q39)  ✅ DONE on local (2026-11-27) — machine (npm test 332/332 incl. 21 `affiliateImport`, tsc 0, build 0, stage-5 files lint-clean, repo lint 16/5, full suite 133/133 on a quiet machine before the F44/past-tense edits, then 131/133 after them at load ~13 — the two misses (`pilot` vendors-dark, 394 px; a settings case's 30 s timeout) passed alone at once, and every affiliates case passed: F40's load class) + live L5.1–L5.6 ✅ (the extraction re-verified through Add User); L5.7 ⏸ fixture-only; F44 fixed in stage; staging ✅ (2026-11-27, S4.16)
 **Files (D3 = a):** new `components/affiliates/AffiliateImport/` (`.tsx`, `useAffiliateImport.ts`,
 `.module.css`) as a third sub-tab, root and admin; new pure `lib/affiliateImport.ts` (RFC 4180
 parse — no new dependency — header check `name,email,code,rate`, per-row validation with the
@@ -1186,7 +1214,7 @@ required) and I5 or real lines (money to withdraw); B7's invite click-through ne
 that environment; I1's PATCH change ships with I10's copy. Stages 2 and 3 can swap; 4 cannot move
 before 1.
 
-## Big table (updated 2026-11-25, after the stage 3 manual run)
+## Big table (updated 2026-11-28, after the stage 6 staging run)
 
 | ✓ | Status | Stage | Item | What | Who | Why / notes |
 |---|---|---|---|---|---|---|
@@ -1232,7 +1260,10 @@ before 1.
 | [x] | ✅ 2026-11-27 | 5 | F44 | Invite already-imported rows | Me | Fixed in I7; L5.6 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
 | [x] | ✅ 2026-11-27 | 5→6 | C4 | Commit stages 4–5 (command + root) | You | command `6eba784`, root `c9719ca` (both signed, via `/auto-git`); moved here by the user 2026-11-26 |
-| [ ] | ⬜ | 6 | S1–S4 | Staging release | You + Me | After stages 3–5 |
+| [x] | ✅ staging 2026-11-28 | 6 | S1–S4 | Staging release | You + Me | M1 applied; URL blank; deployed; S4 14/16, S4.12 ⏸ (your decision); deployment id to record |
+| [ ] | ⬜ | 6 | F45 | Settings card: no Cancel on an invalid edit | You (decide) | Cosmetic |
+| [ ] | ⬜ | 6 | F46 | Add User hides the set-password email outcome | You (decide) | Small Command fix or accept |
+| [ ] | ⬜ | 6 | F47 | Booker shows booked dates a day early outside Manila | You (decide) | Pre-existing, booker; seen on an EST machine |
 | [ ] | ⏸ | 7 | P1–P5 | Production release | You | Parked: plans 1–3 together after plan 3's staging is green |
 
 ## Release (§12)
@@ -1247,7 +1278,7 @@ so on any environment plan 1's migrations must already be there (F18).
 |---|---|---|
 | New Command, plan 1's migrations **not** applied | ⛔ | The Platform Fee page cannot load at all (F18) and the Affiliates section errors. Recover: roll the Command deploy back, or apply plan 1 first. Production order is therefore plan 1 → plan 2. |
 | New Command, plan 1 applied, **M1 not** applied | ⚠️ | Everything works except saving payout details: the CHECK refuses it loudly (23514), nothing is stored. Recover: apply M1. |
-| M1 applied, old Command | ✅ | Nothing writes the table. |
+| M1 applied, old Command | ✅ | Nothing writes the table. ← **staging, 2026-11-27 (after S1)** |
 | `PORTAL_URL_AFFILIATE` blank | ✅ | Invites report "not configured" (the booker behaviour); grants still work. |
 | `PORTAL_URL_AFFILIATE` set before that environment's affiliate app uses the same Supabase project | ⛔ | Set-password links validate nowhere. Recover: blank it, then set it after the app is confirmed (the booker rule). |
 | Tax rate set | ⚠️ one-way | Stamps go-live permanently on that environment. Staging per D18; production per D16, never as a release step. |
@@ -1256,13 +1287,42 @@ so on any environment plan 1's migrations must already be there (F18).
 
 | # | Who | Step | Check |
 |---|---|---|---|
-| S1 | 👤 | `cd backbone && npx supabase migration list --remote` → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (CLI 3.2.0; plain `db push` targets local) | ⛔ only M1 pending; afterwards R1's query shows `^v2\.` |
-| S2 | 👤 | Staging Command env: `PORTAL_URL_AFFILIATE` = the staging affiliate origin **only if plan 3's app is on staging and uses the staging project**, else leave blank; add that origin to the staging project's Auth redirect allowlist at the same time | ⛔ value is scheme + host only; allowlist entry exact |
-| S3 | 👤 | Deploy `command` to staging (the user's usual Vercel staging deploy) | build green; note the deployment id for P4 |
-| S4 | 👤 + 🤖 | Staging checks (Verification → staging) | ⛔ all green |
+| S1 ✅ 2026-11-27 | 👤 | `cd backbone && npx supabase migration list --remote` → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (CLI 3.2.0; plain `db push` targets local) | ⛔ only M1 pending; afterwards R1's query shows `^v2\.` |
+| S2 ✅ 2026-11-27 (blank; confirmed by behaviour in S4.16) | 👤 | Staging Command env: `PORTAL_URL_AFFILIATE` = the staging affiliate origin **only if plan 3's app is on staging and uses the staging project**, else leave blank; add that origin to the staging project's Auth redirect allowlist at the same time | ⛔ value is scheme + host only; allowlist entry exact |
+| S3 🔄 2026-11-27 (deployed; id/commit not yet recorded) | 👤 | Deploy `command` to staging (the user's usual Vercel staging deploy) | build green; note the deployment id for P4 |
+| S4 ✅ 2026-11-28 (14/16; S4.12 ⏸ by dated user decision; S4.15 closure part ⏸) | 👤 + 🤖 | Staging checks (Verification → staging) | ⛔ all green |
 
 ⛔ **Staging fully green before anything touches production.** A parked staging check needs a dated
 user decision here before P1.
+
+#### Staging run log (stage 6, started 2026-11-27)
+
+- **S1 pre-check ✅ 2026-11-27 (agent, read-only):** CLI 3.4.0; backbone `feature/affiliate_portal_groundwork`
+  at `d0d5f11`, tree clean under `supabase/`. `npx supabase migration list --remote` → `Target: project
+  backbone-staging (fbxbwnfeimzhgxpshdpa)` (the CLI also prints "· production", which is the project's own
+  environment label, not the production project); pending = `['20261123000001']` only, remote-only = none.
+  R1 via `db query --remote --read-only`: `affiliate_payout_methods_details_enc_check` = `CHECK ((details_enc ~
+  '^v1\.'::text))`, 0 rows, 0 not-v2; newest applied `20261121000001`.
+- **S1 ✅ 2026-11-27:** the user ran `db push --remote --dry-run` (only `20261123000001` listed, target
+  backbone-staging) then `db push --remote`. Verified by the agent, read-only: the CHECK now reads
+  `CHECK ((details_enc ~ '^v2\.'::text))`; the column comment is M1's; 0 rows; newest applied
+  `20261123000001`; `migration list --remote` shows none pending and none remote-only. (Two Supabase API 502s
+  on the first try, Cloudflare "retryable"; both retries clean.)
+- **S2 — `PORTAL_URL_AFFILIATE` stays BLANK on staging (2026-11-27):** plan 3's affiliate app is not on staging,
+  so the safe-pause table's ⛔ row applies; no Auth allowlist entry either. S4's invite checks therefore expect
+  "not configured". No new env var is needed for the deploy: this branch reads only `PORTAL_URL_*` (already
+  there) and the existing `PAYOUT_ENCRYPTION_KEY` (staging Command has it for vendor payouts; it must stay
+  the same as vendor's, `architecture/production-env-checklist.md`).
+  **Not confirmed by the agent:** there is no Vercel CLI or `.vercel` link here, so staging's env vars cannot be read.
+  Confirmed instead by behaviour at S4.4/S4.5 (the "not configured" message names `PORTAL_URL_AFFILIATE`).
+- **S3 🔄 2026-11-27:** the user reports `command` deployed to staging; the live build shows the Affiliates section and
+  v0.35.0 in the corner. Deployment id and built commit: ⬜ **still to be recorded by the user (needed for P4's Promote)**.
+- **S4 2026-11-27/28:** run by the agent with the user's explicit go for staging (`/sim-manual-test`, visible Chromium on WSLg over CDP;
+  the user signed in to Command as Root Admin, and later to booker as sofia@ and vendor as dante@). Results in the S4 table under
+  Verification. Writes outside the Command UI: **one**, by the user — the Summit `vendor_referrals` insert for S4.12. The agent ran
+  read-only queries only. Supabase's API returned a few transient 502s; every retry was clean.
+- **Staging gate (2026-11-28):** S1, S2, S4 green; S4.12 parked by the user's dated decision; S3's deployment id outstanding.
+  **Stopped here.** Production (stage 7) stays ⏸ until plans 1–3 are tested on staging and the user says go.
 
 ### Production (last stage) — ⏸ PARKED (2026-11-23): plans 1–3 go to production together, after the affiliate side (plan 3) is tested on staging. Unblocks when plan 3's staging checks are green and the user says go. Plan 1's P-table runs first.
 
@@ -1446,6 +1506,50 @@ a staff affiliate.
 Plan 3 checks, not here: the affiliate-raised request and its `affiliate_withdrawal_requested`
 notification to admins; the invite click-through into the affiliate app.
 Staging test data from S4 is listed in the stage report for the user to clean up.
+
+**Staging checks — S4 (numbered 2026-11-27 from the list above)**  ✅ 14/16 + 2 accounted for — S4.5 folded into S4.16; **S4.12 ⏸ by the user's dated decision (2026-11-28)**; S4.15's closure part ⏸ (no staging closure request) — run 2026-11-27/28 by the agent with the user's explicit go for staging (`/sim-manual-test`, visible Chromium on WSLg over CDP, signed in by the user as Root Admin `root@bookdeck.com`; read-only `db query --remote --read-only` for every write)
+The user drives staging Command, signed in as a staging Command admin (one of `root@`, `marco@`, `jun@`, `rico@`,
+`clara@`, `gab@bookdeck.com`); the agent gives each step and checks it with read-only `db query --remote --read-only`.
+No agent writes, no `sim-manual-test` unless the user asks for it this run. **Starting state (read-only, 2026-11-27, after
+S1):** settings tax / minimum / live-from all NULL, default rate 1.00; one affiliate, `TSTREF2` (`ref@ezzy.oh`, partner, no
+rate override), referrer of four vendors (Dance, Beef, Testing Affiliate INt, Black Curve); 0 commission lines, 0
+withdrawals, 0 `vendor_referral_changes`, 2 referral-code rows, 1 `affiliate%` notification; 0 payout methods; two vendors
+created in the last 30 days have no referrer. **Partner** = `TSTREF2` (it already has referred vendors, which S4.9 needs).
+**Staff** = a new account made in S4.3 with an address the user picks. With `PORTAL_URL_AFFILIATE` blank (S2) no Auth email
+is sent for an affiliate-portal account; notification emails go to the override inbox `cto@ezzy.ph`.
+
+| # | Item | Steps (user, staging UI) | Expected (UI) · read-only SQL check (agent) | Status |
+|---|---|---|---|---|
+| S4.1 | B3 | Settings → Platform Fee: the Affiliate commission card; save a minimum (₱5); save the default rate (keep 1.00 or change it) | Card loads "not live", tax empty · settings min 5.00 (by you), live_from NULL | ✅ 2026-11-27 — card loaded with the "switched off" banner, tax/min "Not set", rate 1; min 5 saved, toast "Affiliate commission settings updated."; SQL min 5.00, tax and live_from NULL, rate 1.00, updated_by Root Admin |
+| S4.2 | B3, D18 ⛔ **one-way, ask first** | Set the tax rate through the retype confirmation | "Live since …" shows; clearing it blocked · `affiliate_tax_percent` set, `affiliate_commission_live_from` stamped | ✅ 2026-11-27 — **user said yes to 12% for this run (D18)**. Confirm button disabled until the retype matched; after confirm "Commission live since 28 Nov 2026, 00:43 (Manila time)", banner gone, example ₱1,600 → fee ₱176 → ₱154.88 → ₱1.55; blanking the tax shows "Commission is live, so the tax rate can't be cleared…" with Save disabled (reloaded, nothing saved). SQL tax 12.00, live_from `2026-11-27 16:43:17.391856+00`. The toast was not caught by the automation (DB + screen confirm the save). F45 |
+| S4.3 | B3 (regression) | Save the platform fee and withholding unchanged | Both save · values unchanged, `updated_at` moves | ✅ 2026-11-27 — Save is disabled while unchanged, so each was changed and put back: fee 11 → 11.5 → 11, withholding 1 → 1.5 → 1 (confirm "Yes, change it"); four toasts; SQL fee 11.00, withholding 1.00 of 50.00, affiliate values untouched, updated_at 16:45:32 UTC |
+| S4.4 | B7, D6 | Users → Add User with the Affiliate chip: first without a code (refused), then with a code, `is_staff` later in S4.7 | Code required; created; "not configured" warning naming `PORTAL_URL_AFFILIATE` (**this confirms S2 by behaviour**) · `affiliates` row, portal `affiliate`, code-history row | ✅ 2026-11-27 (expectation corrected) — Affiliate chip without a code: Create disabled, alert "The Affiliate portal is for affiliates only. Give this user a referral code first…"; with `S4STAFF01`: created, toast "S4 Staff Affiliate created — referral code S4STAFF01" + share link `https://staging-vendor.ezzy.ph/?ref=S4STAFF01`. **No "not configured" toast — by design** (`useUsers.ts:37`: a code wins the toast) → F46. SQL: `s4-staff-1@example.com`, portal `affiliate`, `S4STAFF01`, code-history row `command`, changed_by NULL (F31), `recovery_sent_at` NULL (no link sent: consistent with S2 blank) |
+| S4.5 | B7 | Users → TSTREF2's account (or the new one) → Send set-password link | "not configured" (S2 blank) · no `auth` recovery sent (no `recovery_sent_at` change) | ↪ 2026-11-27 — the Users page has no send-link button (only Import's "Send invitation" calls `/api/users/send-set-password-link`), so this runs inside S4.16 |
+| S4.6 | B4 | Affiliates list and both details; your own account read-only if you are an affiliate | Both render; KPIs match · counts match SQL | ✅ 2026-11-27 — list: 2 affiliates (2 active), 0 open withdrawals, ₱0 available, 2 "No payout details"; TSTREF2 ("REF one") 4 vendors, S4 Staff 0, as SQL. Details: TSTREF2 shows Dance, Beef, Testing Affiliate INt, Black Curve, codes TSTREF2 (current) + TESTREF ("Still works"), min ₱5; S4 Staff: "Made affiliate by Root Admin". Root Admin is not an affiliate, so the self read-only case doesn't apply on staging |
+| S4.7 | I2 | Staff flag on the new account; a rate override on TSTREF2 then back to none | Saved · `is_staff`, `commission_rate_percent` as set | ✅ 2026-11-27 — staff flag on S4 Staff: help "Staff affiliates cannot withdraw…", toast "Saved S4 Staff Affiliate's terms.", Type "Staff", payroll button shown; TSTREF2 override 2% → "Rate 2% … (override)" → back to default "1% … (default)". SQL `is_staff` true / false, TSTREF2 `commission_rate_percent` NULL |
+| S4.8 | I1 | Change the new account's code | History row with your name · `affiliate_referral_code_changes.changed_by` = you; old code still in the registry | ✅ 2026-11-27 — S4STAFF01 → S4STAFF02: toast "Referral code changed to S4STAFF02."; card "S4STAFF02 · Changed by Ezzy (Root Admin) · was S4STAFF01 · Current", S4STAFF01 "Still works". SQL history row from S4STAFF01 to S4STAFF02, source `command`, changed_by Root Admin; both codes in the registry, owned. (The dialog's Remove affiliate is disabled: "Remove the Affiliate portal first (Edit User)…", D6) |
+| S4.9 | B6, D17 | TSTREF2 → Add payout details (a test bank, a made-up account number, an identity method) → Save; then Show full details | Card masked; reveal matches what you typed (**don't paste it here**) · 1 method row, prefix `v2.`; 1 method-log row; 1 view-log row per reveal | ✅ 2026-11-27 — Save disabled until bank, name, number and identity were all set; BDO Unibank, a made-up number, "Phone call to the number on file — S4 staging check"; toast "Payout details saved for REF one."; card "BDO Unibank ••••••••6655 · Entered by Root Admin … Identity confirmed by: …"; reveal matched what was typed (compared inside the step, never printed) with "This access has been recorded." SQL: 1 method row `bank`, prefix `v2.`, active; 1 method-log row with that sentence by Root Admin; view-log 1. **Proves staging's `PAYOUT_ENCRYPTION_KEY` + M1 together** |
+| S4.10 | I5, I6, B5 | Manual line ₱(≥ minimum) on TSTREF2 → open on behalf → start → reveal on the processing screen → complete with a reference | Balance shows withdrawn · line + withdrawal `paid`; notifications rows; **emails "Withdrawal received" and the receipt in `cto@ezzy.ph`** (F42) | ✅ 2026-11-27 — +₱50 manual line (C-10001; Available ₱50) → open on behalf (W-1001 Requested ₱50) → Start processing ("Send exactly ₱50.00 …", started by Root Admin) → Show full details on the processing screen (matched) → reference required, `S4-BDO-TEST-0001` → completed: record + line Withdrawn. SQL W-1001 `completed`, opened_by set, transfer ref stored; line `withdrawn`; view-log 2; `notification_emails` **sent** for `affiliate_withdrawal_received` and `affiliate_withdrawal_completed` (recipient logged `ref@ezzy.oh`; staging override delivers to `cto@ezzy.ph` — inbox content for the user to eyeball) |
+| S4.11 | B5 | Second withdrawal: reject before processing. Third: start, reject as transfer-failed (checkbox required) | Both rejected; lines back to the balance · statuses and log rows | ✅ 2026-11-27 — +₱20 line (C-10002); W-1002 opened → Reject (requested) → "Rejected … Reason …", line back in balance (Available ₱20); W-1003 opened → Start → Reject instead: "Reject withdrawal" disabled until the "no money left Ezzy" box was ticked → "Transfer: Failed: rejected after processing"; Available ₱20 again. SQL W-1002 `rejected` amount NULL, W-1003 `rejected` amount 20 `transfer_failed` true; C-10002 `earned`, no withdrawal; `affiliate_withdrawal_received` ×2 + `affiliate_withdrawal_rejected` ×2 emails **sent** |
+| S4.12 | D18 (needs S4.2) | Complete a paid booking at one of TSTREF2's vendors; then dispute it | Earned line, available in 7 days; then held · `affiliate_commissions` + status log | ⏸ PARKED 2026-11-28 by the user's decision ("close the gate without it") — REF one's five vendors have no offerings or bookings, and `credit_vendor_referral` refuses vendors older than 30 days (`20261118000005:173`). **User's decision:** seed vendor **Summit Athletics Club** (`10000000-…0003`) attributed to TSTREF2 by one direct `vendor_referrals` insert **run by the user** (2026-11-27 18:47:20 UTC; verified read-only), outside the Command UI, no `vendor_referral_changes` row. Booking `30000000-…0003` (custody, ₱850, fee ₱102): booker step ✅ — sofia@bookdeck.com pressed "I've returned it" in staging booker → SQL `returned` at 2026-11-28 00:21:10 UTC. Vendor step blocked: Summit's vendor dashboard needs KYC approval (`vendor/lib/vendorGate.ts`), dante only sees "Verify your business" (the agent's "Do it later" click signed dante out — by design, nothing submitted). **Unblocks by itself:** the hourly `auto-acknowledge-bookings` cron (active on staging) completes a `returned` booking after 3 days → about **2026-11-30 01:00 UTC**; then read-only: an earned line for REF one ≈ ₱0.90 (₱102 × 0.88 × 1 %), available 7 days later; then a flag → held. Optional, for a later session (plan 3's staging run is the natural place) |
+| S4.13 | I4 | Staff account: manual line → Record payroll payment | Recorded, no email · line paid by payroll; no notification email | ✅ 2026-11-27 — S4 Staff: +₱15 line → Record payroll payment (date defaulted to the Manila date 2026-11-28, reference `S4-PAYROLL-0001`) → toast "Payroll payment of ₱15.00 recorded…"; card "Paid to date ₱15.00 · Paid through payroll, so there is no withdrawal", list W-1004 Completed. SQL W-1004 `completed`, `paid_through_payroll` true, `paid_on` 2026-11-28; **no notification row** created |
+| S4.14 | I3 | Credit one of the two recent unreferred vendors to the new account, then move it to TSTREF2 | Both shown · 2 `vendor_referral_changes` rows with your name | ✅ 2026-11-27 — Credit list showed only vendors with no referrer: White Cup (3 days) and Etst (11 days) Eligible, older ones "Past 30 days"; White Cup credited to S4 Staff, then Change referrer (only REF one offered) → moved to REF one. SQL 2 `vendor_referral_changes` rows by Root Admin with both reasons (NULL → S4 Staff, S4 Staff → REF one) |
+| S4.15 | B2 | TSTREF2: Remove affiliate; Delete user | Both refused with the money reason · rows unchanged. Closure (D19): covered locally unless a vendor-admin affiliate with a balance exists | ✅ 2026-11-27 (closure part ⏸) — Remove affiliate disabled: S4 Staff "This affiliate has commission on record…", REF one "…has 5 referred vendor(s)…"; Delete user → "Yes, Remove": S4 Staff refused "This user has affiliate commission on record and cannot be deleted…" (the money guard itself: it has no referrals), REF one refused "…5 referred vendor(s) and cannot be deleted…". SQL both still have 1 profile + 1 affiliates row. Closure ⏸: staging has 0 closure requests, so the D19 blocker stays machine-covered (`eligibility.test.ts`) |
+| S4.16 | I7, I8 | Import a 3-row file (new, existing non-admin, refused admin) → apply → re-run (all skipped) → send one invitation; then Notifications settings page | Verdicts right; re-run "Already imported"; invite "not configured" (S2); affiliate rows on the settings page · rows as L5 | ✅ 2026-11-27 — file: new `s4-import-1@example.com` S4IMP01 1.5; existing `demo.booker1@example.invalid` (user's choice) S4IMP02; refused admin `jun@bookdeck.com`. Dry run verdicts exactly new · existing · refused (admin), "Import 2 rows", SQL nothing created yet → Confirm import → "2 imported; 0 already imported, 1 refused". SQL: `s4-import-1` member, portal `affiliate`, rate 1.50; demo.booker1 portal `affiliate`, S4IMP02; both history rows `command`, changed_by NULL (D4); jun@ untouched; no `recovery_sent_at`. Re-run: both "Already imported", "Import 0 rows" disabled "Nothing in this file can be imported." Send invitation → **"PORTAL_URL_AFFILIATE is not set, so no set-password link can be sent for the affiliate portal"** (S2 confirmed; this is also S4.5). Notification Types lists the five affiliate types with the Affiliate badge |
+
+*Staging test data left by the S4 run (2026-11-27), for the user to review or clean up.* Much of it **cannot** be
+removed by design (append-only logs, reserved codes, accounts with commission can't be deleted): treat it as
+permanent staging history unless a cleanup is planned. **Settings:** min ₱5.00, tax 12.00 %, go-live
+`2026-11-27 16:43:17 UTC` (**permanent**, D18); fee and withholding put back exactly (11 %, 1 % of 50 %).
+**`s4-staff-1@example.com`** "S4 Staff Affiliate": member, portal `affiliate`, staff, codes S4STAFF01 + S4STAFF02 (2
+history rows), manual line ₱15 paid by payroll W-1004. **TSTREF2 (`ref@ezzy.oh`)**: payout method BDO ••••6655 (made-up
+number; 1 method-log row, 2 view-log rows); lines C-10001 ₱50 (withdrawn via W-1001, completed, ref `S4-BDO-TEST-0001`)
+and C-10002 ₱20 (available); W-1002 rejected, W-1003 rejected (transfer failed); rate override set and cleared.
+**White Cup** (vendor) now referred to TSTREF2 (2 `vendor_referral_changes` rows). **`s4-import-1@example.com`** "S4 Import
+New": member, portal `affiliate`, S4IMP01, rate 1.50. **`demo.booker1@example.invalid`** (Marites Bautista, user's
+choice): now portal `affiliate` + S4IMP02. **Notifications:** 1 code-changed (to s4-staff-1), 6 withdrawal emails (to
+`ref@ezzy.oh`), all `sent` → delivered to the override inbox `cto@ezzy.ph`. No Auth (set-password) email was sent.
+**S4.12 (user's decision):** Summit Athletics Club now referred to TSTREF2 (direct insert by the user, no change-log row) — every Summit booking completed from now on earns REF one a line; booking `30000000-…0003` moved `in_progress` → `returned` by sofia@ and will auto-complete around 2026-11-30 01:00 UTC (normal payout triggers run). Browser: Chromium on CDP :9222 (pids 28366, then 15469, profile in the session scratchpad), started and stopped by the agent; port free.
 
 **Live, production (P5) — read-only:** Platform Fee tab loads with the affiliate card **unset**;
 the Affiliates section loads (empty or the real affiliates); a Users-page grant of the Affiliate
