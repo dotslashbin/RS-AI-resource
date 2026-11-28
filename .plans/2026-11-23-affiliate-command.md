@@ -5,7 +5,7 @@
 payout-detail routes, an import route) — plus **one corrective migration and one SQL test
 fixture line in `backbone/`** (D1 = a, 2026-11-24). `vendor/` is not touched (D20). ⚠️ **Cross-app** only through
 that migration (B1); everything else is Command.
-**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 ✅ on local (2026-11-26: machine + manual L4, 11/13; L4.10/L4.12 fixture-only); stage 5 ✅ on local (2026-11-27: machine + manual L5, 6/7); C4 ✅ (2026-11-27); stage 6 ✅ on staging (2026-11-28: S1 M1 applied, S2 blank, S3 deployed, S4 14/16 with S4.12 ⏸ by dated user decision; deployment id to record) — release: staging ✅ (gate reached 2026-11-28) · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
+**Status:** IN PROGRESS — approved by the user 2026-11-25; stage 1 ✅ (2026-11-25, local); stage 2 ✅ on local (2026-11-25: machine + manual L2.1–L2.15); stage 3 ✅ on local (2026-11-25: machine + manual L3.1–L3.13, L2.16; L3.14 self and the closure blocker machine-covered only); stage 4 ✅ on local (2026-11-26: machine + manual L4, 11/13; L4.10/L4.12 fixture-only); stage 5 ✅ on local (2026-11-27: machine + manual L5, 6/7); C4 ✅ (2026-11-27); stage 6 ✅ on staging (2026-11-28: S1 M1 applied, S2 blank, S3 deployed (`command-d3esxbe7y…`, commit `9ed912e`), S4 14/16 with S4.12 ⏸ by dated user decision) — release: staging ✅ (gate reached 2026-11-28) · production ⏸ PARKED (plans 1–3 go to production together, after the affiliate side is tested on staging)
 
 > Command's half of the affiliate feature: the screens and routes that run the programme on
 > top of plan 1's database functions. Theme to optimise: **Command draws, the database
@@ -32,14 +32,13 @@ Users-page affiliate pieces). Successor: plan 3 (`affiliate/`), not yet written.
 ## ▶ RESUME HERE (updated 2026-11-28 — stage 6 ✅ on staging, STOPPED at the staging gate)
 
 - **Stage 6 ✅ on staging (2026-11-27/28):** S1 M1 applied by the user (CHECK `^v2\.`, newest `20261123000001`); S2
-  `PORTAL_URL_AFFILIATE` blank (confirmed by behaviour, S4.16); S3 Command deployed (**deployment id + commit still to
-  record — P4 needs it**); S4 14/16 green, run by the agent on staging with the user's go (see the S4 table and the
+  `PORTAL_URL_AFFILIATE` blank (confirmed by behaviour, S4.16); S3 Command deployed — P4 promotes `https://command-d3esxbe7y-thumbtapers-projects.vercel.app`, commit `9ed912e` ("Version 0.35.0", on `release/version-0.35.0`; = `6eba784` + the version bump in `package.json`/`package-lock.json` only, checked with `git diff --stat`); S4 14/16 green, run by the agent on staging with the user's go (see the S4 table and the
   Release → "Staging run log"). D18: tax 12 % set on staging, go-live `2026-11-27 16:43:17 UTC` (permanent).
 - **Parked:** S4.12 (real earned line) by the user's dated decision 2026-11-28 — booking `30000000-…0003` at Summit
   (attributed to TSTREF2 by the user's direct insert) is `returned` and should auto-complete around 2026-11-30 01:00 UTC;
   a later session can verify the line read-only. S4.15's closure part (no staging closure request).
 - **Next:** nothing in this plan until production. **Stage 7 stays ⏸** until plans 1–3 are tested on staging and the user
-  says go (plan 3, the affiliate app, is not written yet). Before P1: record S3's deployment id.
+  says go (plan 3, the affiliate app, is not written yet).
 - **Open for the user:** F45, F46, F47 (new); F43, F38, F41, F33, F36, F37; close F30/F35 if satisfied; F24, F26.
   Staging test data from S4 is listed under the S4 table.
 - **Environment notes:** `backbone/` CLI targets staging with `--remote`; the CLI prints "· production" after the staging
@@ -1260,7 +1259,7 @@ before 1.
 | [x] | ✅ 2026-11-27 | 5 | F44 | Invite already-imported rows | Me | Fixed in I7; L5.6 ✅ |
 | [x] | ✅ 2026-11-25 | 2 | F27 | Six user-modal baselines regenerated | Me | Reviewed: only the new chip |
 | [x] | ✅ 2026-11-27 | 5→6 | C4 | Commit stages 4–5 (command + root) | You | command `6eba784`, root `c9719ca` (both signed, via `/auto-git`); moved here by the user 2026-11-26 |
-| [x] | ✅ staging 2026-11-28 | 6 | S1–S4 | Staging release | You + Me | M1 applied; URL blank; deployed; S4 14/16, S4.12 ⏸ (your decision); deployment id to record |
+| [x] | ✅ staging 2026-11-28 | 6 | S1–S4 | Staging release | You + Me | M1 applied; URL blank; deployed (`9ed912e`, `command-d3esxbe7y…`); S4 14/16, S4.12 ⏸ (your decision) |
 | [ ] | ⬜ | 6 | F45 | Settings card: no Cancel on an invalid edit | You (decide) | Cosmetic |
 | [ ] | ⬜ | 6 | F46 | Add User hides the set-password email outcome | You (decide) | Small Command fix or accept |
 | [ ] | ⬜ | 6 | F47 | Booker shows booked dates a day early outside Manila | You (decide) | Pre-existing, booker; seen on an EST machine |
@@ -1289,7 +1288,7 @@ so on any environment plan 1's migrations must already be there (F18).
 |---|---|---|---|
 | S1 ✅ 2026-11-27 | 👤 | `cd backbone && npx supabase migration list --remote` → `npx supabase db push --remote --dry-run` → `npx supabase db push --remote` (CLI 3.2.0; plain `db push` targets local) | ⛔ only M1 pending; afterwards R1's query shows `^v2\.` |
 | S2 ✅ 2026-11-27 (blank; confirmed by behaviour in S4.16) | 👤 | Staging Command env: `PORTAL_URL_AFFILIATE` = the staging affiliate origin **only if plan 3's app is on staging and uses the staging project**, else leave blank; add that origin to the staging project's Auth redirect allowlist at the same time | ⛔ value is scheme + host only; allowlist entry exact |
-| S3 🔄 2026-11-27 (deployed; id/commit not yet recorded) | 👤 | Deploy `command` to staging (the user's usual Vercel staging deploy) | build green; note the deployment id for P4 |
+| S3 ✅ 2026-11-27 (deployment recorded 2026-11-28) | 👤 | Deploy `command` to staging (the user's usual Vercel staging deploy) | build green; note the deployment id for P4 |
 | S4 ✅ 2026-11-28 (14/16; S4.12 ⏸ by dated user decision; S4.15 closure part ⏸) | 👤 + 🤖 | Staging checks (Verification → staging) | ⛔ all green |
 
 ⛔ **Staging fully green before anything touches production.** A parked staging check needs a dated
@@ -1315,13 +1314,13 @@ user decision here before P1.
   the same as vendor's, `architecture/production-env-checklist.md`).
   **Not confirmed by the agent:** there is no Vercel CLI or `.vercel` link here, so staging's env vars cannot be read.
   Confirmed instead by behaviour at S4.4/S4.5 (the "not configured" message names `PORTAL_URL_AFFILIATE`).
-- **S3 🔄 2026-11-27:** the user reports `command` deployed to staging; the live build shows the Affiliates section and
-  v0.35.0 in the corner. Deployment id and built commit: ⬜ **still to be recorded by the user (needed for P4's Promote)**.
+- **S3 ✅ 2026-11-27:** the user deployed `command` to staging; the live build shows the Affiliates section and v0.35.0.
+  **Deployment for P4's Promote:** `https://command-d3esxbe7y-thumbtapers-projects.vercel.app`, commit `9ed912e` ("Version 0.35.0", on `release/version-0.35.0`; = `6eba784` + the version bump in `package.json`/`package-lock.json` only, checked with `git diff --stat`). This is the build S4 tested.
 - **S4 2026-11-27/28:** run by the agent with the user's explicit go for staging (`/sim-manual-test`, visible Chromium on WSLg over CDP;
   the user signed in to Command as Root Admin, and later to booker as sofia@ and vendor as dante@). Results in the S4 table under
   Verification. Writes outside the Command UI: **one**, by the user — the Summit `vendor_referrals` insert for S4.12. The agent ran
   read-only queries only. Supabase's API returned a few transient 502s; every retry was clean.
-- **Staging gate (2026-11-28):** S1, S2, S4 green; S4.12 parked by the user's dated decision; S3's deployment id outstanding.
+- **Staging gate (2026-11-28):** S1–S4 green; S4.12 parked by the user's dated decision; S3's deployment recorded for P4.
   **Stopped here.** Production (stage 7) stays ⏸ until plans 1–3 are tested on staging and the user says go.
 
 ### Production (last stage) — ⏸ PARKED (2026-11-23): plans 1–3 go to production together, after the affiliate side (plan 3) is tested on staging. Unblocks when plan 3's staging checks are green and the user says go. Plan 1's P-table runs first.
@@ -1331,7 +1330,7 @@ user decision here before P1.
 | P1 | 👤 | Parity: `npx supabase migration list --remote=<prod-ref>` and `--remote` | ⛔ production = staging minus plan 1's M1–M7 (if plan 1's P2 not yet run) and this M1; Command version = the tested staging deployment |
 | P2 | 👤 | After plan 1's P2: `npx supabase db push --remote=<prod-ref> --dry-run` → `db push --remote=<prod-ref>` | ⛔ M1 listed remote |
 | P3 | 👤 | Production Command env: `PORTAL_URL_AFFILIATE` **only after** the production affiliate app is confirmed on the production project (plan 3); allowlist entry in the production project | ⛔ as S2 |
-| P4 | 👤 | Vercel **Promote** the exact `command` staging deployment tested in S4 | — |
+| P4 | 👤 | Vercel **Promote** the exact `command` staging deployment tested in S4: `command-d3esxbe7y-thumbtapers-projects.vercel.app` (commit `9ed912e`) | — |
 | P5 | 👤 + 🤖 | Production checks (Verification → production) — **read-only; the tax rate stays unset** (D16) | ⛔ all green |
 
 ---
